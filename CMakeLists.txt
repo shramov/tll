@@ -25,4 +25,5 @@ include(FindPkgConfig)
 
 link_libraries(fmt)
 
+add_subdirectory(src)
 add_subdirectory(test)

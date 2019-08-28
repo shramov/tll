@@ -1,0 +1,14 @@
+TLL_0.0.0 {
+	global:
+		tll_logger_config;
+		tll_logger_free;
+		tll_logger_log;
+		tll_logger_name;
+		tll_logger_new;
+		tll_logger_register;
+		tll_logger_set;
+		tll_logger_tls_buf;
+
+		_ZN3fmt2v5*; # Export fmt symbols
+	local: *;
+};
