@@ -22,7 +22,7 @@ static inline std::string_view string_view_from_c(const char *base, int len)
 template <char Sep>
 struct split_helperT
 {
-	const std::string_view data;
+	std::string_view data;
 	struct iterator {
 		typedef std::string_view::const_iterator ptr_t;
 		ptr_t data_begin;
@@ -92,13 +92,13 @@ struct split_helperT
 };
 
 template <char Sep>
-static inline split_helperT<Sep> split(const std::string_view &s)
+static inline split_helperT<Sep> split(std::string_view s)
 {
 	return { s };
 }
 
 template <char Sep, bool Skip = false, typename T>
-static inline T & splitl(T & r, const std::string_view &s)
+static inline T & splitl(T & r, std::string_view s)
 {
 	using string_type = typename T::value_type;
 	for (auto i : split<Sep>(s)) {
@@ -110,7 +110,7 @@ static inline T & splitl(T & r, const std::string_view &s)
 }
 
 template <char Sep, bool Skip = false>
-static inline std::vector<std::string_view> splitv(const std::string_view &s)
+static inline std::vector<std::string_view> splitv(std::string_view s)
 {
 	std::vector<std::string_view> r;
 	return std::move(splitl<Sep, Skip>(r, s));

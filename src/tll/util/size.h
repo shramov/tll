@@ -55,7 +55,7 @@ struct dump<tll::util::SizeT<T>> : public to_string_from_string_buf<tll::util::S
 template <typename T>
 struct parse<tll::util::SizeT<T>>
 {
-	static result_t<tll::util::SizeT<T>> to_any(const std::string_view &s)
+	static result_t<tll::util::SizeT<T>> to_any(std::string_view s)
 	{
 		if (s.size() == 0)
 			return error("Empty value");

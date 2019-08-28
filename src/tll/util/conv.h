@@ -98,7 +98,7 @@ template <typename T, typename Tag = void>
 struct _parse
 {
 	/*
-	static result_t<T> to_any(const std::string_view &s)
+	static result_t<T> to_any(std::string_view s)
 	{
 		return error("Unknown conversion");
 	}
@@ -108,7 +108,7 @@ struct _parse
 template <typename T, typename Tag = void>
 struct parse
 {
-	static result_t<T> to_any(const std::string_view &s) { return _parse<T>::to_any(s); }
+	static result_t<T> to_any(std::string_view s) { return _parse<T>::to_any(s); }
 };
 
 /*
@@ -124,7 +124,7 @@ std::string_view _to_string_buf<T, Tag>::to_string_buf(const T &value, Buf &buf)
 */
 
 template <typename T>
-static inline result_t<T> to_any(const std::string_view &s)
+static inline result_t<T> to_any(std::string_view s)
 {
 	return parse<T>::to_any(s);
 }
@@ -132,7 +132,7 @@ static inline result_t<T> to_any(const std::string_view &s)
 // Utility functions
 
 template <typename Buf>
-std::string_view append(Buf &buf, const std::string_view l, const std::string_view r)
+std::string_view append(Buf &buf, std::string_view l, std::string_view r)
 {
 	if (r.size() == 0) return l;
 	if (l.size() == 0) return r;
@@ -190,7 +190,7 @@ struct Digits<16>
 };
 
 template <typename I, I Limit = std::numeric_limits<I>::max(), int Base = 10>
-static inline result_t<I> to_any_uint_base(const std::string_view &s)
+static inline result_t<I> to_any_uint_base(std::string_view s)
 {
 	if (!s.size()) return error("Empty string");
 	I r = 0;
@@ -214,7 +214,7 @@ static inline result_t<I> to_any_uint_base(const std::string_view &s)
 }
 
 template <typename I, I Limit = std::numeric_limits<I>::max()>
-static inline result_t<I> to_any_uint(const std::string_view &s)
+static inline result_t<I> to_any_uint(std::string_view s)
 {
 	if (s.size() > 2) {
 		if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
@@ -224,7 +224,7 @@ static inline result_t<I> to_any_uint(const std::string_view &s)
 }
 
 template <typename I>
-static inline result_t<I> to_any_sint(const std::string_view &s)
+static inline result_t<I> to_any_sint(std::string_view s)
 {
 	I mul = 1;
 	if (s.size() == 0)
@@ -251,7 +251,7 @@ static inline result_t<I> to_any_sint(const std::string_view &s)
 }
 
 template <typename I>
-static inline result_t<I> to_any_int(const std::string_view &s)
+static inline result_t<I> to_any_int(std::string_view s)
 {
 	if constexpr (std::is_unsigned_v<I>)
 		return to_any_uint<I>(s);
@@ -329,7 +329,7 @@ struct dump<T, typename std::enable_if<std::is_integral_v<T>>::type> : public to
 template <typename T>
 struct parse<T, typename std::enable_if<std::is_integral_v<T>>::type>
 {
-	static result_t<T> to_any(const std::string_view &s) { return to_any_int<T>(s); }
+	static result_t<T> to_any(std::string_view s) { return to_any_int<T>(s); }
 };
 
 template <typename T>
@@ -365,7 +365,7 @@ struct dump<T, typename std::enable_if<std::is_floating_point_v<T>>::type> : pub
 template <typename T>
 struct parse<T, typename std::enable_if<std::is_floating_point_v<T>>::type>
 {
-	static result_t<double> to_any(const std::string_view &s)
+	static result_t<double> to_any(std::string_view s)
 	{
 		if (!s.size()) return error("Empty value");
 		std::string tmp(s);
@@ -388,7 +388,7 @@ struct dump<bool>
 template <>
 struct parse<bool>
 {
-	static result_t<bool> to_any(const std::string_view &s)
+	static result_t<bool> to_any(std::string_view s)
 	{
 		// TODO: case insensitive compare
 		if (s == "true" || s == "yes" || s == "1")
@@ -430,7 +430,7 @@ struct dump<T, typename std::enable_if<is_sequential_v<T>>::type> : public to_st
 template <typename T>
 struct parse<T, typename std::enable_if<is_sequential_v<T>>::type> : public to_string_buf_from_string<T>
 {
-	static result_t<T> to_any(const std::string_view &s)
+	static result_t<T> to_any(std::string_view s)
 	{
 		T r;
 		for (auto i: split<','>(s)) {
@@ -457,26 +457,26 @@ struct dump<std::string>
 template <>
 struct parse<std::string>
 {
-	static result_t<std::string> to_any(const std::string_view &s) { return {s}; }
+	static result_t<std::string> to_any(std::string_view s) { return {s}; }
 };
 
 template <>
 struct dump<std::string_view>
 {
 	template <typename Buf>
-	static std::string_view to_string_buf(const std::string_view &value, Buf &buf) { return value; } // XXX: Copy?
+	static std::string_view to_string_buf(std::string_view value, Buf &buf) { return value; } // XXX: Copy?
 
-	static std::string to_string(const std::string_view &value) { return std::string(value); }
+	static std::string to_string(std::string_view value) { return std::string(value); }
 };
 
 template <>
 struct parse<std::string_view>
 {
-	static result_t<std::string_view> to_any(const std::string_view &s) { return {s}; }
+	static result_t<std::string_view> to_any(std::string_view s) { return {s}; }
 };
 
 template <typename T>
-static inline result_t<T> select(const std::string_view &s, const std::map<std::string_view, T> m)
+static inline result_t<T> select(std::string_view s, const std::map<std::string_view, T> m)
 {
 	auto i = m.find(s);
 	if (i == m.end()) return error("No matches");

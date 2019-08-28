@@ -73,7 +73,7 @@ using error_t = unexpected<std::string>;
 template <typename T, typename E = std::string>
 using result_t = expected<T, E>;
 
-static inline error_t error(const std::string_view &e) { return { std::string(e) }; }
+static inline error_t error(std::string_view e) { return { std::string(e) }; }
 
 } // namespace tll
 

@@ -28,7 +28,7 @@ class PropsT : public std::map<Str, Str, std::less<>>, public PropsGetter<PropsT
 	typedef Str string_type;
 	typedef std::map<Str, Str, std::less<>> map_t;
 
-	static tll::result_t<PropsT<Str>> parse(const std::string_view &s)
+	static tll::result_t<PropsT<Str>> parse(std::string_view s)
 	{
 		PropsT<Str> r;
 		for (const auto & i : split<';'>(s)) {
@@ -44,9 +44,9 @@ class PropsT : public std::map<Str, Str, std::less<>>, public PropsGetter<PropsT
 		return std::move(r);
 	}
 
-	bool has(const std::string_view &key) const { return map_t::find(key) != map_t::end(); }
+	bool has(std::string_view key) const { return map_t::find(key) != map_t::end(); }
 
-	std::optional<std::string_view> get(const std::string_view &key) const
+	std::optional<std::string_view> get(std::string_view key) const
 	{
 		auto v = map_t::find(key);
 		if (v == map_t::end())
@@ -54,7 +54,7 @@ class PropsT : public std::map<Str, Str, std::less<>>, public PropsGetter<PropsT
 		return v->second;
 	}
 
-	std::vector<std::pair<Str, Str>> browse(const std::string_view &mask) const
+	std::vector<std::pair<Str, Str>> browse(std::string_view mask) const
 	{
 		std::vector<std::pair<Str, Str>> r;
 		auto mv = splitv<'.', false>(mask);
@@ -79,7 +79,7 @@ public:
 	Str proto;
 	Str host;
 
-	static tll::result_t<UrlT<Str>> parse(const std::string_view &s)
+	static tll::result_t<UrlT<Str>> parse(std::string_view s)
 	{
 		UrlT<Str> r;
 		auto sep = s.find("://");

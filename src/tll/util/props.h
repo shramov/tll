@@ -24,7 +24,7 @@ template <typename Klass>
 struct PropsGetter
 {
 	template <typename T>
-	result_t<T> getT(const std::string_view &key) const
+	result_t<T> getT(std::string_view key) const
 	{
 		auto self = static_cast<const Klass *>(this);
 		auto v = self->get(key);
@@ -37,7 +37,7 @@ struct PropsGetter
 	}
 
 	template <typename T>
-	result_t<T> getT(const std::string_view &key, const T& def) const
+	result_t<T> getT(std::string_view key, const T& def) const
 	{
 		auto self = static_cast<const Klass *>(this);
 		auto v = self->get(key);
@@ -50,7 +50,7 @@ struct PropsGetter
 	}
 
 	template <typename T>
-	result_t<T> getT(const std::string_view &key, const T& def, const std::map<std::string_view, T> m) const
+	result_t<T> getT(std::string_view key, const T& def, const std::map<std::string_view, T> m) const
 	{
 		auto self = static_cast<const Klass *>(this);
 		auto v = self->get(key);
@@ -70,9 +70,9 @@ template <>
 struct PropsChainT<>
 {
 	using string_type = std::string;
-	bool has(const std::string_view &key) { return false; }
+	bool has(std::string_view key) { return false; }
 
-	std::optional<std::string> get(const std::string_view &key) { return std::nullopt; }
+	std::optional<std::string> get(std::string_view key) { return std::nullopt; }
 };
 
 template <typename U, typename ... Chain>
@@ -84,15 +84,15 @@ struct PropsChainT<U, std::string_view, Chain...>
 	std::string prefix;
 	PropsChainT<Chain...> chain;
 
-	PropsChainT(const U &u, const std::string_view &p, const Chain & ... c) : props(u), prefix(p), chain(c...)
+	PropsChainT(const U &u, std::string_view p, const Chain & ... c) : props(u), prefix(p), chain(c...)
 	{
 		if (prefix.size() && prefix.back() != '.')
 			prefix += '.';
 	}
 
-	bool has(const std::string_view &key) { return props.has(prefix + std::string(key)) || chain.has(key); }
+	bool has(std::string_view key) { return props.has(prefix + std::string(key)) || chain.has(key); }
 
-	std::optional<string_type> get(const std::string_view &key)
+	std::optional<string_type> get(std::string_view key)
 	{
 		auto k = prefix + std::string(key);
 		auto v = props.get(k);
@@ -111,9 +111,9 @@ struct PropsChainT<U, Chain...>
 
 	PropsChainT(const U &u, const Chain & ... c) : props(u), chain(c...) {}
 
-	bool has(const std::string_view &key) { return props.has(key) || chain.has(key); }
+	bool has(std::string_view key) { return props.has(key) || chain.has(key); }
 
-	std::optional<string_type> get(const std::string_view &key)
+	std::optional<string_type> get(std::string_view key)
 	{
 		auto v = props.get(key);
 		if (v && v->size())
@@ -136,13 +136,13 @@ class PropsReaderT
 	std::optional<std::string> _error;
 	using string_type = typename std::remove_cv_t<std::remove_reference_t<U>>::string_type;
 
-	std::string format(const std::string_view &key, const std::string_view &e)
+	std::string format(std::string_view key, std::string_view e)
 	{
 		return fmt::format("Failed to load '{}': {}", key, e);
 	}
 
 	template <typename T>
-	const T _getT(const std::string_view &key, const T * def)
+	const T _getT(std::string_view key, const T * def)
 	{
 		if (_error)
 			return def?*def:T();
@@ -161,17 +161,17 @@ class PropsReaderT
 	}
 
  public:
-	PropsReaderT(const U url, const std::string_view prefix = "") : _props(url) {} //, _prefix(prefix) {}
+	PropsReaderT(const U url, std::string_view prefix = "") : _props(url) {} //, _prefix(prefix) {}
 
-	bool has(const std::string_view &key) const { return _props.has(key); }
-	decltype(auto) get(const std::string_view &key) { return _props.get(key); }
+	bool has(std::string_view key) const { return _props.has(key); }
+	decltype(auto) get(std::string_view key) { return _props.get(key); }
 
-	template <typename T> T getT(const std::string_view &key) { return _getT<T>(key, nullptr); }
-	template <typename T> T getT(const std::string_view &key, const T& def) { return _getT<T>(key, &def); }
+	template <typename T> T getT(std::string_view key) { return _getT<T>(key, nullptr); }
+	template <typename T> T getT(std::string_view key, const T& def) { return _getT<T>(key, &def); }
 	//
-	//template <typename T> T getT(const std::string_view &key) { return update(key, _props.template getT<T>(key), T()); }
-	//template <typename T> T getT(const std::string_view &key, const T& def) { return update(key, _props.template getT<T>(key, def), def); }
-	template <typename T> T getT(const std::string_view &key, const T& def, const std::map<std::string_view, T> &m)
+	//template <typename T> T getT(std::string_view key) { return update(key, _props.template getT<T>(key), T()); }
+	//template <typename T> T getT(std::string_view key, const T& def) { return update(key, _props.template getT<T>(key, def), def); }
+	template <typename T> T getT(std::string_view key, const T& def, const std::map<std::string_view, T> &m)
 	{
 		if (_error) return def;
 		auto v = _props.get(key);
@@ -184,11 +184,11 @@ class PropsReaderT
 	}
 
 	operator bool () const { return !_error; }
-	const std::string_view error() { return *_error; }
+	std::string_view error() { return *_error; }
 };
 
 template <typename T>
-PropsReaderT<const T &> make_props_reader(const T &p, const std::string_view prefix = "") { return { p, prefix }; }
+PropsReaderT<const T &> make_props_reader(const T &p, std::string_view prefix = "") { return { p, prefix }; }
 
 } // namespace tll
 

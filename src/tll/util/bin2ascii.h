@@ -17,7 +17,7 @@
 namespace tll::util {
 
 template <typename T>
-static inline result_t<bool> hex2bin(const std::string_view &s, T & buf)
+static inline result_t<bool> hex2bin(std::string_view s, T & buf)
 {
 	if (s.size() % 2)
 		return error("Odd hex data size");
@@ -50,7 +50,7 @@ static inline result_t<bool> hex2bin(const std::string_view &s, T & buf)
 	return true;
 }
 
-inline result_t<std::vector<char>> hex2bin(const std::string_view &s)
+inline result_t<std::vector<char>> hex2bin(std::string_view s)
 {
 	std::vector<char> buf;
 	auto r = hex2bin(s, buf);
@@ -123,7 +123,7 @@ static inline std::string b64_encode(const T &s)
 }
 
 template <typename T>
-static inline result_t<bool> b64_decode(const std::string_view &s, T & buf)
+static inline result_t<bool> b64_decode(std::string_view s, T & buf)
 {
 	if (s.size() == 0) {
 		buf.resize(0);
@@ -196,7 +196,7 @@ static inline result_t<bool> b64_decode(const std::string_view &s, T & buf)
 	return true;
 }
 
-static inline result_t<std::vector<char>> b64_decode(const std::string_view &s)
+static inline result_t<std::vector<char>> b64_decode(std::string_view s)
 {
 	std::vector<char> buf;
 	auto r = b64_decode(s, buf);
