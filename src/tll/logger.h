@@ -96,6 +96,10 @@ tll_logger_buf_t * tll_logger_tls_buf(void);
 #include <string_view>
 #include <fmt/format.h>
 
+#ifndef TLL_LOGGER_WITHOUT_CONV
+#include "tll/util/conv-fmt.h"
+#endif
+
 namespace tll {
 
 class logger_buf_t : public tll_logger_buf_t

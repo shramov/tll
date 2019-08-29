@@ -136,3 +136,31 @@ TEST(Logger, NonCopyConstrutable)
 	l.info("{}", ncc);
 	l.fail(0, "{}", ncc);
 }
+
+struct Convertible
+{
+	Convertible() {}
+	Convertible(const NonCopyConstrutable &) = delete;
+};
+
+template <>
+struct tll::conv::dump<Convertible> : public to_string_from_string_buf<Convertible>
+{
+	template <typename Buf>
+	static std::string_view to_string_buf(const Convertible &v, Buf &buf)
+	{
+		return "Convertible";
+	}
+};
+
+TEST(Logger, Conv)
+{
+	log_map impl;
+	tll_logger_register(&impl);
+
+	tll::Logger l { "l0" };
+	Convertible c;
+	l.log(l.Debug, "{}", c);
+	l.info("{}", c);
+	l.fail(0, "{}", c);
+}
