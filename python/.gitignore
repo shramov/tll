@@ -1,0 +1,3 @@
+tll/**/*.c
+*.so
+__pycache__
