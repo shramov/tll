@@ -19,9 +19,10 @@ class Level(enum.Enum):
     Warning = TLL_LOGGER_WARNING
     Error = TLL_LOGGER_ERROR
     Critical = TLL_LOGGER_CRITICAL
+_Level = Level # Rename needed for python3.6
 
 cdef class Logger:
-    Level = Level
+    Level = _Level
 
     cdef tll_logger_t * ptr
     cdef char style
@@ -81,12 +82,12 @@ cdef class Logger:
     @level.setter
     def level(self, l): self.ptr.level = Level(l).value
 
-tll2logging = { Level.Trace: logging.DEBUG
-              , Level.Debug: logging.DEBUG
-              , Level.Info:  logging.INFO
-              , Level.Warning: logging.WARNING
-              , Level.Error: logging.ERROR
-              , Level.Critical: logging.CRITICAL
+tll2logging = { TLL_LOGGER_TRACE: logging.DEBUG
+              , TLL_LOGGER_DEBUG: logging.DEBUG
+              , TLL_LOGGER_INFO:  logging.INFO
+              , TLL_LOGGER_WARNING: logging.WARNING
+              , TLL_LOGGER_ERROR: logging.ERROR
+              , TLL_LOGGER_CRITICAL: logging.CRITICAL
               }
 
 cdef class PyLog:
@@ -108,7 +109,7 @@ cdef class PyLog:
     @staticmethod
     cdef int pylog(long long ts, const char * category, tll_logger_level_t level, const char * data, size_t size, void * obj):
         o = <object>obj
-        o.log(tll2logging.get(Level(level), logging.INFO), b2s(data[:size]))
+        o.log(tll2logging.get(level, logging.INFO), b2s(data[:size]))
 
     @staticmethod
     cdef void * pylog_new(const char * category, tll_logger_impl_t * impl):
