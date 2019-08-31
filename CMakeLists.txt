@@ -25,6 +25,8 @@ include(FindPkgConfig)
 
 link_libraries(fmt)
 
+enable_testing()
+
 add_subdirectory(src)
 add_subdirectory(python)
 add_subdirectory(test)
