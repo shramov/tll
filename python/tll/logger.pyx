@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # vim: sts=4 sw=4 et
-# cython: language_level=3str
 
 from .logger cimport *
 from .s2b cimport *
@@ -43,7 +42,7 @@ cdef class Logger:
 
     def log(self, level, msg, *a, **kw):
         if a or kw:
-            if self.style == '{':
+            if self.style == b'{':
                 msg = msg.format(*a, **kw)
             elif kw:
                 msg = msg % kw

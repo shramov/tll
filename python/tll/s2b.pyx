@@ -1,5 +1,4 @@
 # vim: sts=4 sw=4 et
-# cython: language_level=3str
 
 from .s2b cimport *
 from cpython.version cimport PY_MAJOR_VERSION

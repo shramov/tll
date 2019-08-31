@@ -1,5 +1,5 @@
 # vim: sts=4 sw=4 et
-# cython: language_level=3str
+# cython: language_level=3
 
 cdef extern from "tll/logger.h":
     ctypedef enum tll_logger_level_t:
