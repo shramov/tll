@@ -57,25 +57,25 @@ TEST(Logger, New)
 
 	{
 		tll::Logger l0 { "l0" };
-		ASSERT_EQ(map.size(), 0);
+		ASSERT_EQ(map.size(), 0u);
 
 		tll_logger_register(&impl);
 
-		ASSERT_EQ(map.size(), 1);
+		ASSERT_EQ(map.size(), 1u);
 		ASSERT_EQ(map.begin()->first, "l0");
 	}
 
-	ASSERT_EQ(map.size(), 0);
+	ASSERT_EQ(map.size(), 0u);
 
 	{
 		tll::Logger l0 { "l0" };
 
-		ASSERT_EQ(map.size(), 1);
+		ASSERT_EQ(map.size(), 1u);
 		ASSERT_EQ(map.begin()->first, "l0");
 	}
 
 	tll_logger_register(nullptr);
-	ASSERT_EQ(map.size(), 0);
+	ASSERT_EQ(map.size(), 0u);
 }
 
 TEST(Logger, Set)
@@ -92,21 +92,21 @@ TEST(Logger, Set)
 	tll::Logger::set("l0", tll::Logger::Info);
 	tll::Logger l0 { "l0" };
 
-	ASSERT_EQ(impl.map.size(), 1);
+	ASSERT_EQ(impl.map.size(), 1u);
 	auto & list = impl.map["l0"];
 
 	ASSERT_EQ(l0.level(), tll::Logger::Info);
 	l0.debug("Debug");
-	ASSERT_EQ(list.size(), 0);
+	ASSERT_EQ(list.size(), 0u);
 
 	l0.info("Info");
-	ASSERT_EQ(list.size(), 1);
+	ASSERT_EQ(list.size(), 1u);
 	ASSERT_EQ(list.back(), log_entry_t(tll::Logger::Info, "Info"));
 
 	tll::Logger l1 { "l0" };
 	l0.warning("Second");
 
-	ASSERT_EQ(list.size(), 2);
+	ASSERT_EQ(list.size(), 2u);
 	ASSERT_EQ(list.back(), log_entry_t(tll::Logger::Warning, "Second"));
 
 	l1.level() = tll::Logger::Debug;
@@ -114,7 +114,7 @@ TEST(Logger, Set)
 	ASSERT_EQ(l0.level(), tll::Logger::Debug);
 	l0.debug("Debug");
 
-	ASSERT_EQ(list.size(), 3);
+	ASSERT_EQ(list.size(), 3u);
 	ASSERT_EQ(list.back(), log_entry_t(tll::Logger::Debug, "Debug"));
 }
 
