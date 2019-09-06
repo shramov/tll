@@ -9,6 +9,25 @@ TLL_0.0.0 {
 		tll_logger_set;
 		tll_logger_tls_buf;
 
+		tll_stat_default_float;
+		tll_stat_default_int;
+		tll_stat_field_reset;
+		tll_stat_field_update_float;
+		tll_stat_field_update_int;
+		tll_stat_iter_block;
+		tll_stat_iter_empty;
+		tll_stat_iter_name;
+		tll_stat_iter_next;
+		tll_stat_iter_swap;
+		tll_stat_list_add;
+		tll_stat_list_begin;
+		tll_stat_list_free;
+		tll_stat_list_new;
+		tll_stat_list_remove;
+		tll_stat_page_acquire;
+		tll_stat_page_flip;
+		tll_stat_page_release;
+
 		_ZN3fmt2v5*; # Export fmt symbols
 	local: *;
 };

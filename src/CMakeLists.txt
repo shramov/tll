@@ -2,6 +2,7 @@ add_library(logger OBJECT logger/logger.cc)
 
 add_library(tll SHARED
 	$<TARGET_OBJECTS:logger>
+	stat.cc
 )
 
 target_link_libraries(tll PRIVATE pthread)
