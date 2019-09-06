@@ -12,6 +12,7 @@ setup( name = 'tll'
      , ext_modules =
          [ Extension("tll.s2b", ["tll/s2b.pyx"], libraries=["tll"])
          , Extension("tll.logger", ["tll/logger.pyx"], libraries=["tll"])
+         , Extension("tll.stat", ["tll/stat.pyx"], libraries=["tll"])
          ]
      , classifiers =
         [ 'Intended Audience :: Developers'
