@@ -24,8 +24,9 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 include(FindPkgConfig)
 
 pkg_check_modules(ZLIB zlib REQUIRED)
+pkg_check_modules(YAML yaml-0.1 REQUIRED)
 
-include_directories(${ZLIB_INCLUDE_DIRS})
+include_directories(${ZLIB_INCLUDE_DIRS} ${YAML_INCLUDE_DIRS})
 
 link_libraries(fmt)
 

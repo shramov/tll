@@ -1,5 +1,26 @@
 TLL_0.0.0 {
 	global:
+		tll_config_browse;
+		tll_config_del;
+		tll_config_get;
+		tll_config_get_copy;
+		tll_config_has;
+		tll_config_list;
+		tll_config_load;
+		tll_config_load_register;
+		tll_config_load_unregister;
+		tll_config_merge;
+		tll_config_new;
+		tll_config_ref;
+		tll_config_set;
+		tll_config_set_callback;
+		tll_config_set_config;
+		tll_config_sub;
+		tll_config_unref;
+		tll_config_value;
+		tll_config_value_free;
+		tll_config_value_strdup;
+
 		tll_logger_config;
 		tll_logger_free;
 		tll_logger_log;
