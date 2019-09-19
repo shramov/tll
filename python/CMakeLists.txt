@@ -12,5 +12,5 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/pytll.stamp
                             --rpath=$<TARGET_LINKER_FILE_DIR:tll>
                             --include-dirs=${CMAKE_CURRENT_SOURCE_DIR}/../src/
 		   COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/pytll.stamp
-                   DEPENDS tll tll/logger.pyx tll/stat.pyx)
+                   DEPENDS tll tll/config.pyx tll/logger.pyx tll/stat.pyx)
 add_custom_target(pytll ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/pytll.stamp)

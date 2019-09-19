@@ -11,6 +11,7 @@ setup( name = 'tll'
      , cmdclass = {'build_ext': build_ext}
      , ext_modules =
          [ Extension("tll.s2b", ["tll/s2b.pyx"], libraries=["tll"])
+         , Extension("tll.config", ["tll/config.pyx"], libraries=["tll"])
          , Extension("tll.logger", ["tll/logger.pyx"], libraries=["tll"])
          , Extension("tll.stat", ["tll/stat.pyx"], libraries=["tll"])
          ]
