@@ -8,3 +8,4 @@ add_library(tll SHARED
 target_link_libraries(tll PRIVATE pthread)
 target_link_libraries(tll PRIVATE "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/ld.script")
 set_target_properties(tll PROPERTIES INTERFACE_LINK_LIBRARIES "")
+set_target_properties(tll PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/ld.script)
