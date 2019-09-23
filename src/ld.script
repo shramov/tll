@@ -30,6 +30,20 @@ TLL_0.0.0 {
 		tll_logger_set;
 		tll_logger_tls_buf;
 
+		tll_scheme_load;
+		tll_scheme_copy;
+		tll_scheme_dump;
+		tll_scheme_fix;
+		tll_scheme_message_fix;
+		tll_scheme_field_fix;
+		tll_scheme_ref;
+		tll_scheme_unref;
+		tll_scheme_ref;
+		tll_scheme_option_free;
+		tll_scheme_enum_free;
+		tll_scheme_field_free;
+		tll_scheme_message_free;
+
 		tll_stat_default_float;
 		tll_stat_default_int;
 		tll_stat_field_reset;

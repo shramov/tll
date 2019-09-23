@@ -1,0 +1,34 @@
+- name: ''
+  options: {a: 2, b: 3, c: 4, d: {a: 1, b: 2}, l: [1, 2]}
+
+- name: sub
+  fields:
+    - {name: s0, type: int32}
+    - {name: s1, type: 'double[4]'}
+  options: {a: 1, b: 2}
+
+- name: test
+  id: 1
+  fields:
+    - {name: f0, type: int8, options: {a: 10, b: 20}}
+    - {name: f1, type: int64}
+    - {name: f2, type: double}
+    - {name: f3, type: decimal128}
+    - {name: f4, type: byte32}
+    - {name: f5, type: '*int16', options.a: 20}
+    - {name: f6, type: 'sub[4]', list-options.count-type: int16, options.a: 30}
+    - {name: f7, type: string}
+    - {name: f8, type: '*string'}
+  options: {m: 10}
+
+- name: enums
+  id: 10
+  enums:
+    e1: {type: int8, enum: {A: 1, B: 2}, options: {ea: 30, eb: 40}}
+    e4: {type: int32, enum: {E: 1, F: 2}}
+    e8: {type: int64, enum: {G: 1, H: 2}}
+  fields:
+    - {name: f0, type: e1}
+    - {name: f1, type: int16, options.type: enum, enum: {C: 1, D: 2}}
+    - {name: f2, type: e4}
+    - {name: f3, type: e8}

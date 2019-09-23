@@ -5,6 +5,7 @@ add_library(tll SHARED
 	$<TARGET_OBJECTS:config>
 	$<TARGET_OBJECTS:logger>
 	ring.c
+	scheme.cc
 	stat.cc
 )
 
