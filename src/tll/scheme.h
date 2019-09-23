@@ -240,10 +240,36 @@ int tll_scheme_field_fix(tll_scheme_field_t *);
 #endif
 
 #ifdef __cplusplus
+#include "tll/util/getter.h"
 #include "tll/util/url.h"
 
 namespace tll {
 using Scheme = tll_scheme_t;
+
+namespace util {
+template <>
+struct getter_api<tll_scheme_option_t *>
+{
+	using string_type = std::string_view;
+	static std::optional<std::string_view> get(const tll_scheme_option_t *o, std::string_view key)
+	{
+		for (; o; o = o->next) {
+			if (key == o->name) {
+				if (o->value)
+					return o->value;
+				return std::nullopt;
+			}
+		}
+		return std::nullopt;
+	}
+
+	static bool has(const tll_scheme_option_t *o, std::string_view key)
+	{
+		return !!get(o, key);
+	}
+};
+
+}
 
 namespace scheme {
 static inline PropsView options_map(const tll_scheme_option_t * o)

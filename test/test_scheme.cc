@@ -106,3 +106,18 @@ TEST(Scheme, Copy)
 	ASSERT_EQ(f, f->next->count_ptr);
 	*/
 }
+
+TEST(Scheme, OptionGetT)
+{
+	static const char options_scheme[] = "yamls://[{name: '', options: {a: 2, b: yes}}]";
+	SchemePtr ptr(Scheme::load(options_scheme), tll_scheme_unref);
+	ASSERT_NE(ptr.get(), nullptr);
+
+	auto reader = tll::make_props_reader(ptr->options);
+	ASSERT_EQ(reader.has("a"), true);
+	ASSERT_EQ(reader.has("c"), false);
+
+	ASSERT_EQ(2, reader.getT("a", 0));
+	ASSERT_EQ(true, reader.getT("b", false));
+	ASSERT_EQ(true, !!reader);
+}
