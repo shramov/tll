@@ -12,7 +12,7 @@
 #define EXPECT_EQ_ANY(l, r) do { \
 	EXPECT_TRUE(l) << "Failed to convert: " << l.error(); \
 	if (l) { EXPECT_EQ(*l, r); } \
-	} while (0); 
+	} while (0);
 
 using tll::conv::to_any;
 using tll::conv::to_string;
@@ -27,7 +27,7 @@ TEST(Conv, Util)
 	EXPECT_EQ(append(v, "", "x"), "x"); EXPECT_EQ(v.data(), vbase);
 	EXPECT_EQ(append(v, "x", "y"), "xy"); EXPECT_NE(v.data(), vbase);
 	std::string s = "abcdef";
-	auto sbase = s.data(); 
+	auto sbase = s.data();
 	EXPECT_EQ(append(s, sv(s).substr(2,2), "z"), "cdz"); EXPECT_EQ(s.data(), sbase);
 	EXPECT_EQ(s, "abcdzf");
 	EXPECT_EQ(append(s, sv(s).substr(2,2), "zzzzzzzz"), "cdzzzzzzzz");

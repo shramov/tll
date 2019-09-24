@@ -18,9 +18,9 @@
 namespace tll {
 
 template <typename E>
-class unexpected 
+class unexpected
 {
- 	E _error;
+	E _error;
  public:
 	unexpected(const E &error) : _error(error) {}
 	unexpected(E &&error) : _error(std::move(error)) {}
@@ -37,7 +37,7 @@ template <typename T, typename E>
 class expected : public std::variant<T, E>
 {
  public:
- 	typedef std::variant<T, E> parent_variant;
+	typedef std::variant<T, E> parent_variant;
 	typedef E expectedype;
 	typedef T value_type;
 

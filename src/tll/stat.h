@@ -336,7 +336,7 @@ class Block : public tll_stat_block_t
 template <bool Owned = false>
 class ListT
 {
- 	friend class ListT<!Owned>;
+	friend class ListT<!Owned>;
 	tll_stat_list_t * _ptr = nullptr;
  public:
 	class iterator {

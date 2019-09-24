@@ -60,7 +60,7 @@ struct split_helperT
 		iterator & operator ++ ()
 		{
 			begin = end;
-			if (begin == data_end) 
+			if (begin == data_end)
 				return *this;
 			begin++;
 			end = next(begin);
@@ -69,7 +69,7 @@ struct split_helperT
 
 		iterator & operator -- ()
 		{
-			if (begin == data_begin) 
+			if (begin == data_begin)
 				return *this;
 			end = begin - 1;
 			begin = prev(end);
