@@ -6,11 +6,15 @@ from distutils.extension import Extension
 from Cython.Distutils import build_ext
 
 setup( name = 'tll'
-     , packages = ['tll']
+     , packages = ['tll', 'tll.channel']
      , include_dirs = ["../src"]
      , cmdclass = {'build_ext': build_ext}
      , ext_modules =
          [ Extension("tll.s2b", ["tll/s2b.pyx"], libraries=["tll"])
+         , Extension("tll.channel.common", ["tll/channel/common.pyx"], libraries=["tll"])
+         , Extension("tll.channel.channel", ["tll/channel/channel.pyx"], libraries=["tll"])
+         , Extension("tll.channel.context", ["tll/channel/context.pyx"], libraries=["tll"])
+         , Extension("tll.channel.base", ["tll/channel/base.pyx"], libraries=["tll"])
          , Extension("tll.config", ["tll/config.pyx"], libraries=["tll"])
          , Extension("tll.logger", ["tll/logger.pyx"], libraries=["tll"])
          , Extension("tll.scheme", ["tll/scheme.pyx"], libraries=["tll"])
