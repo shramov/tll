@@ -23,3 +23,6 @@ around C functions for those reasons:
 
 .. include::
         scheme.rst
+
+.. include::
+        channel.rst

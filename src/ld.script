@@ -1,5 +1,42 @@
 TLL_0.0.0 {
 	global:
+		tll_channel_callback_add;
+		tll_channel_callback_del;
+		tll_channel_caps;
+		tll_channel_children;
+		tll_channel_close;
+		tll_channel_config;
+		tll_channel_context;
+		tll_channel_context_config;
+		tll_channel_context_config_defaults;
+		tll_channel_context_default;
+		tll_channel_context_free;
+		tll_channel_context_new;
+		tll_channel_context_ref;
+		tll_channel_context_scheme_load;
+		tll_channel_dcaps;
+		tll_channel_fd;
+		tll_channel_free;
+		tll_channel_get;
+		tll_channel_impl_get;
+		tll_channel_impl_register;
+		tll_channel_impl_unregister;
+		tll_channel_internal_clear;
+		tll_channel_internal_init;
+		tll_channel_list_add;
+		tll_channel_list_free;
+		tll_channel_module_load;
+		tll_channel_module_unload;
+		tll_channel_name;
+		tll_channel_new;
+		tll_channel_open;
+		tll_channel_post;
+		tll_channel_process;
+		tll_channel_resume;
+		tll_channel_scheme;
+		tll_channel_state;
+		tll_channel_suspend;
+
 		tll_config_browse;
 		tll_config_del;
 		tll_config_get;

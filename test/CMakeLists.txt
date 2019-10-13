@@ -23,4 +23,8 @@ set_property(SOURCE test_scheme.cc APPEND PROPERTY COMPILE_DEFINITIONS SCHEME_PA
 add_executable(test-lib test_config.cc test_logger.cc test_scheme.cc test_stat.cc)
 target_link_libraries(test-lib tll)
 add_test(NAME test-lib COMMAND $<TARGET_FILE:test-lib>)
+
+add_executable(test-channel test_channel.cc)
+target_link_libraries(test-channel tll)
+add_test(NAME test-channel COMMAND $<TARGET_FILE:test-channel>)
 endif()
