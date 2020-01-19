@@ -3,13 +3,16 @@ add_library(logger OBJECT logger/logger.cc)
 
 add_subdirectory(channel)
 
+add_library(processor OBJECT processor/loop.cc)
+
 add_library(tll SHARED
 	$<TARGET_OBJECTS:config>
 	$<TARGET_OBJECTS:logger>
-	$<TARGET_OBJECTS:channel>
 	ring.c
 	scheme.cc
 	stat.cc
+	$<TARGET_OBJECTS:channel>
+	$<TARGET_OBJECTS:processor>
 )
 
 target_link_libraries(tll PRIVATE dl ${YAML_LIBRARIES} ${ZLIB_LIBRARIES})

@@ -67,6 +67,13 @@ TLL_0.0.0 {
 		tll_logger_set;
 		tll_logger_tls_buf;
 
+		tll_processor_loop_add;
+		tll_processor_loop_del;
+		tll_processor_loop_free;
+		tll_processor_loop_new;
+		tll_processor_loop_poll;
+		tll_processor_loop_process;
+
 		tll_scheme_load;
 		tll_scheme_copy;
 		tll_scheme_dump;
