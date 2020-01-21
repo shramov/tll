@@ -106,6 +106,63 @@ TYPED_TEST(UtilUrl, Url)
 	EXPECT_FALSE(P::parse("://host;a=1;b=2;c=3"));
 }
 
+TEST(Util, PropsReader)
+{
+	auto p = tll::PropsView::parse("a=1;b=yes;c=zzz");
+
+	ASSERT_TRUE(p);
+
+	auto reader = tll::make_props_reader(*p);
+
+	EXPECT_EQ(reader.getT("a", 0), 1);
+	EXPECT_TRUE(reader);
+	EXPECT_EQ(reader.getT("b", false), true);
+	EXPECT_TRUE(reader);
+	EXPECT_EQ(reader.getT("z", 20.), 20.);
+	EXPECT_TRUE(reader);
+	EXPECT_EQ(reader.getT("c", 10), 10.);
+	EXPECT_FALSE(reader);
+}
+
+TEST(Util, PropsChain)
+{
+	auto p0 = tll::PropsView::parse("a=1;b=zzz;p.b=20.;p.c=yes");
+	auto p1 = tll::Props::parse("a=100;b=101.;d=zzz");
+	ASSERT_TRUE(p0);
+	ASSERT_TRUE(p1);
+
+	auto chain = tll::make_props_chain(*p0, std::string_view("p"), *p0, *p1);
+	auto reader = tll::make_props_reader(chain);
+
+	EXPECT_TRUE(chain.has("a"));
+	EXPECT_TRUE(chain.has("b"));
+	EXPECT_TRUE(chain.has("c"));
+	EXPECT_TRUE(chain.has("d"));
+
+	EXPECT_EQ(reader.getT("a", 0), 1);
+	EXPECT_TRUE(reader);
+
+	EXPECT_EQ(reader.getT("b", 0.), 20.);
+	EXPECT_TRUE(reader);
+
+	EXPECT_EQ(reader.getT("c", false), true);
+	EXPECT_TRUE(reader);
+
+	EXPECT_EQ(reader.getT("d", 1), 1);
+	EXPECT_FALSE(reader);
+
+	ASSERT_TRUE(chain.getT("a", 0));
+	EXPECT_EQ(*chain.getT("a", 0), 1);
+
+	ASSERT_TRUE(chain.getT("b", 0.));
+	EXPECT_EQ(*chain.getT("b", 0.), 20.);
+
+	ASSERT_TRUE(chain.getT("c", false));
+	EXPECT_EQ(*chain.getT("c", false), true);
+
+	EXPECT_FALSE(chain.getT("d", false));
+}
+
 TEST(Util, Match)
 {
 	using tll::match;
