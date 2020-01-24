@@ -17,6 +17,7 @@ setup( name = 'tll'
          , Extension("tll.channel.base", ["tll/channel/base.pyx"], libraries=["tll"])
          , Extension("tll.config", ["tll/config.pyx"], libraries=["tll"])
          , Extension("tll.logger", ["tll/logger.pyx"], libraries=["tll"])
+         , Extension("tll.processor.loop", ["tll/processor/loop.pyx"], libraries=["tll"])
          , Extension("tll.scheme", ["tll/scheme.pyx"], libraries=["tll"])
          , Extension("tll.stat", ["tll/stat.pyx"], libraries=["tll"])
          ]
