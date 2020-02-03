@@ -2,6 +2,7 @@ add_library(logger OBJECT logger/logger.cc)
 
 add_library(tll SHARED
 	$<TARGET_OBJECTS:logger>
+	ring.c
 	stat.cc
 )
 
