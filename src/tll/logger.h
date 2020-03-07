@@ -212,6 +212,7 @@ public:
 	DECLARE_LOG(critical, Critical)
 
 	template <typename R, typename Fmt, typename... Args>
+	[[nodiscard]]
 	R fail(R err, Fmt format, Args && ... args) const
 	{
 		error(format, std::forward<Args>(args)...);

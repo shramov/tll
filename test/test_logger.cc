@@ -134,7 +134,7 @@ TEST(Logger, NonCopyConstrutable)
 	NonCopyConstrutable ncc;
 	l.log(l.Debug, "{}", ncc);
 	l.info("{}", ncc);
-	l.fail(0, "{}", ncc);
+	(void) l.fail(0, "{}", ncc);
 }
 
 struct Convertible
@@ -162,5 +162,5 @@ TEST(Logger, Conv)
 	Convertible c;
 	l.log(l.Debug, "{}", c);
 	l.info("{}", c);
-	l.fail(0, "{}", c);
+	(void) l.fail(0, "{}", c);
 }
