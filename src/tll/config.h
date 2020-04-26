@@ -5,6 +5,10 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
+/** @file
+ * Configuration subsystem.
+ */
+
 #ifndef _TLL_CONFIG_H
 #define _TLL_CONFIG_H
 
@@ -50,8 +54,14 @@ int tll_config_unset(tll_config_t *, const char * path, int plen);
 /// Set config subtree
 int tll_config_set_config(tll_config_t *, const char * path, int plen, tll_config_t *);
 
-/// Merge other config, moving nodes if possible
-int tll_config_merge(tll_config_t *, tll_config_t * src);
+/** Merge other config, moving nodes if possible
+ * @param dest Config to merge data into
+ * @param src Source config
+ * @param overwrite overwrite existing data in dest if true
+ *
+ * @note Nodes are moved from ``src`` to ``dest`` so source config may be not usable after this operation.
+ */
+int tll_config_merge(tll_config_t * dest, tll_config_t * src, int overwrite);
 
 /// Get value
 int tll_config_get(const tll_config_t *, const char * path, int plen, char * value, int * vlen);
@@ -328,7 +338,7 @@ class Config : public ConfigT<false>
 
 	int unset(std::string_view path) { return tll_config_unset(_cfg, path.data(), path.size()); }
 
-	int merge(ConfigT & cfg) { return tll_config_merge(_cfg, cfg); }
+	int merge(ConfigT & cfg, bool overwrite = true) { return tll_config_merge(_cfg, cfg, overwrite); }
 
 	std::optional<Config> sub(std::string_view path, bool create = false)
 	{

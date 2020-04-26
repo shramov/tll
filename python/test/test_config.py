@@ -60,16 +60,19 @@ def test_set_sub():
     d = dict(c.browse('**'))
     assert_equals(d, {'a': '1', 'c': '2', 'b.d': '3', 'b.e.f': '4'})
 
-def _test_merge(c0, c1, r):
+def _test_merge(ow, c0, c1, r): 
     c = Config.load('yamls://' + c0)
-    c.merge(Config.load('yamls://' + c1))
+    c.merge(Config.load('yamls://' + c1), overwrite = ow is 'overwrite')
     d = dict(c.browse('**'))
     assert_equals(d, r)
 
 def test_merge():
-    yield _test_merge, 'a: 1', 'a: 2', {'a': '2'}
-    yield _test_merge, 'a: 1', 'b: 2', {'a': '1', 'b': '2'}
-    yield _test_merge, '{a: 1, b.c: 1}', 'b.d: 2', {'a': '1', 'b.c': '1', 'b.d': '2'}
+    yield _test_merge, 'overwrite','a: 1', 'a: 2', {'a': '2'}
+    yield _test_merge, 'overwrite','a: 1', 'b: 2', {'a': '1', 'b': '2'}
+    yield _test_merge, 'overwrite','{a: 1, b.c: 1}', 'b.d: 2', {'a': '1', 'b.c': '1', 'b.d': '2'}
+    yield _test_merge, 'import','a: 1', 'a: 2', {'a': '1'}
+    yield _test_merge, 'import','a: 1', 'b: 2', {'a': '1', 'b': '2'}
+    yield _test_merge, 'import','{a: 1, b.c: 1}', 'b.d: 2', {'a': '1', 'b.c': '1', 'b.d': '2'}
 
 def _test_getT(s, k, t, v):
     c = Config.load('yamls://' + s)

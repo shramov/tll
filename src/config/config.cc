@@ -167,9 +167,9 @@ int tll_config_set_config(tll_config_t *c, const char *path, int plen, tll_confi
 	return c->set(string_view_from_c(path, plen), ptr);
 }
 
-int tll_config_merge(tll_config_t *c, tll_config_t *src)
+int tll_config_merge(tll_config_t *c, tll_config_t *src, int overwrite)
 {
-	return c->merge(src);
+	return c->merge(src, overwrite);
 }
 
 namespace {

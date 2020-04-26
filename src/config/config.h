@@ -218,12 +218,12 @@ struct tll_config_t
 		return ptr->browse(mv, i, prefix, cb, user);
 	}
 
-	int merge(tll_config_t * rhs)
+	int merge(tll_config_t * rhs, bool overwrite)
 	{
 		auto lock = wlock();
 		auto rhs_lock = rhs->wlock();
 
-		if (rhs->value())
+		if (rhs->value() && overwrite)
 			data = rhs->data;
 
 		auto & lmap = kids;
@@ -236,7 +236,7 @@ struct tll_config_t
 				lmap.insert(rmap.extract(i));
 				continue;
 			}
-			li->second->merge(ri->second.get());
+			li->second->merge(ri->second.get(), overwrite);
 			ri++;
 		}
 		return 0;

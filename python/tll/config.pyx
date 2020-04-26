@@ -42,10 +42,10 @@ cdef class Config:
             raise KeyError("Sub-config {} not found".format(path))
         return Config.wrap(cfg)
 
-    def merge(self, cfg):
+    def merge(self, cfg, overwrite=True):
         if not isinstance(cfg, Config):
             raise TypeError("Merge argument must be Config object, got {}".format(Config))
-        r = tll_config_merge(self._ptr, (<Config>cfg)._ptr)
+        r = tll_config_merge(self._ptr, (<Config>cfg)._ptr, overwrite)
         if r:
             raise TLLError("Failed to merge config", r)
 
