@@ -149,7 +149,7 @@ cdef class Base:
 
     @cython.boundscheck(False)
     def update(self, **kw):
-        cdef size_t size = len(kw)
+        cdef ssize_t size = len(kw)
         cdef unsigned int[:] offsets = array('I', [0] * size)
         cdef long long [:] updates_i = array('q', [0] * size)
         cdef double [:] updates_f = array('d', [0] * size)
