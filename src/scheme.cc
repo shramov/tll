@@ -1074,8 +1074,10 @@ char * tll_scheme_dump(const tll_scheme_t * s, const char * format)
 {
 	if (!s) return nullptr;
 
-	auto fmt = std::string_view(format);
-	if (fmt != nullptr && fmt != "yamls" && fmt != "yamls+gz")
+	constexpr std::string_view fdefault = "yamls";
+
+	auto fmt = format == nullptr ? fdefault : std::string_view(format);
+	if (fmt != "yamls" && fmt != "yamls+gz")
 		return nullptr;
 	std::string r;
 	if (s->options || s->enums) {
