@@ -111,31 +111,36 @@ void tll_config_free(tll_config_t * c) { tll_config_unref(c); }
 
 tll_config_t * tll_config_sub(tll_config_t *c, const char *path, int plen, int create)
 {
+	if (!c) return nullptr;
 	return c->find(string_view_from_c(path, plen), create).release();
 }
 
 int tll_config_value(const tll_config_t *c)
 {
+	if (!c) return EINVAL;
 	auto lock = c->rlock();
 	return c->value();
 }
 
 int tll_config_has(const tll_config_t *cfg, const char *path, int plen)
 {
+	if (!cfg) return EINVAL;
 	auto v = cfg->find(path);
 	if (!v) return false;
 	auto lock = v->rlock();
 	return v->value();
 }
 
-int tll_config_del(tll_config_t *c, const char *path, int plen, int recursive)
+int tll_config_del(tll_config_t *cfg, const char *path, int plen, int recursive)
 {
+	if (!cfg) return EINVAL;
 	if (!path) return EINVAL;
 	return ENOSYS;
 }
 
 int tll_config_set(tll_config_t *cfg, const char * path, int plen, const char * value, int vlen)
 {
+	if (!cfg) return EINVAL;
 	auto sub = cfg->find(string_view_from_c(path, plen), 1);
 	if (!sub) return EINVAL;
 	return sub->set(string_view_from_c(value, vlen));
@@ -143,6 +148,7 @@ int tll_config_set(tll_config_t *cfg, const char * path, int plen, const char * 
 
 int tll_config_set_callback(tll_config_t *cfg, const char * path, int plen, tll_config_value_callback_t cb, void * user)
 {
+	if (!cfg) return EINVAL;
 	auto sub = cfg->find(string_view_from_c(path, plen), 1);
 	if (!sub) return EINVAL;
 	return sub->set(cb, user);
@@ -150,6 +156,7 @@ int tll_config_set_callback(tll_config_t *cfg, const char * path, int plen, tll_
 
 int tll_config_set_link(tll_config_t *cfg, const char * path, int plen, tll_config_t *link)
 {
+	if (!cfg) return EINVAL;
 	auto sub = cfg->find(string_view_from_c(path, plen), 1);
 	if (!sub) return EINVAL;
 	return ENOSYS;
@@ -157,18 +164,22 @@ int tll_config_set_link(tll_config_t *cfg, const char * path, int plen, tll_conf
 
 int tll_config_unset(tll_config_t *cfg, const char * path, int plen)
 {
+	if (!cfg) return EINVAL;
 	auto sub = cfg->find(string_view_from_c(path, plen), 0);
 	if (!sub) return ENOENT;
 	return sub->set();
 }
 
-int tll_config_set_config(tll_config_t *c, const char *path, int plen, tll_config_t *ptr)
+int tll_config_set_config(tll_config_t *cfg, const char *path, int plen, tll_config_t *ptr)
 {
-	return c->set(string_view_from_c(path, plen), ptr);
+	if (!cfg) return EINVAL;
+	if (!ptr) return EINVAL;
+	return cfg->set(string_view_from_c(path, plen), ptr);
 }
 
 int tll_config_merge(tll_config_t *c, tll_config_t *src, int overwrite)
 {
+	if (!c) return EINVAL;
 	return c->merge(src, overwrite);
 }
 
@@ -192,6 +203,7 @@ inline int _get_sv(std::string_view v, char * value, int * vlen)
 
 int tll_config_get(const tll_config_t *c, const char *path, int plen, char *value, int * vlen)
 {
+	if (!c) return EINVAL;
 	refptr_t<const tll_config_t> cfg(nullptr);
 	if (path != 0) {
 		cfg = c->find(string_view_from_c(path, plen));
@@ -217,6 +229,7 @@ int tll_config_get(const tll_config_t *c, const char *path, int plen, char *valu
 
 char * tll_config_get_copy(const tll_config_t *c, const char *path, int plen, int * vlen)
 {
+	if (!c) return nullptr;
 	refptr_t<const tll_config_t> cfg(nullptr);
 	if (path != 0) {
 		cfg = c->find(string_view_from_c(path, plen));
