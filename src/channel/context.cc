@@ -24,6 +24,7 @@
 
 
 #include "channel/direct.h"
+#include "channel/ipc.h"
 #include "channel/mem.h"
 #include "channel/null.h"
 #include "channel/tcp.h"
@@ -35,6 +36,7 @@ using namespace tll;
 TLL_DEFINE_IMPL(ChDirect);
 TLL_DEFINE_IMPL(ChNull);
 
+extern template class tll::channel::Base<ChIpc>;
 extern template class tll::channel::Base<ChMem>;
 extern template class tll::channel::Base<ChTcp>;
 extern template class tll::channel::Base<ChTimer>;
@@ -55,6 +57,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 	tll_channel_context_t(Config defaults) : config_defaults(defaults)
 	{
 		reg(&ChDirect::impl);
+		reg(&ChIpc::impl);
 		reg(&ChMem::impl);
 		reg(&ChNull::impl);
 		reg(&ChTcp::impl);
