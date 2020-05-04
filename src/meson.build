@@ -7,8 +7,10 @@ sources += ['stat.cc']
 sources += ['ring.c']
 
 subdir('channel')
+subdir('processor')
 
 sources += channel_sources
+sources += processor_sources
 
 if host_machine.system() == 'linux'
   version_script = '-Wl,--version-script,@0@/@1@'.format(meson.current_source_dir(), 'ld.script')
@@ -26,6 +28,12 @@ tll_lib = shared_library('tll',
                         install : true)
 
 tll = declare_dependency(include_directories: include, link_with: tll_lib)
+
+executable('tll-processor'
+	, ['processor/main.cc']
+	, dependencies: [fmt, pthread, tll]
+	, install: true
+	)
 
 pkg = import('pkgconfig')
 pkg.generate(tll_lib) # meson > 0.46

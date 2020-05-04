@@ -1,0 +1,85 @@
+/*
+ * Copyright (c) 2019-2020 Pavel Shramov <shramov@mexmat.net>
+ *
+ * tll is free software; you can redistribute it and/or modify
+ * it under the terms of the MIT license. See LICENSE for details.
+ */
+
+#ifndef _PROCESSOR_WORKER_H
+#define _PROCESSOR_WORKER_H
+
+#include <string>
+
+#include "processor/deps.h"
+#include "tll/channel/base.h"
+#include "tll/processor/loop.h"
+
+namespace tll::processor::_ {
+
+struct Processor;
+
+struct Worker : public tll::channel::Base<Worker>
+{
+	static constexpr auto open_policy() { return OpenPolicy::Manual; }
+	static constexpr auto process_policy() { return ProcessPolicy::Never; }
+	static constexpr auto child_policy() { return ChildPolicy::Many; }
+	static constexpr std::string_view param_prefix() { return "tll.worker"; }
+
+	tll::processor::Loop loop;
+
+	std::list<Object *> objects;
+	struct {
+		tll_state_t state = TLL_STATE_CLOSED;
+		tll_addr_t addr = {};
+	} proc;
+
+	tll::processor::_::Processor * _ctx = nullptr;
+	std::unique_ptr<tll::Channel> _ipc;
+
+	int _init(const tll::Channel::Url &url, tll::Channel *master);
+	int _open(const tll::PropsView &);
+	int _close();
+
+	void _free()
+	{
+		_ipc.reset();
+	}
+
+	using tll::channel::Base<Worker>::post;
+
+	template <typename T> int post(const T& body)
+	{
+		if (state() == tll::state::Closed)
+			return 0;
+		tll_msg_t msg = { TLL_MESSAGE_DATA };
+		msg.msgid = T::id;
+		msg.data = (void *) &body;
+		msg.size = sizeof(body);
+		return _ipc->post(&msg);
+	}
+
+	/*
+	int step(tll::duration timeout)
+	{
+		auto c = _loop.poll(timeout);
+		return c->process();
+	}
+
+	int run()
+	{
+		using namespace std::chrono;
+		init();
+		while (state == TLL_STATE_ACTIVE)
+			step(1000ms);
+		_log.error("Exit run loop");
+		return 0;
+	}
+	*/
+
+	friend struct tll::CallbackT<Worker>;
+	int callback(const Channel * c, const tll_msg_t * msg);
+};
+
+} // namespace tll
+
+#endif//_PROCESSOR_WORKER_H
