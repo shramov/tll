@@ -39,3 +39,5 @@ pkg = import('pkgconfig')
 pkg.generate(tll_lib) # meson > 0.46
 
 install_subdir('tll', install_dir : get_option('includedir'))
+
+subdir('logic')
