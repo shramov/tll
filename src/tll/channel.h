@@ -13,6 +13,7 @@
 #define _TLL_CHANNEL_H
 
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "tll/config.h"
 

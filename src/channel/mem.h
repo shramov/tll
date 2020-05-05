@@ -8,19 +8,18 @@
 #ifndef _TLL_CHANNEL_MEM_H
 #define _TLL_CHANNEL_MEM_H
 
-#include "tll/channel/base.h"
+#include "tll/channel/event.h"
 
 #include "tll/ring.h"
 
-class ChMem : public tll::channel::Base<ChMem>
+class ChMem : public tll::channel::Event<ChMem>
 {
-	int &_fd_in = internal.fd;
-	int _fd_out = -1;
-	bool _with_fd = true;
 	size_t _size = 1024;
 	std::shared_ptr<ringbuffer_t> _rin;
 	std::shared_ptr<ringbuffer_t> _rout;
-	ChMem * master = nullptr;
+	bool _child = false;
+	ChMem * _sibling = nullptr;
+	bool _empty() const;
 
  public:
 	static constexpr std::string_view param_prefix() { return "mem"; }
@@ -28,6 +27,7 @@ class ChMem : public tll::channel::Base<ChMem>
 	int _init(const tll::UrlView &, tll::Channel *master);
 	int _open(const tll::PropsView &);
 	int _close();
+	void _free();
 
 	int _process(long timeout, int flags);
 	int _post(const tll_msg_t *msg, int flags);
