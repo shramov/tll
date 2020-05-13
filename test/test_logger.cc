@@ -8,6 +8,7 @@
 #include "gtest/gtest.h"
 
 #include "tll/logger.h"
+#include "tll/logger/prefix.h"
 
 #include <list>
 
@@ -163,4 +164,53 @@ TEST(Logger, Conv)
 	l.log(l.Debug, "{}", c);
 	l.info("{}", c);
 	(void) l.fail(0, "{}", c);
+}
+
+TEST(Logger, Prefix)
+{
+	log_map impl;
+	tll_logger_register(&impl);
+
+	std::string_view str = "str";
+	tll::Logger l { "l0" };
+	auto p0 = l.prefix("f0");
+	auto p1 = l.prefix("f1 {}", 10);
+	auto p2 = l.prefix("f2 {} {}", "char", str);
+	auto p3 = l.prefix("f3 {} {} {}", "char", str, str.data());
+	auto p4 = l.prefix("f4 {} {} {} {}", 1, 2, 3, 4);
+	auto p5 = l.prefix("f5 {} {} {} {} {}", 1, "char", str, str.data(), 1.1);
+
+	int called = 0;
+	auto pf = p0.prefix([&called](){ called++; return "func"; });
+
+	ASSERT_EQ(l.level(), p0.level());
+
+	ASSERT_EQ(impl.map.size(), 1u);
+	auto & list = impl.map["l0"];
+	l.info("l0");
+	ASSERT_EQ(list.back().second, "l0");
+
+	p0.info("p0"); ASSERT_EQ(list.back().second, "f0 p0");
+	p1.info("p1"); ASSERT_EQ(list.back().second, "f1 10 p1");
+	p2.info("p2"); ASSERT_EQ(list.back().second, "f2 char str p2");
+	p3.info("p3"); ASSERT_EQ(list.back().second, "f3 char str str p3");
+	p4.info("p4"); ASSERT_EQ(list.back().second, "f4 1 2 3 4 p4");
+	p5.info("p5"); ASSERT_EQ(list.back().second, "f5 1 char str str 1.1 p5");
+
+	list.clear();
+	pf.trace("trace");
+	ASSERT_EQ(list.size(), 0u);
+	ASSERT_EQ(called, 0);
+
+	pf.info("pf"); ASSERT_EQ(list.back().second, "f0 func pf");
+	ASSERT_EQ(called, 1);
+	pf.info("second");
+	ASSERT_EQ(called, 1);
+
+	// Check for unhandled exceptions
+	auto pinv = l.prefix("{:d}", "str");
+	auto pfinv = l.prefix([](){ return fmt::format("{:d}", "str"); });
+
+	pinv.info("pinv");
+	pfinv.info("pfinv");
 }

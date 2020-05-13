@@ -102,7 +102,16 @@ tll_logger_buf_t * tll_logger_tls_buf(void);
 
 namespace tll {
 
-class logger_buf_t : public tll_logger_buf_t
+namespace logger {
+
+static auto constexpr Trace = TLL_LOGGER_TRACE;
+static auto constexpr Debug = TLL_LOGGER_DEBUG;
+static auto constexpr Info = TLL_LOGGER_INFO;
+static auto constexpr Warning = TLL_LOGGER_WARNING;
+static auto constexpr Error = TLL_LOGGER_ERROR;
+static auto constexpr Critical = TLL_LOGGER_CRITICAL;
+
+class tls_buf_t : public tll_logger_buf_t
 {
  public:
 	typedef char value_type;
@@ -139,12 +148,62 @@ class logger_buf_t : public tll_logger_buf_t
 	const_iterator end() const { return begin() + size(); }
 };
 
-class Logger
+template <typename Log, typename Fmt, typename... Args>
+class Prefix;
+
+template <typename T>
+struct Methods
+{
+#define DECLARE_LOG(func, level) \
+	template <typename F, typename... A> \
+	void func(F format, A && ... args) const { return static_cast<const T *>(this)->log(level, format, std::forward<A>(args)...); }
+
+	DECLARE_LOG(trace, Trace)
+	DECLARE_LOG(debug, Debug)
+	DECLARE_LOG(info, Info)
+	DECLARE_LOG(warning, Warning)
+	DECLARE_LOG(error, Error)
+	DECLARE_LOG(critical, Critical)
+#undef  DECLARE_LOG
+
+	template <typename R, typename Fmt, typename... Args>
+	[[nodiscard]]
+	R fail(R err, Fmt format, Args && ... args) const
+	{
+		error(format, std::forward<Args>(args)...);
+		return err;
+	}
+
+	template <typename... Args>
+	Prefix<T, std::string_view, Args...> prefix(std::string_view fmt, Args && ... args) const
+	{
+		return Prefix<T, std::string_view, Args...>(*static_cast<const T *>(this), fmt, std::forward<Args>(args)...);
+	}
+
+	template <typename... Args>
+	Prefix<T, std::string_view, Args...> prefix(const char * fmt, Args && ... args) const
+	{
+		return Prefix<T, std::string_view, Args...>(*static_cast<const T *>(this), std::string_view(fmt), std::forward<Args>(args)...);
+	}
+
+	template <typename... Args>
+	Prefix<T, std::string, Args...> prefix(const std::string &fmt, Args && ... args) const
+	{
+		return Prefix<T, std::string, Args...>(*static_cast<const T *>(this), fmt, std::forward<Args>(args)...);
+	}
+
+	template <typename Func>
+	typename std::enable_if<std::is_invocable_v<Func>, Prefix<T, Func>>::type prefix(Func && f) const
+	{
+		return Prefix<T, Func>(*static_cast<const T *>(this), std::forward<Func>(f));
+	}
+};
+}
+
+class Logger : public logger::Methods<Logger>
 {
 protected:
 	tll_logger_t * _log = nullptr;
-
-	logger_buf_t * tls_buf() const { return static_cast<logger_buf_t *>(tll_logger_tls_buf()); }
 
 public:
 	Logger(const Logger &rhs) : _log(tll_logger_new(rhs.name(), -1)) {}
@@ -180,9 +239,17 @@ public:
 		return tll_logger_level_name(level);
 	}
 
+	static logger::tls_buf_t * tls_buf() { return static_cast<logger::tls_buf_t *>(tll_logger_tls_buf()); }
+
 	const char * name() const { return tll_logger_name(_log); }
 	level_t & level() { return _log->level; }
 	level_t level() const { return _log->level; }
+
+	void log_buf(level_t level, std::string_view data) const
+	{
+		if (_log->level > level) return;
+		tll_logger_log(_log, level, data.data(), data.size());
+	}
 
 	template <typename Fmt, typename... Args>
 	void log(level_t level, Fmt format, Args && ... args) const
@@ -198,25 +265,6 @@ public:
 		}
 		buf->push_back('\0');
 		tll_logger_log(_log, level, buf->data(), buf->size() - 1);
-	}
-
-#define DECLARE_LOG(func, level) \
-	template <typename Fmt, typename... Args> \
-	void func(Fmt format, Args && ... args) const { return log(level, format, std::forward<Args>(args)...); }
-
-	DECLARE_LOG(trace, Trace)
-	DECLARE_LOG(debug, Debug)
-	DECLARE_LOG(info, Info)
-	DECLARE_LOG(warning, Warning)
-	DECLARE_LOG(error, Error)
-	DECLARE_LOG(critical, Critical)
-
-	template <typename R, typename Fmt, typename... Args>
-	[[nodiscard]]
-	R fail(R err, Fmt format, Args && ... args) const
-	{
-		error(format, std::forward<Args>(args)...);
-		return err;
 	}
 };
 
