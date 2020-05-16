@@ -104,12 +104,12 @@ namespace tll {
 
 namespace logger {
 
-static auto constexpr Trace = TLL_LOGGER_TRACE;
-static auto constexpr Debug = TLL_LOGGER_DEBUG;
-static auto constexpr Info = TLL_LOGGER_INFO;
-static auto constexpr Warning = TLL_LOGGER_WARNING;
-static auto constexpr Error = TLL_LOGGER_ERROR;
-static auto constexpr Critical = TLL_LOGGER_CRITICAL;
+auto constexpr Trace = TLL_LOGGER_TRACE;
+auto constexpr Debug = TLL_LOGGER_DEBUG;
+auto constexpr Info = TLL_LOGGER_INFO;
+auto constexpr Warning = TLL_LOGGER_WARNING;
+auto constexpr Error = TLL_LOGGER_ERROR;
+auto constexpr Critical = TLL_LOGGER_CRITICAL;
 
 class tls_buf_t : public tll_logger_buf_t
 {
