@@ -1,2 +1,3 @@
 /usr/lib/*/libtll.so
+/usr/lib/*/pkgconfig/tll.pc
 /usr/include/tll

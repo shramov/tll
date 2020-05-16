@@ -36,6 +36,9 @@ pkg_check_modules(YAML yaml-0.1 REQUIRED)
 
 include_directories(${ZLIB_INCLUDE_DIRS} ${YAML_INCLUDE_DIRS})
 
+configure_file(tll.pc.in tll.pc @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/tll.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+
 link_libraries(fmt)
 
 enable_testing()

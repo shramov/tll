@@ -1,0 +1,11 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/include
+
+Name: TLL
+Description: Framework for building data processing services.
+#Requires: fmt
+Version: @VERSION@
+Libs: -L${libdir} -ltll
+Cflags: -I${includedir}
