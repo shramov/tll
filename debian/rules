@@ -1,0 +1,23 @@
+#!/usr/bin/make -f
+
+export TLL_LIBRARY_DIR = $(shell pwd)/obj-$(DEB_BUILD_GNU_TYPE)/lib
+
+export PYBUILD_NAME = tll
+export PYBUILD_SYSTEM = distutils
+export PYBUILD_TEST_ARGS = -v
+export PYBUILD_TEST_NOSE = 1
+
+%:
+	dh $@ --with python3 --buildsystem cmake
+
+override_dh_auto_build:
+	dh_auto_build --buildsystem cmake
+	LDFLAGS=-L$(TLL_LIBRARY_DIR) dh_auto_build --buildsystem pybuild -D python
+
+override_dh_auto_install:
+	dh_auto_install --buildsystem cmake
+	dh_auto_install --buildsystem pybuild -D python
+
+override_dh_auto_test:
+	dh_auto_test --buildsystem cmake
+	LD_LIBRARY_PATH=$(TLL_LIBRARY_DIR):$(LD_LIBRARY_PATH) dh_auto_test --buildsystem pybuild -D python

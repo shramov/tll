@@ -63,6 +63,5 @@ TLL_0.0.0 {
 		tll_stat_page_flip;
 		tll_stat_page_release;
 
-		_ZN3fmt2v5*; # Export fmt symbols
 	local: *;
 };

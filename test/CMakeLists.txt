@@ -1,4 +1,5 @@
 if (WITH_GTEST)
+set(INSTALL_GTEST OFF CACHE BOOL "Disable INSTALL_GTEST") # XXX: Need policy CMP0077 NEW
 add_subdirectory(/usr/src/googletest gtest)
 
 add_executable(test-util test_conv.cc test_util.cc test_ring.cc ../src/ring.c)

@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.7)
 project(TLL)
 
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.12)
+  cmake_policy(SET CMP0077 NEW) # For gtest
+endif()
+
+if (CMAKE_VERSION VERSION_LESS 3.16)
+  include(GNUInstallDirs)
+endif()
+
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()

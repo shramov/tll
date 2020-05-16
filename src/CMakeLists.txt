@@ -13,3 +13,11 @@ target_link_libraries(tll PRIVATE pthread ${YAML_LIBRARIES} ${ZLIB_LIBRARIES})
 target_link_libraries(tll PRIVATE "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/ld.script")
 set_target_properties(tll PROPERTIES INTERFACE_LINK_LIBRARIES "")
 set_target_properties(tll PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/ld.script)
+set_target_properties(tll PROPERTIES VERSION 0 SOVERSION 0)
+
+install(TARGETS tll
+	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	)
+install(DIRECTORY tll DESTINATION include)

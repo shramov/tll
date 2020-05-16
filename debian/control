@@ -1,0 +1,35 @@
+Source: tll
+Section: devel
+Priority: optional
+Maintainer: Pavel Shramov <shramov@mexmat.net>
+Build-Depends: debhelper (>=10), cmake, pkg-config, libfmt-dev, libyaml-dev,
+    python3-all-dev, cython3, python3-nose
+Standards-Version: 4.5.0
+Vcs-Git: https://github.com/shramov/tll
+X-Python3-Version: >= 3.6
+
+Package: libtll0
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Pre-Depends: ${misc:Pre-Depends}
+Multi-Arch: same
+Description: Framework for building data processing services.
+ .
+ Package containes development libraries, header files and manpages.
+
+Package: libtll-dev
+Architecture: any
+Depends: ${misc:Depends}, libtll0 (= ${binary:Version})
+Pre-Depends: ${misc:Pre-Depends}
+Multi-Arch: same
+Description: Framework for building data processing services.
+ .
+ Package containes development libraries, header files and manpages.
+
+Package: python3-tll
+Architecture: any
+Provides: ${python3:Provides}
+Depends: ${python3:Depends}, ${misc:Depends}, ${shlibs:Depends}, libtll0 (= ${binary:Version})
+Description: Framework for building data processing services.
+ .
+ Package contains python bindings
