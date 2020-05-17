@@ -16,6 +16,7 @@
 #include "tll/util/url.h"
 #include "tll/util/zlib.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>

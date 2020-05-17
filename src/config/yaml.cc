@@ -11,6 +11,7 @@
 #include "tll/util/conv.h"
 #include "tll/util/result.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <yaml.h>
 
