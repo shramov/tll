@@ -60,7 +60,7 @@ def test_set_sub():
     d = dict(c.browse('**'))
     assert_equals(d, {'a': '1', 'c': '2', 'b.d': '3', 'b.e.f': '4'})
 
-def _test_merge(ow, c0, c1, r): 
+def _test_merge(ow, c0, c1, r):
     c = Config.load('yamls://' + c0)
     c.merge(Config.load('yamls://' + c1), overwrite = ow is 'overwrite')
     d = dict(c.browse('**'))
