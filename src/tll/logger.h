@@ -123,7 +123,7 @@ class tls_buf_t : public tll_logger_buf_t
 
 	size_t size() const { return tll_logger_buf_t::size; }
 
- 	void resize(size_t s)
+	void resize(size_t s)
 	{
 		if (s > reserve) {
 			tll_logger_buf_t::data = (char *) realloc(tll_logger_buf_t::data, s);
