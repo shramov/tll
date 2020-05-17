@@ -310,13 +310,13 @@ class Config : public ConfigT<false>
 
 	Config() {}
 
-	Config(const Config & cfg) = delete;
-	Config(Config & cfg) : ConfigT<false>(cfg) {}
+	//Config(const Config & cfg) = delete;
+	Config(const Config & cfg) : ConfigT<false>(cfg) {}
 	Config(Config && cfg) : ConfigT<false>(std::move(cfg)) {}
-	Config(ConfigT<false> & cfg) : ConfigT<false>(cfg) {}
+	Config(const ConfigT<false> & cfg) : ConfigT<false>(cfg) {}
 	Config(ConfigT<false> && cfg) : ConfigT<false>(std::move(cfg)) {}
 
-	Config & operator = (Config &rhs) { tll_config_unref(_cfg); _cfg = rhs._cfg; tll_config_ref(_cfg); return *this; }
+	Config & operator = (const Config &rhs) { tll_config_unref(_cfg); _cfg = rhs._cfg; tll_config_ref(_cfg); return *this; }
 	Config & operator = (Config &&rhs) { std::swap(_cfg, rhs._cfg); return *this; }
 
 	static std::optional<Config> load(std::string_view path) { return ConfigT<false>::load(path); }
