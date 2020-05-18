@@ -17,6 +17,8 @@
 #include <list>
 #include <stdio.h>
 
+#include "test_compat.h"
+
 template <bool Skip>
 std::list<std::string> splitL(const std::string_view &s)
 {
@@ -61,7 +63,7 @@ template <typename T>
 class UtilProps : public ::testing::Test {};
 
 using PropsTypes = ::testing::Types<tll::PropsView, tll::Props>;
-TYPED_TEST_CASE(UtilProps, PropsTypes);
+TYPED_TEST_SUITE(UtilProps, PropsTypes);
 
 TYPED_TEST(UtilProps, Props)
 {
@@ -83,7 +85,7 @@ template <typename T>
 class UtilUrl : public ::testing::Test {};
 
 using UrlTypes = ::testing::Types<tll::UrlView, tll::Url>;
-TYPED_TEST_CASE(UtilUrl, UrlTypes);
+TYPED_TEST_SUITE(UtilUrl, UrlTypes);
 
 TYPED_TEST(UtilUrl, Url)
 {

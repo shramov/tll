@@ -10,11 +10,13 @@
 
 #include "tll/stat.h"
 
+#include "test_compat.h"
+
 template <typename T>
 class StatT : public ::testing::Test {};
 
 using StatTypes = ::testing::Types<tll_stat_int_t, tll_stat_float_t>;
-TYPED_TEST_CASE(StatT, StatTypes);
+TYPED_TEST_SUITE(StatT, StatTypes);
 
 TYPED_TEST(StatT, Field)
 {
