@@ -14,7 +14,7 @@ template <typename... Args>
 struct arg_store_t : public fmt::format_arg_store<fmt::format_context, Args...>
 {
 	using fmt::format_arg_store<fmt::format_context, Args...>::format_arg_store;
-	std::string operator () (fmt::string_view format) const { return fmt::vformat(format, *this); }
+	std::string operator () (fmt::string_view format) const { return fmt::vformat(format, fmt::format_args(*this)); }
 };
 
 template <>
