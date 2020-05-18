@@ -18,6 +18,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 option(WITH_GTEST "Build with googletest tests" ON)
+option(WITH_GTEST_SOURCE "Build with googletest sources" ON)
 option(WITH_LIBCPP "Build with LLVM C++ standard library (libc++)" OFF)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -fPIC")
