@@ -21,12 +21,12 @@ option(WITH_GTEST "Build with googletest tests" ON)
 option(WITH_GTEST_SOURCE "Build with googletest sources" ON)
 option(WITH_LIBCPP "Build with LLVM C++ standard library (libc++)" OFF)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -fPIC")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -Werror -fPIC")
+add_compile_options(-Wall -Werror -fPIC)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0)
   # GCC 7.3 warns about unused var in auto [v, lock] = ... blocks
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable")
+  add_compile_options(-Wno-unused-variable)
 endif ()
 
 if (${WITH_LIBCPP})
