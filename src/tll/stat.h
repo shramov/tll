@@ -149,15 +149,15 @@ tll_stat_page_t * tll_stat_iter_swap(tll_stat_iter_t *);
 namespace tll::stat {
 
 using Method = tll_stat_method_t;
-static constexpr auto Sum = TLL_STAT_SUM;
-static constexpr auto Min = TLL_STAT_MIN;
-static constexpr auto Max = TLL_STAT_MAX;
-static constexpr auto Last = TLL_STAT_LAST;
+constexpr auto Sum = TLL_STAT_SUM;
+constexpr auto Min = TLL_STAT_MIN;
+constexpr auto Max = TLL_STAT_MAX;
+constexpr auto Last = TLL_STAT_LAST;
 
 using Unit = tll_stat_unit_t;
-static constexpr auto Unknown = TLL_STAT_UNIT_UNKNOWN;
-static constexpr auto Bytes = TLL_STAT_UNIT_BYTES;
-static constexpr auto Ns = TLL_STAT_UNIT_NS;
+constexpr auto Unknown = TLL_STAT_UNIT_UNKNOWN;
+constexpr auto Bytes = TLL_STAT_UNIT_BYTES;
+constexpr auto Ns = TLL_STAT_UNIT_NS;
 
 template <typename T>
 constexpr T default_value(Method t)
