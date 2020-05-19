@@ -31,7 +31,7 @@ class unexpected
 };
 
 struct error_tag_t {};
-static constexpr error_tag_t error_tag = {};
+constexpr error_tag_t error_tag = {};
 
 template <typename T, typename E>
 class expected : public std::variant<T, E>

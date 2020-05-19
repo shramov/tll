@@ -15,7 +15,7 @@
 namespace tll::zlib {
 
 template <typename T, typename Buf>
-static inline result_t<bool> decompress(const T &data, Buf & buf)
+inline result_t<bool> decompress(const T &data, Buf & buf)
 {
 	if (data.size() == 0) {
 		buf.resize(0);
@@ -53,7 +53,7 @@ static inline result_t<bool> decompress(const T &data, Buf & buf)
 }
 
 template <typename T>
-static inline result_t<std::vector<char>> decompress(const T &data)
+inline result_t<std::vector<char>> decompress(const T &data)
 {
 	std::vector<char> buf;
 	auto r = decompress(data, buf);
@@ -62,7 +62,7 @@ static inline result_t<std::vector<char>> decompress(const T &data)
 }
 
 template <typename T, typename Buf>
-static inline result_t<bool> compress(const T &data, Buf & buf, int level = Z_DEFAULT_COMPRESSION)
+inline result_t<bool> compress(const T &data, Buf & buf, int level = Z_DEFAULT_COMPRESSION)
 {
 	if (data.size() == 0) {
 		buf.resize(0);
@@ -100,7 +100,7 @@ static inline result_t<bool> compress(const T &data, Buf & buf, int level = Z_DE
 }
 
 template <typename T>
-static inline result_t<std::vector<char>> compress(const T &data, int level = Z_DEFAULT_COMPRESSION)
+inline result_t<std::vector<char>> compress(const T &data, int level = Z_DEFAULT_COMPRESSION)
 {
 	std::vector<char> buf;
 	auto r = compress(data, buf, level);

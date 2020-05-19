@@ -20,8 +20,8 @@
 
 namespace tll::conv {
 
-template <typename T> static inline std::string to_string(const T &value);
-template <typename T, typename Buf> static inline std::string_view to_string_buf(const T &value, Buf &buf);
+template <typename T> inline std::string to_string(const T &value);
+template <typename T, typename Buf> inline std::string_view to_string_buf(const T &value, Buf &buf);
 
 /**
  * Helper class prividing to_string_buf implementation from to_string
@@ -80,7 +80,7 @@ struct dump : public to_string_buf_from_string<T>
  * Convert type T to string
  */
 template <typename T>
-static inline std::string to_string(const T &value)
+inline std::string to_string(const T &value)
 {
 	return dump<T>::to_string(value);
 }
@@ -89,7 +89,7 @@ static inline std::string to_string(const T &value)
  * Convert type T to string using user supplied buffer buf
  */
 template <typename T, typename Buf>
-static inline std::string_view to_string_buf(const T &value, Buf &buf)
+inline std::string_view to_string_buf(const T &value, Buf &buf)
 {
 	return dump<T>::to_string_buf(value, buf);
 }
@@ -124,7 +124,7 @@ std::string_view _to_string_buf<T, Tag>::to_string_buf(const T &value, Buf &buf)
 */
 
 template <typename T>
-static inline result_t<T> to_any(std::string_view s)
+inline result_t<T> to_any(std::string_view s)
 {
 	return parse<T>::to_any(s);
 }
@@ -190,7 +190,7 @@ struct Digits<16>
 };
 
 template <typename I, I Limit = std::numeric_limits<I>::max(), int Base = 10>
-static inline result_t<I> to_any_uint_base(std::string_view s)
+inline result_t<I> to_any_uint_base(std::string_view s)
 {
 	if (!s.size()) return error("Empty string");
 	I r = 0;
@@ -214,7 +214,7 @@ static inline result_t<I> to_any_uint_base(std::string_view s)
 }
 
 template <typename I, I Limit = std::numeric_limits<I>::max()>
-static inline result_t<I> to_any_uint(std::string_view s)
+inline result_t<I> to_any_uint(std::string_view s)
 {
 	if (s.size() > 2) {
 		if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
@@ -224,7 +224,7 @@ static inline result_t<I> to_any_uint(std::string_view s)
 }
 
 template <typename I>
-static inline result_t<I> to_any_sint(std::string_view s)
+inline result_t<I> to_any_sint(std::string_view s)
 {
 	I mul = 1;
 	if (s.size() == 0)
@@ -251,7 +251,7 @@ static inline result_t<I> to_any_sint(std::string_view s)
 }
 
 template <typename I>
-static inline result_t<I> to_any_int(std::string_view s)
+inline result_t<I> to_any_int(std::string_view s)
 {
 	if constexpr (std::is_unsigned_v<I>)
 		return to_any_uint<I>(s);
@@ -305,7 +305,7 @@ struct to_string_buf_uint<10> {
 };
 
 template <typename I, typename Buf, int Base = 10>
-static inline std::string_view to_string_buf_int(I v, Buf &buf)
+inline std::string_view to_string_buf_int(I v, Buf &buf)
 {
 	if constexpr (std::is_unsigned_v<I>)
 		return to_string_buf_uint<Base>::template to_string_buf<I, Buf>(v, buf);
@@ -476,7 +476,7 @@ struct parse<std::string_view>
 };
 
 template <typename T>
-static inline result_t<T> select(std::string_view s, const std::map<std::string_view, T> m)
+inline result_t<T> select(std::string_view s, const std::map<std::string_view, T> m)
 {
 	auto i = m.find(s);
 	if (i == m.end()) return error("No matches");
