@@ -44,7 +44,7 @@ bool starts_with(std::string_view l, std::string_view r)
 
 namespace tll::scheme::internal {
 
-static inline std::optional<tll_scheme_field_type_t> parse_type_int(std::string_view type)
+inline std::optional<tll_scheme_field_type_t> parse_type_int(std::string_view type)
 {
 	if (type == "int8") return tll::scheme::Field::Int8;
 	else if (type == "int16") return tll::scheme::Field::Int16;

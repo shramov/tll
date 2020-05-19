@@ -272,7 +272,7 @@ struct getter_api<tll_scheme_option_t *>
 }
 
 namespace scheme {
-static inline PropsView options_map(const tll_scheme_option_t * o)
+inline PropsView options_map(const tll_scheme_option_t * o)
 {
 	PropsView r;
 	for (; o; o = o->next)
@@ -292,7 +292,7 @@ using SchemePtr = std::unique_ptr<Scheme, decltype(&tll_scheme_unref)>;
 
 using time_resolution_t = tll_scheme_time_resolution_t;
 
-static constexpr std::string_view time_resolution_str(time_resolution_t r)
+constexpr std::string_view time_resolution_str(time_resolution_t r)
 {
 	switch (r) {
 	case TLL_SCHEME_TIME_NS: return "ns";
