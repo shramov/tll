@@ -263,7 +263,7 @@ struct PageT : public Page
  *
  * For single-writer programs `NULL` check can be omitted.
  */
-static inline tll_stat_page_t * acquire(tll_stat_block_t * b)
+inline tll_stat_page_t * acquire(tll_stat_block_t * b)
 {
 	auto a = (std::atomic<tll_stat_page_t *> *) &b->lock;
 	return a->exchange(nullptr, std::memory_order_acquire);
@@ -274,7 +274,7 @@ static inline tll_stat_page_t * acquire(tll_stat_block_t * b)
  *
  * @param p Pointer to page returned from `acquire` call, not `NULL`
  */
-static inline void release(tll_stat_block_t * b, tll_stat_page_t * p)
+inline void release(tll_stat_block_t * b, tll_stat_page_t * p)
 {
 	auto a = (std::atomic<tll_stat_page_t *> *) &b->lock;
 	a->store(p, std::memory_order_release);
@@ -285,7 +285,7 @@ static inline void release(tll_stat_block_t * b, tll_stat_page_t * p)
  * @return `NULL` if active page is locked
  * @return pointer to inactive page on success
  */
-static inline tll_stat_page_t * swap(tll_stat_block_t * b)
+inline tll_stat_page_t * swap(tll_stat_block_t * b)
 {
 	auto a = (std::atomic<tll_stat_page_t *> *) &b->lock;
 	auto tmp = b->active;
