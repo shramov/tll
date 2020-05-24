@@ -23,7 +23,7 @@ namespace tll {
 
 namespace getter {
 template <typename Klass, typename T>
-static inline result_t<T> getT(const Klass &obj, std::string_view key)
+inline result_t<T> getT(const Klass &obj, std::string_view key)
 {
 	auto v = tll::util::getter_api<Klass>::get(obj, key);
 	if (!v || !v->size())
@@ -35,7 +35,7 @@ static inline result_t<T> getT(const Klass &obj, std::string_view key)
 }
 
 template <typename Klass, typename T>
-static inline result_t<T> getT(const Klass &obj, std::string_view key, const T &def)
+inline result_t<T> getT(const Klass &obj, std::string_view key, const T &def)
 {
 	auto v = tll::util::getter_api<Klass>::get(obj, key);
 	if (!v || !v->size())
@@ -47,7 +47,7 @@ static inline result_t<T> getT(const Klass &obj, std::string_view key, const T &
 }
 
 template <typename Klass, typename T>
-static inline result_t<T> getT(const Klass &obj, std::string_view key, const T & def, const std::map<std::string_view, T> m)
+inline result_t<T> getT(const Klass &obj, std::string_view key, const T & def, const std::map<std::string_view, T> m)
 {
 	auto v = tll::util::getter_api<Klass>::get(obj, key);
 	if (!v || !v->size())

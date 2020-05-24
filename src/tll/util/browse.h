@@ -15,7 +15,7 @@
 
 namespace tll {
 
-static inline bool match(const std::vector<std::string_view> &mask, std::string_view path)
+inline bool match(const std::vector<std::string_view> &mask, std::string_view path)
 {
 	auto ps = split<'.'>(path);
 	auto mi = mask.begin();
@@ -47,7 +47,7 @@ static inline bool match(const std::vector<std::string_view> &mask, std::string_
 	return true;
 }
 
-static inline bool match(std::string_view mask, std::string_view path)
+inline bool match(std::string_view mask, std::string_view path)
 {
 	if (!mask.size()) return path.size() == 0;
 	if (!path.size()) return false;
