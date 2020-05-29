@@ -134,6 +134,12 @@ class Base
 		if (!url)
 			return _log.fail(EINVAL, "Invalid url '{}': {}", params, url.error());
 
+		auto replace = channelT()->_init_replace(*url);
+		if (replace) {
+			self()->impl = replace;
+			return EAGAIN;
+		}
+
 		auto reader = channel_props_reader(*url); //, T::param_prefix());
 		name = reader.template getT<std::string>("name", "noname");
 		_log = { fmt::format("tll.channel.{}", name) };
@@ -154,6 +160,7 @@ class Base
 		return channelT()->_init(*url, master);
 	}
 
+	const tll_channel_impl_t * _init_replace(const tll::UrlView &url) { return nullptr; }
 	int _init(const tll::UrlView &url, tll::Channel *master) { return 0; }
 
 	void free()

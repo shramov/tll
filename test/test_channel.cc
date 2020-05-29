@@ -9,12 +9,31 @@
 
 #include "tll/channel/base.h"
 
+class Null : public tll::channel::Base<Null>
+{
+ public:
+	static constexpr std::string_view param_prefix() { return "null"; }
+
+	int _init(const tll::UrlView &, tll::Channel *master) { return 0; }
+
+	int _process(long timeout, int flags) { return EAGAIN; }
+	int _post(const tll_msg_t *msg, int flags) { return 0; }
+};
+
+TLL_DEFINE_IMPL(Null);
+
 class Echo : public tll::channel::Base<Echo>
 {
  public:
 	static constexpr std::string_view param_prefix() { return "echo"; }
 
-	int _init(const tll::UrlView &, tll::Channel *master) { return 0; }
+	const tll_channel_impl_t * _init_replace(const tll::UrlView &url)
+	{
+		auto null = url.getT("null", false);
+		if (null && *null)
+			return &Null::impl;
+		return nullptr;
+	}
 
 	int _open(const tll::PropsView &) { return 0; }
 	int _post(const tll_msg_t *msg, int flags) { return _callback(msg); }
@@ -63,6 +82,7 @@ TEST(Channel, New)
 
 	auto c = ctx.channel("echo://;name=echo");
 	ASSERT_NE(c.get(), nullptr);
+	ASSERT_EQ(c->impl, &Echo::impl);
 	ASSERT_EQ(c->state(), tll::state::Closed);
 	ASSERT_EQ(c->open(), 0);
 	ASSERT_EQ(c->state(), tll::state::Opening);
@@ -84,4 +104,13 @@ TEST(Channel, New)
 
 	c->post(&msg);
 	ASSERT_EQ(rseq, msg.seq);
+
+	c = ctx.channel("echo://;name=echo-null;null=yes");
+	ASSERT_NE(c.get(), nullptr);
+	ASSERT_EQ(c->impl, &Null::impl);
+
+	ASSERT_EQ(c->state(), tll::state::Closed);
+	ASSERT_EQ(c->open(), 0);
+	ASSERT_EQ(c->state(), tll::state::Active);
+	ASSERT_EQ(c->process(), EAGAIN);
 }

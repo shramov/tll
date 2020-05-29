@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <shared_mutex>
 #include <string>
 
@@ -105,17 +106,17 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		return 0;
 	}
 
-	const tll_channel_impl_t * lookup(const UrlView &url)
+	const tll_channel_impl_t * lookup(std::string_view proto) const
 	{
-		auto i = registry.find(url.proto);
+		auto i = registry.find(proto);
 		if (i != registry.end())
 			return i->second;
 
-		auto sep = url.proto.find('+');
-		if (sep == url.proto.npos)
+		auto sep = proto.find('+');
+		if (sep == proto.npos)
 			return nullptr;
 
-		i = registry.find(url.proto.substr(0, sep));
+		i = registry.find(proto.substr(0, sep));
 		if (i == registry.end())
 			return nullptr;
 		return i->second;
@@ -260,9 +261,10 @@ tll_channel_t * tll_channel_context_t::init(std::string_view params, tll_channel
 	if (!internal)
 		return _log.fail(nullptr, "Invalid tll.internal parameter: {}", internal.error());
 
-	auto impl = lookup(*url);
+	auto impl = lookup(url->proto);
 	if (!impl)
 		return _log.fail(nullptr, "Channel '{}' not found", url->proto);
+
 	if (!parent && url->has("parent")) {
 		auto pi = url->find("parent");
 		auto it = channels.find(pi->second);
@@ -271,24 +273,40 @@ tll_channel_t * tll_channel_context_t::init(std::string_view params, tll_channel
 		parent = it->second;
 	}
 
-	auto r = std::make_unique<tll_channel_t>();
-	if (!r) return 0;
-	*r = {};
-	r->context = this;
-	r->impl = impl;
-	if ((*r->impl->init)(r.get(), params.data(), params.size(), parent, this))
-		return _log.fail(nullptr, "Failed to init channel {}", params);
-	if (*internal)
-		r->internal->caps |= caps::Custom;
-	if (!r->internal)
-		return _log.fail(nullptr, "Failed to init channel {}: NULL internal pointer", params);
-	//r->internal->data_cb = r->internal->data_cb_fixed;
-	if (!*internal && r->internal->name) {
-		channels.emplace(r->internal->name, r.get()); // Check for dup
-		tll_config_set_config(config, r->internal->name, -1, r->internal->config);
-	}
-	tll_channel_context_ref(r->context);
-	return r.release();
+	auto c = std::make_unique<tll_channel_t>();
+	if (!c) return nullptr;
+
+	std::set<const tll_channel_impl_t *> impllog;
+
+	do {
+		*c = {};
+		c->context = this;
+		c->impl = impl;
+		_log.debug("Initialize channel with impl '{}'", c->impl->name);
+		auto r = (*c->impl->init)(c.get(), params.data(), params.size(), parent, this);
+		if (r == EAGAIN && c->impl != nullptr && c->impl != impl) {
+			_log.info("Reinitialize channel with different impl '{}'", c->impl->name);
+			if (impllog.find(c->impl) != impllog.end())
+				return _log.fail(nullptr, "Detected loop in channel initialization");
+			impllog.insert(impl);
+			impl = c->impl;
+			continue;
+		} else if (r)
+			return _log.fail(nullptr, "Failed to init channel {}", params);
+		if (*internal)
+			c->internal->caps |= caps::Custom;
+		if (!c->internal)
+			return _log.fail(nullptr, "Failed to init channel {}: NULL internal pointer", params);
+		//c->internal->data_cb = c->internal->data_cb_fixed;
+		if (!*internal && c->internal->name) {
+			channels.emplace(c->internal->name, c.get()); // Check for dup
+			tll_config_set_config(config, c->internal->name, -1, c->internal->config);
+		}
+		break;
+	} while (true);
+
+	tll_channel_context_ref(c->context);
+	return c.release();
 }
 
 tll_state_t tll_channel_state(const tll_channel_t *c) { return c->internal->state; }
