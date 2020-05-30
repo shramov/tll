@@ -9,19 +9,23 @@
 #define _TLL_UTIL_REFPTR_H
 
 #include <atomic>
+#include <stdio.h>
 
 namespace tll::util {
 
-template <typename T, int Initial = 1>
+template <typename T, int Initial = 1, bool Debug = false>
 struct refbase_t
 {
-	T * ref() { _ref += 1; return static_cast<T *>(this); }
-	void unref() { if ((_ref -= 1) == 0) static_cast<T *>(this)->destroy(); }
+	const T * ref() const { return const_cast<refbase_t<T, Initial, Debug> *>(this)->ref(); }
+	void unref() const { return const_cast<refbase_t<T, Initial, Debug> *>(this)->unref(); }
+
+	T * ref() { if (Debug) printf("+ ref %p %d++\n", this, _ref.load()); _ref += 1; return static_cast<T *>(this); }
+	void unref() { if (Debug) printf("- ref %p %d--\n", this, _ref.load()); if ((_ref -= 1) == 0) static_cast<T *>(this)->destroy(); }
 	int refcnt() const { return _ref.load(); }
 	void destroy() { delete static_cast<T *>(this); }
 
  protected:
-	std::atomic<int> _ref = {Initial};
+	mutable std::atomic<int> _ref = {Initial};
 };
 
 template <typename T>

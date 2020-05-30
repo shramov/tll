@@ -20,7 +20,7 @@
 
 using tll::util::refptr_t;
 
-struct tll_config_t
+struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 {
 	typedef std::map<std::string, refptr_t<tll_config_t>, std::less<>> map_t;
 	typedef tll::split_helperT<'.'>::iterator path_iterator_t;
@@ -29,10 +29,6 @@ struct tll_config_t
 	typedef std::unique_lock<std::shared_mutex> wlock_t;
 	typedef std::shared_lock<std::shared_mutex> rlock_t;
 	mutable std::shared_mutex _lock;
-	mutable std::atomic<int> _ref = 0;
-	tll_config_t * ref() { /*printf("+ ref %p %d++\n", this, _ref.load());*/ _ref += 1; return this;}
-	const tll_config_t * ref() const { /*printf("+ ref %p %d++\n", this, _ref.load());*/ _ref += 1; return this; }
-	void unref() const { /*printf("- ref %p %d--\n", this, _ref.load());*/ if ((_ref -= 1) == 0) delete this; }
 
 	tll_config_t * parent = 0;
 	map_t kids;
