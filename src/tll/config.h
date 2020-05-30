@@ -186,8 +186,8 @@ class ConfigT : public PropsGetter<ConfigT<Const>>
 	using config_t = std::conditional_t<Const, const tll_config_t, tll_config_t>;
 	config_t *_cfg = nullptr;
 
-	static struct nobind_t {} nobind;
-	explicit ConfigT(config_t * cfg, const nobind_t &n) : _cfg(cfg) {}
+	struct consume_t {};
+	explicit ConfigT(config_t * cfg, const consume_t &n) : _cfg(cfg) {}
 
  public:
 	typedef std::string string_type;
@@ -200,6 +200,8 @@ class ConfigT : public PropsGetter<ConfigT<Const>>
 	ConfigT(const ConfigT<!Const> &cfg) : _cfg((config_t *) cfg._cfg) { tll_config_ref(_cfg); }
 	ConfigT(ConfigT &&cfg) { std::swap(_cfg, cfg._cfg); }
 	ConfigT(ConfigT<!Const> &&cfg) : _cfg((config_t *) cfg._cfg) { cfg._cfg = nullptr; }
+
+	static ConfigT consume(config_t * cfg) { return ConfigT(cfg, consume_t()); }
 
 	~ConfigT()
 	{
@@ -222,14 +224,14 @@ class ConfigT : public PropsGetter<ConfigT<Const>>
 	{
 		auto c = tll_config_load(path.data(), path.size());
 		if (!c) return std::nullopt;
-		return ConfigT(c, nobind_t());
+		return ConfigT::consume(c);
 	}
 
 	std::optional<const ConfigT> sub(std::string_view path) const
 	{
 		auto c = tll_config_sub(_cfg, path.data(), path.size(), 0);
 		if (!c) return std::nullopt;
-		return ConfigT(c, nobind_t());
+		return ConfigT::consume(c);
 	}
 
 	operator config_t * () { return _cfg; }
@@ -306,7 +308,7 @@ class Config : public ConfigT<false>
 {
  public:
 	explicit Config(tll_config_t * cfg) : ConfigT<false>(cfg) {}
-	explicit Config(config_t * cfg, const nobind_t &n) : ConfigT<false>(cfg, n) {}
+	explicit Config(config_t * cfg, const consume_t &n) : ConfigT<false>(cfg, n) {}
 
 	Config() {}
 
@@ -344,7 +346,7 @@ class Config : public ConfigT<false>
 	{
 		auto c = tll_config_sub(_cfg, path.data(), path.size(), create);
 		if (!c) return std::nullopt;
-		return Config(c, nobind_t());
+		return Config(c, consume_t());
 	}
 
 	std::optional<ConstConfig> sub(std::string_view path) const { return ConfigT<false>::sub(path); }
