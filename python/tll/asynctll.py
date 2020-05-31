@@ -1,0 +1,178 @@
+#!/usr/bin/env python3
+# vim: sts=4 sw=4 et
+
+from tll.logger import Logger
+from tll.processor import Loop as PLoop
+import tll.channel as C
+
+import heapq
+import queue
+import time
+import types
+import weakref
+
+class Entry:
+    def __init__(self):
+        self.ref = 1
+        self.queue = queue.Queue()
+
+class AsyncChannel(C.Channel):
+    LOOP_KEY = '_pytll_async_loop'
+    MASK = C.MsgMask.All ^ C.MsgMask.State ^ C.MsgMask.Channel
+
+    def __init__(self, *a, **kw):
+        loop = kw.pop(self.LOOP_KEY, None)
+        if loop is None:
+            raise ValueError("Need {} parameter".format(self.LOOP_KEY))
+
+        C.Channel.__init__(self, *a, **kw)
+        self._loop = weakref.ref(loop)
+        self._result = queue.Queue()
+        self.callback_add(weakref.ref(self), mask=self.MASK)
+
+    def __call__(self, c, msg):
+        self._result.put(msg.clone())
+        l = self._loop()
+        if l:
+            l._ticks += 1
+
+    async def recv(self, timeout=1.):
+        ts = time.time() + timeout
+        l = self._loop()
+        if not l:
+            raise RuntimeError("Async TLL loop destroyed, bailing out")
+        while True:
+            await l._wait()
+            if not self._result.empty():
+                return self._result.get()
+            if time.time() > ts:
+                raise TimeoutError("Timeout waiting for message")
+
+class Loop:
+    def __init__(self, context = None):
+        self.context = context
+        self.channels = weakref.WeakKeyDictionary()
+        self.asyncchannels = weakref.WeakSet()
+        self._loop = PLoop()
+        self.log = Logger("tll.python.loop")
+        self.tick = 0.01
+        self._ticks = 0
+        self._ctx = C.Context()
+        self._timer = self._ctx.Channel("timer://;clock=realtime;name=asynctll;dump=yes")
+        self._loop.add(self._timer)
+        self._timer_cb_ref = self._timer_cb
+        self._timer.callback_add(self._timer_cb, mask=C.MsgMask.Data)
+        self._timer.open("interval=100ms")
+        self._timer_queue = []
+
+    def __del__(self):
+        self.log.debug("Destroy async helper")
+        if self._timer:
+            self._timer.callback_del(self._timer_cb, mask=C.MsgMask.Data)
+            self._timer.close()
+            self._timer = None
+        for r in self.channels.keys():
+            c.callback_del(self._callback, mask=C.MsgMask.All)
+        self.channels = {}
+
+    def Channel(self, *a, **kw):
+        if self.context is None:
+            raise RuntimeError("Can not create channel without loop context")
+        kw = dict(kw)
+        kw['context'] = self.context
+        kw[AsyncChannel.LOOP_KEY] = self
+        c = AsyncChannel(*a, **kw)
+        self.asyncchannels.add(c)
+        self._loop.add(c)
+        return c
+
+    def _timer_cb(self, c, m):
+        self.log.info("Timer cb")
+        self._ticks += 1
+
+    def _timer_arm(self, timeout):
+        ts = time.time() + timeout
+        if self._timer_queue == [] or self._timer_queue[0] > ts:
+            self._timer.post({'ts':timeout}, name='relative')
+            self._timer_queue.insert(0, ts)
+        else:
+            heapq.heappush(self._timer_queue, ts)
+        return ts
+
+    def channel_add(self, c):
+        self.log.debug("Add channel {}", c.name)
+        if c in self.asyncchannels:
+            return
+        if c not in self.channels:
+            self._loop.add(c)
+            self.channels[c] = Entry()
+            c.callback_add(self._callback, mask=C.MsgMask.All)
+        else:
+            self.channels[c].ref += 1
+
+    def channel_del(self, c, force=False):
+        self.log.debug("Del channel {}", c.name)
+        if c in self.asyncchannels:
+            return
+        entry  = self.channels.get(c, None)
+        if entry is None:
+            raise KeyError("Channel {} not processed by loop".format(c.name))
+        entry.ref -= 1
+        if force or entry.ref == 0:
+            c.callback_del(self._callback, mask=C.MsgMask.All)
+            self._loop.remove(c)
+            del self.channels[c]
+
+    async def sleep(self, timeout):
+        ts = self._timer_arm(timeout)
+        while time.time() < ts:
+            await self._wait()
+
+    async def recv(self, c, timeout=1.):
+        if c in self.asyncchannels:
+            return await c.recv(timeout)
+
+        entry = self.channels.get(c, None)
+        if entry is None:
+            raise KeyError("Channel {} not processed by loop".format(c.name))
+
+        ts = time.time() + timeout
+        while True:
+            if not entry.queue.empty():
+                return entry.queue.get()
+            if time.time() > ts:
+                raise TimeoutError("Timeout waiting for message")
+            await self._wait()
+
+    @types.coroutine
+    def _wait(self):
+        r = yield None
+
+    def run(self, future):
+        try:
+            future.send(None) # Start future
+            while True:
+                c = self._loop.poll(0.01)
+                if c is not None:
+                    c.process()
+                if self._ticks:
+                    self.log.info("Ticks: {}", self._ticks)
+                for _ in range(self._ticks):
+                    future.send(None)
+                self._ticks = 0
+        except StopIteration as e:
+            self.log.info("Future completed")
+            return e.value
+
+    def _callback(self, channel, msg):
+        self.log.debug("Got message for {}", channel.name)
+        self._ticks += 1
+        if msg.type == msg.Type.State:
+            if msg.msgid == channel.State.Destroy:
+                self.log.debug("Removing channel {}", channel.name)
+                self.channel_del(channel, force=True)
+        if msg.type not in (msg.Type.Data, msg.Type.Control):
+            return
+        entry = self.channels.get(channel, None)
+        if entry:
+            entry.queue.put(msg.clone())
