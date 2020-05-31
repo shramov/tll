@@ -348,7 +348,6 @@ cdef class Message:
 cdef int msg_cb(const tll_channel_t * c, const tll_msg_t *msg, void * user) with gil:
     o = <object>user
     try:
-        #print("Call", o)
         if isinstance(o, weakref.ref):
             o = o()
         if o is None: return 0

@@ -166,6 +166,7 @@ cdef int _py_init(tll_channel_t * channel, const char *str, size_t len, tll_chan
         ctype = <object>(channel.impl.data)
         pyc = ctype(Context.wrap(ctx), intr)
         channel.internal = &intr.internal
+        intr.internal.self = channel
 
         r = _py_check_return(pyc.init(b2s(str[:len]), master=Channel.wrap(parent)))
         if r:
