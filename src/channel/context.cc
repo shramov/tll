@@ -335,11 +335,8 @@ void tll_channel_free(tll_channel_t *c)
 
 int tll_channel_process(tll_channel_t *c, long timeout, int flags)
 {
-	if (!c || !c->impl) return EINVAL;
-	if (c->internal) {
-		if (c->internal->dcaps & dcaps::Suspend) return EAGAIN;
-		if (!(c->internal->state == tll::state::Opening || c->internal->state == tll::state::Active)) return EINVAL;
-	}
+	if (!c || !c->impl || !c->internal) return EINVAL;
+	if (!tll::dcaps::need_process(c->internal->dcaps)) return EAGAIN;
 	return (*c->impl->process)(c, timeout, flags);
 }
 

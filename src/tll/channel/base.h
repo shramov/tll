@@ -63,8 +63,11 @@ class Base
 	const ChannelT * channelT() const { return static_cast<ChannelT *>(this); }
 
 	static tll::channel_impl<ChannelT> impl;
+
 	static constexpr std::string_view param_prefix() { return "base"; }
 	static constexpr bool prefix_channel() { return false; }
+	enum class ProcessPolicy { Normal, Never, Always };
+	static constexpr auto process_policy = ProcessPolicy::Normal;
 
 	tll_channel_internal_t internal = { state::Closed };
 
@@ -181,6 +184,15 @@ class Base
 			return _log.fail(EINVAL, "Open failed: invalid state {}", tll_state_str(state()));
 		_log.info("Open channel");
 		state(state::Opening);
+		switch (T::process_policy) {
+		case ProcessPolicy::Normal:
+		case ProcessPolicy::Always:
+			_update_dcaps(dcaps::Process, dcaps::Process);
+			break;
+		case ProcessPolicy::Never:
+			break;
+		}
+
 		if (_scheme_url) {
 			_log.debug("Loading scheme from {}...", _scheme_url->substr(0, 64));
 			_scheme.reset(context().scheme_load(*_scheme_url, _scheme_cache));
@@ -206,6 +218,7 @@ class Base
 	{
 		if (state() == state::Closed || state() == state::Closing)
 			return 0;
+		_update_dcaps(0, dcaps::Process | dcaps::CPOLLMASK);
 		state(state::Closing);
 		auto r = static_cast<ChannelT *>(this)->_close();
 		_scheme.reset();
@@ -294,6 +307,9 @@ class Base
 	Channel * self() { return static_cast<Channel *>(internal.self); }
 	operator Channel * () { return self(); }
 	operator const Channel * () const { return self(); }
+
+	int & fd() { return internal.fd; }
+	int fd() const { return internal.fd; }
 
 	tll_state_t state() const { return internal.state; }
 	tll_state_t state(tll_state_t s)

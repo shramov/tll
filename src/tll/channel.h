@@ -102,8 +102,27 @@ typedef enum {
 	TLL_DCAPS_PROCESS  = 0x10, ///< Call process for this object, don't call if cap is not set.
 	TLL_DCAPS_PENDING  = 0x20, ///< Pending data, process without polling
 	TLL_DCAPS_SUSPEND  = 0x40, ///< Channel is suspended
-	TLL_DCAPS_SUSPEND_PERMANENT = 0x70, ///< Channel is suspended explicitly.
+	TLL_DCAPS_SUSPEND_PERMANENT = 0x80, ///< Channel is suspended explicitly.
+
+	/**
+	 * Mask to check if channel needs process or not
+	 *
+	 * Channel process is called only when PROCESS dcap is set and SUSPEND is not set.
+	 * Such check can be done in one comparison:
+	 * @code{.c}
+	 * dcaps & TLL_DCAPS_PROCESS_MASK == TLL_DCAPS_PROCESS
+	 * @endcode
+	 */
+	TLL_DCAPS_PROCESS_MASK = TLL_DCAPS_PROCESS | TLL_DCAPS_SUSPEND,
 } tll_channel_dcap_t;
+
+/**
+ * Helper function to check if channel need process or not.
+ */
+static inline int tll_channel_dcap_need_process(unsigned dcap)
+{
+	return (dcap & TLL_DCAPS_PROCESS_MASK) == TLL_DCAPS_PROCESS;
+}
 
 typedef struct tll_channel_internal_t tll_channel_internal_t;
 
@@ -350,6 +369,10 @@ namespace dcaps {
 	constexpr auto Pending = TLL_DCAPS_PENDING;
 	constexpr auto Suspend = TLL_DCAPS_SUSPEND;
 	constexpr auto SuspendPermanent = TLL_DCAPS_SUSPEND_PERMANENT;
+	constexpr auto ProcessMask = TLL_DCAPS_PROCESS_MASK;
+
+	/// Helper function to check, if channel need process or not
+	constexpr bool need_process(unsigned dcaps) { return (dcaps & ProcessMask) == Process; }
 }
 
 template <typename T>
