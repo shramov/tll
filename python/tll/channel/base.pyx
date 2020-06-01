@@ -24,6 +24,10 @@ cdef class Base:
     PROTO = None
     PREFIX = False
 
+    Caps = C.Caps
+    DCaps = C.DCaps
+    State = C.State
+
     cdef Internal internal
     cdef Context context
 
@@ -41,9 +45,8 @@ cdef class Base:
         self.internal.state = C.State.Destroy
 
     def _callback(self, msg):
-        cdef Internal intr = <Internal>self.internal
         if isinstance(msg, C.Message):
-            return intr.callback((<C.Message>msg)._ptr)
+            return self.internal.callback((<C.Message>msg)._ptr)
         cdef tll_msg_t cmsg
         memset(&cmsg, 0, sizeof(tll_msg_t))
 
@@ -53,7 +56,7 @@ cdef class Base:
         if msg.data is not None:
             cmsg.size = len(msg.data)
 
-        intr.callback(&cmsg)
+        self.internal.callback(&cmsg)
 
     @property
     def config(self): return self.internal.config
@@ -78,10 +81,16 @@ cdef class Base:
     def fd(self, v): self.internal.internal.fd = v
 
     @property
-    def caps(self): return C.Caps(self.internal.caps)
+    def caps(self): return C.Caps(self.internal.internal.caps)
+
+    @caps.setter
+    def caps(self, v): self.internal.internal.caps = v
 
     @property
-    def dcaps(self): return C.DCaps(self.internal.dcaps)
+    def dcaps(self): return C.DCaps(self.internal.internal.dcaps)
+
+    @dcaps.setter
+    def dcaps(self, v): self.internal.internal.dcaps = v
 
     @property
     def name(self): return self.internal.name
@@ -107,6 +116,7 @@ cdef class Base:
     def open(self, props):
         self.log.info("Open channel")
         self.state = C.State.Opening
+        self._update_dcaps(C.DCaps.Process)
         self._open(props)
 
     def close(self):
@@ -116,6 +126,7 @@ cdef class Base:
             self._close()
         finally:
             self.state = C.State.Closed
+            self._update_dcaps(0, C.DCaps.Process | C.DCaps.PollMask)
 
     def process(self, timeout, flags):
         try:
@@ -137,3 +148,24 @@ cdef class Base:
 
     def _process(self, timeout, flags): pass
     def _post(self, msg, flags): pass
+
+    def _update_dcaps(self, caps, mask=None):
+        if mask is None:
+            mask = caps
+        caps = C.DCaps(caps & mask)
+        old = self.dcaps
+        if old & mask == caps:
+            return
+        self.log.debug("Update caps: {!s} -> {!s}", old, caps)
+        self.dcaps = (self.dcaps & ~mask) | caps
+        cdef unsigned ccaps = self.dcaps
+
+        cdef tll_msg_t msg
+        memset(&msg, 0, sizeof(tll_msg_t))
+
+        msg.type = C.Type.Channel
+        msg.msgid = C.MsgChannel.Update
+        msg.data = &ccaps
+        msg.size = sizeof(ccaps)
+
+        self.internal.callback(&msg)

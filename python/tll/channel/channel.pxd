@@ -37,6 +37,11 @@ cdef extern from "tll/channel.h":
         TLL_MESSAGE_MASK_STATE
         TLL_MESSAGE_MASK_CHANNEL
 
+    ctypedef enum tll_msg_channel_t:
+        TLL_MESSAGE_CHANNEL_UPDATE
+        TLL_MESSAGE_CHANNEL_ADD
+        TLL_MESSAGE_CHANNEL_DELETE
+
     ctypedef enum tll_channel_cap_t:
         TLL_CAPS_INPUT
         TLL_CAPS_OUTPUT

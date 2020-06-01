@@ -37,6 +37,12 @@ class Type(enum.Enum):
     def __int__(self): return self.value
 _Type = Type
 
+class MsgChannel(enum.Enum):
+    Update = TLL_MESSAGE_CHANNEL_UPDATE
+    Add = TLL_MESSAGE_CHANNEL_ADD
+    Delete = TLL_MESSAGE_CHANNEL_DELETE
+    def __int__(self): return self.value
+
 class MsgMask(enum.IntFlag):
     All = TLL_MESSAGE_MASK_ALL
     Data = TLL_MESSAGE_MASK_DATA
