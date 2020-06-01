@@ -15,7 +15,7 @@ def base64gz(s):
     return binascii.b2a_base64(zlib.compress(s2b(s))).strip().decode('utf-8')
 
 class Accum(Channel):
-    MASK = MsgMask.All ^ MsgMask.State
+    MASK = MsgMask.Data | MsgMask.Control
 
     def __init__(self, *a, **kw):
         Channel.__init__(self, *a, **kw)
