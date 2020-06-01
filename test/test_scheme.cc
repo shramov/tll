@@ -81,6 +81,17 @@ TEST(Scheme, Size)
 	ASSERT_EQ(f, nullptr);
 
 	EXPECT_EQ(m->size, 1u + 2u + 4u + 8u);
+	m = m->next;
+
+	ASSERT_NE(m, nullptr);
+	EXPECT_STREQ(m->name, "time");
+	EXPECT_EQ(m->msgid, 20);
+	EXPECT_EQ(m->enums, nullptr);
+	f = m->fields;
+	CHECK_FIELD(f, "f0", Field::Double, 8u, 0u); EXPECT_EQ(f->sub_type, Field::Duration); EXPECT_EQ(f->time_resolution, TLL_SCHEME_TIME_DAY); f = f->next;
+	CHECK_FIELD(f, "f1", Field::Int16, 2u, 8u); EXPECT_EQ(f->sub_type, Field::Duration); EXPECT_EQ(f->time_resolution, TLL_SCHEME_TIME_SECOND); f = f->next;
+	CHECK_FIELD(f, "f2", Field::Int64, 8u, 10u); EXPECT_EQ(f->sub_type, Field::TimePoint); EXPECT_EQ(f->time_resolution, TLL_SCHEME_TIME_NS); f = f->next;
+	ASSERT_EQ(f, nullptr);
 
 	m = m->next;
 	EXPECT_EQ(m, nullptr);

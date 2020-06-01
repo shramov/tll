@@ -16,6 +16,7 @@ Field
 Data type is a pair of wire type (e.g. ``int32`` or ``double``) and logical type (e.g. ``duration``).
 
 Simple wire types:
+
  - ``int8``: 1 byte signed integer;
  - ``int16``: 2 byte signed integer;
  - ``int32``: 4 byte signed integer;
@@ -25,6 +26,7 @@ Simple wire types:
  - ``bytes``: fixed size byte array;
 
 Composite wire types:
+
  - ``message``: embedded message;
  - ``array``: fixed size array, pair of integer counter and list of elements;
  - ``pointer``: variable size array, that's located somewhere later in the message;
@@ -35,6 +37,7 @@ It provides a backward compatible way to extend scheme. Old applications that do
 about new type can process raw wire type.
 
 Supported logical types:
+
  - ``enum``:
  - ``bytestring``: field contains string (maybe without null terminator) with
    length ``strnlen(data, sizeof(data))``, only for ``bytes`` wire type;
@@ -42,6 +45,21 @@ Supported logical types:
  - ``time_point``: timestamp with resolution e.g. ``int64`` microseconds from epoch, only for integral and real types;
  - ``duration``: duration with resolution e.g. ``double`` seconds interval, only for integral and real types;
 
+Time fields
+-----------
+
+For time point and duration fields resolution has to be explicitly specified with ``options.resolution``.
+Supported values (self explanatory):
+
+ - ``ns`` or ``nanosecond``;
+ - ``us`` or ``microsecond``;
+ - ``ms`` or ``millisecond``;
+ - ``s`` or ``second``;
+ - ``m`` or ``minute``;
+ - ``h`` or ``hour``;
+ - ``d`` or ``day``;
+
+First variant is canonical form, used when scheme is serialized to string, second is better for reading.
 
 Pointers
 --------

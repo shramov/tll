@@ -96,10 +96,10 @@ typedef enum tll_scheme_time_resolution_t {
 	TLL_SCHEME_TIME_NS,
 	TLL_SCHEME_TIME_US,
 	TLL_SCHEME_TIME_MS,
-	TLL_SCHEME_TIME_SECONDS,
-	TLL_SCHEME_TIME_MINUTES,
-	TLL_SCHEME_TIME_HOURS,
-	TLL_SCHEME_TIME_DAYS,
+	TLL_SCHEME_TIME_SECOND,
+	TLL_SCHEME_TIME_MINUTE,
+	TLL_SCHEME_TIME_HOUR,
+	TLL_SCHEME_TIME_DAY,
 } tll_scheme_time_resolution_t;
 
 typedef enum tll_scheme_offset_ptr_version_t {
@@ -298,10 +298,10 @@ constexpr std::string_view time_resolution_str(time_resolution_t r)
 	case TLL_SCHEME_TIME_NS: return "ns";
 	case TLL_SCHEME_TIME_US: return "us";
 	case TLL_SCHEME_TIME_MS: return "ms";
-	case TLL_SCHEME_TIME_SECONDS: return "s";
-	case TLL_SCHEME_TIME_MINUTES: return "m";
-	case TLL_SCHEME_TIME_HOURS: return "h";
-	case TLL_SCHEME_TIME_DAYS: return "d";
+	case TLL_SCHEME_TIME_SECOND: return "s";
+	case TLL_SCHEME_TIME_MINUTE: return "m";
+	case TLL_SCHEME_TIME_HOUR: return "h";
+	case TLL_SCHEME_TIME_DAY: return "d";
 	}
 	return "";
 }

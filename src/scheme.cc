@@ -199,7 +199,8 @@ struct Field
 	int size = -1;
 	std::string type_msg;
 	std::string type_enum;
-	long long resolution; // For time, fixed
+	long long resolution; // For fixed
+	time_resolution_t time_resolution = TLL_SCHEME_TIME_NS;
 
 	tll::scheme::Field * finalize(tll::scheme::Scheme *s, tll::scheme::Message *m);
 
@@ -224,11 +225,21 @@ struct Field
 				if (parse_enum_inline(cfg))
 					return EINVAL;
 			} else if (t == "time_point" || t == "duration") {
+				sub_type = t == "duration" ? Field::Duration : Field::TimePoint;
+
 				auto r = options.get("resolution");
 				if (!r)
 					return EINVAL;
-				if (*r == "ns") resolution = 1000 * 1000 * 1000;
-				if (*r == "us") resolution = 1000 * 1000;
+
+				if (*r == "ns" || *r == "nanosecond") time_resolution = TLL_SCHEME_TIME_NS;
+				else if (*r == "us" || *r == "microsecond") time_resolution = TLL_SCHEME_TIME_US;
+				else if (*r == "ms" || *r == "millisecond") time_resolution = TLL_SCHEME_TIME_MS;
+				else if (*r == "s" || *r == "second") time_resolution = TLL_SCHEME_TIME_SECOND;
+				else if (*r == "m" || *r == "minute") time_resolution = TLL_SCHEME_TIME_MINUTE;
+				else if (*r == "h" || *r == "hour") time_resolution = TLL_SCHEME_TIME_HOUR;
+				else if (*r == "d" || *r == "day") time_resolution = TLL_SCHEME_TIME_DAY;
+				else
+					return EINVAL;
 			}
 			break;
 		default:
@@ -506,6 +517,8 @@ std::optional<Field> Field::parse(Message &m, tll::Config &cfg, std::string_view
 
 tll::scheme::Field * Field::finalize(tll::scheme::Scheme *s, tll::scheme::Message *m)
 {
+	using tll::scheme::Field;
+
 	auto r = (tll::scheme::Field *) malloc(sizeof(tll::scheme::Field));
 	*r = {};
 	r->name = strdup(name.c_str());
@@ -515,7 +528,7 @@ tll::scheme::Field * Field::finalize(tll::scheme::Scheme *s, tll::scheme::Messag
 	if (size != -1)
 		r->size = size;
 
-	if (sub_type == tll::scheme::Field::Enum) {
+	if (sub_type == Field::Enum) {
 		for (auto & i : list_wrap(m->enums)) {
 			if (i.name == type_enum) {
 				r->type = i.type;
@@ -532,7 +545,9 @@ tll::scheme::Field * Field::finalize(tll::scheme::Scheme *s, tll::scheme::Messag
 				}
 			}
 		}
-	} else if (type == tll::scheme::Field::Message) {
+	} else if (sub_type == Field::TimePoint || sub_type == Field::Duration) {
+		r->time_resolution = time_resolution;
+	} else if (type == Field::Message) {
 		for (auto & i : list_wrap(s->messages)) {
 			if (i.name == type_msg) {
 				r->type_msg = &i;
@@ -541,34 +556,34 @@ tll::scheme::Field * Field::finalize(tll::scheme::Scheme *s, tll::scheme::Messag
 		}
 	}
 
-	bool bytestring = type == tll::scheme::Field::Int8 && sub_type == tll::scheme::Field::ByteString;
+	bool bytestring = type == Field::Int8 && sub_type == Field::ByteString;
 	for (auto n = nested.rbegin(); n != nested.rend(); n++) {
 		if (!std::holds_alternative<array_t>(*n)) { // Pointer
-			auto ptr = (tll::scheme::Field *) malloc(sizeof(tll::scheme::Field));
+			auto ptr = (Field *) malloc(sizeof(Field));
 			*ptr = {};
 			ptr->name = strdup(name.c_str());
-			ptr->type = tll::scheme::Field::Pointer;
+			ptr->type = Field::Pointer;
 			ptr->type_ptr = r;
 			ptr->offset_ptr_version = std::get<tll_scheme_offset_ptr_version_t>(*n);
 			ptr->options = list_options.finalize();
 
 			if (bytestring) {
-				r->sub_type = tll::scheme::Field::SubNone;
-				ptr->sub_type = tll::scheme::Field::ByteString;
+				r->sub_type = Field::SubNone;
+				ptr->sub_type = Field::ByteString;
 			}
 			r = ptr;
 		} else {
-			auto ptr = (tll::scheme::Field *) malloc(sizeof(tll::scheme::Field));
+			auto ptr = (Field *) malloc(sizeof(Field));
 			*ptr = {};
 			ptr->name = strdup(name.c_str());
-			ptr->type = tll::scheme::Field::Array;
+			ptr->type = Field::Array;
 			auto & a = std::get<array_t>(*n);
 			ptr->count = a.first;
 			ptr->type_array = r;
 			ptr->options = list_options.finalize();
 
-			Field f;
-			f.type = a.second; //tll::scheme::Field::Int16;
+			tll::scheme::internal::Field f;
+			f.type = a.second; //Field::Int16;
 			f.name = name + "_count";
 			f.options["_auto"] = "count";
 			ptr->count_ptr = f.finalize(s, m);

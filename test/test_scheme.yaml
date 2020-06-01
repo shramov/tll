@@ -32,3 +32,10 @@
     - {name: f1, type: int16, options.type: enum, enum: {C: 1, D: 2}}
     - {name: f2, type: e4}
     - {name: f3, type: e8}
+
+- name: time
+  id: 20
+  fields:
+    - {name: f0, type: double, options.type: duration, options.resolution: d}
+    - {name: f1, type: int16, options.type: duration, options.resolution: second}
+    - {name: f2, type: int64, options.type: time_point, options.resolution: ns}
