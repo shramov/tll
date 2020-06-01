@@ -72,7 +72,7 @@ class Base
 	/// If channel is prefix or not
 	static constexpr bool impl_prefix_channel() { return false; }
 
-	enum class ProcessPolicy { Normal, Never, Always };
+	enum class ProcessPolicy { Normal, Never, Always, Custom };
 	static constexpr auto process_policy() { return ProcessPolicy::Normal; }
 
 	enum class ChildPolicy { Never, Single, Many };
@@ -213,6 +213,7 @@ class Base
 		case ProcessPolicy::Always:
 			_update_dcaps(dcaps::Process);
 			break;
+		case ProcessPolicy::Custom:
 		case ProcessPolicy::Never:
 			break;
 		}

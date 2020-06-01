@@ -26,6 +26,7 @@
 #include "channel/direct.h"
 #include "channel/mem.h"
 #include "channel/null.h"
+#include "channel/timer.h"
 
 using namespace tll;
 
@@ -34,6 +35,7 @@ TLL_DEFINE_IMPL(ChNull);
 TLL_DEFINE_IMPL(ChZero);
 
 extern template class tll::channel::Base<ChMem>;
+extern template class tll::channel::Base<ChTimer>;
 
 struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t>
 {
@@ -52,6 +54,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChDirect::impl);
 		reg(&ChMem::impl);
 		reg(&ChNull::impl);
+		reg(&ChTimer::impl);
 		reg(&ChZero::impl);
 	}
 
