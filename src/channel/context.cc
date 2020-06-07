@@ -55,7 +55,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChZero::impl);
 	}
 
-	tll_channel_t * init(std::string_view params, tll_channel_t *parent);
+	tll_channel_t * init(std::string_view params, tll_channel_t *master);
 
 	tll_channel_t * get(std::string_view name) const
 	{
@@ -116,6 +116,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 
 	const tll_channel_impl_t * lookup(std::string_view proto) const
 	{
+		_log.debug("Lookup proto '{}'", proto);
 		auto i = registry.find(proto);
 		if (i != registry.end())
 			return i->second;
@@ -124,9 +125,12 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		if (sep == proto.npos)
 			return nullptr;
 
+		_log.debug("Lookup prefix '{}'", proto.substr(0, sep));
 		i = registry.find(proto.substr(0, sep));
 		if (i == registry.end())
 			return nullptr;
+		if (!i->second->prefix)
+			return _log.fail(nullptr, "Channel impl '{}' is not prefix impl", proto.substr(0, sep));
 		return i->second;
 
 	}
@@ -255,12 +259,12 @@ int tll_channel_module_load(tll_channel_context_t *ctx, const char *module, cons
 	return context(ctx)->load(module, symbol);
 }
 
-tll_channel_t * tll_channel_new(const char *str, size_t len, tll_channel_t *parent, tll_channel_context_t *ctx)
+tll_channel_t * tll_channel_new(const char *str, size_t len, tll_channel_t *master, tll_channel_context_t *ctx)
 {
-	return context(ctx)->init(std::string_view(str, len), parent);
+	return context(ctx)->init(std::string_view(str, len), master);
 }
 
-tll_channel_t * tll_channel_context_t::init(std::string_view params, tll_channel_t *parent)
+tll_channel_t * tll_channel_context_t::init(std::string_view params, tll_channel_t *master)
 {
 	auto url = UrlView::parse(params);
 	if (!url)
@@ -273,12 +277,12 @@ tll_channel_t * tll_channel_context_t::init(std::string_view params, tll_channel
 	if (!impl)
 		return _log.fail(nullptr, "Channel '{}' not found", url->proto);
 
-	if (!parent && url->has("parent")) {
-		auto pi = url->find("parent");
+	if (!master && url->has("master")) {
+		auto pi = url->find("master");
 		auto it = channels.find(pi->second);
 		if (it == channels.end())
-			return _log.fail(nullptr, "Failed to create channel: parent '{}' not found", pi->second);
-		parent = it->second;
+			return _log.fail(nullptr, "Failed to create channel: master '{}' not found", pi->second);
+		master = it->second;
 	}
 
 	auto c = std::make_unique<tll_channel_t>();
@@ -291,7 +295,7 @@ tll_channel_t * tll_channel_context_t::init(std::string_view params, tll_channel
 		c->context = this;
 		c->impl = impl;
 		_log.debug("Initialize channel with impl '{}'", c->impl->name);
-		auto r = (*c->impl->init)(c.get(), params.data(), params.size(), parent, this);
+		auto r = (*c->impl->init)(c.get(), params.data(), params.size(), master, this);
 		if (r == EAGAIN && c->impl != nullptr && c->impl != impl) {
 			_log.info("Reinitialize channel with different impl '{}'", c->impl->name);
 			if (impllog.find(c->impl) != impllog.end())
