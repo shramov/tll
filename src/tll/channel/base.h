@@ -370,7 +370,9 @@ class Base
 		return _update_dcaps(pending?dcaps::Pending:0, dcaps::Pending);
 	}
 
-	void _update_dcaps(unsigned caps, int mask)
+	void _update_dcaps(unsigned caps) { return _update_dcaps(caps, caps); }
+
+	void _update_dcaps(unsigned caps, unsigned mask)
 	{
 		caps &= mask;
 		auto old = internal.dcaps;
