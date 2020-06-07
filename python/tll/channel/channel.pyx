@@ -76,10 +76,10 @@ cdef class Channel:
     DCaps = _DCaps
     State = common.State
 
-    def __init__(self, url, parent=None, context=None, **kw):
+    def __init__(self, url, master=None, context=None, **kw):
         pass
 
-    def __cinit__(self, url, parent=None, context=None, **kw):
+    def __cinit__(self, url, master=None, context=None, **kw):
         self._ptr = NULL
         self._own = False
         self._callbacks = {}
@@ -87,10 +87,10 @@ cdef class Channel:
         if url is None:
             return
         cdef tll_channel_t * pptr = NULL
-        if isinstance(parent, Channel):
-            pptr = (<Channel>parent)._ptr
-        elif parent is not None:
-            url += ';parent={}'.format(parent)
+        if isinstance(master, Channel):
+            pptr = (<Channel>master)._ptr
+        elif master is not None:
+            url += ';master={}'.format(master)
 
         cdef tll_channel_context_t * cptr = NULL
         if isinstance(context, Context):

@@ -38,7 +38,7 @@ def test_context_scheme():
 
 def test_direct():
     s = Accum('direct://', name='server', context=ctx)
-    c = Accum('direct://', name='client', parent=s, context=ctx)
+    c = Accum('direct://', name='client', master=s, context=ctx)
 
     s.open()
     s.post(b'xxx', seq=10)
