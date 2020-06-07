@@ -46,7 +46,7 @@ T * channel_cast(tll_channel_t * c)
 	return channel_cast<T>(kids->channel);
 }
 
-#define TLL_DEFINE_IMPL(type, ...) template <> tll::channel_impl<type> tll::channel::Base<type>::impl = {##__VA_ARGS__};
+#define TLL_DEFINE_IMPL(type, ...) template <> tll::channel_impl<type> tll::channel::Base<type>::impl = {__VA_ARGS__};
 //#define TLL_DEFINE_IMPL(type, ...) tll::channel_impl<type> type::impl = {##__VA_ARGS__};
 
 namespace channel {
@@ -64,12 +64,18 @@ class Base
 
 	static tll::channel_impl<ChannelT> impl;
 
+	// Static properties
+	/// Parameter prefix used for parsing init/open property strings
 	static constexpr std::string_view param_prefix() { return "base"; }
-	static constexpr bool prefix_channel() { return false; }
-	enum class ProcessPolicy { Normal, Never, Always };
-	static constexpr auto process_policy = ProcessPolicy::Normal;
+	/// Protocol name
+	static constexpr std::string_view impl_protocol() { return T::param_prefix(); }
+	/// If channel is prefix or not
+	static constexpr bool impl_prefix_channel() { return false; }
 
-	tll_channel_internal_t internal = { state::Closed };
+	enum class ProcessPolicy { Normal, Never, Always };
+	static constexpr auto process_policy() { return ProcessPolicy::Normal; }
+
+	tll_channel_internal_t internal = {};
 
 	scheme::ConstSchemePtr _scheme = {nullptr, &tll_scheme_unref};
 	scheme::ConstSchemePtr _scheme_control = {nullptr, &tll_scheme_unref};
@@ -83,8 +89,8 @@ class Base
 
 	Base()
 	{
+		tll_channel_internal_init(&internal);
 		internal.config = _config;
-		internal.fd = -1;
 	}
 
 	//virtual ~Base() {}
@@ -184,7 +190,7 @@ class Base
 			return _log.fail(EINVAL, "Open failed: invalid state {}", tll_state_str(state()));
 		_log.info("Open channel");
 		state(state::Opening);
-		switch (T::process_policy) {
+		switch (T::process_policy()) {
 		case ProcessPolicy::Normal:
 		case ProcessPolicy::Always:
 			_update_dcaps(dcaps::Process, dcaps::Process);
@@ -315,6 +321,8 @@ class Base
 	tll_state_t state(tll_state_t s)
 	{
 		auto old = state();
+		if (s == old)
+			return old;
 		_log.info("State change: {} -> {}", tll_state_str(old), tll_state_str(s));
 		internal.state = s;
 		_config.set("state", tll_state_str(s));

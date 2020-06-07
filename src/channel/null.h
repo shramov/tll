@@ -15,7 +15,7 @@ class ChNull : public tll::channel::Base<ChNull>
 {
  public:
 	static constexpr std::string_view param_prefix() { return "null"; }
-	static constexpr auto process_policy = ProcessPolicy::Never;
+	static constexpr auto process_policy() { return ProcessPolicy::Never; }
 
 	int _init(const tll::UrlView &, tll::Channel *master) { return 0; }
 
