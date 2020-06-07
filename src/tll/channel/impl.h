@@ -66,8 +66,12 @@ typedef struct tll_channel_internal_t
 
 struct tll_channel_module_t
 {
-	int (*init)(tll_channel_context_t *ctx);
-	int (*fini)(tll_channel_context_t *ctx);
+	/// Version of module symbol
+	int version;
+	/// Null terminated list of implementations
+	tll_channel_impl_t ** impl;
+	//int (*init)(tll_channel_context_t *ctx);
+	//int (*fini)(tll_channel_context_t *ctx);
 };
 
 void tll_channel_list_free(tll_channel_list_t *l);
@@ -169,6 +173,26 @@ public:
 	static const tll_scheme_t * _scheme(const tll_channel_t *c, int type) { return _dataT(c)->scheme(type); }
 };
 
+template <size_t Size>
+struct channel_module_t : public tll_channel_module_t
+{
+	std::array<tll_channel_impl_t *, Size + 1> channels_array;
+	constexpr channel_module_t() { impl = channels_array.data(); }
+	constexpr channel_module_t(channel_module_t &&m) : channels_array(std::move(m.channels_array)) { impl = channels_array.data(); }
+	constexpr channel_module_t(const channel_module_t &m) : channels_array(m.channels_array) { impl = channels_array.data(); }
+
+	template <typename ... T>
+	constexpr channel_module_t(T ... args) : channels_array({static_cast<tll_channel_impl_t *>(args)..., nullptr})
+	{
+		impl = channels_array.data();
+	}
+};
+
+template <typename ... Args>
+constexpr channel_module_t<sizeof...(Args)> make_channel_module()
+{
+	return channel_module_t<sizeof...(Args)>(&Args::impl...);
+}
 } // namespace tll
 #endif
 

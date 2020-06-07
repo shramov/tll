@@ -16,6 +16,8 @@
 #include "tll/channel.h"
 #include "tll/channel/impl.h"
 #include "tll/config.h"
+#include "tll/logger.h"
+#include "tll/logger/prefix.h"
 #include "tll/util/listiter.h"
 #include "tll/util/refptr.h"
 #include "tll/util/url.h"
@@ -87,22 +89,28 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 
 	int load(const std::string &p, const std::string &symbol)
 	{
-		std::string path(p);
-		auto sep = path.rfind('/');
-		if (sep != path.npos) {
-			path = path.substr(0, sep + 1) + "lib" + path.substr(sep + 1) + ".so";
-		} else if (path.find('.') == path.npos) {
-			path = "lib" + path + ".so";
-		}
-		_log.debug("Loading module {}", path);
+		std::string_view name = p;
+		auto sep = name.rfind('/');
+		if (sep != name.npos)
+			name = name.substr(sep + 1);
+		auto log = _log.prefix("Module {}:", name);
+
+		auto path = fmt::format("{}lib{}.so", sep == name.npos?std::string():p.substr(0, sep + 1), name);
+
+		log.debug("Loading from {}", path);
 		auto module = dlopen(path.c_str(), RTLD_GLOBAL | RTLD_NOW);
 		if (!module)
-			return _log.fail(EINVAL, "Failed to load {}: {}", path, dlerror());
+			return log.fail(EINVAL, "Failed to load: {}", dlerror());
 		auto f = (tll_channel_module_t *) dlsym(module, symbol.c_str());
 		if (!f)
-			return _log.fail(EINVAL, "Failed to load {}: {} not found", symbol, path);
-		_log.debug("Call init");
-		(*f->init)(this);
+			return log.fail(EINVAL, "Failed to load: {} not found", symbol);
+		if (f->impl) {
+			for (auto i = f->impl; *i; i++) {
+				reg(*i);
+			}
+		} else
+			log.info("No channels defined in module {}");
+		//(*f->init)(this);
 		return 0;
 	}
 
