@@ -88,8 +88,9 @@ typedef enum {
 	TLL_CAPS_INOUT    = TLL_CAPS_INPUT | TLL_CAPS_OUTPUT,
 
 	TLL_CAPS_EX_BIT   = 0x800000,
-	TLL_CAPS_PROXY    = TLL_CAPS_EX_BIT | 0x0,
-	TLL_CAPS_CUSTOM   = TLL_CAPS_EX_BIT | 0x1, ///< Runtime created subchannel
+	TLL_CAPS_CUSTOM   = TLL_CAPS_EX_BIT | 0x0, ///< Runtime created subchannel
+	TLL_CAPS_PARENT   = TLL_CAPS_EX_BIT | 0x1, ///< Channel can create child objects
+	TLL_CAPS_PROXY    = TLL_CAPS_EX_BIT | 0x2, ///< Proxy channel with exactly one child object
 } tll_channel_cap_t;
 
 /// Channel dynamic capabilities, may change.
@@ -355,8 +356,9 @@ namespace caps {
 	constexpr auto InOut = TLL_CAPS_INOUT;
 
 	constexpr auto ExBit = TLL_CAPS_EX_BIT;
-	constexpr auto Proxy = TLL_CAPS_PROXY;
 	constexpr auto Custom = TLL_CAPS_CUSTOM;
+	constexpr auto Parent = TLL_CAPS_PARENT;
+	constexpr auto Proxy = TLL_CAPS_PROXY;
 }
 
 namespace dcaps {

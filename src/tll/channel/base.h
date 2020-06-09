@@ -75,6 +75,9 @@ class Base
 	enum class ProcessPolicy { Normal, Never, Always };
 	static constexpr auto process_policy() { return ProcessPolicy::Normal; }
 
+	enum class ChildPolicy { Never, Single, Many };
+	static constexpr auto child_policy() { return ChildPolicy::Never; }
+
 	tll_channel_internal_t internal = {};
 
 	scheme::ConstSchemePtr _scheme = {nullptr, &tll_scheme_unref};
@@ -101,6 +104,9 @@ class Base
 			return;
 		if (msg->type == TLL_MESSAGE_STATE) {
 			_log.info("{} message: type: {}, msgid: {}", text, "State", tll_state_str((tll_state_t) msg->msgid));
+		} else if (msg->type == TLL_MESSAGE_CHANNEL) {
+			_log.info("{} message: type: {}, msgid: {}, seq: {}, size: {}",
+					text, "Channel", msg->msgid, msg->seq, msg->size);
 		} else if (msg->type == TLL_MESSAGE_DATA) {
 			_log.info("{} message: type: {}, msgid: {}, seq: {}, size: {}\n\t{}",
 					text, "Data", msg->msgid, msg->seq, msg->size, std::string_view((const char *) msg->data, msg->size));
@@ -166,6 +172,18 @@ class Base
 		if (dir & W) internal.caps |= caps::Output;
 
 		internal.name = name.c_str();
+
+		switch (child_policy()) {
+		case ChildPolicy::Never:
+			break;
+		case ChildPolicy::Single:
+			internal.caps |= caps::Parent | caps::Proxy;
+			break;
+		case ChildPolicy::Many:
+			internal.caps |= caps::Parent;
+			break;
+		}
+
 		return channelT()->_init(*url, master);
 	}
 
@@ -193,7 +211,7 @@ class Base
 		switch (T::process_policy()) {
 		case ProcessPolicy::Normal:
 		case ProcessPolicy::Always:
-			_update_dcaps(dcaps::Process, dcaps::Process);
+			_update_dcaps(dcaps::Process);
 			break;
 		case ProcessPolicy::Never:
 			break;
@@ -368,7 +386,7 @@ class Base
 		return tll_channel_list_del(&internal.children, c);
 	}
 
-	void _dcaps_poll(int caps)
+	void _dcaps_poll(unsigned caps)
 	{
 		return _update_dcaps(caps, dcaps::CPOLLMASK);
 	}
@@ -386,8 +404,8 @@ class Base
 		auto old = internal.dcaps;
 		if ((old & mask) == caps)
 			return;
-		_log.debug("Update caps: {:02b} -> {:02b}", old, caps);
 		internal.dcaps ^= (old & mask) ^ caps;
+		_log.debug("Update caps: {:02b} + {:02b} -> {:02b}", old, caps, internal.dcaps);
 		tll_msg_t msg = {TLL_MESSAGE_CHANNEL, TLL_MESSAGE_CHANNEL_UPDATE};
 		msg.data = &old;
 		msg.size = sizeof(old);
