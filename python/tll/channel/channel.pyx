@@ -207,6 +207,9 @@ cdef class Channel:
     def caps(self): return Caps(tll_channel_caps(self._ptr))
 
     @property
+    def dcaps(self): return DCaps(tll_channel_dcaps(self._ptr))
+
+    @property
     def fd(self): return tll_channel_fd(self._ptr)
 
     @property

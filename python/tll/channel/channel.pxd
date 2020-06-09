@@ -85,7 +85,8 @@ cdef extern from "tll/channel.h":
 
     cdef tll_state_t tll_channel_state(const tll_channel_t *c)
     cdef const char * tll_channel_name(const tll_channel_t *c)
-    cdef int tll_channel_caps(const tll_channel_t *c)
+    cdef unsigned tll_channel_caps(const tll_channel_t *c)
+    cdef unsigned tll_channel_dcaps(const tll_channel_t *c)
     cdef int tll_channel_fd(const tll_channel_t *c)
     cdef tll_channel_context_t * tll_channel_context(const tll_channel_t *c)
     cdef tll_config_t * tll_channel_config(tll_channel_t *c)
@@ -128,6 +129,7 @@ cdef class Channel:
     cdef int _own
     cdef object _callbacks
     cdef Scheme _scheme_cache
+    cdef object __weakref__
 
     cdef _post(self, const tll_msg_t * msg, int flags)
 
