@@ -40,13 +40,19 @@ def test_direct():
     s = Accum('direct://', name='server', context=ctx)
     c = Accum('direct://', name='client', master=s, context=ctx)
 
+    assert_equals(s.dcaps, 0)
+
     s.open()
+    assert_equals(s.dcaps, 0)
+
     s.post(b'xxx', seq=10)
 
     assert_equals(c.result, [])
     assert_equals(s.result, [])
+    assert_equals(s.dcaps, 0)
 
     c.open()
+    assert_equals(c.dcaps, 0)
 
     s.post(b'yyy', seq=20)
     assert_equals([(m.data.tobytes(), m.seq) for m in c.result], [(b'yyy', 20)])
