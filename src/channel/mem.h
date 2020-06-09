@@ -12,11 +12,27 @@
 
 #include "tll/ring.h"
 
+#include <mutex>
+
 class ChMem : public tll::channel::Event<ChMem>
 {
+	struct Ring {
+		Ring(size_t size) { ring_init(&ring, size, 0); }
+		~Ring()
+		{
+			ring_free(&ring);
+			notify.close();
+		}
+
+		ringbuffer_t ring = {};
+		ChMem::Notify notify;
+	};
+
 	size_t _size = 1024;
-	std::shared_ptr<ringbuffer_t> _rin;
-	std::shared_ptr<ringbuffer_t> _rout;
+	std::mutex _mutex; // shared_ptr initialization lock
+	auto _lock() { return std::unique_lock<std::mutex>(_mutex); }
+	std::shared_ptr<Ring> _rin;
+	std::shared_ptr<Ring> _rout;
 	bool _child = false;
 	ChMem * _sibling = nullptr;
 	bool _empty() const;

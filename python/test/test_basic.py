@@ -63,3 +63,47 @@ def test_direct():
     s.post(b'yyy', seq=20)
     assert_equals(c.result, [])
     assert_equals(s.result, [])
+
+def test_mem():
+    import select
+
+    s = Accum('mem://;size=1kb', name='server', context=ctx)
+
+    s.open()
+    assert_raises(TLLError, s.post, b'x' * 1024)
+    s.post(b'xxx', seq=10)
+
+    c = Accum('mem://', name='client', master=s, context=ctx)
+
+    assert_equals(c.result, [])
+    assert_equals(s.result, [])
+
+    c.open()
+
+    poll = select.poll()
+    poll.register(c.fd, select.POLLIN)
+    poll.register(s.fd, select.POLLIN)
+    assert_equals(poll.poll(0), [(c.fd, select.POLLIN)])
+
+    s.post(b'yyy', seq=20)
+    c.process()
+    assert_equals(s.result, [])
+    assert_equals([(m.data.tobytes(), m.seq) for m in c.result], [(b'xxx', 10)])
+    assert_equals(poll.poll(0), [(c.fd, select.POLLIN)])
+    assert_equals(c.dcaps & c.DCaps.Pending, c.DCaps.Pending)
+    c.result = []
+
+    c.process()
+    assert_equals(s.result, [])
+    assert_equals([(m.data.tobytes(), m.seq) for m in c.result], [(b'yyy', 20)])
+    c.result = []
+    assert_equals(poll.poll(0), [])
+
+    c.process()
+    assert_equals(c.result, [])
+    assert_equals(poll.poll(0), [])
+
+    c.post(b'yyy', seq=21)
+    assert_equals(poll.poll(0), [(s.fd, select.POLLIN)])
+    s.process()
+    assert_equals([(m.data.tobytes(), m.seq) for m in s.result], [(b'yyy', 21)])
