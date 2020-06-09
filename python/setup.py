@@ -6,7 +6,7 @@ from distutils.extension import Extension
 from Cython.Distutils import build_ext
 
 setup( name = 'tll'
-     , packages = ['tll', 'tll.channel']
+     , packages = ['tll', 'tll.channel', 'tll.processor']
      , include_dirs = ["../src"]
      , cmdclass = {'build_ext': build_ext}
      , ext_modules =
