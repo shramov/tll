@@ -268,10 +268,12 @@ struct Loop
 	int callback(const Channel *c, const tll_msg_t *msg)
 	{
 		if (msg->type == TLL_MESSAGE_STATE) {
-			if (msg->msgid == TLL_STATE_ACTIVE)
+			if (msg->msgid == tll::state::Active)
 				return poll_add(c);
-			else if (msg->msgid == TLL_STATE_CLOSING)
+			else if (msg->msgid == tll::state::Closing)
 				return poll_del(c);
+			else if (msg->msgid == tll::state::Destroy)
+				return del(c);
 			return 0;
 		} else if (msg->type != TLL_MESSAGE_CHANNEL) return 0;
 
