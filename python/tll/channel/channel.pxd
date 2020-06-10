@@ -41,6 +41,7 @@ cdef extern from "tll/channel.h":
         TLL_MESSAGE_CHANNEL_UPDATE
         TLL_MESSAGE_CHANNEL_ADD
         TLL_MESSAGE_CHANNEL_DELETE
+        TLL_MESSAGE_CHANNEL_UPDATE_FD
 
     ctypedef enum tll_channel_cap_t:
         TLL_CAPS_INPUT

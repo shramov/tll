@@ -78,7 +78,7 @@ cdef class Base:
     def fd(self): return self.internal.internal.fd
 
     @fd.setter
-    def fd(self, v): self.internal.internal.fd = v
+    def fd(self, v): self._update_fd(self, v)
 
     @property
     def caps(self): return C.Caps(self.internal.internal.caps)
@@ -88,9 +88,6 @@ cdef class Base:
 
     @property
     def dcaps(self): return C.DCaps(self.internal.internal.dcaps)
-
-    @dcaps.setter
-    def dcaps(self, v): self.internal.internal.dcaps = v
 
     @property
     def name(self): return self.internal.name
@@ -157,7 +154,7 @@ cdef class Base:
         if old & mask == caps:
             return
         self.log.debug("Update caps: {!s} -> {!s}", old, caps)
-        self.dcaps = (self.dcaps & ~mask) | caps
+        self.internal.internal.dcaps = (self.dcaps & ~mask) | caps
         cdef unsigned ccaps = self.dcaps
 
         cdef tll_msg_t msg
@@ -167,5 +164,22 @@ cdef class Base:
         msg.msgid = C.MsgChannel.Update
         msg.data = &ccaps
         msg.size = sizeof(ccaps)
+
+        self.internal.callback(&msg)
+
+    def _update_fd(self, fd : int):
+        cdef int old = self.internal.internal.fd
+        if old == fd:
+            return fd
+        self.log.debug("Update fd: {} -> {}", old, fd)
+        self.internal.internal.fd = fd
+
+        cdef tll_msg_t msg
+        memset(&msg, 0, sizeof(tll_msg_t))
+
+        msg.type = C.Type.Channel
+        msg.msgid = C.MsgChannel.UpdateFd
+        msg.data = &old
+        msg.size = sizeof(old)
 
         self.internal.callback(&msg)

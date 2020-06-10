@@ -41,6 +41,7 @@ class MsgChannel(enum.Enum):
     Update = TLL_MESSAGE_CHANNEL_UPDATE
     Add = TLL_MESSAGE_CHANNEL_ADD
     Delete = TLL_MESSAGE_CHANNEL_DELETE
+    UpdateFd = TLL_MESSAGE_CHANNEL_UPDATE_FD
     def __int__(self): return self.value
 
 class MsgMask(enum.IntFlag):
