@@ -38,7 +38,7 @@ constexpr timespec tll2ts(tll::duration ts)
 {
 	using namespace std::chrono;
 	auto s = duration_cast<seconds>(ts);
-	return { s.count(), nanoseconds(ts - s).count() };
+	return { (time_t) s.count(), (long) nanoseconds(ts - s).count() };
 }
 } // namespace
 
