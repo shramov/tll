@@ -3,7 +3,7 @@ Section: devel
 Priority: optional
 Maintainer: Pavel Shramov <shramov@mexmat.net>
 Build-Depends: debhelper (>=10), dh-python, cmake, pkg-config,
-    libfmt-dev, libyaml-dev, googletest,
+    libfmt-dev, libyaml-dev, zlib1g-dev, googletest,
     python3-all-dev, cython3, python3-nose
 Standards-Version: 4.5.0
 Vcs-Git: https://github.com/shramov/tll
