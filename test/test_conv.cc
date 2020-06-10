@@ -131,7 +131,7 @@ TEST(Conv, Size)
 	EXPECT_EQ_ANY(to_any<Size>("10b"), 10u);
 	EXPECT_EQ_ANY(to_any<Size>("10kb"), 10u * 1024);
 	EXPECT_EQ_ANY(to_any<Size>("10mb"), 10u * 1024 * 1024);
-	EXPECT_EQ_ANY(to_any<Size>("10gb"), 10ull * 1024 * 1024 * 1024);
+	EXPECT_EQ_ANY(to_any<Size>("1gb"), 1ull * 1024 * 1024 * 1024);
 	EXPECT_EQ_ANY(to_any<Size>("10kbit"), 10u * 1024 / 8);
 	EXPECT_EQ_ANY(to_any<Size>("10mbit"), 10u * 1024 * 1024 / 8);
 	EXPECT_EQ_ANY(to_any<Size>("10gbit"), 10ull * 1024 * 1024 * 1024 / 8);
