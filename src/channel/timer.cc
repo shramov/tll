@@ -76,9 +76,10 @@ int ChTimer::_open(const PropsView &url)
 
 #ifdef __linux__
 	if (_with_fd) {
-		fd() = timerfd_create(_clock_type, TFD_NONBLOCK | TFD_CLOEXEC);
-		if (fd() == -1)
+		auto fd = timerfd_create(_clock_type, TFD_NONBLOCK | TFD_CLOEXEC);
+		if (fd == -1)
 			return _log.fail(EINVAL, "Failed to create timer fd: {}", strerror(errno));
+		_update_fd(fd);
 	}
 #endif
 
@@ -106,9 +107,9 @@ int ChTimer::_open(const PropsView &url)
 int ChTimer::_close()
 {
 #ifdef __linux__
-	if (fd() != -1)
-		::close(fd());
-	fd() = -1;
+	auto fd = this->_update_fd(-1);
+	if (fd != -1)
+		::close(fd);
 #endif
 	return 0;
 }

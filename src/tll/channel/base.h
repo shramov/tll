@@ -333,7 +333,6 @@ class Base
 	operator Channel * () { return self(); }
 	operator const Channel * () const { return self(); }
 
-	int & fd() { return internal.fd; }
 	int fd() const { return internal.fd; }
 
 	tll_state_t state() const { return internal.state; }
@@ -413,6 +412,18 @@ class Base
 		_callback(msg);
 	}
 
+	int _update_fd(int fd)
+	{
+		if (fd == internal.fd)
+			return fd;
+		std::swap(fd, internal.fd);
+		_log.debug("Update fd: {} -> {}", fd, this->fd());
+		tll_msg_t msg = {TLL_MESSAGE_CHANNEL, TLL_MESSAGE_CHANNEL_UPDATE_FD};
+		msg.data = &fd;
+		msg.size = sizeof(fd);
+		_callback(msg);
+		return fd;
+	}
 };
 
 } // namespace channel

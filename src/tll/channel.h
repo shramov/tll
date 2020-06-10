@@ -54,6 +54,7 @@ typedef enum {
 	TLL_MESSAGE_CHANNEL_UPDATE = 0,	///< Update dcaps, data == ``NULL``
 	TLL_MESSAGE_CHANNEL_ADD = 1,	///< Add new sub-channel
 	TLL_MESSAGE_CHANNEL_DELETE = 2,	///< Delete sub-channel
+	TLL_MESSAGE_CHANNEL_UPDATE_FD = 3, ///< Update fd, data is old fd
 } tll_msg_channel_t;
 
 typedef int64_t tll_addr_t;

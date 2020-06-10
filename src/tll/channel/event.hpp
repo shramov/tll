@@ -29,7 +29,6 @@ int Event<T>::_init(const UrlView &url, tll::Channel *master)
 	this->_log.debug("Event polling supported only on Linux");
 	_with_fd = false;
 #endif
-	this->fd() = -1;
 	return 0;
 }
 
@@ -38,9 +37,10 @@ int Event<T>::_open(const PropsView &url)
 {
 	if (!_with_fd) return 0;
 #ifdef __linux__
-	this->fd() = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
-	if (this->fd() == -1)
+	auto fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+	if (fd == -1)
 		return this->_log.fail(EINVAL, "Failed to create eventfd: {}", strerror(errno));
+	this->_update_fd(fd);
 	this->_dcaps_poll(dcaps::CPOLLIN);
 #endif
 	return 0;
@@ -50,10 +50,10 @@ template <typename T>
 int Event<T>::_close()
 {
 #ifdef __linux__
-	if (this->fd() != -1)
-		::close(this->fd());
+	auto fd = this->_update_fd(-1);
+	if (fd != -1)
+		::close(fd);
 #endif
-	this->fd() = -1;
 	return 0;
 }
 

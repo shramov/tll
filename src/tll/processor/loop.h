@@ -196,13 +196,13 @@ struct Loop
 		return 0;
 	}
 
-	int poll_del(const tll::Channel *c)
+	int poll_del(int fd)
 	{
-		if (c->fd() == -1)
+		if (fd == -1)
 			return 0;
 #ifdef __linux__
 		epoll_event ev = {};
-		epoll_ctl(fd, EPOLL_CTL_DEL, c->fd(), &ev);
+		epoll_ctl(this->fd, EPOLL_CTL_DEL, fd, &ev);
 #endif
 		return 0;
 	}
@@ -265,13 +265,21 @@ struct Loop
 		return 0;
 	}
 
+	int update_fd(const tll::Channel *c, int old)
+	{
+		_log.info("Update channel {} fd: {} -> {}", c->name(), old, c->fd());
+		poll_del(old);
+		poll_add(c);
+		return 0;
+	}
+
 	int callback(const Channel *c, const tll_msg_t *msg)
 	{
 		if (msg->type == TLL_MESSAGE_STATE) {
 			if (msg->msgid == tll::state::Active)
 				return poll_add(c);
 			else if (msg->msgid == tll::state::Closing)
-				return poll_del(c);
+				return poll_del(c->fd());
 			else if (msg->msgid == tll::state::Destroy)
 				return del(c);
 			return 0;
@@ -283,6 +291,8 @@ struct Loop
 			return del(*((tll::Channel **) msg->data));
 		else if (msg->msgid == TLL_MESSAGE_CHANNEL_UPDATE)
 			return update(c, c->dcaps(), *(long long *) msg->data);
+		else if (msg->msgid == TLL_MESSAGE_CHANNEL_UPDATE_FD)
+			return update_fd(c, *(int *) msg->data);
 		return 0;
 	}
 };
