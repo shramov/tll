@@ -113,3 +113,13 @@ def test_mem():
     assert_equals(poll.poll(0), [(s.fd, select.POLLIN)])
     s.process()
     assert_equals([(m.data.tobytes(), m.seq) for m in s.result], [(b'yyy', 21)])
+
+def test_mem_free():
+    s = ctx.Channel('mem://;size=1kb;name=master')
+    c = ctx.Channel('mem://;name=slave;master=master')
+
+    s.open()
+    c.open()
+
+    del s
+    del c

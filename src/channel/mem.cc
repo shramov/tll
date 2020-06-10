@@ -49,8 +49,8 @@ int ChMem::_init(const UrlView &url, tll::Channel *master)
 
 void ChMem::_free()
 {
-	if (_child) {
-		_log.info("Remove sibling reference from master {}", _sibling->name);
+	if (_sibling) {
+		_log.info("Remove sibling reference from {}", _sibling->name);
 		_sibling->_sibling = nullptr;
 	}
 }
@@ -68,6 +68,8 @@ int ChMem::_open(const PropsView &url)
 		return _log.fail(EINVAL, "Failed to open event");
 
 	if (_child) {
+		if (!_sibling)
+			return _log.fail(EINVAL, "Master channel already destroyed");
 		auto lock = _sibling->_lock();
 		_rin = _sibling->_rout;
 		_rout = _sibling->_rin;
