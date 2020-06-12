@@ -25,6 +25,8 @@ addons:
       - python3-nose
 
 before_install:
+# TODO: remove when not needed. Enable IPv6, https://github.com/travis-ci/travis-ci/issues/8891
+  - sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
 # Get libfmt 5, not available in bionic
   - wget http://archive.ubuntu.com/ubuntu/pool/universe/f/fmtlib/libfmt-dev_5.2.1+ds-2_amd64.deb && sudo dpkg -i libfmt-dev_5.2.1+ds-2_amd64.deb
 
