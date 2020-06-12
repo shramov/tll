@@ -1,0 +1,1 @@
+option('with_gtest', type: 'feature', description: 'Build tests with GTest')
