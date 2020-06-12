@@ -261,7 +261,12 @@ class Base
 		//return _process(timeout, flags);
 		if (state() == state::Error || state() == state::Closed)
 			return 0;
-		return static_cast<ChannelT *>(this)->_process(timeout, flags);
+		int r = static_cast<ChannelT *>(this)->_process(timeout, flags);
+		if (r && r != EAGAIN) {
+			_log.error("Process failed");
+			state(tll::state::Error);
+		}
+		return r;
 	}
 
 	int _process(long timeout, int flags)
