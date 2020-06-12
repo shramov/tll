@@ -33,6 +33,7 @@ class TcpSocket : public Base<T>
 
 	using tcp_socket_t = TcpSocket<T>;
  public:
+	using iov_t = std::pair<const void *, size_t>;
 	static constexpr std::string_view param_prefix() { return "tcp"; }
 
 	int _init(const tll::UrlView &, tll::Channel *master);
@@ -51,7 +52,7 @@ class TcpSocket : public Base<T>
 	const D * rdataT(size_t off = 0, size_t size = sizeof(D)) const
 	{
 		off += _roff;
-		if (size > _rsize - _roff)
+		if (_roff + size > _rsize)
 			return nullptr;
 		return (const D *) (_rbuf.data() + off);
 	}
@@ -75,8 +76,8 @@ class TcpSocket : public Base<T>
 
 	std::optional<size_t> _recv(size_t size = 0);
 
-	template <size_t N>
-	int _send(std::array<std::pair<const void *, size_t>, N> data);
+	template <typename ... Args>
+	int _sendv(Args ... args);
 
 	int _send(const void * data, size_t size)
 	{
@@ -84,8 +85,8 @@ class TcpSocket : public Base<T>
 	}
 };
 
-template <typename T>
-class TcpClient : public TcpSocket<T>
+template <typename T, typename S = TcpSocket<T>>
+class TcpClient : public S
 {
  protected:
 	int _af = 0;

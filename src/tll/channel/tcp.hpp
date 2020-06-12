@@ -103,9 +103,11 @@ std::optional<size_t> TcpSocket<T>::_recv(size_t size)
 }
 
 template <typename T>
-template <size_t N>
-int TcpSocket<T>::_send(std::array<std::pair<const void *, size_t>, N> data)
+template <typename ... Args>
+int TcpSocket<T>::_sendv(Args ... args)
 {
+	constexpr unsigned N = sizeof...(Args);
+	std::array<iov_t, N> data({iov_t(std::forward<Args>(args))...});
 	struct iovec iov[N] = {};
 	size_t full = 0;
 	for (unsigned i = 0; i < N; i++) {
@@ -138,8 +140,8 @@ int TcpSocket<T>::_process(long timeout, int flags)
 	return 0;
 }
 
-template <typename T>
-int TcpClient<T>::_init(const UrlView &url, tll::Channel *master)
+template <typename T, typename S>
+int TcpClient<T, S>::_init(const UrlView &url, tll::Channel *master)
 {
 	auto reader = this->channel_props_reader(url);
 	_af = reader.getT("af", AF_UNSPEC, {{"unix", AF_UNIX}, {"ipv4", AF_INET}, {"ipv6", AF_INET6}});
@@ -168,8 +170,8 @@ int TcpClient<T>::_init(const UrlView &url, tll::Channel *master)
 	return 0;
 }
 
-template <typename T>
-int TcpClient<T>::_open(const PropsView &url)
+template <typename T, typename S>
+int TcpClient<T, S>::_open(const PropsView &url)
 {
 	auto addr = tll::network::resolve(_af, SOCK_STREAM, _host.c_str(), _port);
 	if (!addr)
@@ -200,8 +202,8 @@ int TcpClient<T>::_open(const PropsView &url)
 	return 0;
 }
 
-template <typename T>
-int TcpClient<T>::_process_connect()
+template <typename T, typename S>
+int TcpClient<T, S>::_process_connect()
 {
 	struct pollfd pfd = { this->fd(), POLLOUT };
 	auto r = poll(&pfd, 1, 0);
@@ -222,12 +224,12 @@ int TcpClient<T>::_process_connect()
 	return this->channelT()->_on_connect();
 }
 
-template <typename T>
-int TcpClient<T>::_process(long timeout, int flags)
+template <typename T, typename S>
+int TcpClient<T, S>::_process(long timeout, int flags)
 {
 	if (this->state() == state::Opening)
 		return _process_connect();
-	return TcpSocket<T>::_process(timeout, flags);
+	return S::_process(timeout, flags);
 }
 
 template <typename T>

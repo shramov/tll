@@ -223,11 +223,11 @@ class _test_tcp_base():
             spoll.register(i.fd, select.POLLIN)
         cpoll.register(c.fd, select.POLLIN)
 
-        c.post(b'xxx', seq=100)
+        c.post(b'xxx', seq=0x6ead, msgid=0x6eef)
         assert_not_equals(spoll.poll(10), [])
         for i in s.children:
             i.process()
-        assert_equals([(m.data.tobytes(), m.seq) for m in s.result], [(b'xxx', 0)]) # No frame
+        assert_equals([(m.data.tobytes(), m.seq, m.msgid) for m in s.result], [(b'xxx', 0x6ead, 0x6eef)]) # No frame
 
     def test_open_fail(self):
         c = self.c
@@ -264,3 +264,6 @@ class test_tcp_any(_test_tcp_base):
     def _children_count(self):
         import socket
         return len(socket.getaddrinfo('localhost', 0, type=socket.SOCK_STREAM))
+
+class test_tcp_short(_test_tcp_base):
+    PROTO = 'tcp://./test.sock;frame=short'

@@ -8,28 +8,16 @@
 #ifndef _TLL_IMPL_CHANNEL_TCP_H
 #define _TLL_IMPL_CHANNEL_TCP_H
 
-#include "tll/channel/tcp.h"
+#include "tll/channel/base.h"
 
-class ChTcp : public tll::channel::TcpClient<ChTcp>
+class ChTcp : public tll::channel::Base<ChTcp>
 {
  public:
 	static constexpr std::string_view param_prefix() { return "tcp"; }
 
 	tll_channel_impl_t * _init_replace(const tll::UrlView &url);
-};
 
-class ChTcpSocket : public tll::channel::TcpSocket<ChTcpSocket>
-{
- public:
-	static constexpr std::string_view param_prefix() { return "tcp"; }
-	static constexpr std::string_view impl_protocol() { return "tcp-socket"; } // Only visible in logs
-};
-
-class ChTcpServer : public tll::channel::TcpServer<ChTcpServer, ChTcpSocket>
-{
- public:
-	static constexpr std::string_view param_prefix() { return "tcp"; }
-	static constexpr std::string_view impl_protocol() { return "tcp-server"; } // Only visible in logs
+	int _init(const tll::UrlView &url, tll::Channel * master) { return _log.fail(EINVAL, "Failed to choose proper tcp channel"); }
 };
 
 #endif//_TLL_IMPL_CHANNEL_TCP_H
