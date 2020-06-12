@@ -7,6 +7,8 @@ compiler:
 os:
   - linux
 
+cache: ccache
+
 dist: bionic
 
 notifications:
@@ -17,6 +19,7 @@ addons:
     packages:
       - clang # For clang variant, PATH is reset
       - cmake
+      - meson
       - pkg-config
       - libfmt-dev
       - googletest
@@ -29,6 +32,8 @@ before_install:
   - sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
 # Get libfmt 5, not available in bionic
   - wget http://archive.ubuntu.com/ubuntu/pool/universe/f/fmtlib/libfmt-dev_5.2.1+ds-2_amd64.deb && sudo dpkg -i libfmt-dev_5.2.1+ds-2_amd64.deb
+# Get meson from 19.10, 0.45 is unusable
+  - wget http://archive.ubuntu.com/ubuntu/pool/universe/m/meson/meson_0.51.2-1_all.deb && sudo dpkg -i meson_0.51.2-1_all.deb
 
 script:
   - |
@@ -36,10 +41,13 @@ script:
     #pyenv global 3.6.7 # Not working
     echo $PATH
     export PATH=/home/travis/bin:/bin:/usr/bin:/usr/local/bin # Reset path so pyenv is ignored
-    mkdir build
-    cd build
-    cmake ..
-    make VERBOSE=1
-    ctest -V
-    cd ../python
+    meson build
+    ninja -vC build
+    #mkdir build
+    #cd build
+    #cmake ..
+    #make VERBOSE=1
+    #ctest -V
+    cd python
+    python3 setup.py build_ext --inplace --library-dirs=../build/src --rpath=`pwd`/../build/src
     nosetests3 -v
