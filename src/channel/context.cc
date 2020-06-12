@@ -58,7 +58,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChZero::impl);
 	}
 
-	tll_channel_t * init(std::string_view params, tll_channel_t *master);
+	tll_channel_t * init(std::string_view params, tll_channel_t *master, const tll_channel_impl_t *impl);
 
 	tll_channel_t * get(std::string_view name) const
 	{
@@ -262,23 +262,26 @@ int tll_channel_module_load(tll_channel_context_t *ctx, const char *module, cons
 	return context(ctx)->load(module, symbol);
 }
 
-tll_channel_t * tll_channel_new(const char *str, size_t len, tll_channel_t *master, tll_channel_context_t *ctx)
+tll_channel_t * tll_channel_new(tll_channel_context_t * ctx, const char *str, size_t len, tll_channel_t *master, const tll_channel_impl_t *impl)
 {
-	return context(ctx)->init(std::string_view(str, len), master);
+	return context(ctx)->init(std::string_view(str, len), master, impl);
 }
 
-tll_channel_t * tll_channel_context_t::init(std::string_view params, tll_channel_t *master)
+tll_channel_t * tll_channel_context_t::init(std::string_view params, tll_channel_t *master, const tll_channel_impl_t * impl)
 {
 	auto url = UrlView::parse(params);
 	if (!url)
 		return _log.fail(nullptr, "Invalid url '{}': {}", params, url.error());
+
+	if (!impl) {
+		impl = lookup(url->proto);
+		if (!impl)
+			return _log.fail(nullptr, "Channel '{}' not found", url->proto);
+	}
+
 	auto internal = url->getT("tll.internal", false);
 	if (!internal)
 		return _log.fail(nullptr, "Invalid tll.internal parameter: {}", internal.error());
-
-	auto impl = lookup(url->proto);
-	if (!impl)
-		return _log.fail(nullptr, "Channel '{}' not found", url->proto);
 
 	if (!master && url->has("master")) {
 		auto pi = url->find("master");

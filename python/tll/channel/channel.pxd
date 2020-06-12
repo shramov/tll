@@ -72,7 +72,7 @@ cdef extern from "tll/channel.h":
 
     ctypedef int (*tll_channel_callback_t)(const tll_channel_t *, const tll_msg_t * msg, void * user);
 
-    cdef tll_channel_t * tll_channel_new(const char *str, size_t len, tll_channel_t *parent, tll_channel_context_t *ctx)
+    cdef tll_channel_t * tll_channel_new(tll_channel_context_t *ctx, const char *str, size_t len, tll_channel_t *parent, const tll_channel_impl_t * impl)
     cdef void tll_channel_free(tll_channel_t * cfg)
 
     cdef int tll_channel_open(tll_channel_t *, const char * props, int len)

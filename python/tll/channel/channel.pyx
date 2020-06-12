@@ -103,7 +103,7 @@ cdef class Channel:
             url += ';{}={}'.format(k,v)
         self._own = True
         b = s2b(url)
-        self._ptr = tll_channel_new(b, len(b), pptr, cptr)
+        self._ptr = tll_channel_new(cptr, b, len(b), pptr, NULL)
         if self._ptr == NULL:
             raise TLLError("Init channel with url {} failed".format(url))
 

@@ -197,15 +197,18 @@ int tll_channel_callback_del(tll_channel_t *, tll_channel_callback_t cb, void * 
 /**
  * Create new channel
  *
- * @param ctx Channel context
+ * @param ctx Channel context. ``NULL`` may be used as an alias for default context, but it's not recommended and suitable
+ *            only for simple script-like programs.
  * @param str Channel initialization url in format ``proto://host;param-a=value=a;param-b=value-b;...``.
  *            May be without trailing zero byte.
  * @param len Length of ``str``. For null-terminated strings can be set to -1
  * @param master Pointer to master object. May be ``NULL``.
+ * @param impl Pointer to channel implementation, May be ``NULL`` otherwise protocol lookup is disabled and provided impl is used.
  *
  * @return New channel object or ``NULL`` if error occured.
  */
-tll_channel_t * tll_channel_new(const char *str, size_t len, tll_channel_t *master, tll_channel_context_t *ctx);
+tll_channel_t * tll_channel_new(tll_channel_context_t * ctx, const char *str, size_t len, tll_channel_t *master, const tll_channel_impl_t *impl);
+
 /// Destroy channel
 void tll_channel_free(tll_channel_t *);
 
@@ -496,9 +499,9 @@ class Context
 	operator tll_channel_context_t * () { return _ptr; }
 	operator const tll_channel_context_t * () const { return _ptr; }
 
-	std::unique_ptr<Channel> channel(std::string_view params, Channel * master = 0)
+	std::unique_ptr<Channel> channel(std::string_view params, Channel * master = nullptr, const tll_channel_impl_t * impl = nullptr)
 	{
-		auto c = static_cast<Channel *>(tll_channel_new(params.data(), params.size(), master, _ptr));
+		auto c = static_cast<Channel *>(tll_channel_new(_ptr, params.data(), params.size(), master, impl));
 		return std::unique_ptr<Channel>(c);
 	}
 
