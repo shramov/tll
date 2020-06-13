@@ -116,7 +116,7 @@ static inline tll::result_t<std::vector<tll::network::sockaddr_any>> resolve(int
 	if (!result)
 		return error("No matches found");
 	for (auto ai = result; ai; ai = ai->ai_next) {
-		l.push_back({result->ai_addrlen});
+		l.push_back({ai->ai_addrlen});
 		memcpy(l.back().buf, ai->ai_addr, ai->ai_addrlen);
 		l.back().in()->sin_port = nport;
 	}
