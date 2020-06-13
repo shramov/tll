@@ -211,7 +211,9 @@ cdef class Channel:
     def dcaps(self): return DCaps(tll_channel_dcaps(self._ptr))
 
     @property
-    def fd(self): return tll_channel_fd(self._ptr)
+    def fd(self):
+        fd = tll_channel_fd(self._ptr)
+        return None if fd == -1 else fd
 
     @property
     def context(self): return Context.wrap(tll_channel_context(self._ptr))
