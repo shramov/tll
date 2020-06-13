@@ -155,6 +155,9 @@ class Loop:
                 c = self._loop.poll(0.01)
                 if c is not None:
                     c.process()
+                else:
+                    if self._loop.pending:
+                        self._loop.process()
                 if self._ticks:
                     self.log.info("Ticks: {}", self._ticks)
                 for _ in range(self._ticks):

@@ -63,3 +63,27 @@ def test_channel():
         assert_equals(m.data, b'zzz')
 
     loop.run(main(loop))
+
+def test_nofd():
+    loop = asynctll.Loop(context=C.Context())
+    async def main(loop):
+        s = loop.Channel("mem://;size=1kb;name=server;dump=yes;fd=no")
+        c = loop.Channel("mem://;master=server;name=client;dump=yes")
+
+        s.open()
+        c.open()
+
+        s.post(b'xxx', seq=100)
+
+        m = await c.recv()
+        loop.log.info("Got message {}", m)
+        assert_equals(m.seq, 100)
+        assert_equals(m.data, b'xxx')
+
+        s.post(b'zzz', seq=200)
+
+        m = await loop.recv(c) # Mixed syntax
+        assert_equals(m.seq, 200)
+        assert_equals(m.data, b'zzz')
+
+    loop.run(main(loop))
