@@ -62,6 +62,21 @@ def test_context_scheme():
     assert_raises(TLLError, ctx.scheme_load, 'channel://unknown')
     assert_raises(TLLError, ctx.scheme_load, 'zzz://scheme')
 
+def _test_zero(args, caps):
+    c = Accum('zero://;' + args, size='1kb', name='server', context=ctx)
+    assert_equals(c.dcaps, 0)
+    c.open()
+    assert_equals(c.dcaps, caps | c.DCaps.Process)
+    if caps & c.DCaps.PollIn:
+        assert_not_equals(c.fd, None)
+
+def test_zero():
+    yield _test_zero, 'fd=no;pending=no', 0
+    yield _test_zero, 'fd=no;pending=yes', C.DCaps.Pending
+    if sys.platform.startswith('linux'):
+        yield _test_zero, 'fd=yes;pending=no', C.DCaps.PollIn
+        yield _test_zero, 'fd=yes;pending=yes', C.DCaps.PollIn | C.DCaps.Pending
+
 def test_direct():
     s = Accum('direct://', name='server', context=ctx)
     c = Accum('direct://', name='client', master=s, context=ctx)

@@ -28,16 +28,17 @@
 #include "channel/null.h"
 #include "channel/tcp.h"
 #include "channel/timer.h"
+#include "channel/zero.h"
 
 using namespace tll;
 
 TLL_DEFINE_IMPL(ChDirect);
 TLL_DEFINE_IMPL(ChNull);
-TLL_DEFINE_IMPL(ChZero);
 
 extern template class tll::channel::Base<ChMem>;
 extern template class tll::channel::Base<ChTcp>;
 extern template class tll::channel::Base<ChTimer>;
+extern template class tll::channel::Base<ChZero>;
 
 struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t>
 {

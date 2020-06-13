@@ -5,5 +5,6 @@ channel_sources = files(
 	, 'mem.cc'
 	, 'tcp.cc'
 	, 'timer.cc'
+	, 'zero.cc'
 	]
 )
