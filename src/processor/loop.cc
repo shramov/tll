@@ -31,3 +31,8 @@ int tll_processor_loop_process(tll_processor_loop_t *loop)
 {
 	return loop->process();
 }
+
+int tll_processor_loop_pending(tll_processor_loop_t *loop)
+{
+	return loop->pending();
+}

@@ -13,3 +13,4 @@ cdef extern from "tll/processor/loop.h":
     cdef int tll_processor_loop_del(tll_processor_loop_t *, const tll_channel_t *)
     cdef tll_channel_t * tll_processor_loop_poll(tll_processor_loop_t *, long)
     cdef int tll_processor_loop_process(tll_processor_loop_t *)
+    cdef int tll_processor_loop_pending(tll_processor_loop_t *)

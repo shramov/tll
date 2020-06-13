@@ -39,3 +39,7 @@ cdef class Loop:
 
     def process(self):
         tll_processor_loop_process(self._ptr)
+
+    @property
+    def pending(self):
+        return tll_processor_loop_pending(self._ptr) != 0

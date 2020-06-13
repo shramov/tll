@@ -56,6 +56,8 @@ struct List
 	void add(T *v)
 	{
 		for (auto & i : *this) {
+			if (i == v)
+				return;
 			if (!i) {
 				i = v;
 				return;
@@ -90,28 +92,35 @@ struct Loop
 	tll::Logger _log = {"tll.processor.loop"};
 #ifdef __linux__
 	int fd = { epoll_create1(0) };
-	int efd = { eventfd(1, EFD_NONBLOCK) };
+	int fd_pending = { eventfd(1, EFD_NONBLOCK) };
 #endif
-	std::list<tll::Channel *> list;
-	List<tll::Channel> list_p;
-	List<tll::Channel> list_pending;
+	std::list<tll::Channel *> list; // All registered channels
+	List<tll::Channel> list_process; // List of channels to process
+	List<tll::Channel> list_pending; // List of channels with pending data
+	List<tll::Channel> list_nofd; // List of channels to process that don't have file descriptors
 
 	Loop()
 	{
 #ifdef __linux__
 		epoll_event ev = {};
 		ev.data.ptr = (void *) this;
-		epoll_ctl(fd, EPOLL_CTL_ADD, efd, &ev);
+		epoll_ctl(fd, EPOLL_CTL_ADD, fd_pending, &ev);
 #endif
 	}
 
 	~Loop()
 	{
 #ifdef __linux__
-		if (efd != -1) ::close(efd);
+		if (fd_pending != -1) ::close(fd_pending);
 		if (fd != -1) ::close(fd);
 #endif
+		for (auto c : list) {
+			if (c) c->callback_del(this, TLL_MESSAGE_MASK_CHANNEL | TLL_MESSAGE_MASK_STATE);
+		}
 	}
+
+	bool pending() { _log.debug("Pending check: {}, {}", list_nofd.size, list_pending.size); return list_nofd.size + list_pending.size; }
+	//bool pending() const { return list_nofd.size + list_pending.size; }
 
 	tll::Channel * poll(tll::duration timeout)
 	{
@@ -140,13 +149,13 @@ struct Loop
 	int process()
 	{
 		int r = 0;
-		for (unsigned i = 0; i < list_p.size; i++) {
-			if (list_p[i] == nullptr) continue;
-			r |= list_p[i]->process() ^ EAGAIN;
-		}
 		for (unsigned i = 0; i < list_pending.size; i++) {
 			if (list_pending[i] == nullptr) continue;
 			r |= list_pending[i]->process() ^ EAGAIN;
+		}
+		for (unsigned i = 0; i < list_nofd.size; i++) {
+			if (list_nofd[i] == nullptr) continue;
+			r |= list_nofd[i]->process() ^ EAGAIN;
 		}
 		return r == 0?EAGAIN:0;
 	}
@@ -157,7 +166,7 @@ struct Loop
 		c->callback_add(this, TLL_MESSAGE_MASK_CHANNEL | TLL_MESSAGE_MASK_STATE);
 		list.push_back(c);
 		if (c->dcaps() & dcaps::Process)
-			list_p.add(c);
+			list_process.add(c);
 		if (c->dcaps() & dcaps::Pending)
 			pending_add(c);
 		return poll_add(c);
@@ -172,7 +181,7 @@ struct Loop
 		epoll_event ev = {};
 		ev.events = EPOLLIN;
 		ev.data.ptr = this;
-		epoll_ctl(fd, EPOLL_CTL_MOD, efd, &ev);
+		epoll_ctl(fd, EPOLL_CTL_MOD, fd_pending, &ev);
 #endif
 	}
 
@@ -183,23 +192,33 @@ struct Loop
 #ifdef __linux__
 		epoll_event ev = {};
 		ev.data.ptr = this;
-		epoll_ctl(fd, EPOLL_CTL_MOD, efd, &ev);
+		epoll_ctl(fd, EPOLL_CTL_MOD, fd_pending, &ev);
 #endif
 	}
 
-	int poll_add(const tll::Channel *c)
+	int poll_add(tll::Channel *c)
 	{
-		if (c->fd() == -1)
+		if (c->fd() == -1) {
+			if (c->state() == state::Opening || c->state() == state::Active) {
+				_log.info("Add channel {} to nofd list", c->name(), c->fd());
+				list_nofd.add(c);
+			}
 			return 0;
+		}
+
 		_log.info("Add channel {} to poll with fd {}", c->name(), c->fd());
 		update_poll(c, c->dcaps(), true);
 		return 0;
 	}
 
-	int poll_del(int fd)
+	int poll_del(const tll::Channel *c, int fd)
 	{
-		if (fd == -1)
+		if (fd == -1) {
+			_log.info("Drop channel {} from nofd list", c->name(), c->fd());
+			list_nofd.del(c);
 			return 0;
+		}
+
 #ifdef __linux__
 		epoll_event ev = {};
 		epoll_ctl(this->fd, EPOLL_CTL_DEL, fd, &ev);
@@ -217,28 +236,61 @@ struct Loop
 			break;
 		}
 
-		list_p.del(c);
+		list_process.del(c);
 		pending_del(c);
+		const_cast<tll::Channel *>(c)->callback_del(this, TLL_MESSAGE_MASK_CHANNEL | TLL_MESSAGE_MASK_STATE);
+		return 0;
+	}
+
+	int update_nofd(tll::Channel *c, unsigned caps, unsigned old)
+	{
+		auto delta = caps ^ old;
+
+		if (delta & dcaps::Suspend) {
+			if (caps & dcaps::Suspend)
+				list_nofd.add(c);
+			else
+				list_nofd.del(c);
+		}
+
+		if (delta & dcaps::Process) {
+			if (caps & dcaps::Process) {
+				_log.info("Add channel {} to nofd list", c->name(), c->fd());
+				list_process.add(c);
+				list_nofd.add(c);
+			} else {
+				list_process.del(c);
+				list_nofd.del(c);
+			}
+		}
+
+		if (delta & dcaps::Pending) {
+			if (caps & dcaps::Pending)
+				pending_add((tll::Channel *) c);
+			else
+				pending_del(c);
+		}
+
 		return 0;
 	}
 
 	int update(const tll::Channel *c, unsigned caps, unsigned old)
 	{
-		if (c->fd() == -1)
-			return 0;
-
 		auto delta = caps ^ old;
-
 		_log.debug("Update caps {}: {:b} -> {:b} (delta {:b})", c->name(), old, caps, delta);
+
+		if (c->fd() == -1)
+			return update_nofd(const_cast<Channel *>(c), caps, old);
+
 		if (delta & (dcaps::CPOLLMASK | dcaps::Suspend)) {
 			update_poll(c, caps);
 		}
 
 		if (delta & dcaps::Process) {
 			if (caps & dcaps::Process)
-				list_p.add((tll::Channel *) c);
+				list_process.add((tll::Channel *) c);
 			else
-				list_p.del(c);
+				list_process.del(c);
 		}
 
 		if (delta & dcaps::Pending) {
@@ -265,10 +317,10 @@ struct Loop
 		return 0;
 	}
 
-	int update_fd(const tll::Channel *c, int old)
+	int update_fd(tll::Channel *c, int old)
 	{
 		_log.info("Update channel {} fd: {} -> {}", c->name(), old, c->fd());
-		poll_del(old);
+		poll_del(c, old);
 		poll_add(c);
 		return 0;
 	}
@@ -276,10 +328,10 @@ struct Loop
 	int callback(const Channel *c, const tll_msg_t *msg)
 	{
 		if (msg->type == TLL_MESSAGE_STATE) {
-			if (msg->msgid == tll::state::Active)
-				return poll_add(c);
+			if (msg->msgid == tll::state::Opening)
+				return poll_add(const_cast<Channel *>(c));
 			else if (msg->msgid == tll::state::Closing)
-				return poll_del(c->fd());
+				return poll_del(c, c->fd());
 			else if (msg->msgid == tll::state::Destroy)
 				return del(c);
 			return 0;
@@ -290,9 +342,9 @@ struct Loop
 		else if (msg->msgid == TLL_MESSAGE_CHANNEL_DELETE)
 			return del(*((tll::Channel **) msg->data));
 		else if (msg->msgid == TLL_MESSAGE_CHANNEL_UPDATE)
-			return update(c, c->dcaps(), *(long long *) msg->data);
+			return update(c, c->dcaps(), *(unsigned *) msg->data);
 		else if (msg->msgid == TLL_MESSAGE_CHANNEL_UPDATE_FD)
-			return update_fd(c, *(int *) msg->data);
+			return update_fd(const_cast<Channel *>(c), *(int *) msg->data);
 		return 0;
 	}
 };
@@ -314,6 +366,7 @@ int tll_processor_loop_add(tll_processor_loop_t *, tll_channel_t *);
 int tll_processor_loop_del(tll_processor_loop_t *, const tll_channel_t *);
 tll_channel_t * tll_processor_loop_poll(tll_processor_loop_t *, long timeout);
 int tll_processor_loop_process(tll_processor_loop_t *);
+int tll_processor_loop_pending(tll_processor_loop_t *);
 
 #ifdef __cplusplus
 } // extern "C"
