@@ -14,6 +14,7 @@ from nose import SkipTest
 import os
 import select
 import socket
+import sys
 
 ctx = C.Context()
 
@@ -95,8 +96,8 @@ def test_direct():
     assert_equals(c.result, [])
     assert_equals(s.result, [])
 
-def test_mem():
-    s = Accum('mem://;size=1kb', name='server', context=ctx)
+def test_mem(fd=True, **kw):
+    s = Accum('mem://;size=1kb', name='server', context=ctx, fd='yes' if fd else 'no', **kw)
 
     s.open()
     assert_raises(TLLError, s.post, b'x' * 1024)
@@ -108,6 +109,11 @@ def test_mem():
     assert_equals(s.result, [])
 
     c.open()
+
+    if sys.platform.startswith('linux') and fd:
+        assert_not_equals(c.fd, None)
+    else:
+        assert_equals(c.fd, None)
 
     if c.fd is not None:
         poll = select.poll()
@@ -141,6 +147,9 @@ def test_mem():
         assert_equals(poll.poll(0), [(s.fd, select.POLLIN)])
     s.process()
     assert_equals([(m.data.tobytes(), m.seq) for m in s.result], [(b'yyy', 21)])
+
+def test_mem_nofd():
+    test_mem(fd=False)
 
 def test_mem_free():
     s = ctx.Channel('mem://;size=1kb;name=master')

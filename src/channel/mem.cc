@@ -37,6 +37,9 @@ int ChMem::_init(const UrlView &url, tll::Channel *master)
 		_log.debug("Init child of master {}", master->name());
 		_child = true;
 		_sibling->_sibling = this;
+		_with_fd = _sibling->_with_fd;
+		if (!_with_fd)
+			_log.debug("Event notification disabled by master {}", master->name());
 		return 0;
 	}
 	auto reader = channel_props_reader(url);
