@@ -9,6 +9,7 @@ from tll.test_util import Accum
 import common
 
 from nose.tools import *
+from nose import SkipTest
 
 import os
 import select
@@ -201,7 +202,11 @@ class _test_tcp_base():
 
     def test_open_fail(self):
         c = self.c
-        c.open()
+        try:
+            c.open()
+        except TLLError:
+            return
+
         assert_equals(c.state, c.State.Opening)
         assert_equals(c.dcaps, c.DCaps.Process | c.DCaps.PollOut)
 
@@ -217,10 +222,6 @@ class _test_tcp_base():
 class test_tcp_unix(_test_tcp_base):
     PROTO = 'tcp://./test.sock'
     CLEANUP = ['test.sock']
-
-    def test_open_fail(self):
-        """ TCP connect to unix socket fails immediately """
-        assert_raises(TLLError, self.c.open)
 
 class test_tcp4(_test_tcp_base):
     PROTO = 'tcp://127.0.0.1:{}'.format(PORTS.tcp4)
