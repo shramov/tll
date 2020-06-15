@@ -29,7 +29,7 @@ struct log_map : public tll_logger_impl_t
 
 	static int _log(long long ts, const char * category, tll_logger_level_t level, const char * data, size_t size, void * obj)
 	{
-		fmt::print("Log: {} {} {}\n", tll::Logger::level_name(level), category, std::string_view(data, size));
+		fmt::print(stderr, "Log: {} {} {}\n", tll::Logger::level_name(level), category, std::string_view(data, size));
 		auto list = static_cast<std::list<log_entry_t> *>(obj);
 		list->push_back({level, std::string(data, size)});
 		return 0;
@@ -37,7 +37,7 @@ struct log_map : public tll_logger_impl_t
 
 	static void * _new(const char * category, tll_logger_impl_t * impl)
 	{
-		fmt::print("Create new logger {}\n", category);
+		fmt::print(stderr, "Create new logger {}\n", category);
 		auto self = static_cast<log_map *>(impl);
 		auto r = self->map.insert({category, {}});
 		return &r.first->second;
@@ -45,7 +45,7 @@ struct log_map : public tll_logger_impl_t
 
 	static void _free(const char * category, void * user, tll_logger_impl_t * impl)
 	{
-		fmt::print("Drop logger {}\n", category);
+		fmt::print(stderr, "Drop logger {}\n", category);
 		auto self = static_cast<log_map *>(impl);
 		self->map.erase(category);
 	}
