@@ -14,13 +14,16 @@ class Echo(Base):
     PROTO = "echo"
 
     def _init(self, props, master=None):
-        pass
-
-    def _init(self, props, master=None):
+        self._child = None
         pass
 
     def _open(self, props):
-        pass
+        self._child = self.context.Channel('null://;name=child;tll.internal=yes')
+        self._child_add(self._child)
+        self._child_add(self.context.Channel('null://;name=orphan'))
+
+    def _close(self):
+        self._child_del(self._child)
 
     def _process(self, timeout, flags):
         if self.state == C.State.Opening:
@@ -40,8 +43,11 @@ def test():
 
     assert_equals(c.state, c.State.Closed)
     assert_equals(cfg.get("state", ""), "Closed")
+    assert_equals([x.name for x in c.children], [])
 
     c.open()
+
+    assert_equals([x.name for x in c.children], ['child', 'orphan'])
 
     assert_equals(c.state, c.State.Opening)
     assert_equals(cfg.get("state", ""), "Opening")
@@ -56,7 +62,10 @@ def test():
     assert_equals([(m.seq, m.data.tobytes()) for m in c.result], [(100, b'xxx')])
 
     c.close()
+    assert_equals([x.name for x in c.children], ['orphan'])
     del c
+
+    assert_equals(ctx.get('orphan'), None)
 
     ctx.unregister(Echo)
     assert_raises(TLLError, ctx.Channel, "echo://;name=echo")

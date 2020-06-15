@@ -41,6 +41,8 @@ cdef extern from "tll/channel/impl.h":
 
     cdef void tll_channel_internal_init(tll_channel_internal_t *ptr)
     cdef void tll_channel_internal_clear(tll_channel_internal_t *ptr)
+    cdef int tll_channel_internal_child_add(tll_channel_internal_t *ptr, tll_channel_t *c, const char * tag, int len)
+    cdef int tll_channel_internal_child_del(tll_channel_internal_t *ptr, const tll_channel_t *c, const char * tag, int len)
 
     cdef void tll_channel_list_free(tll_channel_list_t *l)
 
