@@ -15,6 +15,7 @@ from cpython.ref cimport Py_INCREF, Py_DECREF
 from ..buffer cimport *
 from os import strerror
 from ..error import TLLError
+from .. import error
 from collections import namedtuple
 import weakref
 from .. import scheme
@@ -197,6 +198,12 @@ cdef class Channel:
             raise TLLError("Callback del failed", r)
         #if not skip_ref:
         del self._callbacks[t]
+
+    def suspend(self):
+        error.wrap(tll_channel_suspend(self._ptr), "Suspend failed")
+
+    def resume(self):
+        error.wrap(tll_channel_suspend(self._ptr), "Resume failed")
 
     @property
     def state(self): return State(tll_channel_state(self._ptr))

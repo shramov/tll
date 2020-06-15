@@ -84,6 +84,9 @@ cdef extern from "tll/channel.h":
     cdef int tll_channel_process(tll_channel_t *c, long timeout, int flags)
     cdef int tll_channel_post(tll_channel_t *c, const tll_msg_t *msg, int flags)
 
+    cdef int tll_channel_suspend(tll_channel_t *c)
+    cdef int tll_channel_resume(tll_channel_t *c)
+
     cdef tll_state_t tll_channel_state(const tll_channel_t *c)
     cdef const char * tll_channel_name(const tll_channel_t *c)
     cdef unsigned tll_channel_caps(const tll_channel_t *c)
