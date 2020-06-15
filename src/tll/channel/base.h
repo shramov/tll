@@ -353,10 +353,10 @@ class Base
 		return old;
 	}
 
-	int _custom_add(tll_channel_t *c, std::string_view tag = "")
+	int _child_add(tll::Channel *c, std::string_view tag = "")
 	{
 		_log.info("Add custom channel {}", tll_channel_name(c));
-		if (auto r = _child_add(c))
+		if (auto r = tll_channel_list_add(&internal.children, c))
 			return _log.fail(r, "Failed to add child channel {}: {}", tll_channel_name(c), strerror(r));
 		tll_msg_t msg = {TLL_MESSAGE_CHANNEL, TLL_MESSAGE_CHANNEL_ADD};
 		msg.data = &c;
@@ -367,10 +367,10 @@ class Base
 		return 0;
 	}
 
-	int _custom_del(tll_channel_t *c, std::string_view tag = "")
+	int _child_del(tll::Channel *c, std::string_view tag = "")
 	{
 		_log.info("Delete custom channel {}", tll_channel_name(c));
-		if (auto r = _child_del(c))
+		if (auto r = tll_channel_list_del(&internal.children, c))
 			return _log.fail(r, "Failed to del child channel {}: {}", tll_channel_name(c), strerror(r));
 		tll_msg_t msg = {TLL_MESSAGE_CHANNEL, TLL_MESSAGE_CHANNEL_DELETE};
 		msg.data = &c;
@@ -379,16 +379,6 @@ class Base
 		if (tag.size())
 			_config.del(tag, 0);
 		return 0;
-	}
-
-	int _child_add(tll_channel_t *c)
-	{
-		return tll_channel_list_add(&internal.children, c);
-	}
-
-	int _child_del(const tll_channel_t *c)
-	{
-		return tll_channel_list_del(&internal.children, c);
 	}
 
 	void _dcaps_poll(unsigned caps)

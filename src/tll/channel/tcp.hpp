@@ -378,7 +378,7 @@ int TcpServer<T, C>::_bind(const tll::network::sockaddr_any &addr)
 	c->bind(fd.release());
 	tll_channel_callback_add(r.get(), _cb_socket, this, TLL_MESSAGE_MASK_ALL);
 
-	this->_custom_add(r.get());
+	this->_child_add(r.get());
 	_sockets.emplace_back((tll::Channel *) r.release());
 
 	if (c->open(""))
@@ -426,7 +426,7 @@ void TcpServer<T, C>::_cleanup()
 		case state::Error:
 		case state::Closed:
 			this->_log.debug("Cleanup client {} @{}", (*i)->name, (void *) *i);
-			this->_custom_del(**i);
+			this->_child_del(**i);
 			delete (*i);
 			i = _clients.erase(i);
 			break;
@@ -498,7 +498,7 @@ int TcpServer<T, C>::_cb_socket(const tll_channel_t *c, const tll_msg_t *msg)
 	}
 
 	_clients.push_back(client);
-	this->_custom_add(r.release());
+	this->_child_add(r.release());
 	client->open("");
 	return 0;
 }
