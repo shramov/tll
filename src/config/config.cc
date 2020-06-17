@@ -170,11 +170,11 @@ int tll_config_unset(tll_config_t *cfg, const char * path, int plen)
 	return sub->set();
 }
 
-int tll_config_set_config(tll_config_t *cfg, const char *path, int plen, tll_config_t *ptr)
+int tll_config_set_config(tll_config_t *cfg, const char *path, int plen, tll_config_t *ptr, int consume)
 {
 	if (!cfg) return EINVAL;
 	if (!ptr) return EINVAL;
-	return cfg->set(string_view_from_c(path, plen), ptr);
+	return cfg->set(string_view_from_c(path, plen), ptr, consume);
 }
 
 int tll_config_merge(tll_config_t *c, tll_config_t *src, int overwrite)

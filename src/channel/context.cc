@@ -319,10 +319,9 @@ tll_channel_t * tll_channel_context_t::init(std::string_view params, tll_channel
 			c->internal->caps |= caps::Custom;
 		if (!c->internal)
 			return _log.fail(nullptr, "Failed to init channel {}: NULL internal pointer", params);
-		//c->internal->data_cb = c->internal->data_cb_fixed;
 		if (!*internal && c->internal->name) {
 			channels.emplace(c->internal->name, c.get()); // Check for dup
-			tll_config_set_config(config, c->internal->name, -1, c->internal->config);
+			tll_config_set_config(config, c->internal->name, -1, c->internal->config, 0);
 		}
 		break;
 	} while (true);

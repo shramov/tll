@@ -99,7 +99,7 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 		return 0;
 	}
 
-	int set(std::string_view path, tll_config_t *cfg)
+	int set(std::string_view path, tll_config_t *cfg, bool consume)
 	{
 		//printf("  set %p\n", this);
 		auto s = tll::split<'.'>(path);
@@ -111,6 +111,8 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 
 		v->kids.emplace(*pi, cfg);
 		cfg->parent = v.get();
+		if (consume)
+			cfg->unref();
 		return 0;
 	}
 

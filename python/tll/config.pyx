@@ -65,7 +65,7 @@ cdef class Config:
 
     def set_config(self, key, value):
         k = s2b(key)
-        r = tll_config_set_config(self._ptr, k, len(k), (<Config>value)._ptr)
+        r = tll_config_set_config(self._ptr, k, len(k), (<Config>value)._ptr, 0)
         if r:
             raise TLLError("Failed to set sub config {}".format(key), r)
 

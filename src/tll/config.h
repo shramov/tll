@@ -30,11 +30,15 @@ typedef struct tll_config_t tll_config_t;
 typedef int (*tll_config_callback_t)(const char * key, int klen, const tll_config_t *value, void * data);
 typedef char * (*tll_config_value_callback_t)(int * len, void * data);
 
+/** Check if key exists
+ *
+ * @param path Path string, may be non NULL-terminated.
+ * @param plen Length of the string. If set to -1 then length ``path`` must be NULL-terminated.
+ */
+int tll_config_has(const tll_config_t *, const char * path, int plen);
+
 /// Get subtree
 tll_config_t * tll_config_sub(tll_config_t *, const char * path, int plen, int create);
-
-/// Check if key exists
-int tll_config_has(const tll_config_t *, const char * path, int plen);
 
 /// Delete node
 int tll_config_del(tll_config_t *, const char * path, int plen, int recursive);
@@ -51,8 +55,12 @@ int tll_config_set_link(tll_config_t *, const char * path, int plen, tll_config_
 /// Unset value in config
 int tll_config_unset(tll_config_t *, const char * path, int plen);
 
-/// Set config subtree
-int tll_config_set_config(tll_config_t *, const char * path, int plen, tll_config_t *);
+/** Set config subtree
+ *
+ * @param c Pointer to config object that will be set as subtree
+ * @param consume Consume config object without increasing reference count if not zero, increase reference count if zero
+ */
+int tll_config_set_config(tll_config_t *, const char * path, int plen, tll_config_t *c, int consume);
 
 /** Merge other config, moving nodes if possible
  * @param dest Config to merge data into
@@ -326,8 +334,8 @@ class Config : public ConfigT<false>
 	int del(std::string_view path, bool recursive = false) { return tll_config_del(_cfg, path.data(), path.size(), recursive); }
 
 	int set(std::string_view path, std::string_view value) { return tll_config_set(_cfg, path.data(), path.size(), value.data(), value.size()); }
-	int set(std::string_view path, ConfigT & cfg) { return tll_config_set_config(_cfg, path.data(), path.size(), cfg); }
-	int set(std::string_view path, tll_config_t * cfg) { return tll_config_set_config(_cfg, path.data(), path.size(), cfg); }
+	int set(std::string_view path, ConfigT & cfg) { return tll_config_set_config(_cfg, path.data(), path.size(), cfg, 0); }
+	int set(std::string_view path, tll_config_t * cfg) { return tll_config_set_config(_cfg, path.data(), path.size(), cfg, 0); }
 	int set(std::string_view path, tll_config_value_callback_t cb, void * user) { return tll_config_set_callback(_cfg, path.data(), path.size(), cb, user); }
 
 	template <typename V>
