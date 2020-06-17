@@ -171,7 +171,7 @@ typedef struct tll_scheme_field_t
 	static constexpr auto Enum = TLL_SCHEME_SUB_ENUM;
 	static constexpr auto ByteString = TLL_SCHEME_SUB_BYTE_STRING;
 	static constexpr auto TimePoint = TLL_SCHEME_SUB_TIME_POINT;
-	static constexpr auto Duration = TLL_SCHEME_SUB_TIME_POINT;
+	static constexpr auto Duration = TLL_SCHEME_SUB_DURATION;
 	static constexpr auto Fixed = TLL_SCHEME_SUB_FIXED_POINT;
 #endif
 } tll_scheme_field_t;
