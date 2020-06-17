@@ -40,6 +40,16 @@ bool starts_with(std::string_view l, std::string_view r)
 {
 	return l.size() >= r.size() && l.substr(0, r.size()) == r;
 }
+
+tll::scheme::Option * alloc_option(std::string_view name, std::string_view value, tll::scheme::Option * next = nullptr)
+{
+	auto o = (tll::scheme::Option *) malloc(sizeof(tll::scheme::Option));
+	*o = {};
+	o->name = strndup(name.data(), name.size());
+	o->value = strndup(value.data(), value.size());
+	o->next = next;
+	return o;
+}
 }
 
 namespace tll::scheme::internal {
@@ -62,12 +72,8 @@ struct Options : public tll::Props
 		tll_scheme_option_t * r = nullptr;
 		auto last = &r;
 		for (auto & [name, value] : *this) {
-			auto o = (tll_scheme_option_t *) malloc(sizeof(tll_scheme_option_t));
-			*o = {};
-			o->name = strdup(name.c_str());
-			o->value = strdup(value.c_str());
-			*last = o;
-			last = &o->next;
+			*last = alloc_option(name, value);
+			last = &(*last)->next;
 		}
 		return r;
 	}
@@ -871,7 +877,7 @@ void tll_scheme_unref(const tll_scheme_t *s)
 	printf("Scheme %p unref %d\n", s, s?s->internal->ref.load():0);
 	*/
 	if (!s) return;
-	if (--s->internal->ref == 0)
+	if (!s->internal || --s->internal->ref == 0)
 		tll_scheme_free((tll_scheme_t *) s);
 }
 
@@ -963,6 +969,10 @@ namespace {
 std::string dump_type(tll_scheme_field_type_t t, const tll::scheme::Field * f)
 {
 	using tll::scheme::Field;
+	if (f && f->sub_type == Field::Enum) {
+		if (tll::getter::get(f->type_enum->options, "_auto").value_or("") != "inline")
+			return f->type_enum->name;
+	}
 	switch (t) {
 	case Field::Int8:  return "int8";
 	case Field::Int16: return "int16";
@@ -1135,6 +1145,8 @@ int tll_scheme_field_fix(tll_scheme_field_t * f)
 	case Field::Decimal128: f->size = 16; break;
 	case Field::Bytes: if (f->size == 0) f->size = 1; break;
 	case Field::Array:
+		if (!f->count_ptr->name) f->count_ptr->name = strdup(fmt::format("{}_count", f->name).c_str());
+		if (!f->type_array->name) f->type_array->name = strdup(f->name);
 		tll_scheme_field_fix(f->count_ptr);
 		tll_scheme_field_fix(f->type_array);
 		f->type_array->offset = f->count_ptr->size;
@@ -1147,6 +1159,8 @@ int tll_scheme_field_fix(tll_scheme_field_t * f)
 		case TLL_SCHEME_OFFSET_PTR_LEGACY_LONG: f->size = 8; break;
 		default: return EINVAL;
 		}
+		if (!f->type_ptr->name)
+			f->type_ptr->name = strdup(f->name);
 		return tll_scheme_field_fix(f->type_ptr);
 	case Field::Message:
 		if (f->type_msg->size == 0) {
@@ -1156,6 +1170,25 @@ int tll_scheme_field_fix(tll_scheme_field_t * f)
 		f->size = f->type_msg->size;
 		break;
 	}
+
+	if (f->sub_type != Field::SubNone && !tll::getter::has(f->options, "type")) {
+		switch (f->sub_type) {
+		case Field::ByteString:
+			f->options = alloc_option("type", "string", f->options);
+			break;
+		case Field::Duration:
+		case Field::TimePoint:
+			if (f->sub_type == Field::Duration)
+				f->options = alloc_option("type", "duration", f->options);
+			else
+				f->options = alloc_option("type", "time_point", f->options);
+			if (!tll::getter::has(f->options, "resolution"))
+				f->options = alloc_option("resolution", tll::scheme::time_resolution_str(f->time_resolution), f->options);
+			break;
+		default: break;
+		}
+	}
+
 	return 0;
 }
 
@@ -1177,6 +1210,8 @@ int tll_scheme_message_fix(tll_scheme_message_t * m)
 int tll_scheme_fix(tll_scheme_t * s)
 {
 	if (!s) return EINVAL;
+	if (!s->internal)
+		s->internal = new tll_scheme_internal_t;
 	for (auto &m : list_wrap(s->messages)) {
 		if (tll_scheme_message_fix(&m))
 			return EINVAL;

@@ -72,6 +72,15 @@ def _test(s):
         [("f0", 1), ("f1", 8), ("f2", 8), ("f3", 16), ("f4", 32), ("f5", 8), ("f6", 2 + 4 * sub.size), ("f7", 8), ("f8", 8)])
     assert_equals(msg.size, 1 + 8 + 8 + 16 + 32 + 8 + (2 + 4 * sub.size) + 8 + 8)
 
+    msg = s['enums']
+    assert_equals([(f.name, f.type) for f in msg.fields],
+        [("f0", F.Int8), ("f1", F.Int16), ("f2", F.Int32), ("f3", F.Int64)])
+    assert_equals([(f.name, f.sub_type) for f in msg.fields],
+        [("f0", F.Sub.Enum), ("f1", F.Sub.Enum), ("f2", F.Sub.Enum), ("f3", F.Sub.Enum)])
+    assert_equals([(f.name, f.size) for f in msg.fields],
+        [("f0", 1), ("f1", 2), ("f2", 4), ("f3", 8)])
+    assert_equals(msg.size, 1 + 2 + 4 + 8)
+
 def test():
     return _test(S.Scheme(scheme))
 
