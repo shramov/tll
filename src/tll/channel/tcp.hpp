@@ -148,7 +148,7 @@ int TcpClient<T, S>::_init(const UrlView &url, tll::Channel *master)
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
-	TcpSocket<T>::_init(url, master);
+	S::_init(url, master);
 
 	if (_af == AF_UNSPEC && url.host.find('/') != url.host.npos)
 		_af = AF_UNIX;
@@ -185,6 +185,9 @@ int TcpClient<T, S>::_open(const PropsView &url)
 
 	if (int r = nonblock(this->fd()))
 		return this->_log.fail(EINVAL, "Failed to set nonblock: {}", strerror(r));
+
+	if (S::_open(url))
+		return this->_log.fail(EINVAL, "Parent open failed");
 
 	this->_log.info("Connect to {}", *_addr);
 	if (connect(this->fd(), *_addr, _addr->size)) {
