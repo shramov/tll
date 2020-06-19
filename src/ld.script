@@ -23,6 +23,8 @@ TLL_0.0.0 {
 		tll_channel_impl_unregister;
 		tll_channel_internal_clear;
 		tll_channel_internal_init;
+		tll_channel_internal_child_add;
+		tll_channel_internal_child_del;
 		tll_channel_list_add;
 		tll_channel_list_free;
 		tll_channel_module_load;

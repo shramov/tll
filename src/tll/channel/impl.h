@@ -77,8 +77,11 @@ struct tll_channel_module_t
 void tll_channel_list_free(tll_channel_list_t *l);
 int tll_channel_list_add(tll_channel_list_t **l, tll_channel_t *c);
 int tll_channel_list_del(tll_channel_list_t **l, const tll_channel_t *c);
+
 void tll_channel_internal_init(tll_channel_internal_t *ptr);
 void tll_channel_internal_clear(tll_channel_internal_t *ptr);
+int tll_channel_internal_child_add(tll_channel_internal_t *ptr, tll_channel_t *c, const char * tag, int len);
+int tll_channel_internal_child_del(tll_channel_internal_t *ptr, const tll_channel_t *c, const char * tag, int len);
 
 static inline int tll_channel_callback_data(const tll_channel_internal_t * in, const tll_msg_t * msg)
 {

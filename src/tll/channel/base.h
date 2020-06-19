@@ -356,28 +356,16 @@ class Base
 	int _child_add(tll::Channel *c, std::string_view tag = "")
 	{
 		_log.info("Add custom channel {}", tll_channel_name(c));
-		if (auto r = tll_channel_list_add(&internal.children, c))
+		if (auto r = tll_channel_internal_child_add(&internal, c, tag.data(), tag.size()))
 			return _log.fail(r, "Failed to add child channel {}: {}", tll_channel_name(c), strerror(r));
-		tll_msg_t msg = {TLL_MESSAGE_CHANNEL, TLL_MESSAGE_CHANNEL_ADD};
-		msg.data = &c;
-		msg.size = sizeof(c);
-		_callback(msg);
-		if (tag.size())
-			_config.set(tag, tll_channel_config(c));
 		return 0;
 	}
 
 	int _child_del(tll::Channel *c, std::string_view tag = "")
 	{
 		_log.info("Delete custom channel {}", tll_channel_name(c));
-		if (auto r = tll_channel_list_del(&internal.children, c))
+		if (auto r = tll_channel_internal_child_del(&internal, c, tag.data(), tag.size()))
 			return _log.fail(r, "Failed to del child channel {}: {}", tll_channel_name(c), strerror(r));
-		tll_msg_t msg = {TLL_MESSAGE_CHANNEL, TLL_MESSAGE_CHANNEL_DELETE};
-		msg.data = &c;
-		msg.size = sizeof(c);
-		_callback(msg);
-		if (tag.size())
-			_config.del(tag, 0);
 		return 0;
 	}
 
