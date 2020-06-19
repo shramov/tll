@@ -30,6 +30,5 @@ int ChZero::_open(const PropsView &url)
 	event_notify();
 	if (_with_pending)
 		_dcaps_pending(true);
-	state(state::Active);
 	return 0;
 }

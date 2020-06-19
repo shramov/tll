@@ -50,7 +50,6 @@ int TcpSocket<T>::_open(const PropsView &url)
 	}
 	this->_dcaps_poll(dcaps::CPOLLIN);
 	// Fd set by server
-	this->state(state::Active);
 	return 0;
 }
 
@@ -247,7 +246,6 @@ int TcpServerSocket<T>::_open(const PropsView &url)
 			return this->_log.fail(EINVAL, "Invalid fd parameter: {}", fd.error());
 		this->_update_fd(*fd);
 	}
-	this->state(state::Active);
 	this->_dcaps_poll(dcaps::CPOLLIN);
 	return 0;
 }

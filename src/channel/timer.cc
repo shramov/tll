@@ -100,7 +100,6 @@ int ChTimer::_open(const PropsView &url)
 	} else
 		_next = {};
 
-	state(state::Active);
 	return 0;
 }
 

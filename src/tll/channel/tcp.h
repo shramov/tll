@@ -99,6 +99,8 @@ class TcpClient : public S
 
 	using tcp_client_t = TcpClient<T>;
  public:
+	static constexpr auto open_policy() { return Base<T>::OpenPolicy::Manual; }
+
 	int _init(const tll::UrlView &, tll::Channel *master);
 	int _open(const tll::PropsView &);
 
@@ -135,7 +137,7 @@ class TcpServerSocket : public tll::channel::Base<TcpServerSocket<T>>
 };
 
 template <typename T, typename C>
-class TcpServer : public tll::channel::Base<T>
+class TcpServer : public Base<T>
 {
  protected:
 	int _af = 0;
@@ -151,7 +153,8 @@ class TcpServer : public tll::channel::Base<T>
 
  public:
 	static constexpr std::string_view param_prefix() { return "tcp"; }
-	static constexpr auto child_policy() { return tll::channel::Base<T>::ChildPolicy::Many; }
+	static constexpr auto child_policy() { return Base<T>::ChildPolicy::Many; }
+	static constexpr auto open_policy() { return Base<T>::OpenPolicy::Manual; }
 
 	int _init(const tll::UrlView &url, tll::Channel *master);
 

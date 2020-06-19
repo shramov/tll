@@ -26,6 +26,7 @@ class Echo : public tll::channel::Base<Echo>
 {
  public:
 	static constexpr std::string_view param_prefix() { return "echo"; }
+	static constexpr auto open_policy() { return OpenPolicy::Manual; }
 
 	const tll_channel_impl_t * _init_replace(const tll::UrlView &url)
 	{

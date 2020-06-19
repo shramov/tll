@@ -75,6 +75,9 @@ class Base
 	enum class ProcessPolicy { Normal, Never, Always, Custom };
 	static constexpr auto process_policy() { return ProcessPolicy::Normal; }
 
+	enum class OpenPolicy { Auto, Manual };
+	static constexpr auto open_policy() { return OpenPolicy::Auto; }
+
 	enum class ChildPolicy { Never, Single, Many };
 	static constexpr auto child_policy() { return ChildPolicy::Never; }
 
@@ -230,12 +233,13 @@ class Base
 		auto r = static_cast<ChannelT *>(this)->_open(*props);
 		if (r)
 			state(state::Error);
+		if (T::open_policy() == OpenPolicy::Auto)
+			state(state::Active);
 		return r;
 	}
 
 	int _open(const tll::PropsView &params)
 	{
-		state(state::Active);
 		return 0;
 	}
 
