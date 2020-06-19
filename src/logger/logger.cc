@@ -8,6 +8,9 @@
 #include <shared_mutex>
 #include <string>
 
+#include <stdio.h>
+#include <stdarg.h>
+
 namespace tll::logger {
 
 struct Logger : public tll_logger_t, public tll::util::refbase_t<Logger>
@@ -197,4 +200,34 @@ tll_logger_buf_t * tll_logger_tls_buf()
 
 	static thread_local buf_t buf;
 	return &buf;
+}
+
+namespace {
+int bufprintf(tll::logger::tls_buf_t * buf, const char * fmt, va_list va)
+{
+	if (buf->size() == 0)
+		buf->resize(1024);
+
+	auto r = vsnprintf(buf->data(), buf->size(), fmt, va);
+	if (r >= (int) buf->size()) {
+		buf->resize(r + 1);
+		r = vsnprintf(buf->data(), buf->size(), fmt, va);
+	}
+	return r;
+};
+}
+
+int tll_logger_printf(tll_logger_t * l, tll_logger_level_t level, const char * fmt, ...)
+{
+	if (!l || l->level > level) return 0;
+
+	auto buf = static_cast<tll::logger::tls_buf_t *>(tll_logger_tls_buf());
+
+	va_list va;
+	va_start(va, fmt);
+	auto r = bufprintf(buf, fmt, va);
+	if (r < 0)
+		return -1;
+
+	return tll_logger_log(l, level, buf->data(), r);
 }

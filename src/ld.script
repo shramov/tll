@@ -63,6 +63,7 @@ TLL_0.0.0 {
 		tll_logger_log;
 		tll_logger_name;
 		tll_logger_new;
+		tll_logger_printf;
 		tll_logger_register;
 		tll_logger_set;
 		tll_logger_tls_buf;

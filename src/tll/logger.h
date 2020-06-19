@@ -64,11 +64,15 @@ int tll_logger_config(struct tll_config_t * cfg);
  */
 int tll_logger_set(const char * name, int len, tll_logger_level_t level, int subtree);
 
-//< Get logger name
+/// Get logger name
 const char * tll_logger_name(const tll_logger_t * log);
 
-//< Log message
+/// Log message
 int tll_logger_log(tll_logger_t * log, tll_logger_level_t lvl, const char * buf, size_t size);
+
+/// Log message with printf-like formatting
+int tll_logger_printf(tll_logger_t * log, tll_logger_level_t lvl, const char * fmt, ...)
+	__attribute__((format(printf, 3, 4)));
 
 typedef struct tll_logger_impl_t {
 	int (*log)(long long ts, const char * category, tll_logger_level_t level, const char * data, size_t size, void * obj);
