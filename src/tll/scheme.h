@@ -246,7 +246,7 @@ int tll_scheme_field_fix(tll_scheme_field_t *);
 namespace tll {
 using Scheme = tll_scheme_t;
 
-namespace util {
+namespace getter {
 template <>
 struct getter_api<tll_scheme_option_t *>
 {

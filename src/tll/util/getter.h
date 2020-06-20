@@ -12,7 +12,7 @@
 #include <string_view>
 #include <type_traits>
 
-namespace tll::util {
+namespace tll::getter {
 
 template <typename T>
 struct has_function_has
@@ -41,6 +41,18 @@ struct getter_api
 	}
 };
 
-} // namespace tll::util
+template <typename T>
+bool has(const T &obj, std::string_view key)
+{
+	return getter_api<T>::has(obj, key);
+}
+
+template <typename T>
+auto get(const T &obj, std::string_view key)
+{
+	return getter_api<T>::get(obj, key);
+}
+
+} // namespace tll::getter
 
 #endif//__TLL_UTIL_GETTER_H

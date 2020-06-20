@@ -25,7 +25,7 @@ namespace getter {
 template <typename Klass, typename T>
 inline result_t<T> getT(const Klass &obj, std::string_view key)
 {
-	auto v = tll::util::getter_api<Klass>::get(obj, key);
+	auto v = tll::getter::getter_api<Klass>::get(obj, key);
 	if (!v || !v->size())
 		return error("Missing value");
 	auto r = conv::to_any<T>(*v);
@@ -37,7 +37,7 @@ inline result_t<T> getT(const Klass &obj, std::string_view key)
 template <typename Klass, typename T>
 inline result_t<T> getT(const Klass &obj, std::string_view key, const T &def)
 {
-	auto v = tll::util::getter_api<Klass>::get(obj, key);
+	auto v = tll::getter::getter_api<Klass>::get(obj, key);
 	if (!v || !v->size())
 		return def;
 	auto r = conv::to_any<T>(*v);
@@ -49,7 +49,7 @@ inline result_t<T> getT(const Klass &obj, std::string_view key, const T &def)
 template <typename Klass, typename T>
 inline result_t<T> getT(const Klass &obj, std::string_view key, const T & def, const std::map<std::string_view, T> m)
 {
-	auto v = tll::util::getter_api<Klass>::get(obj, key);
+	auto v = tll::getter::getter_api<Klass>::get(obj, key);
 	if (!v || !v->size())
 		return def;
 	auto r = conv::select(*v, m);
@@ -159,7 +159,7 @@ class PropsReaderT
 	U _props;
 	//std::string_view _prefix;
 	std::optional<std::string> _error;
-	using getter_api = typename tll::util::getter_api<std::remove_cv_t<std::remove_reference_t<U>>>;
+	using getter_api = typename tll::getter::getter_api<std::remove_cv_t<std::remove_reference_t<U>>>;
 	using string_type = typename getter_api::string_type;
 
 	std::string format(std::string_view key, std::string_view e)
