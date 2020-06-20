@@ -65,6 +65,18 @@ class expected : public std::variant<T, E>
 	value_type * operator -> () { return &std::get<0>(*this); }
 	const value_type * operator -> () const { return &std::get<0>(*this); }
 
+	template <typename U>
+	constexpr T value_or(U && default_value) const &
+	{
+		if (*this) return **this; else return static_cast<T>(std::forward<U>(default_value));
+	}
+
+	template <typename U>
+	constexpr T value_or(U && default_value) &&
+	{
+		if (*this) return std::move(**this); else return static_cast<T>(std::forward<U>(default_value));
+	}
+
 	//const E & error() const { if (*this) return E(); return std::get<1>(*this); }
 	const E & error() const { return std::get<1>(*this); }
 };

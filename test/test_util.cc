@@ -76,6 +76,7 @@ TYPED_TEST(UtilProps, Props)
 	EXPECT_FALSE(p->template getT<int>("z"));
 	EXPECT_EQ(*p->template getT<int>("a"), 1);
 	EXPECT_EQ(*p->template getT<int>("z", 1), 1);
+	EXPECT_EQ(p->template getT<int>("z").value_or(1), 1);
 
 	EXPECT_FALSE(P::parse("a;b=2;c=3"));
 	EXPECT_FALSE(P::parse("a=1;b=2;a=3"));
