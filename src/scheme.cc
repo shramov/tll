@@ -1053,8 +1053,7 @@ std::string dump(const tll::scheme::Field * f)
 	r += dump_options(f);
 
 	if (f->sub_type == tll::scheme::Field::Enum) {
-		auto eo = tll::scheme::options_map(f->type_enum->options);
-		if (eo.get("_auto").value_or("") == "inline")
+		if (tll::getter::get(f->type_enum->options, "_auto").value_or("") == "inline")
 			r += ", " + dump_body(f->type_enum);
 		//if (f->type_enum->options)
 		//	r += ", " + dump(f->type_enum->options, "enum-options");
@@ -1072,8 +1071,8 @@ std::string dump(const tll::scheme::Message * m)
 	if (m->enums) {
 		r += "  enums:\n";
 		for (auto &e : list_wrap(m->enums)) {
-			auto eo = tll::scheme::options_map(e.options);
-			if (eo.get("_auto").value_or("") == "inline") continue;
+			if (tll::getter::get(e.options, "_auto").value_or("") == "inline")
+				continue;
 			r += "    " + dump(&e) + "\n" ;
 		}
 	}
