@@ -103,7 +103,7 @@ tll_config_t * tll_config_load(const char * path, int plen);
 
 /// Increase reference count
 const tll_config_t * tll_config_ref(const tll_config_t *);
-/// Decrese reference count
+/// Decrease reference count
 void tll_config_unref(const tll_config_t *);
 
 
