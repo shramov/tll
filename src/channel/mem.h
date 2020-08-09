@@ -25,7 +25,7 @@ class ChMem : public tll::channel::Event<ChMem>
 		}
 
 		ringbuffer_t ring = {};
-		ChMem::Notify notify;
+		tll::channel::EventNotify notify;
 	};
 
 	size_t _size = 1024;

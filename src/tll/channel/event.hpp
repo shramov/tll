@@ -29,7 +29,7 @@ int Event<T>::_init(const UrlView &url, tll::Channel *master)
 	this->_log.debug("Event polling supported only on Linux");
 	_with_fd = false;
 #endif
-	return 0;
+	return Base<T>::_init(url, master);
 }
 
 template <typename T>
@@ -43,7 +43,7 @@ int Event<T>::_open(const PropsView &url)
 	this->_update_fd(fd);
 	this->_dcaps_poll(dcaps::CPOLLIN);
 #endif
-	return 0;
+	return Base<T>::_open(url);
 }
 
 template <typename T>
@@ -78,8 +78,7 @@ int Event<T>::_event_notify_nocheck()
 	return 0;
 }
 
-template <typename T>
-int Event<T>::Notify::notify()
+inline int EventNotify::notify()
 {
 #ifdef __linux__
 	if (fd == -1) return 0;
@@ -89,8 +88,7 @@ int Event<T>::Notify::notify()
 #endif
 }
 
-template <typename T>
-void Event<T>::Notify::close()
+inline void EventNotify::close()
 {
 #ifdef __linux__
 	if (fd != -1)
@@ -114,7 +112,7 @@ int Event<T>::_event_clear_nocheck()
 }
 
 template <typename T>
-typename Event<T>::Notify Event<T>::event_detached()
+EventNotify Event<T>::event_detached()
 {
 #ifdef __linux__
 	return { dup(this->fd()) };
