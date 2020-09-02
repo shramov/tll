@@ -176,6 +176,49 @@ def test_mem_free():
     del s
     del c
 
+class test_serial:
+    def setup(self):
+        try:
+            self.m, s = os.openpty()
+        except:
+            raise SkipTest("PTY not supported")
+        try:
+            self.tty = os.ttyname(s)
+        finally:
+            os.close(s)
+
+    def teardown(self):
+        os.close(self.m)
+        self.m = None
+
+    def test(self):
+        import termios
+        p = termios.tcgetattr(self.m)
+        print(p)
+        p[0] = p[1] = p[3] = 0
+        p[4] = p[5] = termios.B9600
+        termios.tcsetattr(self.m, 0, p)
+
+        c = Accum('serial://{}'.format(self.tty), context=ctx)
+        c.open()
+        assert_not_equals(c.fd, -1)
+
+        poll = select.poll()
+        poll.register(self.m, select.POLLIN)
+        poll.register(c.fd, select.POLLIN)
+
+        assert_equals(poll.poll(0), [])
+
+        c.post(b'xxx');
+        assert_equals(poll.poll(0), [(self.m, select.POLLIN)])
+        assert_equals(os.read(self.m, 100), b'xxx')
+
+        os.write(self.m, b'data')
+        assert_equals(poll.poll(0), [(c.fd, select.POLLIN)])
+
+        c.process()
+        assert_equals([x.data.tobytes() for x in c.result], [b'data'])
+
 class _test_tcp_base():
     PROTO = 'invalid-url'
     CLEANUP = []

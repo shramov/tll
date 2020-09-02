@@ -27,6 +27,7 @@
 #include "channel/ipc.h"
 #include "channel/mem.h"
 #include "channel/null.h"
+#include "channel/serial.h"
 #include "channel/tcp.h"
 #include "channel/timer.h"
 #include "channel/zero.h"
@@ -38,6 +39,7 @@ TLL_DEFINE_IMPL(ChNull);
 
 extern template class tll::channel::Base<ChIpc>;
 extern template class tll::channel::Base<ChMem>;
+extern template class tll::channel::Base<ChSerial>;
 extern template class tll::channel::Base<ChTcp>;
 extern template class tll::channel::Base<ChTimer>;
 extern template class tll::channel::Base<ChZero>;
@@ -60,6 +62,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChIpc::impl);
 		reg(&ChMem::impl);
 		reg(&ChNull::impl);
+		reg(&ChSerial::impl);
 		reg(&ChTcp::impl);
 		reg(&ChTimer::impl);
 		reg(&ChZero::impl);
