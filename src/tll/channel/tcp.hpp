@@ -20,6 +20,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#ifdef __APPLE__
+#  define MSG_NOSIGNAL 0
+#endif//__APPLE__
+
 namespace tll::channel {
 
 namespace {
@@ -186,6 +190,12 @@ int TcpClient<T, S>::_open(const PropsView &url)
 	if (int r = nonblock(this->fd()))
 		return this->_log.fail(EINVAL, "Failed to set nonblock: {}", strerror(r));
 
+#ifdef __APPLE__
+	int flag = 1;
+	if (setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &flag, sizeof(flag)))
+		return this->_log.fail(EINVAL, "Failed to set SO_NOSIGPIPE: {}", strerror(errno));
+#endif
+
 	if (S::_open(url))
 		return this->_log.fail(EINVAL, "Parent open failed");
 
@@ -285,6 +295,15 @@ int TcpServerSocket<T>::_process(long timeout, int flags)
 		::close(fd);
 		return this->_log.fail(e, "Failed to set nonblock: {}", strerror(e));
 	}
+
+#ifdef __APPLE__
+	int flag = 1;
+	if (setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &flag, sizeof(flag))) {
+		::close(fd);
+		return this->_log.fail(EINVAL, "Failed to set SO_NOSIGPIPE: {}", strerror(errno));
+	}
+#endif
+
 	tll_msg_t msg = {};
 	msg.type = TLL_MESSAGE_DATA;
 	msg.size = sizeof(fd);
