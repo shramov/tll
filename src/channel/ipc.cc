@@ -10,7 +10,6 @@
 #include "tll/channel/event.hpp"
 #include "tll/util/size.h"
 
-#include <sys/eventfd.h>
 #include <unistd.h>
 
 using namespace tll;
