@@ -11,6 +11,8 @@
 #include "tll/channel/base.h"
 #include "tll/util/time.h"
 
+#include <time.h>
+
 /// Fake clock to forbid conversion from tll::time_point to local time_point type.
 struct timer_clock
 {
@@ -29,7 +31,7 @@ class ChTimer : public tll::channel::Base<ChTimer>
 	tll::duration _initial, _initial_init;
 	tll::duration _interval, _interval_init;
 
-	int _clock_type;
+	clockid_t _clock_type;
 
 	time_point _next;
 
