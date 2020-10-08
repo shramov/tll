@@ -62,7 +62,7 @@ def test_set_sub():
 
 def _test_merge(ow, c0, c1, r):
     c = Config.load('yamls://' + c0)
-    c.merge(Config.load('yamls://' + c1), overwrite = ow is 'overwrite')
+    c.merge(Config.load('yamls://' + c1), overwrite = ow == 'overwrite')
     d = dict(c.browse('**'))
     assert_equals(d, r)
 
