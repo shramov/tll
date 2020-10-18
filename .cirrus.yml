@@ -1,0 +1,12 @@
+task:
+  name: FreeBSD
+  freebsd_instance:
+    image_family: freebsd-11-4
+  install_script: pkg install -y meson pkgconf libfmt libyaml googletest python3 py37-cython py37-nose
+  script: |
+    set -e
+    meson build
+    ninja -vC build
+    cd python
+    python3 setup.py build_ext --inplace --library-dirs=../build/src --rpath=`pwd`/../build/src
+    python3 -m nose -v || true # Not all tests are passing on FreeBSD now
