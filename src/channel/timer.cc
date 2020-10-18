@@ -34,12 +34,14 @@ constexpr tll::duration ts2tll(timespec ts)
 	return seconds(ts.tv_sec) + nanoseconds(ts.tv_nsec);
 }
 
+#ifdef __linux__
 constexpr timespec tll2ts(tll::duration ts)
 {
 	using namespace std::chrono;
 	auto s = duration_cast<seconds>(ts);
 	return { (time_t) s.count(), (long) nanoseconds(ts - s).count() };
 }
+#endif
 } // namespace
 
 int ChTimer::_init(const UrlView &url, tll::Channel *master)
