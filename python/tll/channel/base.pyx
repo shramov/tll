@@ -104,8 +104,7 @@ cdef class Base:
     @property
     def name(self): return self.internal.name
 
-    def init(self, props, master=None):
-        url = Url.from_string(b2s(props))
+    def init(self, url, master=None):
         self.internal.state = C.State.Closed
         self.config["state"] = "Closed"
 

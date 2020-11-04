@@ -11,6 +11,7 @@ from ..config cimport Config
 from ..error import TLLError
 from ..s2b cimport *
 from ..logger import Logger
+from ..url import Url
 
 cdef class Impl:
     cdef tll_channel_impl_t impl
@@ -158,17 +159,24 @@ cdef int _py_check_return(object obj):
     cdef int r = <int> obj
     return r
 
-cdef int _py_init(tll_channel_t * channel, const char *str, size_t len, tll_channel_t * parent, tll_channel_context_t *ctx) with gil:
+cdef int _py_init(tll_channel_t * channel, const tll_config_t *curl, tll_channel_t * parent, tll_channel_context_t *ctx) with gil:
     if channel == NULL or channel.impl.free != &_py_free: return 0
     if channel.impl.data == NULL: return 0
     cdef Internal intr = Internal()
     try:
+        cfg = Config.wrap(<tll_config_t *>curl, ref=True)
+        url = Url()
+        url.proto = cfg.get('tll.proto', '')
+        url.host = cfg.get('tll.host', '')
+        for k,v in cfg.browse('**'):
+            url[k] = v or ''
+
         ctype = <object>(channel.impl.data)
         pyc = ctype(Context.wrap(ctx), intr)
         channel.internal = &intr.internal
         intr.internal.self = channel
 
-        r = _py_check_return(pyc.init(b2s(str[:len]), master=Channel.wrap(parent)))
+        r = _py_check_return(pyc.init(url, master=Channel.wrap(parent)))
         if r:
             return r
         channel.data = <void *>pyc
@@ -177,7 +185,7 @@ cdef int _py_init(tll_channel_t * channel, const char *str, size_t len, tll_chan
     except Exception as e:
         try:
             log = Logger("tll.channel.python")
-            log.exception("Failed to init channel '{}'", s2b(str[:len]))
+            log.exception("Failed to init channel '{}'", str(url))
         except:
             pass
         return EINVAL
