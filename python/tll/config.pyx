@@ -11,6 +11,9 @@ from .conv import getT
 __default_tag = object()
 
 cdef class Config:
+    def __init__(self, bare=False):
+        pass
+
     def __cinit__(self, bare=False):
         self._ptr = NULL
         if not bare:
@@ -133,3 +136,28 @@ cdef int list_cb(const char * key, int klen, const tll_config_t *value, void * d
     if cfg.value() or l[1]:
         l[0].append((b2s(key[:klen]), cfg.get()))
     return 0
+
+cdef class Url(Config):
+    def __init__(self, cfg = None):
+        if not isinstance(cfg, Config):
+            Config.__init__(self)
+            return
+        Config.__init__(self, bare=True)
+        self._ptr = (<Config>cfg)._ptr
+        tll_config_ref(self._ptr)
+
+    @classmethod
+    def parse(self, s):
+        return Url(Config.load_data("url", s))
+
+    @property
+    def proto(self): return self.get('tll.proto', '')
+
+    @proto.setter
+    def proto(self, v): self['tll.proto'] = v
+
+    @property
+    def host(self): return self.get('tll.host', '')
+
+    @host.setter
+    def host(self, v): self['tll.host'] = v

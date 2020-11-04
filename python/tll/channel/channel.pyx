@@ -2,7 +2,7 @@
 # vim: sts=4 sw=4 et
 
 from .channel cimport *
-from ..config cimport Config
+from ..config cimport Config, Url
 from ..scheme cimport Scheme
 from ..s2b cimport *
 from libc.errno cimport EAGAIN, EINVAL
@@ -88,11 +88,19 @@ cdef class Channel:
         self._scheme_cache = None
         if url is None:
             return
+
+        cdef Url curl = Url()
+        if isinstance(url, Config):
+            for k,v in url.browse():
+                curl[k] = v
+        else:
+            curl = Url.parse(url)
+
         cdef tll_channel_t * pptr = NULL
         if isinstance(master, Channel):
             pptr = (<Channel>master)._ptr
         elif master is not None:
-            url += ';master={}'.format(master)
+            curl["master"] = master
 
         cdef tll_channel_context_t * cptr = NULL
         if isinstance(context, Context):
@@ -100,11 +108,12 @@ cdef class Channel:
         elif context is not None:
             kw['context'] = context
 
-        for k,v in sorted(kw.items()):
-            url += ';{}={}'.format(k,v)
+        for k,v in kw.items():
+            print("kw: {}={}".format(k, v))
+            curl[k] = str(v)
+
         self._own = True
-        b = s2b(url)
-        self._ptr = tll_channel_new(cptr, b, len(b), pptr, NULL)
+        self._ptr = tll_channel_new_url(cptr, curl._ptr, pptr, NULL)
         if self._ptr == NULL:
             raise TLLError("Init channel with url {} failed".format(url))
 

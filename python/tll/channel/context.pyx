@@ -7,11 +7,10 @@ from cpython.ref cimport Py_INCREF, Py_DECREF
 from .impl cimport *
 from .channel cimport *
 from .common import State
-from ..config cimport Config
+from ..config cimport Config, Url
 from ..error import TLLError
 from ..s2b cimport *
 from ..logger import Logger
-from ..url import Url
 
 cdef class Impl:
     cdef tll_channel_impl_t impl
@@ -168,7 +167,7 @@ cdef int _py_init(tll_channel_t * channel, const tll_config_t *curl, tll_channel
         url = Url()
         url.proto = cfg.get('tll.proto', '')
         url.host = cfg.get('tll.host', '')
-        for k,v in cfg.browse('**'):
+        for k,v in cfg.browse("**"):
             url[k] = v or ''
 
         ctype = <object>(channel.impl.data)

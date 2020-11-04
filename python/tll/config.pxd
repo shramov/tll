@@ -38,3 +38,6 @@ cdef class Config:
     cdef tll_config_t * _ptr
     @staticmethod
     cdef Config wrap(tll_config_t * cfg, int ref = *)
+
+cdef class Url(Config):
+    pass
