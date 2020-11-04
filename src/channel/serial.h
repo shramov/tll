@@ -14,8 +14,8 @@ class ChSerial : public tll::channel::Base<ChSerial>
 {
 	enum class Parity { None, Even, Odd };
 
- 	unsigned _speed = 0u;
- 	unsigned _stop_bits = 1u;
+	unsigned _speed = 0u;
+	unsigned _stop_bits = 1u;
 	Parity _parity = Parity::None;
 
 	unsigned _data_bits = 8u;

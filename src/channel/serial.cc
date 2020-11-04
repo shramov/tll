@@ -51,7 +51,7 @@ int ChSerial::_init(const UrlView &url, tll::Channel *master)
 	_filename = url.host;
 	if (!_filename.size())
 		return _log.fail(EINVAL, "Empty serial port name");
-	
+
 	_buf.resize(size);
 
 	return channel::Base<ChSerial>::_init(url, master);
