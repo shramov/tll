@@ -77,8 +77,12 @@ struct context_t {
 		auto sep = s.find("://");
 		if (sep == s.npos)
 			return _log.fail(nullptr, "Invalid url {}: no :// found", s);
-		auto proto = s.substr(0, sep);
-		auto data = s.substr(sep + 3);
+		return load(s.substr(0, sep), s.substr(sep + 3));
+	}
+
+	tll_config_t * load(std::string_view proto, std::string_view data)
+	{
+		tll::Logger _log = { "tll.config" };
 		auto it = map.find(proto);
 		if (it == map.end())
 			return _log.fail(nullptr, "Unknown config protocol: {}", proto);
@@ -102,6 +106,13 @@ tll_config_t * tll_config_new() { return (new tll_config_t)->ref(); }
 tll_config_t * tll_config_load(const char * path, int plen)
 {
 	return _context.load(string_view_from_c(path, plen));
+}
+
+tll_config_t * tll_config_load_data(const char * proto, int plen, const char * data, int len)
+{
+	if (proto == nullptr || data == nullptr)
+		return nullptr;
+	return _context.load(string_view_from_c(proto, plen), string_view_from_c(data, len));
 }
 
 const tll_config_t * tll_config_ref(const tll_config_t * c) { if (c) c->ref(); return c; }

@@ -100,6 +100,8 @@ int tll_config_load_unregister(const char * prefix, int plen, tll_config_load_t 
 tll_config_t * tll_config_new(void);
 /// Create new config filled with values loaded from ``path``
 tll_config_t * tll_config_load(const char * path, int plen);
+/// Create new config filled with values loaded from ``data`` with format determined by ``proto``
+tll_config_t * tll_config_load_data(const char * proto, int plen, const char * data, int dlen);
 
 /// Increase reference count
 const tll_config_t * tll_config_ref(const tll_config_t *);
@@ -235,6 +237,13 @@ class ConfigT : public PropsGetter<ConfigT<Const>>
 		return ConfigT::consume(c);
 	}
 
+	static std::optional<ConfigT> load(std::string_view proto, std::string_view data)
+	{
+		auto c = tll_config_load_data(proto.data(), proto.size(), data.data(), data.size());
+		if (!c) return std::nullopt;
+		return ConfigT::consume(c);
+	}
+
 	std::optional<const ConfigT> sub(std::string_view path) const
 	{
 		auto c = tll_config_sub(_cfg, path.data(), path.size(), 0);
@@ -330,6 +339,7 @@ class Config : public ConfigT<false>
 	Config & operator = (Config &&rhs) { std::swap(_cfg, rhs._cfg); return *this; }
 
 	static std::optional<Config> load(std::string_view path) { return ConfigT<false>::load(path); }
+	static std::optional<Config> load(std::string_view proto, std::string_view data) { return ConfigT<false>::load(proto, data); }
 
 	int del(std::string_view path, bool recursive = false) { return tll_config_del(_cfg, path.data(), path.size(), recursive); }
 

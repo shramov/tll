@@ -46,6 +46,7 @@ TLL_0.0.0 {
 		tll_config_has;
 		tll_config_list;
 		tll_config_load;
+		tll_config_load_data;
 		tll_config_load_register;
 		tll_config_load_unregister;
 		tll_config_merge;
