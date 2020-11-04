@@ -136,6 +136,7 @@ tll_config_t * tll_config_detach(tll_config_t *, const char * path, int plen);
 #include <string_view>
 #include <type_traits>
 
+#include "tll/util/conv.h"
 #include "tll/util/props.h"
 #include "tll/util/result.h"
 
@@ -388,6 +389,81 @@ private:
 		auto s = tll::conv::to_string<V>(*(const V *) data);
 		*len = s.size();
 		return strdup(s.c_str());
+	}
+};
+
+class ConfigUrl : public Config
+{
+public:
+	using Config::Config;
+
+	std::string proto() const { return std::string(get("tll.proto").value_or("")); }
+	std::string host() const { return std::string(get("tll.host").value_or("")); }
+
+	void proto(std::string_view v) { set("tll.proto", v); }
+	void host(std::string_view v) { set("tll.host", v); }
+
+	static result_t<ConfigUrl> parse(std::string_view s)
+	{
+		auto sep = s.find("://");
+		if (sep == s.npos)
+			return tll::error("No :// found in url");
+		auto proto = s.substr(0, sep);
+		if (proto.size() == 0)
+			return tll::error("Empty protocol in url");
+		auto hsep = s.find_first_of(';', sep + 3);
+		auto host = s.substr(sep + 3, hsep - (sep + 3));
+
+		ConfigUrl cfg;
+
+		if (hsep == s.npos) {
+			cfg.set("tll.proto", proto);
+			cfg.set("tll.host", host);
+			return cfg;
+		}
+
+		auto r = parse_props(s.substr(hsep + 1));
+		if (!r)
+			return tll::error(r.error());
+
+		if (r->has("tll.proto")) return tll::error("Duplicate key: tll.proto");
+		if (r->has("tll.host")) return tll::error("Duplicate key: tll.host");
+		cfg = *r;
+		cfg.set("tll.proto", proto);
+		cfg.set("tll.host", host);
+		return cfg;
+	}
+
+	static result_t<Config> parse_props(std::string_view s)
+	{
+		Config r;
+		for (const auto & i : split<';'>(s)) {
+			if (i.empty()) continue;
+			auto sep = i.find_first_of('=');
+			if (sep == i.npos)
+				return tll::error("Missing '='");
+			auto key = i.substr(0, sep);
+			auto value = i.substr(sep + 1);
+			if (r.has(key))
+				return tll::error("Duplicate key: " + std::string(key));
+			r.set(key, value);
+		}
+		return r;
+	}
+};
+
+template <>
+struct conv::dump<ConfigUrl> : public conv::to_string_buf_from_string<ConfigUrl>
+{
+	static std::string to_string(const ConfigUrl &url)
+	{
+		std::string r = std::string(url.proto()) + "://" + std::string(url.host());
+		for (auto & p : url.browse("**")) {
+			if (p.first == "tll.proto" || p.first == "tll.host")
+				continue;
+			r += ";" + std::string(p.first) + "=" + std::string(p.second.get().value_or(""));
+		}
+		return r;
 	}
 };
 

@@ -25,9 +25,31 @@ struct context_t {
 
 	context_t()
 	{
+		map.emplace("url", std::make_pair(load_url, nullptr));
+		map.emplace("props", std::make_pair(load_props, nullptr));
 		map.emplace("yaml", std::make_pair(load_yaml, nullptr));
 		map.emplace("yamls", std::make_pair(load_yamls, nullptr));
 		map.emplace("yamls+gz", std::make_pair(load_yamls_gz, nullptr));
+	}
+
+	static tll_config_t * load_props(const char * data, int len, void *)
+	{
+		auto s = string_view_from_c(data, len);
+		auto r = tll::ConfigUrl::parse_props(s);
+		if (!r)
+			return tll::Logger("tll.config").fail(nullptr, "Invalid property string {}: {}", s, r.error());
+		tll_config_ref(*r);
+		return *r;
+	}
+
+	static tll_config_t * load_url(const char * data, int len, void *)
+	{
+		auto url = string_view_from_c(data, len);
+		auto r = tll::ConfigUrl::parse(url);
+		if (!r)
+			return tll::Logger("tll.config").fail(nullptr, "Invalid url {}: {}", url, r.error());
+		tll_config_ref(*r);
+		return *r;
 	}
 
 	static tll_config_t * load_yaml(const char * data, int len, void *)
