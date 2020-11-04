@@ -87,3 +87,11 @@ def test_getT():
     yield _test_getT, '{a: 10}', 'a', float, 10.
     yield _test_getT, '{a: 10}', 'a', bool, None
     yield _test_getT, '{a: yes}', 'a', bool, True
+
+def _test_load(proto, data, r):
+    c = Config.load_data(proto, data)
+    assert_equals(dict(c.browse("**")), r)
+
+def test_load():
+    yield _test_load, 'url', 'proto://host;a=b;c=d', {'tll.proto':'proto', 'tll.host':'host', 'a':'b', 'c':'d'}
+    yield _test_load, 'props', 'a=b;c=d', {'a':'b', 'c':'d'}

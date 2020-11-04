@@ -37,6 +37,15 @@ cdef class Config:
             raise TLLError("Failed to load {}".format(path))
         return Config.wrap(cfg)
 
+    @classmethod
+    def load_data(self, proto, data):
+        p = s2b(proto)
+        d = s2b(data)
+        cdef tll_config_t * cfg = tll_config_load_data(p, len(p), d, len(d))
+        if cfg == NULL:
+            raise TLLError("Failed to load '{}' from '{}'".format(proto, data))
+        return Config.wrap(cfg)
+
     def sub(self, path, create=False):
         p = s2b(path)
         cdef tll_config_t * cfg = tll_config_sub(self._ptr, p, len(p), 1 if create else 0)
