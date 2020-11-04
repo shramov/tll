@@ -36,4 +36,4 @@ cdef extern from "tll/config.h":
 cdef class Config:
     cdef tll_config_t * _ptr
     @staticmethod
-    cdef Config wrap(tll_config_t * cfg)
+    cdef Config wrap(tll_config_t * cfg, int ref = *)

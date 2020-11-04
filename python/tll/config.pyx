@@ -22,8 +22,10 @@ cdef class Config:
         self._ptr = NULL
 
     @staticmethod
-    cdef Config wrap(tll_config_t * ptr):
+    cdef Config wrap(tll_config_t * ptr, int ref = False):
         r = Config(bare=True)
+        if ref:
+            tll_config_ref(ptr)
         r._ptr = ptr
         return r
 
