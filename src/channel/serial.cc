@@ -32,7 +32,7 @@ std::string_view speed2str(speed_t speed)
 }
 }
 
-int ChSerial::_init(const UrlView &url, tll::Channel *master)
+int ChSerial::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = channel_props_reader(url);
 	_speed = reader.getT("speed", B9600, {{"9600", B9600}, {"19200", B19200}});
@@ -48,7 +48,7 @@ int ChSerial::_init(const UrlView &url, tll::Channel *master)
 	if (_stop_bits != 1 && _stop_bits != 2)
 		return _log.fail(EINVAL, "Invalid stop bits: {}, must be 1 or 2", _stop_bits);
 
-	_filename = url.host;
+	_filename = url.host();
 	if (!_filename.size())
 		return _log.fail(EINVAL, "Empty serial port name");
 

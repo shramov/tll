@@ -28,7 +28,7 @@ constexpr frame_t msg2frame(const tll_msg_t *msg)
 
 TLL_DEFINE_IMPL(ChMem);
 
-int ChMem::_init(const UrlView &url, tll::Channel *master)
+int ChMem::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	if (master) {
 		_sibling = channel_cast<ChMem>(master);

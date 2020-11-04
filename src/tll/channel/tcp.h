@@ -36,7 +36,7 @@ class TcpSocket : public Base<T>
 	using iov_t = std::pair<const void *, size_t>;
 	static constexpr std::string_view param_prefix() { return "tcp"; }
 
-	int _init(const tll::UrlView &, tll::Channel *master);
+	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::PropsView &);
 	int _close();
 
@@ -101,7 +101,7 @@ class TcpClient : public S
  public:
 	static constexpr auto open_policy() { return Base<T>::OpenPolicy::Manual; }
 
-	int _init(const tll::UrlView &, tll::Channel *master);
+	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::PropsView &);
 
 	int _process(long timeout, int flags);
@@ -126,7 +126,7 @@ class TcpServerSocket : public tll::channel::Base<TcpServerSocket<T>>
  public:
 	static constexpr std::string_view param_prefix() { return "tcp"; }
 
-	int _init(const tll::UrlView &url, tll::Channel *master);
+	int _init(const tll::Channel::Url &url, tll::Channel *master);
 
 	int _open(const tll::PropsView &props);
 	int _close();
@@ -156,7 +156,7 @@ class TcpServer : public Base<T>
 	static constexpr auto child_policy() { return Base<T>::ChildPolicy::Many; }
 	static constexpr auto open_policy() { return Base<T>::OpenPolicy::Manual; }
 
-	int _init(const tll::UrlView &url, tll::Channel *master);
+	int _init(const tll::Channel::Url &url, tll::Channel *master);
 
 	int _open(const tll::PropsView &props);
 	int _close();

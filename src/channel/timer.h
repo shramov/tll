@@ -43,7 +43,7 @@ class ChTimer : public tll::channel::Base<ChTimer>
 	static constexpr std::string_view param_prefix() { return "timer"; }
 	static constexpr auto process_policy() { return ProcessPolicy::Custom; }
 
-	int _init(const tll::UrlView &, tll::Channel *master);
+	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::PropsView &);
 	int _close();
 

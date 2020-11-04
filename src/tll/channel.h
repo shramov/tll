@@ -209,6 +209,18 @@ int tll_channel_callback_del(tll_channel_t *, tll_channel_callback_t cb, void * 
  */
 tll_channel_t * tll_channel_new(tll_channel_context_t * ctx, const char *str, size_t len, tll_channel_t *master, const tll_channel_impl_t *impl);
 
+/**
+ * Create new channel from parameters in config object.
+ *
+ * Same as @ref tll_channel_new but all parameters are in ``config`` object.
+ *
+ * @param ctx @ref tll_channel_new
+ * @param url
+ * @param master @ref tll_channel_new
+ * @param impl @ref tll_channel_new
+ */
+tll_channel_t * tll_channel_new_url(tll_channel_context_t * ctx, const tll_config_t *url, tll_channel_t *master, const tll_channel_impl_t *impl);
+
 /// Destroy channel
 void tll_channel_free(tll_channel_t *);
 
@@ -394,6 +406,7 @@ class Channel : public tll_channel_t
 
 public:
 	using Scheme = tll_scheme_t;
+	using Url = ConfigUrl;
 
 	/// Create new channel. See @ref tll_channel_new
 	static std::unique_ptr<Channel> init(std::string_view params, Channel * master = nullptr);
@@ -502,6 +515,12 @@ class Context
 	std::unique_ptr<Channel> channel(std::string_view params, Channel * master = nullptr, const tll_channel_impl_t * impl = nullptr)
 	{
 		auto c = static_cast<Channel *>(tll_channel_new(_ptr, params.data(), params.size(), master, impl));
+		return std::unique_ptr<Channel>(c);
+	}
+
+	std::unique_ptr<Channel> channel(const ConstConfig &url, Channel * master = nullptr, const tll_channel_impl_t * impl = nullptr)
+	{
+		auto c = static_cast<Channel *>(tll_channel_new_url(_ptr, url, master, impl));
 		return std::unique_ptr<Channel>(c);
 	}
 

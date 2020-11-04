@@ -44,7 +44,7 @@ constexpr timespec tll2ts(tll::duration ts)
 #endif
 } // namespace
 
-int ChTimer::_init(const UrlView &url, tll::Channel *master)
+int ChTimer::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = channel_props_reader(url);
 	_with_fd = reader.getT("fd", true);

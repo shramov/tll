@@ -68,7 +68,15 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChZero::impl);
 	}
 
-	tll_channel_t * init(std::string_view params, tll_channel_t *master, const tll_channel_impl_t *impl);
+	tll_channel_t * init(std::string_view params, tll_channel_t *master, const tll_channel_impl_t *impl)
+	{
+		auto url = ConfigUrl::parse(params);
+		if (!url)
+			return _log.fail(nullptr, "Invalid url '{}': {}", params, url.error());
+		return init(*url, master, impl);
+	}
+
+	tll_channel_t * init(const Channel::Url &url, tll_channel_t *master, const tll_channel_impl_t *impl);
 
 	tll_channel_t * get(std::string_view name) const
 	{
@@ -274,30 +282,33 @@ int tll_channel_module_load(tll_channel_context_t *ctx, const char *module, cons
 
 tll_channel_t * tll_channel_new(tll_channel_context_t * ctx, const char *str, size_t len, tll_channel_t *master, const tll_channel_impl_t *impl)
 {
-	return context(ctx)->init(std::string_view(str, len), master, impl);
+	return context(ctx)->init(string_view_from_c(str, len), master, impl);
 }
 
-tll_channel_t * tll_channel_context_t::init(std::string_view params, tll_channel_t *master, const tll_channel_impl_t * impl)
+tll_channel_t * tll_channel_new_url(tll_channel_context_t * ctx, const tll_config_t *curl, tll_channel_t *master, const tll_channel_impl_t *impl)
 {
-	auto url = UrlView::parse(params);
-	if (!url)
-		return _log.fail(nullptr, "Invalid url '{}': {}", params, url.error());
+	const tll::Channel::Url url(const_cast<tll_config_t *>(curl));
 
+	return context(ctx)->init(url, master, impl);
+}
+
+tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &url, tll_channel_t *master, const tll_channel_impl_t * impl)
+{
 	if (!impl) {
-		impl = lookup(url->proto);
+		impl = lookup(url.proto());
 		if (!impl)
-			return _log.fail(nullptr, "Channel '{}' not found", url->proto);
+			return _log.fail(nullptr, "Channel '{}' not found", url.proto());
 	}
 
-	auto internal = url->getT("tll.internal", false);
+	auto internal = url.getT("tll.internal", false);
 	if (!internal)
 		return _log.fail(nullptr, "Invalid tll.internal parameter: {}", internal.error());
 
-	if (!master && url->has("master")) {
-		auto pi = url->find("master");
-		auto it = channels.find(pi->second);
+	if (!master && url.has("master")) {
+		auto pi = url.get("master");
+		auto it = channels.find(*pi);
 		if (it == channels.end())
-			return _log.fail(nullptr, "Failed to create channel: master '{}' not found", pi->second);
+			return _log.fail(nullptr, "Failed to create channel: master '{}' not found", *pi);
 		master = it->second;
 	}
 
@@ -306,12 +317,14 @@ tll_channel_t * tll_channel_context_t::init(std::string_view params, tll_channel
 
 	std::set<const tll_channel_impl_t *> impllog;
 
+	auto url_str = conv::to_string(url);
+
 	do {
 		*c = {};
 		c->context = this;
 		c->impl = impl;
 		_log.debug("Initialize channel with impl '{}'", c->impl->name);
-		auto r = (*c->impl->init)(c.get(), params.data(), params.size(), master, this);
+		auto r = (*c->impl->init)(c.get(), url, master, this);
 		if (r == EAGAIN && c->impl != nullptr && c->impl != impl) {
 			_log.info("Reinitialize channel with different impl '{}'", c->impl->name);
 			if (impllog.find(c->impl) != impllog.end())
@@ -320,11 +333,11 @@ tll_channel_t * tll_channel_context_t::init(std::string_view params, tll_channel
 			impl = c->impl;
 			continue;
 		} else if (r)
-			return _log.fail(nullptr, "Failed to init channel {}", params);
+			return _log.fail(nullptr, "Failed to init channel {}", url_str);
 		if (*internal)
 			c->internal->caps |= caps::Custom;
 		if (!c->internal)
-			return _log.fail(nullptr, "Failed to init channel {}: NULL internal pointer", params);
+			return _log.fail(nullptr, "Failed to init channel {}: NULL internal pointer", url_str);
 		if (!*internal && c->internal->name) {
 			channels.emplace(c->internal->name, c.get()); // Check for dup
 			tll_config_set_config(config, c->internal->name, -1, c->internal->config, 0);

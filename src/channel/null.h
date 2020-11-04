@@ -16,7 +16,7 @@ class ChNull : public tll::channel::Base<ChNull>
 	static constexpr std::string_view param_prefix() { return "null"; }
 	static constexpr auto process_policy() { return ProcessPolicy::Never; }
 
-	int _init(const tll::UrlView &, tll::Channel *master) { return 0; }
+	int _init(const tll::Channel::Url &, tll::Channel *master) { return 0; }
 
 	int _process(long timeout, int flags) { return 0; }
 	int _post(const tll_msg_t *msg, int flags) { return 0; }

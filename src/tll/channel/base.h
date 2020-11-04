@@ -141,24 +141,22 @@ class Base
 		return PropsReaderT<decltype(chain)>(chain); //, T::param_prefix());
 	}
 
-	int init(std::string_view params, tll::Channel *master, tll_channel_context_t *ctx)
+	int init(const Channel::Url &url, tll::Channel *master, tll_channel_context_t *ctx)
 	{
-		_log.info("Init channel: {}", params);
+		auto url_str = tll::conv::to_string(url);
+		_log.info("Init channel {}", url_str);
 		_config_defaults = context().config_defaults();
 		internal.state = state::Closed;
 		_config.set("state", "Closed");
-		_config.set("url", params);
-		auto url = tll::UrlView::parse(params);
-		if (!url)
-			return _log.fail(EINVAL, "Invalid url '{}': {}", params, url.error());
+		_config.set("url", url_str);
 
-		auto replace = channelT()->_init_replace(*url);
+		auto replace = channelT()->_init_replace(url);
 		if (replace) {
 			self()->impl = replace;
 			return EAGAIN;
 		}
 
-		auto reader = channel_props_reader(*url); //, T::param_prefix());
+		auto reader = channel_props_reader(url); //, T::param_prefix());
 		name = reader.template getT<std::string>("name", "noname");
 		_log = { fmt::format("tll.channel.{}", name) };
 		_scheme_url = reader.get("scheme");
@@ -187,11 +185,11 @@ class Base
 			break;
 		}
 
-		return channelT()->_init(*url, master);
+		return channelT()->_init(url, master);
 	}
 
-	const tll_channel_impl_t * _init_replace(const tll::UrlView &url) { return nullptr; }
-	int _init(const tll::UrlView &url, tll::Channel *master) { return 0; }
+	const tll_channel_impl_t * _init_replace(const Channel::Url &url) { return nullptr; }
+	int _init(const tll::Channel::Url &url, tll::Channel *master) { return 0; }
 
 	void free()
 	{

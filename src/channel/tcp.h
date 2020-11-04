@@ -15,9 +15,9 @@ class ChTcp : public tll::channel::Base<ChTcp>
  public:
 	static constexpr std::string_view param_prefix() { return "tcp"; }
 
-	tll_channel_impl_t * _init_replace(const tll::UrlView &url);
+	tll_channel_impl_t * _init_replace(const tll::Channel::Url &url);
 
-	int _init(const tll::UrlView &url, tll::Channel * master) { return _log.fail(EINVAL, "Failed to choose proper tcp channel"); }
+	int _init(const tll::Channel::Url &url, tll::Channel * master) { return _log.fail(EINVAL, "Failed to choose proper tcp channel"); }
 };
 
 #endif//_TLL_IMPL_CHANNEL_TCP_H

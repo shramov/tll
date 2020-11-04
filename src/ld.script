@@ -31,6 +31,7 @@ TLL_0.0.0 {
 		tll_channel_module_unload;
 		tll_channel_name;
 		tll_channel_new;
+		tll_channel_new_url;
 		tll_channel_open;
 		tll_channel_post;
 		tll_channel_process;

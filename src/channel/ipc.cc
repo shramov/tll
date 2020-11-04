@@ -17,7 +17,7 @@ using namespace tll;
 TLL_DEFINE_IMPL(ChIpc);
 TLL_DEFINE_IMPL(ChIpcServer);
 
-tll_channel_impl_t * ChIpc::_init_replace(const tll::UrlView &url)
+tll_channel_impl_t * ChIpc::_init_replace(const Channel::Url &url)
 {
 	auto client = url.getT("mode", true, {{"client", true}, {"server", false}});
 	if (!client)
@@ -27,7 +27,7 @@ tll_channel_impl_t * ChIpc::_init_replace(const tll::UrlView &url)
 	return nullptr;
 }
 
-int ChIpc::_init(const UrlView &url, tll::Channel *master)
+int ChIpc::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	this->master = channel_cast<ChIpcServer>(master);
 	if (!this->master)
@@ -92,7 +92,7 @@ int ChIpc::_process(long timeout, int flags)
 	return event_clear_race([this]() -> bool { return !_qin->empty(); });
 }
 
-int ChIpcServer::_init(const UrlView &url, tll::Channel *master)
+int ChIpcServer::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = channel_props_reader(url);
 	_size = reader.getT<tll::util::Size>("size", 64 * 1024);

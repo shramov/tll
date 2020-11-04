@@ -17,7 +17,7 @@
 namespace tll::channel {
 
 template <typename T>
-int Event<T>::_init(const UrlView &url, tll::Channel *master)
+int Event<T>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = this->channelT()->channel_props_reader(url);
 	_with_fd = reader.getT("fd", _with_fd);

@@ -40,7 +40,7 @@ class ChMem : public tll::channel::Event<ChMem>
  public:
 	static constexpr std::string_view param_prefix() { return "mem"; }
 
-	int _init(const tll::UrlView &, tll::Channel *master);
+	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::PropsView &);
 	int _close();
 	void _free();

@@ -14,7 +14,7 @@ class Null : public tll::channel::Base<Null>
  public:
 	static constexpr std::string_view param_prefix() { return "null"; }
 
-	int _init(const tll::UrlView &, tll::Channel *master) { return 0; }
+	int _init(const tll::Channel::Url &, tll::Channel *master) { return 0; }
 
 	int _process(long timeout, int flags) { return EAGAIN; }
 	int _post(const tll_msg_t *msg, int flags) { return 0; }
@@ -28,7 +28,7 @@ class Echo : public tll::channel::Base<Echo>
 	static constexpr std::string_view param_prefix() { return "echo"; }
 	static constexpr auto open_policy() { return OpenPolicy::Manual; }
 
-	const tll_channel_impl_t * _init_replace(const tll::UrlView &url)
+	const tll_channel_impl_t * _init_replace(const tll::Channel::Url &url)
 	{
 		auto null = url.getT("null", false);
 		if (null && *null)

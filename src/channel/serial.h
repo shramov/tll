@@ -27,7 +27,7 @@ class ChSerial : public tll::channel::Base<ChSerial>
  public:
 	static constexpr std::string_view param_prefix() { return "serial"; }
 
-	int _init(const tll::UrlView &, tll::Channel *master);
+	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::PropsView &);
 	int _close();
 

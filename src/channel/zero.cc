@@ -7,7 +7,7 @@ using namespace tll;
 
 TLL_DEFINE_IMPL(ChZero);
 
-int ChZero::_init(const UrlView &url, tll::Channel *master)
+int ChZero::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = channel_props_reader(url);
 	_size = reader.getT<tll::util::Size>("size", 1024);

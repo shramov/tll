@@ -66,7 +66,7 @@ TLL_DEFINE_IMPL(ChTcpServer<tll_frame_short_t>);
 TLL_DEFINE_IMPL(ChFramedSocket<tll_frame_short_t>);
 TLL_DEFINE_IMPL(tll::channel::TcpServerSocket<ChTcpServer<tll_frame_short_t>>);
 
-tll_channel_impl_t * ChTcp::_init_replace(const tll::UrlView &url)
+tll_channel_impl_t * ChTcp::_init_replace(const tll::Channel::Url &url)
 {
 	auto reader = channel_props_reader(url);
 	auto client = reader.getT("mode", true, {{"client", true}, {"server", false}});

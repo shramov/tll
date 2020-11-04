@@ -36,7 +36,7 @@ int nonblock(int fd)
 } // namespace ''
 
 template <typename T>
-int TcpSocket<T>::_init(const UrlView &url, tll::Channel *master)
+int TcpSocket<T>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	_rbuf.resize(_size);
 	_wbuf.resize(_size);
@@ -144,7 +144,7 @@ int TcpSocket<T>::_process(long timeout, int flags)
 }
 
 template <typename T, typename S>
-int TcpClient<T, S>::_init(const UrlView &url, tll::Channel *master)
+int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = this->channel_props_reader(url);
 	_af = reader.getT("af", AF_UNSPEC, {{"unix", AF_UNIX}, {"ipv4", AF_INET}, {"ipv6", AF_INET6}});
@@ -154,21 +154,22 @@ int TcpClient<T, S>::_init(const UrlView &url, tll::Channel *master)
 
 	S::_init(url, master);
 
-	if (_af == AF_UNSPEC && url.host.find('/') != url.host.npos)
+	auto host = url.host();
+	if (_af == AF_UNSPEC && host.find('/') != host.npos)
 		_af = AF_UNIX;
 
 	if (_af != AF_UNIX) {
-		auto sep = url.host.find_last_of(':');
-		if (sep == url.host.npos)
-			return this->_log.fail(EINVAL, "Invalid host:port pair: {}", url.host);
-		auto p = conv::to_any<unsigned short>(url.host.substr(sep + 1));
+		auto sep = host.find_last_of(':');
+		if (sep == host.npos)
+			return this->_log.fail(EINVAL, "Invalid host:port pair: {}", host);
+		auto p = conv::to_any<unsigned short>(host.substr(sep + 1));
 		if (!p)
-			return this->_log.fail(EINVAL, "Invalid port '{}': {}", url.host.substr(sep + 1), p.error());
+			return this->_log.fail(EINVAL, "Invalid port '{}': {}", host.substr(sep + 1), p.error());
 
 		_port = *p;
-		_host = url.host.substr(0, sep);
+		_host = host.substr(0, sep);
 	} else
-		_host = url.host;
+		_host = host;
 	this->_log.debug("Connection to {}:{}", _host, _port);
 	return 0;
 }
@@ -245,7 +246,7 @@ int TcpClient<T, S>::_process(long timeout, int flags)
 }
 
 template <typename T>
-int TcpServerSocket<T>::_init(const UrlView &url, tll::Channel *master)
+int TcpServerSocket<T>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	return 0;
 }
@@ -313,28 +314,29 @@ int TcpServerSocket<T>::_process(long timeout, int flags)
 }
 
 template <typename T, typename C>
-int TcpServer<T, C>::_init(const UrlView &url, tll::Channel *master)
+int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = this->channelT()->channel_props_reader(url);
 	_af = reader.getT("af", AF_UNSPEC, {{"unix", AF_UNIX}, {"ipv4", AF_INET}, {"ipv6", AF_INET6}});
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
-	if (_af == AF_UNSPEC && url.host.find('/') != url.host.npos)
+	auto host = url.host();
+	if (_af == AF_UNSPEC && host.find('/') != host.npos)
 		_af = AF_UNIX;
 
 	if (_af != AF_UNIX) {
-		auto sep = url.host.find_last_of(':');
-		if (sep == url.host.npos)
-			return this->_log.fail(EINVAL, "Invalid host:port pair: {}", url.host);
-		auto p = conv::to_any<unsigned short>(url.host.substr(sep + 1));
+		auto sep = host.find_last_of(':');
+		if (sep == host.npos)
+			return this->_log.fail(EINVAL, "Invalid host:port pair: {}", host);
+		auto p = conv::to_any<unsigned short>(host.substr(sep + 1));
 		if (!p)
-			return this->_log.fail(EINVAL, "Invalid port '{}': {}", url.host.substr(sep + 1), p.error());
+			return this->_log.fail(EINVAL, "Invalid port '{}': {}", host.substr(sep + 1), p.error());
 
 		_port = *p;
-		_host = url.host.substr(0, sep);
+		_host = host.substr(0, sep);
 	} else
-		_host = url.host;
+		_host = host;
 	this->_log.debug("Listen on {}:{}", _host, _port);
 	return 0;
 }
