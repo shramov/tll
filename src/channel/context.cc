@@ -355,7 +355,7 @@ unsigned tll_channel_caps(const tll_channel_t *c) { if (c->internal) return c->i
 unsigned tll_channel_dcaps(const tll_channel_t *c) { if (c->internal) return c->internal->dcaps; return 0; }
 int tll_channel_fd(const tll_channel_t *c) { if (c->internal) return c->internal->fd; return -1; }
 tll_config_t * tll_channel_config(tll_channel_t *c) { if (!c->internal) return 0; tll_config_ref(c->internal->config); return c->internal->config; }
-tll_channel_list_t * tll_channel_children(tll_channel_t *c) { if (!c->internal) return 0; return c->internal->children; }
+const tll_channel_list_t * tll_channel_children(const tll_channel_t *c) { if (!c->internal) return 0; return c->internal->children; }
 tll_channel_context_t * tll_channel_context(const tll_channel_t *c) { return tll_channel_context_ref(c->context); }
 
 void tll_channel_free(tll_channel_t *c)

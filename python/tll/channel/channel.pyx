@@ -239,7 +239,7 @@ cdef class Channel:
 
     @property
     def children(self):
-        cdef tll_channel_list_t * l = tll_channel_children(self._ptr)
+        cdef const tll_channel_list_t * l = tll_channel_children(self._ptr)
         r = []
         while l != NULL:
             r.append(Channel.wrap(l.channel))

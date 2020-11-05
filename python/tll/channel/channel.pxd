@@ -96,7 +96,7 @@ cdef extern from "tll/channel.h":
     cdef tll_channel_context_t * tll_channel_context(const tll_channel_t *c)
     cdef tll_config_t * tll_channel_config(tll_channel_t *c)
     cdef tll_scheme_t * tll_channel_scheme(tll_channel_t *c, int)
-    cdef tll_channel_list_t * tll_channel_children(tll_channel_t *c)
+    cdef const tll_channel_list_t * tll_channel_children(const tll_channel_t *c)
 
     cdef tll_channel_t * tll_channel_get(const tll_channel_context_t *ctx, const char *name, int len)
 

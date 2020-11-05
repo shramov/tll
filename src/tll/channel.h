@@ -275,7 +275,7 @@ tll_channel_context_t * tll_channel_context(const tll_channel_t *c);
 tll_config_t * tll_channel_config(tll_channel_t *c);
 
 /// Get list of channel child objects
-tll_channel_list_t * tll_channel_children(tll_channel_t *c);
+const tll_channel_list_t * tll_channel_children(const tll_channel_t *c);
 
 struct tll_scheme_t;
 /**
@@ -434,7 +434,7 @@ public:
 	Config config() { return Config::consume(tll_channel_config(this)); }
 	const Config config() const { return Config::consume(tll_channel_config((tll_channel_t *) this)); }
 
-	tll_channel_list_t * children() { return tll_channel_children(this); }
+	const tll_channel_list_t * children() const { return tll_channel_children(this); }
 
 	/// Get channel scheme. See @ref tll_channel_scheme
 	const Scheme * scheme(int type = TLL_MESSAGE_DATA) const { return tll_channel_scheme(this, type); }
