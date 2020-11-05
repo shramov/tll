@@ -174,7 +174,7 @@ class Base
 
 		internal.name = name.c_str();
 
-		switch (child_policy()) {
+		switch (channelT()->child_policy()) {
 		case ChildPolicy::Never:
 			break;
 		case ChildPolicy::Single:
