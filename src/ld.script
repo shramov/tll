@@ -79,6 +79,10 @@ TLL_0.0.0 {
 		tll_processor_loop_pending;
 		tll_processor_loop_poll;
 		tll_processor_loop_process;
+		tll_processor_loop_run;
+		tll_processor_loop_step;
+		tll_processor_loop_stop_get;
+		tll_processor_loop_stop_set;
 
 		tll_scheme_load;
 		tll_scheme_copy;

@@ -1,10 +1,9 @@
 #include "tll/processor/loop.h"
+#include "tll/util/string.h"
 
-struct tll_processor_loop_t : public tll::processor::Loop {};
-
-tll_processor_loop_t * tll_processor_loop_new()
+tll_processor_loop_t * tll_processor_loop_new(const char * name, int len)
 {
-	return new tll_processor_loop_t();
+	return new tll_processor_loop_t(tll::string_view_from_c(name, len));
 }
 
 void tll_processor_loop_free(tll_processor_loop_t *loop)
@@ -35,4 +34,25 @@ int tll_processor_loop_process(tll_processor_loop_t *loop)
 int tll_processor_loop_pending(tll_processor_loop_t *loop)
 {
 	return loop->pending();
+}
+
+int tll_processor_loop_step(tll_processor_loop_t *loop, long timeout)
+{
+	return loop->step(std::chrono::milliseconds(timeout));
+}
+
+int tll_processor_loop_run(tll_processor_loop_t *loop, long timeout)
+{
+	return loop->run(std::chrono::milliseconds(timeout));
+}
+
+int tll_processor_loop_stop_get(const tll_processor_loop_t *loop)
+{
+	return loop->stop;
+}
+
+int tll_processor_loop_stop_set(tll_processor_loop_t *loop, int flag)
+{
+	std::swap(flag, loop->stop);
+	return flag;
 }
