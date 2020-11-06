@@ -109,7 +109,6 @@ cdef class Channel:
             kw['context'] = context
 
         for k,v in kw.items():
-            print("kw: {}={}".format(k, v))
             curl[k] = str(v)
 
         self._own = True
