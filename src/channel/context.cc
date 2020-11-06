@@ -37,12 +37,12 @@ using namespace tll;
 TLL_DEFINE_IMPL(ChDirect);
 TLL_DEFINE_IMPL(ChNull);
 
-extern template class tll::channel::Base<ChIpc>;
-extern template class tll::channel::Base<ChMem>;
-extern template class tll::channel::Base<ChSerial>;
-extern template class tll::channel::Base<ChTcp>;
-extern template class tll::channel::Base<ChTimer>;
-extern template class tll::channel::Base<ChZero>;
+TLL_DECLARE_IMPL(ChIpc);
+TLL_DECLARE_IMPL(ChMem);
+TLL_DECLARE_IMPL(ChSerial);
+TLL_DECLARE_IMPL(ChTcp);
+TLL_DECLARE_IMPL(ChTimer);
+TLL_DECLARE_IMPL(ChZero);
 
 struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t>
 {

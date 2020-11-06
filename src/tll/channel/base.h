@@ -47,7 +47,7 @@ T * channel_cast(tll_channel_t * c)
 }
 
 #define TLL_DEFINE_IMPL(type, ...) template <> tll::channel_impl<type> tll::channel::Base<type>::impl = {__VA_ARGS__};
-//#define TLL_DEFINE_IMPL(type, ...) tll::channel_impl<type> type::impl = {##__VA_ARGS__};
+#define TLL_DECLARE_IMPL(type, ...) extern template class tll::channel::Base<type>;
 
 namespace channel {
 
