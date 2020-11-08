@@ -98,6 +98,8 @@ int tll_config_load_unregister(const char * prefix, int plen, tll_config_load_t 
 
 /// Create new empty config
 tll_config_t * tll_config_new(void);
+/// Create copy of config
+tll_config_t * tll_config_copy(const tll_config_t *);
 /// Create new config filled with values loaded from ``path``
 tll_config_t * tll_config_load(const char * path, int plen);
 /// Create new config filled with values loaded from ``data`` with format determined by ``proto``
@@ -188,6 +190,8 @@ class optional_config_string
 	std::string_view value_or(std::string_view s) const { if (*this) return _data; return s; }
 };
 
+class Config;
+
 template <bool Const>
 class ConfigT : public PropsGetter<ConfigT<Const>>
 {
@@ -244,6 +248,8 @@ class ConfigT : public PropsGetter<ConfigT<Const>>
 		if (!c) return std::nullopt;
 		return ConfigT::consume(c);
 	}
+
+	Config copy() const;
 
 	std::optional<const ConfigT> sub(std::string_view path) const
 	{
@@ -391,6 +397,13 @@ private:
 		return strdup(s.c_str());
 	}
 };
+
+template <bool Const>
+Config ConfigT<Const>::copy() const
+{
+	auto r = tll_config_copy(*this);
+	return Config::consume(r);
+}
 
 class ConfigUrl : public Config
 {

@@ -48,6 +48,10 @@ public:
 
 	T * operator -> () { return _data; }
 	const T * operator -> () const { return _data; }
+
+	T & operator * () { return *_data; }
+	const T & operator * () const { return *_data; }
+
 	void reset(T * ptr) { if (_data) _data->unref(); _data = ptr; if (_data) _data->ref(); }
 
 	T * get() { return _data; }

@@ -37,6 +37,16 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 	tll_config_t(tll_config_t *p = nullptr) : parent(p) { /*printf("  new %p\n", this);*/ }
 	~tll_config_t() { /*printf("  del %p\n", this);*/ }
 
+	tll_config_t(const tll_config_t &cfg)
+	{
+		auto lock = cfg.rlock();
+		data = cfg.data;
+		for (auto & k : cfg.kids) {
+			auto it = kids.emplace(k.first, new tll_config_t(*k.second)).first;
+			it->second->parent = this;
+		}
+	}
+
 	bool value() const { return !std::holds_alternative<std::monostate>(data); }
 
 	template <typename Cfg>

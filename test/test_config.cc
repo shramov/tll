@@ -65,6 +65,21 @@ TEST(Config, Browse)
 	compare_keys<tll::ConstConfig>(s->list(), {"y"});
 }
 
+TEST(Config, Copy)
+{
+	auto c = tll::Config::load("yamls://{a: 1, b: 2, c: [10, 20, 30], x: {y: {z: string}}}");
+	ASSERT_TRUE(c);
+	compare_keys<tll::Config>(c->browse("**"), {"a", "b", "c.0000", "c.0001", "c.0002", "x.y.z"});
+
+	auto c1 = c->copy();
+	compare_keys<tll::Config>(c->browse("**"), {"a", "b", "c.0000", "c.0001", "c.0002", "x.y.z"});
+
+	c->set("a", "987");
+	c->set("x.y.z", "str");
+	ASSERT_EQ(*c1.get("a"), "1");
+	ASSERT_EQ(*c1.get("x.y.z"), "string");
+}
+
 TEST(Config, Merge)
 {
 

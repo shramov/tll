@@ -41,6 +41,7 @@ TLL_0.0.0 {
 		tll_channel_suspend;
 
 		tll_config_browse;
+		tll_config_copy;
 		tll_config_del;
 		tll_config_get;
 		tll_config_get_copy;

@@ -125,6 +125,13 @@ int tll_config_load_unregister(const char * prefix, int plen, tll_config_load_t 
 }
 
 tll_config_t * tll_config_new() { return (new tll_config_t)->ref(); }
+tll_config_t * tll_config_copy(const tll_config_t *cfg)
+{
+	if (cfg == nullptr)
+		return nullptr;
+	return (new tll_config_t(*cfg))->ref();
+}
+
 tll_config_t * tll_config_load(const char * path, int plen)
 {
 	return _context.load(string_view_from_c(path, plen));
