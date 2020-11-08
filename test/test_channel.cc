@@ -93,6 +93,7 @@ TEST(Channel, New)
 
 	auto cfg = c->config();
 	ASSERT_EQ(std::string(cfg.get("state").value_or("")), "Active");
+	ASSERT_EQ(tll::conv::to_string(tll::Channel::Url(*cfg.sub("url"))), "echo://;name=echo");
 
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	msg.seq = 100;
