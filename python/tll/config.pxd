@@ -9,6 +9,7 @@ cdef extern from "tll/config.h":
     ctypedef char * (*tll_config_value_callback_t)(int * len, void * data)
 
     cdef tll_config_t * tll_config_new()
+    cdef tll_config_t * tll_config_copy(const tll_config_t *)
     cdef tll_config_t * tll_config_load(const char *path, int len)
     cdef tll_config_t * tll_config_load_data(const char *proto, int plen, const char * data, int dlen)
     cdef const tll_config_t * tll_config_ref(const tll_config_t * cfg)

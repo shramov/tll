@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # vim: sts=4 sw=4 et
 
+import copy
+
 import common
 
 from tll.config import Config
@@ -17,6 +19,18 @@ def test_basic():
     assert_true('b.x' in cfg)
     #del cfg['b.x']
     #assert_false('b.x' in cfg)
+
+def test_copy():
+    cfg = Config.load('yamls://{a: 1, b: {x: 2, y: 3}}')
+    assert_equals(dict(cfg.browse('**')), {'a':'1', 'b.x':'2', 'b.y':'3'})
+    cc0 = cfg.copy()
+    cc1 = copy.copy(cfg)
+    cdc = copy.deepcopy(cfg)
+    for c in [cc0, cc1, cdc]:
+        assert_equals(dict(c.browse('**')), {'a':'1', 'b.x':'2', 'b.y':'3'})
+    cfg['a'] = '9'
+    for c in [cc0, cc1, cdc]:
+        assert_equals(dict(c.browse('**')), {'a':'1', 'b.x':'2', 'b.y':'3'})
 
 def _test_yaml(data, v):
     c = Config.load('yamls://' + data)

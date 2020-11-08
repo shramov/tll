@@ -49,6 +49,13 @@ cdef class Config:
             raise TLLError("Failed to load '{}' from '{}'".format(proto, data))
         return Config.wrap(cfg)
 
+    def copy(self):
+        return Config.wrap(tll_config_copy(self._ptr))
+
+    __copy__ = copy
+    def __deepcopy__(self, memo):
+        return self.copy()
+
     def sub(self, path, create=False):
         p = s2b(path)
         cdef tll_config_t * cfg = tll_config_sub(self._ptr, p, len(p), 1 if create else 0)
