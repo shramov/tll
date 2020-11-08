@@ -3,16 +3,19 @@
 
 from .loop cimport *
 from ..channel.channel cimport Channel
+from ..s2b cimport s2b
 
 from .. import error
 
 cdef class Loop:
     cdef tll_processor_loop_t * _ptr
 
-    def __cinit__(self, bare=False):
+    def __cinit__(self, name=None, bare=False):
+        name = name or ''
+        name = s2b(name)
         if bare:
             self._ptr = NULL
-        self._ptr = tll_processor_loop_new()
+        self._ptr = tll_processor_loop_new(name, len(name))
 
     def __dealloc__(self):
         if self._ptr != NULL:
@@ -40,6 +43,20 @@ cdef class Loop:
     def process(self):
         tll_processor_loop_process(self._ptr)
 
+    def step(self, timeout):
+        error.wrap(tll_processor_loop_step(self._ptr, int(timeout * 1000)), "tll_processor_loop_step failed")
+
+    def run(self, timeout):
+        error.wrap(tll_processor_loop_run(self._ptr, int(timeout * 1000)), "tll_processor_loop_run failed")
+
     @property
     def pending(self):
         return tll_processor_loop_pending(self._ptr) != 0
+
+    @property
+    def stop(self):
+        return tll_processor_loop_stop_get(self._ptr)
+
+    @stop.setter
+    def stop(self, v):
+        tll_processor_loop_stop_set(self._ptr, v)
