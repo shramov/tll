@@ -91,7 +91,7 @@ cdef class Channel:
 
         cdef Url curl = Url()
         if isinstance(url, Config):
-            for k,v in url.browse():
+            for k,v in url.browse('**'):
                 curl[k] = v
         else:
             curl = Url.parse(url)
