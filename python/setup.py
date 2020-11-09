@@ -7,6 +7,7 @@ from Cython.Distutils import build_ext
 
 setup( name = 'tll'
      , packages = ['tll', 'tll.channel', 'tll.processor']
+     , scripts = ['tll-pyprocessor']
      , include_dirs = ["../src"]
      , cmdclass = {'build_ext': build_ext}
      , ext_modules =
@@ -18,6 +19,7 @@ setup( name = 'tll'
          , Extension("tll.config", ["tll/config.pyx"], libraries=["tll"])
          , Extension("tll.logger", ["tll/logger.pyx"], libraries=["tll"])
          , Extension("tll.processor.loop", ["tll/processor/loop.pyx"], libraries=["tll"])
+         , Extension("tll.processor.processor", ["tll/processor/processor.pyx"], libraries=["tll"])
          , Extension("tll.scheme", ["tll/scheme.pyx"], libraries=["tll"])
          , Extension("tll.stat", ["tll/stat.pyx"], libraries=["tll"])
          ]

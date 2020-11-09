@@ -3,7 +3,7 @@
 
 from ..channel.channel cimport tll_channel_t
 
-cdef extern from "tll/processor/loop.h":
+cdef extern from "tll/processor/loop.h" nogil:
     ctypedef struct tll_processor_loop_t
 
     cdef tll_processor_loop_t * tll_processor_loop_new(const char *name, int len)
