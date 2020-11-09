@@ -25,6 +25,7 @@
 
 #include "channel/direct.h"
 #include "channel/ipc.h"
+#include "channel/loader.h"
 #include "channel/mem.h"
 #include "channel/null.h"
 #include "channel/serial.h"
@@ -35,6 +36,7 @@
 using namespace tll;
 
 TLL_DEFINE_IMPL(ChDirect);
+TLL_DEFINE_IMPL(ChLoader);
 TLL_DEFINE_IMPL(ChNull);
 
 TLL_DECLARE_IMPL(ChIpc);
@@ -61,6 +63,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChDirect::impl);
 		reg(&ChIpc::impl);
 		reg(&ChMem::impl);
+		reg(&ChLoader::impl);
 		reg(&ChNull::impl);
 		reg(&ChSerial::impl);
 		reg(&ChTcp::impl);
