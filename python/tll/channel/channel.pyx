@@ -78,14 +78,13 @@ cdef class Channel:
     DCaps = _DCaps
     State = common.State
 
-    def __init__(self, url, master=None, context=None, **kw):
-        pass
-
-    def __cinit__(self, url, master=None, context=None, **kw):
+    def __cinit__(self):
         self._ptr = NULL
         self._own = False
         self._callbacks = {}
         self._scheme_cache = None
+
+    def __init__(self, url, master=None, context=None, **kw):
         if url is None:
             return
 
