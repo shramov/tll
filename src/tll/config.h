@@ -39,6 +39,7 @@ int tll_config_has(const tll_config_t *, const char * path, int plen);
 
 /// Get subtree
 tll_config_t * tll_config_sub(tll_config_t *, const char * path, int plen, int create);
+const tll_config_t * tll_config_sub_const(const tll_config_t *, const char * path, int plen);
 
 /// Delete node
 int tll_config_del(tll_config_t *, const char * path, int plen, int recursive);
@@ -251,11 +252,11 @@ class ConfigT : public PropsGetter<ConfigT<Const>>
 
 	Config copy() const;
 
-	std::optional<const ConfigT> sub(std::string_view path) const
+	std::optional<ConfigT<true>> sub(std::string_view path) const
 	{
-		auto c = tll_config_sub(_cfg, path.data(), path.size(), 0);
+		auto c = tll_config_sub_const(_cfg, path.data(), path.size());
 		if (!c) return std::nullopt;
-		return ConfigT::consume(c);
+		return ConfigT<true>::consume(c);
 	}
 
 	operator config_t * () { return _cfg; }

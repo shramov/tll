@@ -29,6 +29,11 @@ TEST(Config, Get)
 	ASSERT_TRUE(sub->has("c"));
 	ASSERT_EQ(*sub->get("c"), "1");
 
+	auto csub = static_cast<const tll::Config *>(&cfg)->sub("a.b");
+	ASSERT_TRUE(csub);
+	ASSERT_TRUE(csub->has("c"));
+	ASSERT_EQ(*csub->get("c"), "1");
+
 	sub->set("c", "2");
 
 	ASSERT_EQ(*sub->get("c"), "2");

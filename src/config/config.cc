@@ -155,6 +155,12 @@ tll_config_t * tll_config_sub(tll_config_t *c, const char *path, int plen, int c
 	return c->find(string_view_from_c(path, plen), create).release();
 }
 
+const tll_config_t * tll_config_sub_const(const tll_config_t *c, const char *path, int plen)
+{
+	if (!c) return nullptr;
+	return c->find(string_view_from_c(path, plen)).release();
+}
+
 int tll_config_value(const tll_config_t *c)
 {
 	if (!c) return EINVAL;
