@@ -45,7 +45,7 @@ class Event : public Base<T>
 	template <typename F>
 	int event_clear_race(F rearm)
 	{
-		if (!_with_fd) return 0;
+		if (this->fd() == -1) return 0;
 		if (rearm())
 			return 0;
 		if (_event_clear_nocheck())
