@@ -5,6 +5,7 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
+#include "processor/chains.h"
 #include "processor/processor.h"
 #include "processor/worker.h"
 #include "tll/channel/impl.h"
@@ -13,10 +14,12 @@ using tll::processor::_::Processor;
 
 TLL_DEFINE_IMPL(tll::processor::_::Processor);
 TLL_DEFINE_IMPL(tll::processor::_::Worker);
+TLL_DEFINE_IMPL(tll::processor::_::Chains);
 
 int tll_processor_init(tll_channel_context_t *ctx)
 {
 	tll_channel_impl_register(ctx, &Processor::impl, 0);
+	tll_channel_impl_register(ctx, &tll::processor::_::Chains::impl, 0);
 	return 0;
 }
 

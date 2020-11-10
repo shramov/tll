@@ -60,6 +60,11 @@ int main(int argc, char *argv[])
 	}
 
 	cfg->set("name", "processor");
+	if (auto ppp = cfg->get("processor.format"))
+		cfg->set("tll.proto", fmt::format("{}+{}", *ppp, "processor"));
+	else
+		cfg->set("tll.proto", "processor");
+
 	auto proc = tll::Processor::init(*cfg, context);
 	if (!proc) {
 		printf("Failed to init processor\n");
