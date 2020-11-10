@@ -21,16 +21,17 @@
 
 class ChIpcServer;
 
-template <typename T, typename E>
-struct lqueue_ref : public lqueue<T>, public tll::util::refbase_t<lqueue_ref<T, E>, 0>
+template <typename T>
+struct lqueue_ref : public lqueue<T>, public tll::util::refbase_t<lqueue_ref<T>, 0>
 {
-	E * event = nullptr;
+	tll::channel::EventNotify event;
+	~lqueue_ref() { event.close(); }
 };
 
 class ChIpc : public tll::channel::Event<ChIpc>
 {
  public:
-	template <typename E> using queue_t = lqueue_ref<tll::util::OwnedMessage, E>;
+	template <typename E> using queue_t = lqueue_ref<tll::util::OwnedMessage>;
 	using squeue_t = queue_t<ChIpcServer>;
 	using cqueue_t = queue_t<ChIpc>;
 	template <typename T> using refptr_t = tll::util::refptr_t<T>;

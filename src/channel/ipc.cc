@@ -42,10 +42,13 @@ int ChIpc::_open(const PropsView &url)
 	if (master->state() != TLL_STATE_ACTIVE)
 		return _log.fail(EINVAL, "Parent is not active: {}", tll_state_str(master->state()));
 
+	if (Event<ChIpc>::_open(url))
+		return _log.fail(EINVAL, "Failed to open event parent");
+
 	_qin.reset(new cqueue_t);
 	_qout.reset(new squeue_t);
-	_qin->event = this;
-	_qout->event = master;
+	_qin->event = this->event_detached();;
+	_qout->event = master->event_detached();
 	_markers = master->_markers;
 	{
 		std::unique_lock<std::mutex> lock(master->_lock);
@@ -53,19 +56,20 @@ int ChIpc::_open(const PropsView &url)
 		master->_clients.emplace(_addr, _qin);
 	}
 
-	if (Event<ChIpc>::_open(url))
-		return _log.fail(EINVAL, "Failed to open event parent");
 	state(TLL_STATE_ACTIVE);
 	return 0;
 }
 
 int ChIpc::_close()
 {
-	Event<ChIpc>::_close();
+	{
+		std::unique_lock<std::mutex> lock(master->_lock);
+		master->_clients.erase(_addr);
+	}
 	_qin.reset(nullptr);
 	_qout.reset(nullptr);
 	_markers.reset();
-	return 0;
+	return Event<ChIpc>::_close();
 }
 
 int ChIpc::_post(const tll_msg_t *msg, int flags)
@@ -77,19 +81,21 @@ int ChIpc::_post(const tll_msg_t *msg, int flags)
 		return EAGAIN;
 	ref.release();
 	_qout->push(std::move(m));
-	if (_qout->event->event_notify())
+	_log.debug("Notify fd {}", _qout->event.fd);
+	if (_qout->event.notify())
 		return _log.fail(EINVAL, "Failed to arm event");
 	return 0;
 }
 
 int ChIpc::_process(long timeout, int flags)
 {
-	auto msg = _qin->pop();
+	auto q = _qin;
+	auto msg = q->pop();
 	if (!msg)
 		return EAGAIN;
 	_callback_data(*msg);
 
-	return event_clear_race([this]() -> bool { return !_qin->empty(); });
+	return event_clear_race([&q]() -> bool { return !q->empty(); });
 }
 
 int ChIpcServer::_init(const tll::Channel::Url &url, tll::Channel *master)
@@ -127,14 +133,15 @@ int ChIpcServer::_post(const tll_msg_t *msg, int flags)
 	auto it = _clients.find(msg->addr);
 	if (it == _clients.end()) return ENOENT;
 	it->second->push(tll::util::OwnedMessage(msg));
-	if (it->second->event->event_notify())
+	if (it->second->event.notify())
 		return _log.fail(EINVAL, "Failed to arm event");
 	return 0;
 }
 
 int ChIpcServer::_process(long timeout, int flags)
 {
-	auto q = _markers->pop();
+	auto markers = _markers;
+	auto q = markers->pop();
 	if (!q)
 		return EAGAIN;
 	auto msg = q->pop();
@@ -144,5 +151,5 @@ int ChIpcServer::_process(long timeout, int flags)
 	_callback_data(*msg);
 	q->unref();
 
-	return event_clear_race([this]() -> bool { return !_markers->empty(); });
+	return event_clear_race([&markers]() -> bool { return !markers->empty(); });
 }
