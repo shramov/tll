@@ -5,7 +5,6 @@ from ..config cimport tll_config_t
 from ..scheme cimport tll_scheme_t, Scheme
 from .impl cimport tll_channel_internal_t, tll_channel_impl_t
 from .common cimport tll_state_t
-from libc.stdint cimport int64_t
 
 cdef extern from "tll/channel.h":
     #ctypedef struct tll_channel_t
@@ -62,12 +61,15 @@ cdef extern from "tll/channel.h":
         TLL_DCAPS_SUSPEND
         TLL_DCAPS_SUSPEND_PERMANENT
 
+    ctypedef struct tll_addr_t:
+        char array[16]
+
     ctypedef struct tll_msg_t:
         short type
         int msgid
         long long seq
         const void * data
-        int64_t addr
+        tll_addr_t addr
         size_t size
 
     ctypedef int (*tll_channel_callback_t)(const tll_channel_t *, const tll_msg_t * msg, void * user);

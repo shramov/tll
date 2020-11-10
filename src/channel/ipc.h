@@ -37,7 +37,7 @@ class ChIpc : public tll::channel::Event<ChIpc>
 	template <typename T> using refptr_t = tll::util::refptr_t<T>;
 
  private:
-	long long _addr = 0;
+	tll_addr_t _addr = {};
 
 	refptr_t<cqueue_t> _qin;
 	refptr_t<squeue_t> _qout;
@@ -60,7 +60,7 @@ class ChIpcServer : public tll::channel::Event<ChIpcServer>
 {
 	friend class ChIpc;
 	size_t _size = 1024;
-	long long _addr = 0;
+	tll_addr_t _addr = {};
 
 	template <typename T> using refptr_t = tll::util::refptr_t<T>;
 	std::shared_ptr<MarkerQueue<ChIpc::squeue_t *, nullptr>> _markers;

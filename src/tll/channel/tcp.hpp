@@ -136,7 +136,7 @@ int TcpSocket<T>::_process(long timeout, int flags)
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	msg.data = _rbuf.data();
 	msg.size = *r;
-	msg.addr = (int64_t ) this;
+	msg.addr.ptr = this;
 	this->_callback_data(&msg);
 	rdone(*r);
 	rshift();
@@ -427,9 +427,9 @@ int TcpServer<T, C>::_close()
 template <typename T, typename C>
 int TcpServer<T, C>::_post(const tll_msg_t *msg, int flags)
 {
-	if (!msg->addr)
+	if (!msg->addr.lo)
 		return this->_log.fail(EINVAL, "Invalid address");
-	auto ca = (tcp_socket_t *) msg->addr;
+	auto ca = (tcp_socket_t *) msg->addr.ptr;
 	for (auto & c : _clients) {
 		if (c == ca)
 			return c->post(msg, flags);

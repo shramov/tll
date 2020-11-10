@@ -57,7 +57,14 @@ typedef enum {
 	TLL_MESSAGE_CHANNEL_UPDATE_FD = 3, ///< Update fd, data is old fd
 } tll_msg_channel_t;
 
-typedef int64_t tll_addr_t;
+typedef union {
+	struct {
+		uint64_t lo;
+		uint64_t hi;
+	};
+	unsigned char array[16];
+	void * ptr;
+} tll_addr_t;
 
 /// Message object
 typedef struct {

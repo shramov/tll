@@ -11,6 +11,7 @@ from libc.stdlib cimport malloc, free
 from libc.string cimport memcpy, memset
 from cpython cimport Py_buffer
 from cpython.buffer cimport *
+from cpython.bytes cimport PyBytes_FromStringAndSize
 from cpython.ref cimport Py_INCREF, Py_DECREF
 from ..buffer cimport *
 from os import strerror
@@ -360,14 +361,14 @@ cdef class Message:
     def type(self): return Type(self._ptr.type) if self._ptr else None
 
     @property
-    def addr(self): return self._ptr.addr if self._ptr else None
+    def addr(self): return PyBytes_FromStringAndSize(<const char *>self._ptr.addr.array, sizeof(self._ptr.addr)) if self._ptr else None
 
     @property
     def data(self): return memoryview(self) if self._ptr else None
 
     def copy(self):
         if not self._ptr: raise RuntimeError("Message is uninitialized")
-        return MessageTuple(Type(self._ptr.type), self._ptr.msgid, self._ptr.seq, self._ptr.addr, memoryview(memoryview(self).tobytes()))
+        return MessageTuple(Type(self._ptr.type), self._ptr.msgid, self._ptr.seq, self.addr, memoryview(memoryview(self).tobytes()))
 
     def clone(self): return self.copy()
 
