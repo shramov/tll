@@ -107,19 +107,19 @@ cdef class PyLog:
         tll_logger_register(NULL)
 
     @staticmethod
-    cdef int pylog(long long ts, const char * category, tll_logger_level_t level, const char * data, size_t size, void * obj):
+    cdef int pylog(long long ts, const char * category, tll_logger_level_t level, const char * data, size_t size, void * obj) with gil:
         o = <object>obj
         o.log(tll2logging.get(level, logging.INFO), b2s(data[:size]))
 
     @staticmethod
-    cdef void * pylog_new(const char * category, tll_logger_impl_t * impl):
+    cdef void * pylog_new(const char * category, tll_logger_impl_t * impl) with gil:
         o = <PyLog>(impl.user)
         l = logging.getLogger(b2s(category))
         Py_INCREF(l)
         return <void *>l
 
     @staticmethod
-    cdef void pylog_free(const char * category, void * obj, tll_logger_impl_t * impl):
+    cdef void pylog_free(const char * category, void * obj, tll_logger_impl_t * impl) with gil:
         if obj == NULL: return
         o = <object>obj
         Py_DECREF(o)
@@ -128,3 +128,11 @@ pylog = PyLog()
 
 def init():
     pylog.reg()
+
+def pyconfigure(config):
+    if config is None or config.sub('python', throw=False) is None: return
+
+    lcfg = config.sub('python').as_dict()
+    lcfg['version'] = int(lcfg.get('version', '1'))
+    print(lcfg)
+    logging.config.dictConfig(lcfg)
