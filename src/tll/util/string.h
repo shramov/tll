@@ -14,6 +14,23 @@
 
 namespace tll {
 
+namespace util {
+
+inline std::string_view strip(std::string_view s, std::string_view chars = " ")
+{
+	auto p = s.find_first_not_of(chars);
+	if (p == s.npos)
+		return "";
+	if (p != 0)
+		s.remove_prefix(p);
+	p = s.find_last_not_of(chars);
+	if (p != s.size())
+		s.remove_suffix(s.size() - p - 1);
+	return s;
+}
+
+} // namespace util
+
 inline std::string_view string_view_from_c(const char *base, int len)
 {
 	return { base, (len < 0)?strlen(base):len };

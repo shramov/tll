@@ -19,6 +19,19 @@
 
 #include "test_compat.h"
 
+TEST(Util, Strip)
+{
+	EXPECT_EQ(tll::util::strip("abc"), "abc");
+	EXPECT_EQ(tll::util::strip(" abc"), "abc");
+	EXPECT_EQ(tll::util::strip("abc "), "abc");
+	EXPECT_EQ(tll::util::strip(" abc "), "abc");
+	EXPECT_EQ(tll::util::strip("   a b c  "), "a b c");
+
+	EXPECT_EQ(tll::util::strip(" .abc. ", " ,."), "abc");
+	EXPECT_EQ(tll::util::strip(",,abc", " ,."), "abc");
+	EXPECT_EQ(tll::util::strip(" abc", ",."), " abc");
+}
+
 template <bool Skip>
 std::list<std::string> splitL(const std::string_view &s)
 {
