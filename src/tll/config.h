@@ -106,6 +106,9 @@ tll_config_t * tll_config_load(const char * path, int plen);
 /// Create new config filled with values loaded from ``data`` with format determined by ``proto``
 tll_config_t * tll_config_load_data(const char * proto, int plen, const char * data, int dlen);
 
+/// Load additional configs specified in ``path`` subtree
+int tll_config_process_imports(tll_config_t *, const char * path, int plen);
+
 /// Increase reference count
 const tll_config_t * tll_config_ref(const tll_config_t *);
 /// Decrease reference count
@@ -367,6 +370,7 @@ class Config : public ConfigT<false>
 	int unset(std::string_view path) { return tll_config_unset(_cfg, path.data(), path.size()); }
 
 	int merge(ConfigT & cfg, bool overwrite = true) { return tll_config_merge(_cfg, cfg, overwrite); }
+	int process_imports(std::string_view path) { return tll_config_process_imports(_cfg, path.data(), path.size()); }
 
 	std::optional<Config> sub(std::string_view path, bool create = false)
 	{

@@ -97,3 +97,25 @@ TEST(Config, Merge)
 
 	compare_keys(c->browse("**"), {"a", "b.c", "b.d"});
 }
+
+TEST(Config, Imports)
+{
+
+	auto c = tll::Config::load(R"(yamls://
+import:
+ - 'yamls://{a: 1, b.c: 2}'
+ - 'yamls://{a: 2, b.d: 3}'
+b.c: 10
+)");
+	ASSERT_TRUE(c);
+
+	compare_keys(c->browse("**"), {"b.c", "import.0000", "import.0001"});
+	ASSERT_EQ(*c->get("b.c"), "10");
+
+	ASSERT_EQ(c->process_imports("import"), 0);
+
+	compare_keys(c->browse("**"), {"a", "b.c", "b.d", "import.0000", "import.0001"});
+	ASSERT_EQ(*c->get("a"), "2");
+	ASSERT_EQ(*c->get("b.c"), "10");
+	ASSERT_EQ(*c->get("b.d"), "3");
+}

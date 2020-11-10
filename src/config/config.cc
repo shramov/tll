@@ -144,6 +144,11 @@ tll_config_t * tll_config_load_data(const char * proto, int plen, const char * d
 	return _context.load(string_view_from_c(proto, plen), string_view_from_c(data, len));
 }
 
+int tll_config_process_imports(tll_config_t *cfg, const char * path, int plen)
+{
+	return cfg->process_imports(string_view_from_c(path, plen));
+}
+
 const tll_config_t * tll_config_ref(const tll_config_t * c) { if (c) c->ref(); return c; }
 void tll_config_unref(const tll_config_t * c) { if (c) c->unref(); }
 
@@ -327,4 +332,48 @@ int tll_config_browse(const tll_config_t * c, const char * mask, int mlen, tll_c
 	if (!c) return EINVAL;
 	if (c->value()) return 0;
 	return c->browse(string_view_from_c(mask, mlen), cb, data);
+}
+
+int tll_config_t::process_imports(std::string_view path, const std::list<std::string_view> & parents)
+{
+	tll::Logger _log = { "tll.config" };
+	auto icfg = find(path, false);
+	if (!icfg)
+		return 0;
+	std::list<std::string> imports;
+	{
+		auto lock = icfg->rlock();
+		for (auto &[_, i] : icfg->kids) {
+			if (std::holds_alternative<std::string>(i->data)) {
+				imports.push_front(std::get<std::string>(i->data));
+			} else if (std::holds_alternative<tll_config_t::cb_pair_t>(i->data)) {
+				auto cb = std::get<tll_config_t::cb_pair_t>(i->data);
+				int slen = 0;
+				std::unique_ptr<char, decltype(&free)> str((*cb.first)(&slen, cb.second), &free);
+				if (!str)
+					continue;
+				imports.push_front(std::string(str.get(), slen));
+			} else
+				continue;
+		}
+	}
+
+
+	for (auto & i : imports) {
+		if (std::find(parents.begin(), parents.end(), i) != parents.end())
+			return _log.fail(EINVAL, "Detected recursive imports: {}", i);
+
+		std::list<std::string_view> copy(parents);
+		copy.push_back(i);
+
+		auto cfg = tll::Config::load(i);
+		if (!cfg)
+			return _log.fail(EINVAL, "Failed to load import {}", i);
+		tll_config_t * c = *cfg;
+		if (c->process_imports(path, copy))
+			return _log.fail(EINVAL, "Failed to process imports on {}", i);
+		if (merge(c, false))
+			return _log.fail(EINVAL, "Failed to merge import {}", i);
+	}
+	return 0;
 }

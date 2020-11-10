@@ -9,14 +9,13 @@
 #include "tll/util/string.h"
 #include "tll/util/refptr.h"
 
-#include <cstring>
-
-#include <shared_mutex>
-#include <variant>
-#include <string_view>
-#include <string>
-#include <map>
 #include <atomic>
+#include <cstring>
+#include <map>
+#include <shared_mutex>
+#include <string>
+#include <string_view>
+#include <variant>
 
 using tll::util::refptr_t;
 
@@ -249,4 +248,6 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 		}
 		return 0;
 	}
+
+	int process_imports(std::string_view path, const std::list<std::string_view> & parents = {});
 };
