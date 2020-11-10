@@ -56,11 +56,13 @@ cdef class Config:
     def __deepcopy__(self, memo):
         return self.copy()
 
-    def sub(self, path, create=False):
+    def sub(self, path, create=False, throw=True):
         p = s2b(path)
         cdef tll_config_t * cfg = tll_config_sub(self._ptr, p, len(p), 1 if create else 0)
         if cfg == NULL:
-            raise KeyError("Sub-config {} not found".format(path))
+            if throw:
+                raise KeyError("Sub-config {} not found".format(path))
+            return
         return Config.wrap(cfg)
 
     def merge(self, cfg, overwrite=True):
@@ -98,7 +100,7 @@ cdef class Config:
         cdef int len = 0;
         cdef char * buf = tll_config_get_copy(self._ptr, NULL, 0, &len)
         if buf == NULL:
-                return None
+            return None
         try:
             return b2s(buf[:len])
         finally:
@@ -125,23 +127,47 @@ cdef class Config:
         k = s2b(key)
         return tll_config_has(self._ptr, k, len(k))
 
-    def browse(self, mask, subpath=False):
-        r = ([], subpath)
+    def browse(self, mask, subpath=False, cb=None):
         m = s2b(mask)
-        tll_config_browse(self._ptr, m, len(m), list_cb, <void *>r)
-        return r[0]
+        class appender(list):
+            def __init__(self, sub):
+                self.sub = sub
+            def __call__(self, k, v):
+                if v.value() or self.sub:
+                    self.append((k, v.get()))
+
+        _cb = appender(subpath) if cb is None else cb
+        tll_config_browse(self._ptr, m, len(m), browse_cb, <void *>_cb)
+        if cb is None:
+            return list(_cb)
+
+    def as_dict(self):
+        if self.value():
+            return self.get()
+        class cb:
+            def __init__(self):
+                self.r = {}
+
+            def __call__(self, k, v):
+                if self.r == {} and k == '0000':
+                    self.r = []
+                if isinstance(self.r, dict):
+                    self.r[k] = v.as_dict()
+                else:
+                    self.r.append(v.as_dict())
+        _cb = cb()
+        self.browse('*', cb=_cb)
+        return _cb.r
 
     def __contains__(self, key): return self.has(key)
     def __getitem__(self, key): return self.get(key)
     def __setitem__(self, key, value): self.set(key, value)
     def __delitem__(self, key): self.remove(key)
 
-cdef int list_cb(const char * key, int klen, const tll_config_t *value, void * data):
-    l = <object>data
-    tll_config_ref(value)
-    cfg = Config.wrap(<tll_config_t *>value)
-    if cfg.value() or l[1]:
-        l[0].append((b2s(key[:klen]), cfg.get()))
+cdef int browse_cb(const char * key, int klen, const tll_config_t *value, void * data):
+    cb = <object>data
+    cfg = Config.wrap(<tll_config_t *>value, ref=True)
+    cb(b2s(key[:klen]), cfg)
     return 0
 
 cdef class Url(Config):

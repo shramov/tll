@@ -17,6 +17,7 @@ def test_basic():
     assert_equal(cfg['b.y'], '2')
     assert_false('b.z' in cfg)
     assert_true('b.x' in cfg)
+    assert_equals(cfg.as_dict(), {'a': [{'x': '0', 'y': '1'}, {'x': '1', 'y': '0'}], 'b': {'x': '2', 'y': '2'}})
     #del cfg['b.x']
     #assert_false('b.x' in cfg)
 
