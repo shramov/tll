@@ -27,6 +27,15 @@ Description: Framework for building data processing services.
  .
  Package containes development libraries, header files and manpages.
 
+Package: libtll-bin
+Architecture: any
+Depends: ${misc:Depends}, libtll0 (= ${binary:Version})
+Pre-Depends: ${misc:Pre-Depends}
+Multi-Arch: same
+Description: Framework for building data processing services.
+ .
+ Package containes tll-processor binary
+
 Package: python3-tll
 Architecture: any
 Provides: ${python3:Provides}
