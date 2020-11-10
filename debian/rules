@@ -4,7 +4,7 @@ export TLL_LIBRARY_DIR = $(shell pwd)/obj-$(DEB_BUILD_GNU_TYPE)/src
 
 export PYBUILD_NAME = tll
 export PYBUILD_SYSTEM = distutils
-export PYBUILD_TEST_ARGS = -v
+#export PYBUILD_TEST_ARGS = -v
 export PYBUILD_TEST_NOSE = 1
 
 %:
