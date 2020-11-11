@@ -110,3 +110,15 @@ def _test_load(proto, data, r):
 def test_load():
     yield _test_load, 'url', 'proto://host;a=b;c=d', {'tll.proto':'proto', 'tll.host':'host', 'a':'b', 'c':'d'}
     yield _test_load, 'props', 'a=b;c=d', {'a':'b', 'c':'d'}
+
+def test_process_imports():
+    c = Config.load('''yamls://
+import:
+ - 'yamls://{a: 1, b.c: 2}'
+ - 'yamls://{a: 2, b.d: 3}'
+b.c: 10
+''')
+
+    assert_equals(c.as_dict(), {'b': {'c':'10'}, 'import': ['yamls://{a: 1, b.c: 2}', 'yamls://{a: 2, b.d: 3}']})
+    c.process_imports('import')
+    assert_equals(c.as_dict(), {'a': '2', 'b': {'c':'10', 'd':'3'}, 'import': ['yamls://{a: 1, b.c: 2}', 'yamls://{a: 2, b.d: 3}']})

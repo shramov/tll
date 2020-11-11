@@ -72,6 +72,12 @@ cdef class Config:
         if r:
             raise TLLError("Failed to merge config", r)
 
+    def process_imports(self, key):
+        k = s2b(key)
+        r = tll_config_process_imports(self._ptr, k, len(k))
+        if r:
+            raise TLLError("Failed to set key {}".format(key), r)
+
     def value(self):
         return bool(tll_config_value(self._ptr))
 
