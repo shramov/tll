@@ -39,6 +39,11 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	if (cfg->process_imports("processor.include")) {
+		printf("Failed to process imports of %s\n", argv[1]);
+		return 1;
+	}
+
 	auto levels = cfg->sub("logger.levels");
 	if (levels)
 		tll_logger_config(*levels);
