@@ -427,7 +427,7 @@ int TcpServer<T, C>::_close()
 template <typename T, typename C>
 int TcpServer<T, C>::_post(const tll_msg_t *msg, int flags)
 {
-	if (!msg->addr.lo)
+	if (!msg->addr.ptr)
 		return this->_log.fail(EINVAL, "Invalid address");
 	auto ca = (tcp_socket_t *) msg->addr.ptr;
 	for (auto & c : _clients) {

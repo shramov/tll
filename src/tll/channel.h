@@ -58,12 +58,9 @@ typedef enum {
 } tll_msg_channel_t;
 
 typedef union {
-	struct {
-		uint64_t lo;
-		uint64_t hi;
-	};
-	unsigned char array[16];
-	void * ptr;
+	uint64_t u64;
+	int64_t  i64;
+	void *   ptr;
 } tll_addr_t;
 
 /// Message object

@@ -52,8 +52,8 @@ int ChIpc::_open(const PropsView &url)
 	_markers = master->_markers;
 	{
 		std::unique_lock<std::mutex> lock(master->_lock);
-		_addr = { { master->_addr.lo++ } };
-		master->_clients.emplace(_addr.lo, _qin);
+		_addr = { master->_addr.u64++ };
+		master->_clients.emplace(_addr.u64, _qin);
 	}
 
 	state(TLL_STATE_ACTIVE);
@@ -64,7 +64,7 @@ int ChIpc::_close()
 {
 	{
 		std::unique_lock<std::mutex> lock(master->_lock);
-		master->_clients.erase(_addr.lo);
+		master->_clients.erase(_addr.u64);
 	}
 	_qin.reset(nullptr);
 	_qout.reset(nullptr);
@@ -130,7 +130,7 @@ int ChIpcServer::_close()
 
 int ChIpcServer::_post(const tll_msg_t *msg, int flags)
 {
-	auto it = _clients.find(msg->addr.lo);
+	auto it = _clients.find(msg->addr.u64);
 	if (it == _clients.end()) return ENOENT;
 	it->second->push(tll::util::OwnedMessage(msg));
 	if (it->second->event.notify())

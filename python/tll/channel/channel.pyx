@@ -11,7 +11,6 @@ from libc.stdlib cimport malloc, free
 from libc.string cimport memcpy, memset
 from cpython cimport Py_buffer
 from cpython.buffer cimport *
-from cpython.bytes cimport PyBytes_FromStringAndSize
 from cpython.ref cimport Py_INCREF, Py_DECREF
 from ..buffer cimport *
 from os import strerror
@@ -168,7 +167,7 @@ cdef class Channel:
             msg.type = data.type
             msg.msgid = data.msgid
             msg.seq = data.seq
-            msg.addr = data.addr
+            msg.addr.i64 = data.addr
         if name is not None:
             msg.msgid = self.scheme[name].msgid
         if type is not None: msg.type = int(type)
@@ -361,7 +360,7 @@ cdef class Message:
     def type(self): return Type(self._ptr.type) if self._ptr else None
 
     @property
-    def addr(self): return PyBytes_FromStringAndSize(<const char *>self._ptr.addr.array, sizeof(self._ptr.addr)) if self._ptr else None
+    def addr(self): return self._ptr.addr.i64 if self._ptr else None
 
     @property
     def data(self): return memoryview(self) if self._ptr else None

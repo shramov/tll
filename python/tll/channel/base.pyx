@@ -61,7 +61,7 @@ cdef class Base:
 
         cmsg.type = int(msg.type)
         cmsg.msgid = int(msg.msgid)
-        if hasattr(msg, 'addr'): cmsg.addr = msg.addr
+        if hasattr(msg, 'addr'): cmsg.addr.i64 = msg.addr
         if msg.data is not None:
             cmsg.size = len(msg.data)
 
