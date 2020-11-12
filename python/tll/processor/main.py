@@ -22,6 +22,7 @@ def main():
     if '://' not in args.config:
         args.config = 'yaml://' + args.config
     cfg = Config.load(args.config)
+    cfg.process_imports('processor.include')
 
     try:
         tll.logger.pyconfigure(cfg.sub('logger', throw=False))
