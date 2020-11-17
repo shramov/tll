@@ -1,5 +1,5 @@
 test('test-util', executable('test-util',
-	sources: ['test_main.cc', 'test_conv.cc', 'test_util.cc', 'test_ring.cc', '../src/ring.c'],
+	sources: ['test_main.cc', 'test_conv.cc', 'test_util.cc', 'test_ring.cc', '../src/ring.c', '../src/time.cc'],
 	include_directories: include,
 	dependencies: [gtest, fmt, zlib],
 	)

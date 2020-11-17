@@ -125,5 +125,9 @@ TLL_0.0.0 {
 		tll_stat_page_flip;
 		tll_stat_page_release;
 
+		tll_time_now;
+		tll_time_now_cached;
+		tll_time_cache_enable;
+
 	local: *;
 };

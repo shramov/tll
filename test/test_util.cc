@@ -10,6 +10,7 @@
 #include "tll/util/bin2ascii.h"
 #include "tll/util/browse.h"
 #include "tll/util/string.h"
+#include "tll/util/time.h"
 #include "tll/util/url.h"
 #include "tll/util/varint.h"
 #include "tll/util/zlib.h"
@@ -297,4 +298,27 @@ TEST(Util, Varint)
 	CHECK_VARINT(0x3fffu, 2, "\xff\x7f"sv);
 	CHECK_VARINT(0x1fffffu, 3, "\xff\xff\x7f"sv);
 	CHECK_VARINT(0xfffffffu, 4, "\xff\xff\xff\x7f"sv);
+}
+
+TEST(Util, Time)
+{
+	auto tnow = tll::time::now_cached();
+	ASSERT_NE(tnow, tll::time::now_cached());
+	auto snow = std::chrono::system_clock::now();
+	ASSERT_LE(tnow, snow);
+
+	tll::time::cache_enable(true);
+	tll::time::cache_enable(true);
+	tnow = tll::time::now();
+	ASSERT_EQ(tnow, tll::time::now_cached());
+
+	auto tnow1 = tll::time::now();
+	ASSERT_LE(tnow, tnow1);
+	ASSERT_EQ(tnow1, tll::time::now_cached());
+
+	tll::time::cache_enable(false);
+	ASSERT_EQ(tnow1, tll::time::now_cached());
+
+	tll::time::cache_enable(false);
+	ASSERT_LT(tnow1, tll::time::now_cached());
 }

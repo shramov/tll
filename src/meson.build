@@ -4,6 +4,7 @@ sources += ['scheme.cc']
 sources += ['logger/logger.cc']
 sources += ['processor/loop.cc']
 sources += ['stat.cc']
+sources += ['time.cc']
 sources += ['ring.c']
 
 subdir('channel')

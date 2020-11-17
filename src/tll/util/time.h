@@ -8,6 +8,31 @@
 #ifndef _TLL_UTIL_TIME_H
 #define _TLL_UTIL_TIME_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/// Get nanoseconds from epoch and update cached value
+long long tll_time_now();
+
+/** Get cached time (if enabled) else same as @ref tll_time_now
+ *
+ * Time cache is thread local and is controlled by @ref tll_time_cache_enable function
+ */
+long long tll_time_now_cached();
+
+/** Enable or disable thread local time cache
+ * Cache is disabled initially and it's enabled when usage counter is non-zero.
+ * 
+ * @param enable 0 for decrease, non-zero for increase of usage counter
+ */
+void tll_time_cache_enable(int enable);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
+
+#ifdef __cplusplus
 #include "tll/util/conv.h"
 
 #include <chrono>
@@ -21,8 +46,12 @@ using time_point = std::chrono::time_point<std::chrono::system_clock, duration>;
 
 namespace time {
 
-static inline time_point now() { return std::chrono::system_clock::now(); }
+//static inline time_point now() { return std::chrono::system_clock::now(); }
+static inline time_point now() { return time_point(duration(tll_time_now())); }
+static inline time_point now_cached() { return time_point(duration(tll_time_now_cached())); }
 static constexpr time_point epoch = {};
+
+static inline void cache_enable(bool enable) { tll_time_cache_enable(enable); }
 
 } // namespace time
 
@@ -79,5 +108,7 @@ struct conv::dump<std::chrono::duration<T, R>> : public conv::to_string_from_str
 };
 
 } // namespace tll
+
+#endif//__cplusplus
 
 #endif//_TLL_UTIL_TIME_H
