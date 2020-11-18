@@ -16,6 +16,7 @@ class Echo(Base):
     PROTO = "echo"
 
     OPEN_POLICY = Base.OpenPolicy.Manual
+    CLOSE_POLICY = Base.ClosePolicy.Long
     CHILD_POLICY = Base.ChildPolicy.Many
 
     def _init(self, props, master=None):
@@ -27,12 +28,17 @@ class Echo(Base):
         self._child_add(self._child)
         self._child_add(self.context.Channel('null://;name=orphan'))
 
-    def _close(self):
-        self._child_del(self._child)
+    def _close(self, force=False):
+        try:
+            self._child_del(self._child)
+        except:
+            pass
 
     def _process(self, timeout, flags):
         if self.state == C.State.Opening:
             self.state = C.State.Active
+        elif self.state == C.State.Closing:
+            self.state = C.State.Closed
 
     def _post(self, msg, flags):
         self._callback(msg.copy())
@@ -102,6 +108,9 @@ def test():
 
     c.close()
     assert [x.name for x in c.children] == ['orphan']
+    assert c.state == c.State.Closing
+    c.process()
+    assert c.state == c.State.Closed
     del c
 
     assert ctx.get('orphan') == None

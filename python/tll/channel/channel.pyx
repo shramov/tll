@@ -62,6 +62,7 @@ class Caps(enum.IntFlag):
     Custom = TLL_CAPS_CUSTOM
     Parent = TLL_CAPS_PARENT
     Proxy = TLL_CAPS_PROXY
+    LongClose = TLL_CAPS_LONG_CLOSE
 _Caps = Caps
 
 class DCaps(enum.IntFlag):
@@ -144,8 +145,8 @@ cdef class Channel:
         if r:
             raise TLLError("Open failed", r)
 
-    def close(self):
-        tll_channel_close(self._ptr)
+    def close(self, force : bool = False):
+        tll_channel_close(self._ptr, force)
 
     def process(self):
         r = tll_channel_process(self._ptr, 0, 0)

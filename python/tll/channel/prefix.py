@@ -9,6 +9,7 @@ import weakref
 class Prefix(Base):
     PREFIX = True
     OPEN_POLICY = Base.OpenPolicy.Manual
+    CLOSE_POLICY = Base.ClosePolicy.Long
     CHILD_POLICY = Base.ChildPolicy.Single
     PROCESS_POLICY = Base.ChildPolicy.Never
 
@@ -34,7 +35,7 @@ class Prefix(Base):
     def _open(self, props):
         self._child.open(props)
 
-    def _close(self, graceful : bool = False):
+    def _close(self, force : bool = False):
         self._child.close()
 
     def _post(self, msg, flags):
@@ -60,7 +61,7 @@ class Prefix(Base):
         elif s == self.State.Closing:
             self.log.debug("Child channel is closing")
             if self.state in (self.State.Opening, self.State.Active):
-                self.close(graceful=True)
+                self.close(force=True)
         elif s == self.State.Closed:
             self.log.debug("Child channel closed")
             if self.state == self.State.Closing:

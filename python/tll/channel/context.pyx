@@ -217,11 +217,11 @@ cdef int _py_open(tll_channel_t * channel, const char *str, size_t len) with gil
             pass
         return EINVAL
 
-cdef int _py_close(tll_channel_t * channel) with gil:
+cdef int _py_close(tll_channel_t * channel, int force) with gil:
     if _py_bad_channel(channel): return EINVAL
     pyc = <object>(channel.data)
     try:
-        return _py_check_return(pyc.close())
+        return _py_check_return(pyc.close(force != 0))
     except:
         try:
             log = Logger("tll.channel.python")

@@ -26,6 +26,11 @@ class OpenPolicy(enum.Enum):
     Manual = enum.auto()
 _OpenPolicy = OpenPolicy
 
+class ClosePolicy(enum.Enum):
+    Normal = enum.auto()
+    Long = enum.auto()
+_ClosePolicy = ClosePolicy
+
 class ChildPolicy(enum.Enum):
     Never = enum.auto()
     Single = enum.auto()
@@ -37,9 +42,11 @@ cdef class Base:
     PREFIX = False
 
     OpenPolicy = _OpenPolicy
+    ClosePolicy = _ClosePolicy
     ChildPolicy = _ChildPolicy
 
     OPEN_POLICY = OpenPolicy.Auto
+    CLOSE_POLICY = ClosePolicy.Normal
     CHILD_POLICY = ChildPolicy.Never
 
     Caps = C.Caps
@@ -151,12 +158,15 @@ cdef class Base:
         elif self.CHILD_POLICY == ChildPolicy.Many:
             self.caps |= self.Caps.Parent
 
+        if self.CLOSE_POLICY == ClosePolicy.Long:
+            self.caps |= self.Caps.LongClose
+
         self.log.info("Init channel")
         self._init(url, master)
 
     def free(self):
         self.log.info("Destroy channel")
-        self.close()
+        self.close(force=True)
         try:
             self._free()
         except:
@@ -178,16 +188,21 @@ cdef class Base:
         if self.OPEN_POLICY == OpenPolicy.Auto:
             self.state = C.State.Active
 
-    def close(self):
+    def close(self, force : bool = False):
         if self.state == C.State.Closed:
+            return
+        elif self.state == C.State.Closing and not force:
             return
         self.log.info("Close channel")
         self.state = C.State.Closing
         try:
-            self._close()
+            if self.CLOSE_POLICY == ClosePolicy.Long:
+                self._close(force)
+            else:
+                self._close()
         finally:
-            self.state = C.State.Closed
-            self._update_dcaps(0, C.DCaps.Process | C.DCaps.PollMask)
+            if force or self.CLOSE_POLICY == ClosePolicy.Normal:
+                Base._close(self)
 
     def process(self, timeout, flags):
         try:
@@ -204,7 +219,9 @@ cdef class Base:
     def _free(self): pass
 
     def _open(self, props): pass
-    def _close(self): pass
+    def _close(self, force : bool = False):
+            self._update_dcaps(0, C.DCaps.Process | C.DCaps.PollMask)
+            self.state = C.State.Closed
 
     def _process(self, timeout, flags): pass
     def _post(self, msg, flags): pass

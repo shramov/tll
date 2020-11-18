@@ -52,6 +52,7 @@ cdef extern from "tll/channel.h" nogil:
         TLL_CAPS_CUSTOM
         TLL_CAPS_PARENT
         TLL_CAPS_PROXY
+        TLL_CAPS_LONG_CLOSE
 
     ctypedef enum tll_channel_dcap_t:
         TLL_DCAPS_POLLIN
@@ -81,7 +82,7 @@ cdef extern from "tll/channel.h" nogil:
     cdef void tll_channel_free(tll_channel_t * cfg)
 
     cdef int tll_channel_open(tll_channel_t *, const char * props, int len)
-    cdef int tll_channel_close(tll_channel_t *)
+    cdef int tll_channel_close(tll_channel_t *, int force)
 
     cdef int tll_channel_callback_add(tll_channel_t *, tll_channel_callback_t cb, void * user, unsigned mask)
     cdef int tll_channel_callback_del(tll_channel_t *, tll_channel_callback_t cb, void * user, unsigned mask)

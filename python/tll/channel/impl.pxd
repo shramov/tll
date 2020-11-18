@@ -9,7 +9,7 @@ cdef extern from "tll/channel/impl.h":
         int (*init)(tll_channel_t *, const tll_config_t * url, tll_channel_t * parent, tll_channel_context_t * ctx)
         void (*free)(tll_channel_t *)
         int (*open)(tll_channel_t *, const char * str, size_t len)
-        int (*close)(tll_channel_t *)
+        int (*close)(tll_channel_t *, int)
 
         int (*process)(tll_channel_t *, long timeout, int flags)
         int (*post)(tll_channel_t *, const tll_msg_t *msg, int flags)
