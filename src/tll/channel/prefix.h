@@ -21,6 +21,8 @@ public:
 
 	static constexpr bool impl_prefix_channel() { return true; }
 	static constexpr auto child_policy() { return Base<T>::ChildPolicy::Single; }
+	static constexpr auto close_policy() { return Base<T>::ClosePolicy::Long; }
+	static constexpr auto process_policy() { return Base<T>::ProcessPolicy::Never; }
 
 	const Scheme * scheme(int type) const
 	{
@@ -71,9 +73,9 @@ public:
 		return _child->open(conv::to_string(params));
 	}
 
-	int _close()
+	int _close(bool force)
 	{
-		return _child->close();
+		return _child->close(force);
 	}
 
 	int callback(const Channel * c, const tll_msg_t *msg)
@@ -101,11 +103,11 @@ public:
 			}
 			break;
 		case tll::state::Error:
-			this->channelT()->_on_error();
-			break;
+			return this->channelT()->_on_error();
 		case tll::state::Closing:
-			this->channelT()->_on_close();
-			break;
+			return this->channelT()->_on_closing();
+		case tll::state::Closed:
+			return this->channelT()->_on_closed();
 		default:
 			break;
 		}
@@ -120,11 +122,18 @@ public:
 
 	int _on_active() { this->state(tll::state::Active); return 0; }
 	int _on_error() { this->state(tll::state::Error); return 0; }
-	int _on_close()
+	int _on_closing()
 	{
 		auto s = this->state();
 		if (s == tll::state::Opening || s == tll::state::Active)
-			this->close();
+			this->state(tll::state::Closing);
+		return 0;
+	}
+
+	int _on_closed()
+	{
+		if (this->state() == tll::state::Closing)
+			Base<T>::_close();
 		return 0;
 	}
 };

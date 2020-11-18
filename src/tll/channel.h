@@ -96,6 +96,7 @@ typedef enum {
 	TLL_CAPS_CUSTOM   = TLL_CAPS_EX_BIT | 0x0, ///< Runtime created subchannel
 	TLL_CAPS_PARENT   = TLL_CAPS_EX_BIT | 0x1, ///< Channel can create child objects
 	TLL_CAPS_PROXY    = TLL_CAPS_EX_BIT | 0x2, ///< Proxy channel with exactly one child object
+	TLL_CAPS_LONG_CLOSE = TLL_CAPS_EX_BIT | 0x4, ///< Channel close routine is long
 } tll_channel_cap_t;
 
 /// Channel dynamic capabilities, may change.
@@ -239,7 +240,7 @@ void tll_channel_free(tll_channel_t *);
  */
 int tll_channel_open(tll_channel_t *, const char * str, size_t len);
 /// Close channel
-int tll_channel_close(tll_channel_t *);
+int tll_channel_close(tll_channel_t *, int force);
 
 typedef enum {
 	TLL_PROCESS_ONE_LEVEL = 1,
@@ -379,6 +380,7 @@ namespace caps {
 	constexpr auto Custom = TLL_CAPS_CUSTOM;
 	constexpr auto Parent = TLL_CAPS_PARENT;
 	constexpr auto Proxy = TLL_CAPS_PROXY;
+	constexpr auto LongClose = TLL_CAPS_LONG_CLOSE;
 }
 
 namespace dcaps {
@@ -420,7 +422,7 @@ public:
 	/// Open channel. See @ref tll_channel_open
 	int open(std::string_view params = "") { return tll_channel_open(this, params.data(), params.size()); }
 	/// Close channel. See @ref tll_channel_close
-	int close() { return tll_channel_close(this); }
+	int close(bool force = false) { return tll_channel_close(this, force); }
 
 	/// Get channel name. See @ref tll_channel_name
 	const char * name() const { return tll_channel_name(this); }

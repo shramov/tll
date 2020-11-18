@@ -78,6 +78,9 @@ class Base
 	enum class OpenPolicy { Auto, Manual };
 	static constexpr auto open_policy() { return OpenPolicy::Auto; }
 
+	enum class ClosePolicy { Normal, Long };
+	static constexpr auto close_policy() { return ClosePolicy::Normal; }
+
 	enum class ChildPolicy { Never, Single, Many };
 	static constexpr auto child_policy() { return ChildPolicy::Never; }
 
@@ -176,6 +179,9 @@ class Base
 			break;
 		}
 
+		if (ChannelT::close_policy() == ClosePolicy::Long)
+			internal.caps |= caps::LongClose;
+
 		return channelT()->_init(url, master);
 	}
 
@@ -186,7 +192,7 @@ class Base
 	{
 		_log.info("Destroy channel");
 		if (state() != state::Closed)
-			close();
+			close(true);
 		state(state::Destroy);
 		static_cast<ChannelT *>(this)->_free();
 		tll_channel_internal_clear(&internal);
@@ -234,22 +240,41 @@ class Base
 		return 0;
 	}
 
-	int close()
+	int close(bool force = false)
 	{
-		if (state() == state::Closed || state() == state::Closing)
+		if (state() == state::Closed)
 			return 0;
-		_update_dcaps(0, dcaps::Process | dcaps::CPOLLMASK);
+		if (state() == state::Closing && !force) {
+			return 0;
+		}
 		state(state::Closing);
-		auto r = static_cast<ChannelT *>(this)->_close();
-		_scheme.reset();
-		if (r)
-			state(state::Error);
+		int r = 0;
+		if constexpr (ChannelT::close_policy() == ClosePolicy::Long)
+			r = channelT()->_close(force);
 		else
-			state(state::Closed);
-		return r;
+			r = channelT()->_close();
+
+		if (ChannelT::close_policy() == ClosePolicy::Long && !force) {
+			// Errors are only allowed in long closes
+			if (state() != state::Closed) {
+				if (r)
+					state(state::Error);
+				return r;
+			}
+		}
+
+		_close();
+		return 0;
 	}
 
-	int _close() { return 0; }
+	/// Common cleanup code that can be called from finalizing part of long close
+	int _close(bool force = false)
+	{
+		_scheme.reset();
+		_update_dcaps(0, dcaps::Process | dcaps::CPOLLMASK);
+		state(state::Closed);
+		return 0;
+	}
 
 	int process(long timeout, int flags)
 	{

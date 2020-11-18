@@ -36,6 +36,7 @@ class Echo : public tll::channel::Base<Echo>
  public:
 	static constexpr std::string_view param_prefix() { return "echo"; }
 	static constexpr auto open_policy() { return OpenPolicy::Manual; }
+	static constexpr auto close_policy() { return ClosePolicy::Long; }
 
 	const tll_channel_impl_t * _init_replace(const tll::Channel::Url &url)
 	{
@@ -46,12 +47,17 @@ class Echo : public tll::channel::Base<Echo>
 	}
 
 	int _open(const tll::PropsView &) { return 0; }
+	int _close(bool force) { return 0; }
+
 	int _post(const tll_msg_t *msg, int flags) { return _callback(msg); }
 	int _process(long timeout, int flags)
 	{
 		if (state() == tll::state::Opening) {
 			state(tll::state::Active);
 			return 0;
+		}
+		if (state() == tll::state::Closing) {
+			return tll::channel::Base<Echo>::_close();
 		}
 		return EAGAIN;
 	}
@@ -115,6 +121,11 @@ TEST(Channel, New)
 
 	c->post(&msg);
 	ASSERT_EQ(rseq, msg.seq);
+
+	c->close();
+	ASSERT_EQ(c->state(), tll::state::Closing);
+	c->process();
+	ASSERT_EQ(c->state(), tll::state::Closed);
 
 	c = ctx.channel("echo://;name=echo-null;null=yes");
 	ASSERT_NE(c.get(), nullptr);
