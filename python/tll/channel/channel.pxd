@@ -7,7 +7,7 @@ from .impl cimport tll_channel_internal_t, tll_channel_impl_t
 from .common cimport tll_state_t
 from libc.stdint cimport int64_t
 
-cdef extern from "tll/channel.h":
+cdef extern from "tll/channel.h" nogil:
     #ctypedef struct tll_channel_t
     #ctypedef struct tll_channel_impl_t
     ctypedef struct tll_channel_context_t
