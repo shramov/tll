@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
 		if (counter) {
 			counter = 0;
 			if (proc->state() == tll::state::Opening || proc->state() == tll::state::Active)
-				proc->close();
+				proc->close(true);
 		}
 	}
 

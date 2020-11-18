@@ -27,6 +27,7 @@ namespace tll::processor::_ {
 struct Processor : public tll::channel::Base<Processor>
 {
 	static constexpr auto open_policy() { return OpenPolicy::Manual; }
+	static constexpr auto close_policy() { return ClosePolicy::Long; }
 	static constexpr auto process_policy() { return ProcessPolicy::Never; }
 	static constexpr auto child_policy() { return ChildPolicy::Single; } // Set Proxy cap to access IPC child channel
 	static constexpr std::string_view param_prefix() { return "processor"; }
@@ -58,7 +59,7 @@ struct Processor : public tll::channel::Base<Processor>
 
 	int _init(const tll::Channel::Url &, tll::Channel *);
 	int _open(const tll::PropsView &);
-	int _close();
+	int _close(bool force);
 	void _free();
 
 	void activate();

@@ -238,9 +238,6 @@ int Processor::build_rdepends()
 void Processor::_free()
 {
 	for (auto c = _objects.rbegin(); c != _objects.rend(); c++) {
-		(*c)->close();
-	}
-	for (auto c = _objects.rbegin(); c != _objects.rend(); c++) {
 		_log.debug("Destroy object {}", (*c)->name());
 		c->channel.reset(nullptr);
 	}
@@ -296,8 +293,7 @@ int Processor::cb(const Channel * c, const tll_msg_t * msg)
 				return 0;
 			_log.info("Workers finished");
 			_log.info("Container exiting");
-			state(state::Closed);
-			loop.stop = true;
+			_close(true);
 			return 0;
 		} else if (data->state != state::Active)
 			return 0;
@@ -372,11 +368,24 @@ void Processor::activate()
 	}
 }
 
-int Processor::_close()
+int Processor::_close(bool force)
 {
 	_log.info("Close processor");
 	for (auto & o : _objects) {
 		decay(&o);
 	}
-	return 0;
+	if (!force) return 0;
+
+	_log.info("Close objects");
+	for (auto c = _objects.rbegin(); c != _objects.rend(); c++)
+		(*c)->close();
+
+	_log.info("Close workers");
+	for (auto & w : _workers_ptr)
+		w->close();
+
+	_ipc->close();
+	loop.stop = true;
+
+	return Base<Processor>::_close();
 }
