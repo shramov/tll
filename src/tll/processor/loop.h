@@ -10,6 +10,7 @@
 
 #include "tll/channel.h"
 #include "tll/logger.h"
+#include "tll/util/time.h"
 
 #include <errno.h>
 
@@ -101,6 +102,7 @@ struct tll_processor_loop_t
 	tll::processor::List<tll::Channel> list_nofd; // List of channels to process that don't have file descriptors
 
 	int stop = 0; ///< Stop flag that can be toggled to stop loop iteration
+	bool time_cache_enable = false; ///< Enable feeding time cache
 
 	tll_processor_loop_t(std::string_view name = "")
 		: _log(name.size() ? name : "tll.processor.loop")
@@ -153,6 +155,8 @@ struct tll_processor_loop_t
 
 		if (ev.data.ptr == this) {
 			_log.debug("Poll on pending list");
+			if (time_cache_enable)
+				tll::time::now();
 			for (auto & c: list_pending)
 				c->process();
 			return nullptr;
@@ -160,6 +164,8 @@ struct tll_processor_loop_t
 
 		auto c = (tll::Channel *) ev.data.ptr;
 		_log.debug("Poll on {}", c->name());
+		if (time_cache_enable)
+			tll::time::now();
 		return c;
 #endif
 		return nullptr;

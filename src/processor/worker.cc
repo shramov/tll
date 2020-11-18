@@ -39,6 +39,9 @@ int Worker::_init(const tll::Channel::Url &url, tll::Channel *master)
 int Worker::_open(const PropsView &)
 {
 	loop.stop = false;
+	loop.time_cache_enable = true;
+	tll::time::cache_enable(true);
+
 	if (_ipc->open())
 		return _log.fail(EINVAL, "Failed to open IPC client channel");
 	for (auto & o : objects)
@@ -54,6 +57,9 @@ int Worker::_close()
 	_ipc->close();
 	_log.debug("Stop loop");
 	loop.stop = true;
+	loop.time_cache_enable = false;
+	tll::time::cache_enable(false);
+
 	loop.del(self());
 	return 0;
 }
