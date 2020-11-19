@@ -3,6 +3,7 @@
 
 import tll.channel as C
 from tll.channel.base import Base
+from tll.channel.prefix import Prefix
 from tll.error import TLLError
 from tll.test_util import Accum
 
@@ -31,10 +32,18 @@ class Echo(Base):
     def _process(self, timeout, flags):
         if self.state == C.State.Opening:
             self.state = C.State.Active
-            return
 
     def _post(self, msg, flags):
-        self._callback(msg)
+        self._callback(msg.copy())
+
+class TestPrefix(Prefix):
+    PROTO = "prefix"
+
+    def _init(self, url, master=None):
+        super()._init(url, master)
+
+    def _open(self, props):
+        super()._open(props)
 
 def test():
     ctx = C.Context()
@@ -72,3 +81,44 @@ def test():
 
     ctx.unregister(Echo)
     assert_raises(TLLError, ctx.Channel, "echo://;name=echo")
+
+def test_prefix():
+    ctx = C.Context()
+
+    assert_raises(TLLError, ctx.Channel, "prefix+null://;name=channel")
+    ctx.register(Echo)
+    ctx.register(TestPrefix)
+    c = Accum("prefix+echo://;name=channel", context=ctx)
+    cfg = c.config
+
+    assert_equals(c.state, c.State.Closed)
+    assert_equals(cfg.get("state", ""), "Closed")
+    assert_equals([x.name for x in c.children], ['channel/prefix'])
+
+    c.open()
+
+    assert_equals([x.name for x in c.children], ['channel/prefix'])
+
+    assert_equals(c.state, c.State.Opening)
+    assert_equals(cfg.get("state", ""), "Opening")
+
+    c.process()
+
+    assert_equals(c.state, c.State.Opening)
+    assert_equals(cfg.get("state", ""), "Opening")
+
+    c.children[0].process()
+
+    assert_equals(c.state, c.State.Active)
+    assert_equals(cfg.get("state", ""), "Active")
+
+    assert_equals(c.result, [])
+    c.post(b'xxx', seq=100)
+    assert_equals([(m.seq, m.data.tobytes()) for m in c.result], [(100, b'xxx')])
+
+    c.close()
+    assert_equals([x.name for x in c.children], ['channel/prefix'])
+    del c
+
+    ctx.unregister(TestPrefix)
+    assert_raises(TLLError, ctx.Channel, "prefix+null://;name=channel")
