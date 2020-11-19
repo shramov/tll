@@ -49,8 +49,9 @@ cdef extern from "tll/channel.h" nogil:
         TLL_CAPS_INOUT
 
         TLL_CAPS_EX_BIT
-        TLL_CAPS_PROXY
         TLL_CAPS_CUSTOM
+        TLL_CAPS_PARENT
+        TLL_CAPS_PROXY
 
     ctypedef enum tll_channel_dcap_t:
         TLL_DCAPS_POLLIN

@@ -58,8 +58,9 @@ class Caps(enum.IntFlag):
     InOut = TLL_CAPS_INOUT
 
     ExBit = TLL_CAPS_EX_BIT
-    Proxy = TLL_CAPS_PROXY
     Custom = TLL_CAPS_CUSTOM
+    Parent = TLL_CAPS_PARENT
+    Proxy = TLL_CAPS_PROXY
 _Caps = Caps
 
 class DCaps(enum.IntFlag):

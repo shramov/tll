@@ -13,6 +13,9 @@ from nose.tools import *
 class Echo(Base):
     PROTO = "echo"
 
+    OPEN_POLICY = Base.OpenPolicy.Manual
+    CHILD_POLICY = Base.ChildPolicy.Many
+
     def _init(self, props, master=None):
         self._child = None
         pass

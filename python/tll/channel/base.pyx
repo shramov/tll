@@ -16,13 +16,31 @@ from .. import error
 #from cpython.ref cimport Py_INCREF
 from cpython cimport Py_buffer
 from ..buffer cimport PyMemoryView_GET_BUFFER
+import enum
 
 def StateMessage(state):
     return C.Message(type=C.Type.State, msgid = state)
 
+class OpenPolicy(enum.Enum):
+    Auto = enum.auto()
+    Manual = enum.auto()
+_OpenPolicy = OpenPolicy
+
+class ChildPolicy(enum.Enum):
+    Never = enum.auto()
+    Single = enum.auto()
+    Many = enum.auto()
+_ChildPolicy = ChildPolicy
+
 cdef class Base:
     PROTO = None
     PREFIX = False
+
+    OpenPolicy = _OpenPolicy
+    ChildPolicy = _ChildPolicy
+
+    OPEN_POLICY = OpenPolicy.Auto
+    CHILD_POLICY = ChildPolicy.Never
 
     Caps = C.Caps
     DCaps = C.DCaps
@@ -47,10 +65,11 @@ cdef class Base:
                 self._child_del(c)
             except:
                 self.log.debug("Failed to del child '{}' in destroy", c)
+        c = None
         self._children = set()
         if self.internal is None or self.internal.state == C.State.Destroy:
             return
-        self.internal.state = C.State.Destroy
+        self.state = C.State.Destroy
 
     def _callback(self, msg):
         if isinstance(msg, C.CMessage):
@@ -120,11 +139,20 @@ cdef class Base:
 
         self.internal.name = str(url.get("name", "noname"))
         self.log = Logger("tll.channel.{}".format(self.name))
+
+        if self.CHILD_POLICY == ChildPolicy.Never:
+            pass
+        elif self.CHILD_POLICY == ChildPolicy.Single:
+            self.caps |= self.Caps.Parent | self.Caps.Proxy;
+        elif self.CHILD_POLICY == ChildPolicy.Many:
+            self.caps |= self.Caps.Parent
+
         self.log.info("Init channel")
         self._init(url, master)
 
     def free(self):
         self.log.info("Destroy channel")
+        self.close()
         try:
             self._free()
         except:
@@ -135,9 +163,20 @@ cdef class Base:
         self.log.info("Open channel")
         self.state = C.State.Opening
         self._update_dcaps(C.DCaps.Process)
-        self._open(props)
+
+        try:
+            self._open(props)
+        except:
+            self.log.exception("Failed to open channel")
+            self.state = C.State.Error
+            raise
+
+        if self.OPEN_POLICY == OpenPolicy.Auto:
+            self.state = C.State.Active
 
     def close(self):
+        if self.state == C.State.Closed:
+            return
         self.log.info("Close channel")
         self.state = C.State.Closing
         try:
@@ -160,8 +199,7 @@ cdef class Base:
     def _init(self, props, master=None): pass
     def _free(self): pass
 
-    def _open(self, props):
-        self.state = C.State.Active
+    def _open(self, props): pass
     def _close(self): pass
 
     def _process(self, timeout, flags): pass
