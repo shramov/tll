@@ -185,6 +185,13 @@ cdef class Url(Config):
         self._ptr = (<Config>cfg)._ptr
         tll_config_ref(self._ptr)
 
+    def copy(self):
+        return Url(Config.copy(self))
+
+    __copy__ = copy
+    def __deepcopy__(self, memo):
+        return self.copy()
+
     @classmethod
     def parse(self, s):
         return Url(Config.load_data("url", s))
@@ -200,3 +207,6 @@ cdef class Url(Config):
 
     @host.setter
     def host(self, v): self['tll.host'] = v
+
+    def __str__(self):
+        return '{}://{};{}'.format(self.proto, self.host, ['{}={}'.format(k,v) for k,v in self.browse('**') if k not in {'tll.proto', 'tll.host'}])
