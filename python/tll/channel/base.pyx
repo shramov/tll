@@ -49,6 +49,7 @@ cdef class Base:
     cdef Internal internal
     cdef Context context
     cdef object _children
+    cdef object log
 
     def __init__(self, context, internal):
         self.context = context
@@ -60,7 +61,7 @@ cdef class Base:
         self.dealloc()
 
     def dealloc(self):
-        for c in list(self._children):
+        for c in list(self._children or []):
             try:
                 self._child_del(c)
             except:
@@ -101,6 +102,9 @@ cdef class Base:
 
     @property
     def context(self): return self.context
+
+    @property
+    def log(self): return self.log
 
     @property
     def state(self): return C.State(self.internal.state)
