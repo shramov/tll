@@ -94,6 +94,19 @@ TEST(Scheme, Size)
 	ASSERT_EQ(f, nullptr);
 
 	m = m->next;
+
+	ASSERT_NE(m, nullptr);
+	EXPECT_STREQ(m->name, "aliases");
+	EXPECT_EQ(m->enums, nullptr);
+	f = m->fields;
+	CHECK_FIELD(f, "f0", Field::Bytes, 32u, 0u); EXPECT_EQ(f->sub_type, Field::ByteString); f = f->next;
+	CHECK_FIELD(f, "f1", Field::Pointer, 8u, 32u); EXPECT_EQ(f->sub_type, Field::SubNone);
+	CHECK_FIELD(f->type_ptr, "f1", Field::Bytes, 32u, 0u);  ASSERT_EQ(f->type_ptr->sub_type, Field::ByteString);  f = f->next;
+	CHECK_FIELD(f, "f2", Field::Pointer, 8u, 40u); EXPECT_EQ(f->sub_type, Field::SubNone);
+	CHECK_FIELD(f->type_ptr, "f2", Field::Bytes, 32u, 0u);  ASSERT_EQ(f->type_ptr->sub_type, Field::ByteString); f = f->next;
+	ASSERT_EQ(f, nullptr);
+
+	m = m->next;
 	EXPECT_EQ(m, nullptr);
 }
 

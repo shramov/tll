@@ -254,6 +254,32 @@ struct Field
 		return 0;
 	}
 
+	int alias(const Field & a)
+	{
+		type = a.type;
+		sub_type = a.sub_type;
+		type_msg = a.type_msg;
+		type_enum = a.type_enum;
+		size = a.size;
+		resolution = a.resolution;
+		time_resolution = a.time_resolution;
+
+		for (auto & o : a.options) {
+			if (!options.has(o.first))
+				options[o.first] = o.second;
+		}
+
+		for (auto & o : a.list_options) {
+			if (!list_options.has(o.first))
+				list_options[o.first] = o.second;
+		}
+
+		for (auto & n : a.nested)
+			nested.push_back(n);
+
+		return 0;
+	}
+
 	static std::optional<Field> parse(Message & m, tll::Config &cfg, std::string_view name);
 };
 
@@ -328,6 +354,7 @@ struct Scheme
 	Options options;
 	std::list<Message> messages;
 	std::list<Enum> enums;
+	std::list<Field> aliases;
 	std::list<std::string> search;
 	std::map<std::string, std::string> imports;
 
@@ -341,6 +368,14 @@ struct Scheme
 			*elast = e.finalize();
 			elast = &(*elast)->next;
 		}
+
+		auto alast = &r->aliases;
+		for (auto & f : aliases) {
+			tll::scheme::Message m = {};
+			*alast = f.finalize(r, &m);
+			alast = &(*alast)->next;
+		}
+
 		auto mlast = &r->messages;
 		for (auto & m : messages) {
 			*mlast = m.finalize(r);
@@ -387,6 +422,23 @@ struct Scheme
 
 		if (Enum::parse_list(_log, cfg, enums))
 			return _log.fail(EINVAL, "Failed to load enums");
+
+		for (auto & [unused, fc] : cfg.browse("aliases.*", true)) {
+			auto n = fc.get("name");
+			if (!n || !n->size())
+				return _log.fail(EINVAL, "Alias without name");
+
+			_log.trace("Loading alias {}", *n);
+			Message m;
+			m.parent = this;
+			auto f = Field::parse(m, fc, *n);
+			if (!f)
+				return _log.fail(EINVAL, "Failed to load alias {}", *n);
+			if (m.enums.size())
+				return _log.fail(EINVAL, "Failed to load alias {}: inline enums not allowed", *n);
+			aliases.push_back(*f);
+		}
+
 		for (auto & [path, ic] : cfg.browse("import.**")) {
 			auto url = ic.get();
 			if (!url) return _log.fail(EINVAL, "Unreadable url for import {}", path);
@@ -470,6 +522,11 @@ int Field::lookup(std::string_view type)
 			type_enum = type;
 			this->sub_type = tll::scheme::Field::Enum;
 			return 0;
+		}
+	}
+	for (auto & i : parent->parent->aliases) {
+		if (i.name == type) {
+			return alias(i);
 		}
 	}
 	return ENOENT;
@@ -848,6 +905,11 @@ tll_scheme_t * tll_scheme_copy(const tll_scheme_t *src)
 	r->user_free = nullptr;
 	r->options = copy_options(src->options);
 	r->enums = copy_enums(src->enums);
+	r->aliases = nullptr;
+
+	tll_scheme_message_t m = {};
+	copy_fields(r, &m, &r->aliases, src->aliases);
+
 	r->messages = nullptr;
 	copy_messages(r, &r->messages, src->messages);
 	return r;
@@ -955,6 +1017,11 @@ void tll_scheme_free(tll_scheme_t *s)
 	}
 	tll_scheme_option_free(s->options);
 	tll_scheme_enum_free(s->enums);
+	for (auto f = s->aliases; f;) {
+		auto tmp = f;
+		f = f->next;
+		tll_scheme_field_free(tmp);
+	}
 	for (auto m = s->messages; m;) {
 		auto tmp = m;
 		m = m->next;
@@ -1105,7 +1172,7 @@ char * tll_scheme_dump(const tll_scheme_t * s, const char * format)
 	if (fmt != "yamls" && fmt != "yamls+gz")
 		return nullptr;
 	std::string r;
-	if (s->options || s->enums) {
+	if (s->options || s->enums || s->aliases) {
 		r += "- name: ''\n";
 		if (s->options)
 			r += "  " + dump(s->options) + "\n";
@@ -1113,6 +1180,11 @@ char * tll_scheme_dump(const tll_scheme_t * s, const char * format)
 			r += "  enums:\n";
 			for (auto &e : list_wrap(s->enums))
 				r += "    " + dump(&e) + "\n" ;
+		}
+		if (s->aliases) {
+			r += "  aliases:\n";
+			for (auto &f : list_wrap(s->aliases))
+				r += "    - " + dump(&f) + "\n" ;
 		}
 	}
 

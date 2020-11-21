@@ -1,5 +1,8 @@
 - name: ''
   options: {a: 2, b: 3, c: 4, d: {a: 1, b: 2}, l: [1, 2]}
+  aliases:
+    - {name: license, type: byte32, options.type: string}
+    - {name: license_list, type: '*license'}
 
 - name: sub
   fields:
@@ -39,3 +42,9 @@
     - {name: f0, type: double, options.type: duration, options.resolution: d}
     - {name: f1, type: int16, options.type: duration, options.resolution: second}
     - {name: f2, type: int64, options.type: time_point, options.resolution: ns}
+
+- name: aliases
+  fields:
+    - {name: f0, type: license}
+    - {name: f1, type: license_list}
+    - {name: f2, type: '*license'}

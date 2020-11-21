@@ -210,6 +210,7 @@ typedef struct tll_scheme_t
 	struct tll_scheme_option_t * options;
 	struct tll_scheme_message_t * messages;
 	struct tll_scheme_enum_t * enums;
+	struct tll_scheme_field_t * aliases;
 
 	/// User defined data
 	void * user;
