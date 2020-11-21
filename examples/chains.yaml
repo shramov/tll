@@ -1,0 +1,46 @@
+processor.module:
+  - module: build/src/logic/tll-logic-forward
+
+processor:
+  format: ppp-chains
+
+  chain.root:
+    - name: l0
+      objects:
+        a: {url: 'null://;'}
+          
+    - name: l1
+      objects:
+        b: {url: 'null://;'}
+      spawn: aux1
+
+    - name: l2
+      spawn: aux2
+      
+    - name: l3
+      objects:
+        fwd:
+          url: 'forward://'
+          type: logic
+          channels:
+            output: a
+            input: zz # reference to objects in sub chains
+
+    - name: l4
+      join: aux1, aux2
+
+  chain.aux1:
+    - name: l0 # level id is unique per chain
+      objects:
+        zz: {url: 'null://;'}
+
+  chain.aux2:
+    - name: l0
+      objects:
+        xx: {url: 'null://;'}
+
+    - name: l1
+      objects:
+        yy: {url: 'null://;'}
+
+# vim: sts=2 sw=2 et
