@@ -234,7 +234,7 @@ cdef int _py_post(tll_channel_t * channel, const tll_msg_t *msg, int flags) with
     if _py_bad_channel(channel): return EINVAL
     pyc = <object>(channel.data)
     try:
-        return _py_check_return(pyc.post(Message.wrap(msg), flags))
+        return _py_check_return(pyc.post(CMessage.wrap(msg), flags))
     except:
         try:
             log = Logger("tll.channel.python")

@@ -118,11 +118,11 @@ cdef extern from "tll/channel.h" nogil:
     cdef int tll_channel_module_load(tll_channel_context_t *ctx, const char *module, const char * symbol)
     cdef int tll_channel_module_unload(tll_channel_context_t *ctx, const char *module)
 
-cdef class Message:
+cdef class CMessage:
     cdef const tll_msg_t * _ptr
 
     @staticmethod
-    cdef Message wrap(const tll_msg_t * ptr)
+    cdef CMessage wrap(const tll_msg_t * ptr)
 
 """
 cdef class Context:

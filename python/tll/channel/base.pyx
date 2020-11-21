@@ -14,12 +14,11 @@ from ..s2b import b2s, s2b
 from ..logger import Logger
 from .. import error
 #from cpython.ref cimport Py_INCREF
+from cpython cimport Py_buffer
+from ..buffer cimport PyMemoryView_GET_BUFFER
 
-class StateMessage:
-    def __init__(self, state):
-        self.type = C.Type.State
-        self.msgid = state
-        self.data = None
+def StateMessage(state):
+    return C.Message(type=C.Type.State, msgid = state)
 
 cdef class Base:
     PROTO = None
@@ -54,16 +53,27 @@ cdef class Base:
         self.internal.state = C.State.Destroy
 
     def _callback(self, msg):
-        if isinstance(msg, C.Message):
-            return self.internal.callback((<C.Message>msg)._ptr)
+        if isinstance(msg, C.CMessage):
+            return self.internal.callback((<C.CMessage>msg)._ptr)
         cdef tll_msg_t cmsg
         memset(&cmsg, 0, sizeof(tll_msg_t))
 
         cmsg.type = int(msg.type)
         cmsg.msgid = int(msg.msgid)
-        if hasattr(msg, 'addr'): cmsg.addr.i64 = msg.addr
-        if msg.data is not None:
-            cmsg.size = len(msg.data)
+
+        addr = getattr(msg, 'addr', None)
+        if addr: cmsg.addr.i64 = addr
+
+        seq = getattr(msg, 'seq', None)
+        if seq: cmsg.seq = int(seq)
+
+        data = getattr(msg, 'data', None)
+        cdef Py_buffer * buf = NULL
+        if data is not None:
+            data = memoryview(data)
+            buf = PyMemoryView_GET_BUFFER(data)
+            cmsg.size = buf.len
+            cmsg.data = buf.buf
 
         self.internal.callback(&cmsg)
 

@@ -157,9 +157,9 @@ cdef class Channel:
 
 
     def post(self, data, type=Type.Data, msgid=None, seq=None, name=None):
-        if isinstance(data, Message):
+        if isinstance(data, CMessage):
             if type == data.type and msgid is None and seq is None:
-                return self._post((<Message>data)._ptr, 0)
+                return self._post((<CMessage>data)._ptr, 0)
 
         cdef tll_msg_t msg
         memset(&msg, 0, sizeof(msg))
@@ -327,18 +327,22 @@ cdef class Context:
         return Scheme.wrap(s)
         """
 
-MessageTuple = namedtuple('MessageTuple', ["type", "msgid", "seq", "addr", "data"])
-MessageTuple.Type = Type
+class Message:
+    Type = _Type
+    __slots__ = ["type", "msgid", "seq", "addr", "data"]
 
-cdef class Message:
+    def __init__(self, msgid, data=b'', type : _Type =_Type.Data, seq : int = None, addr : int = None):
+        self.type, self.msgid, self.seq, self.addr, self.data = type, msgid, seq, addr, data
+
+cdef class CMessage:
     Type = _Type
 
     def __cinit__(self):
         self._ptr = NULL
 
     @staticmethod
-    cdef Message wrap(const tll_msg_t * ptr):
-        m = Message(None)
+    cdef CMessage wrap(const tll_msg_t * ptr):
+        m = CMessage(None)
         m._ptr = ptr
         return m
 
@@ -367,7 +371,7 @@ cdef class Message:
 
     def copy(self):
         if not self._ptr: raise RuntimeError("Message is uninitialized")
-        return MessageTuple(Type(self._ptr.type), self._ptr.msgid, self._ptr.seq, self.addr, memoryview(memoryview(self).tobytes()))
+        return Message(type = Type(self._ptr.type), msgid = self._ptr.msgid, seq = self._ptr.seq, addr = self.addr, data = memoryview(memoryview(self).tobytes()))
 
     def clone(self): return self.copy()
 
@@ -377,7 +381,7 @@ cdef int msg_cb(const tll_channel_t * c, const tll_msg_t *msg, void * user) with
         if isinstance(o, weakref.ref):
             o = o()
         if o is None: return 0
-        r = o(Channel.wrap(<tll_channel_t *>c), Message.wrap(msg))
+        r = o(Channel.wrap(<tll_channel_t *>c), CMessage.wrap(msg))
         if r is not None:
             return r
         return 0
