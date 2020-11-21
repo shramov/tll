@@ -171,3 +171,35 @@ def test_string():
     m1 = M.object().unpack(data)
     assert_equals(m1.f0, "ыыы")
     assert_equals(m1.f1.s0, "nestedtail")
+
+SCHEME_ALIAS = '''yamls://
+- name:
+  aliases:
+    - {name: license, type: byte32, options.type: string}
+    - {name: license_list, type: '*license'}
+
+- name: msg
+  fields:
+    - {name: f0, type: license}
+    - {name: f1, type: license_list}
+    - {name: f2, type: '*license'}
+'''
+
+def _test_alias(s):
+    assert_equals([m.name for m in s.messages], ["msg"])
+    assert_equals([(f.name, f.type) for f in s.aliases.values()], [("license", F.Bytes), ("license_list", F.Pointer)])
+
+    msg = s['msg']
+    assert_equals([(f.name, f.type) for f in msg.fields], [("f0", F.Bytes), ("f1", F.Pointer), ("f2", F.Pointer)])
+    assert_equals([(f.name, f.sub_type) for f in msg.fields if f.sub_type != F.Sub.NONE],
+        [("f0", F.Sub.ByteString)])
+    assert_equals([(f.name, f.type_ptr.type, f.type_ptr.sub_type) for f in msg.fields if hasattr(f, 'type_ptr')],
+        [("f1", F.Bytes, F.Sub.ByteString), ("f2", F.Bytes, F.Sub.ByteString)])
+
+    #m0 = M.object(f0 = "license", f1 = ['a', 'b'], f2 = ['c', 'd'])
+
+def test_alias(): return _test_alias(S.Scheme(SCHEME_ALIAS))
+def test_alias_copy(): return _test_alias(S.Scheme(SCHEME_ALIAS).copy())
+def test_alias_dump():
+    print(S.Scheme(SCHEME_ALIAS).dump())
+    return _test_alias(S.Scheme(S.Scheme(SCHEME_ALIAS).dump()))

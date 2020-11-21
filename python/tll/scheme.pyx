@@ -515,6 +515,9 @@ cdef class Scheme:
     def enums(self): return self.enums
 
     @property
+    def aliases(self): return self.aliases
+
+    @property
     def messages(self): return self.messages
 
     def dump(self, fmt=None):
@@ -559,6 +562,7 @@ cdef class Scheme:
     cdef fill(Scheme self, const tll_scheme_t *ptr):
         self.options = Options.wrap(ptr.options)
         self.enums = OrderedDict()
+        self.aliases = OrderedDict()
         self.messages = []
 
         cdef tll_scheme_enum_t * e = ptr.enums
@@ -566,6 +570,12 @@ cdef class Scheme:
             tmp = enum_wrap(e)
             self.enums[tmp.name] = tmp
             e = e.next
+
+        cdef tll_scheme_field_t * f = ptr.aliases
+        while f != NULL:
+            tmp = field_wrap(self, Message(), f)
+            self.aliases[tmp.name] = tmp
+            f = f.next
 
         cdef tll_scheme_message_t * m = ptr.messages
         while m != NULL:
