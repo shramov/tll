@@ -42,7 +42,7 @@ namespace tll {
 namespace processor {
 class Worker : public tll::Channel
 {
- 	Worker() = delete;
+	Worker() = delete;
 
  public:
 	tll::processor::Loop * loop() { return tll_processor_worker_loop(this); }
