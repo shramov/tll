@@ -22,14 +22,12 @@ class OwnedMessage : public tll_msg_t
 
 	OwnedMessage(const tll_msg_t * rhs)
 	{
-		tll_msg_copy_info(this, rhs);
+		copy(rhs);
+	}
 
-		size = rhs->size;
-		if (size) {
-			data = new char[size];
-			memcpy((void *) data, rhs->data, size);
-		} else
-			data = nullptr;
+	OwnedMessage(const OwnedMessage & rhs)
+	{
+		copy(&rhs);
 	}
 
 	OwnedMessage(OwnedMessage && rhs)
@@ -43,7 +41,7 @@ class OwnedMessage : public tll_msg_t
 	{
 		if (data)
 			delete [] (char *) data;
-		data = 0;
+		data = nullptr;
 	}
 
 	OwnedMessage & operator = (OwnedMessage rhs)
@@ -57,10 +55,21 @@ class OwnedMessage : public tll_msg_t
 	static OwnedMessage * allocate(size_t size)
 	{
 		auto m = new OwnedMessage;
-		*m = {};
 		m->data = new char[size];
 		m->size = size;
 		return m;
+	}
+
+	void copy(const tll_msg_t *rhs)
+	{
+		tll_msg_copy_info(this, rhs);
+
+		size = rhs->size;
+		if (size) {
+			data = new char[size];
+			memcpy((void *) data, rhs->data, size);
+		} else
+			data = nullptr;
 	}
 
 	operator tll_msg_t * () { return this; }
