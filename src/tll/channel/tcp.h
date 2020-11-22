@@ -17,6 +17,24 @@
 
 namespace tll::channel {
 
+struct tcp_socket_addr_t
+{
+	int fd = -1;
+	int seq = 0;
+
+	static const tcp_socket_addr_t * cast(const tll_addr_t * ptr)
+	{
+		static_assert(sizeof(tcp_socket_addr_t) <= sizeof(tll_addr_t), "tll_addr_t can not be casted to tcp_socket_addr_t");
+		return (const tcp_socket_addr_t *) ptr;
+	}
+
+	operator tll_addr_t () const
+	{
+		static_assert(sizeof(tcp_socket_addr_t) <= sizeof(tll_addr_t), "tcp_socket_addr_t can not be casted to tll_addr_t");
+		return *(tll_addr_t *) this;
+	}
+};
+
 template <typename T>
 class TcpSocket : public Base<T>
 {
@@ -31,6 +49,8 @@ class TcpSocket : public Base<T>
 	std::string _host;
 	unsigned short _port;
 
+	tcp_socket_addr_t _msg_addr;
+
 	using tcp_socket_t = TcpSocket<T>;
  public:
 	using iov_t = std::pair<const void *, size_t>;
@@ -43,7 +63,8 @@ class TcpSocket : public Base<T>
 	int _post(const tll_msg_t *msg, int flags);
 	int _process(long timeout, int flags);
 
-	void bind(int fd) { this->_update_fd(fd); }
+	void bind(int fd, int seq = 0) { this->_update_fd(fd); _msg_addr = { fd, seq }; }
+	const tcp_socket_addr_t & msg_addr() const { return _msg_addr; }
 
  protected:
 	size_t rsize() const { return _rsize - _roff; }
@@ -143,12 +164,13 @@ class TcpServer : public Base<T>
 	int _af = 0;
 	std::string _host;
 	unsigned short _port;
+	int _addr_seq = 0;
 
 	using tcp_server_t = TcpServer<T, C>;
 	using tcp_server_socket_t = TcpServerSocket<T>;
 	using tcp_socket_t = TcpSocket<C>;
 	std::list<std::unique_ptr<Channel>> _sockets;
-	std::list<tcp_socket_t *> _clients;
+	std::map<int, tcp_socket_t *> _clients;
 	bool _cleanup_flag = false;
 
  public:
@@ -190,6 +212,7 @@ class TcpServer : public Base<T>
 
 	int _bind(const tll::network::sockaddr_any &addr);
 	void _cleanup();
+	void _cleanup(tcp_socket_t *);
 };
 
 } // namespace tll::channel

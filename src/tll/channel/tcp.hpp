@@ -136,7 +136,7 @@ int TcpSocket<T>::_process(long timeout, int flags)
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	msg.data = _rbuf.data();
 	msg.size = *r;
-	msg.addr.ptr = this;
+	msg.addr = _msg_addr;
 	this->_callback_data(&msg);
 	rdone(*r);
 	rshift();
@@ -146,6 +146,8 @@ int TcpSocket<T>::_process(long timeout, int flags)
 template <typename T, typename S>
 int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
+	this->_msg_addr.fd = 0;
+
 	auto reader = this->channel_props_reader(url);
 	_af = reader.getT("af", AF_UNSPEC, {{"unix", AF_UNIX}, {"ipv4", AF_INET}, {"ipv6", AF_INET6}});
 	this->_size = reader.template getT<util::Size>("size", 128 * 1024);
@@ -345,6 +347,7 @@ template <typename T, typename C>
 int TcpServer<T, C>::_open(const PropsView &url)
 {
 	_cleanup_flag = false;
+	_addr_seq = 0;
 
 	auto addr = tll::network::resolve(_af, SOCK_STREAM, _host.c_str(), _port);
 	if (!addr)
@@ -418,7 +421,7 @@ int TcpServer<T, C>::_close()
 			this->_log.warning("Failed to unlink socket {}: {}", this->_host, strerror(errno));
 	}
 	for (auto & c : _clients)
-		tll_channel_free(*c);
+		tll_channel_free(*c.second);
 	_clients.clear();
 	_sockets.clear();
 	return 0;
@@ -427,14 +430,15 @@ int TcpServer<T, C>::_close()
 template <typename T, typename C>
 int TcpServer<T, C>::_post(const tll_msg_t *msg, int flags)
 {
-	if (!msg->addr.ptr)
+	auto addr = tcp_socket_addr_t::cast(&msg->addr);
+	if (addr->fd == -1)
 		return this->_log.fail(EINVAL, "Invalid address");
-	auto ca = (tcp_socket_t *) msg->addr.ptr;
-	for (auto & c : _clients) {
-		if (c == ca)
-			return c->post(msg, flags);
-	}
-	return this->_log.fail(ENOENT, "Address not found");
+	auto i = _clients.find(addr->fd);
+	if (i == _clients.end())
+		return this->_log.fail(ENOENT, "Address not found: {}/{}", addr->fd, addr->seq);
+	if (addr->seq != i->second->msg_addr().seq)
+		return this->_log.fail(ENOENT, "Address seq mismatch: {} != {}", addr->seq, i->second->msg_addr().seq);
+	return i->second->post(msg, flags);
 }
 
 template <typename T, typename C>
@@ -444,12 +448,10 @@ void TcpServer<T, C>::_cleanup()
 
 	for (auto i = _clients.begin(); i != _clients.end();)
 	{
-		switch ((*i)->state()) {
+		switch (i->second->state()) {
 		case state::Error:
 		case state::Closed:
-			this->_log.debug("Cleanup client {} @{}", (*i)->name, (void *) *i);
-			this->_child_del(**i);
-			delete (*i);
+			_cleanup(i->second);
 			i = _clients.erase(i);
 			break;
 		default:
@@ -459,6 +461,14 @@ void TcpServer<T, C>::_cleanup()
 	}
 
 	_cleanup_flag = false;
+}
+
+template <typename T, typename C>
+void TcpServer<T, C>::_cleanup(tcp_socket_t * c)
+{
+	this->_log.debug("Cleanup client {} @{}", c->name, (void *) c);
+	this->_child_del(*c);
+	delete c;
 }
 
 template <typename T, typename C>
@@ -519,7 +529,12 @@ int TcpServer<T, C>::_cb_socket(const tll_channel_t *c, const tll_msg_t *msg)
 		return 0;
 	}
 
-	_clients.push_back(client);
+	auto it = _clients.find(fd);
+	if (it != _clients.end()) {
+		_cleanup(it->second);
+		it->second = client;
+	} else
+		_clients.emplace(fd, client);
 	this->_child_add(r.release());
 	client->open("");
 	return 0;

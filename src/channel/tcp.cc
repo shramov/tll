@@ -128,7 +128,7 @@ int FramedSocket<T, Frame>::_pending()
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	tll::frame::FrameT<Frame>::read(&msg, frame);
 	msg.data = (void *) data;
-	msg.addr.ptr = this;
+	msg.addr = this->_msg_addr;
 	this->rdone(sizeof(Frame) + frame->size);
 	this->_dcaps_pending(this->template rdataT<Frame>());
 	this->_callback_data(&msg);

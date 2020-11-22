@@ -5,9 +5,18 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
+#if __has_include(<filesystem>)
+# include <filesystem>
+#else
+# include <experimental/filesystem>
+namespace std::filesystem { using namespace ::std::experimental::filesystem; }
+#endif
+
 #include "gtest/gtest.h"
 
 #include "tll/channel/base.h"
+#include "tll/processor/loop.h"
+#include "tll/util/ownedmsg.h"
 
 class Null : public tll::channel::Base<Null>
 {
@@ -115,4 +124,143 @@ TEST(Channel, New)
 	ASSERT_EQ(c->open(), 0);
 	ASSERT_EQ(c->state(), tll::state::Active);
 	ASSERT_EQ(c->process(), EAGAIN);
+}
+
+int poll_for(tll::Channel * c, tll::duration timeout = std::chrono::seconds(1))
+{
+	auto start = tll::time::now();
+	while (tll::time::now() < start + timeout) {
+		auto r = c->process();
+		if (r != EAGAIN)
+			return r;
+		usleep(100);
+	}
+	return ETIMEDOUT;
+}
+
+class Accum
+{
+	std::unique_ptr<tll::Channel> _ptr;
+public:
+	using data_t = std::vector<tll::util::OwnedMessage>;
+	data_t result;
+
+	Accum(std::unique_ptr<tll::Channel> && ptr) : _ptr(std::move(ptr))
+	{
+		_ptr->callback_add([](const tll_channel_t *, const tll_msg_t *m, void * user) -> int { static_cast<data_t *>(user)->emplace_back(m); return 0; }, &result);
+	}
+
+	~Accum() { reset(); }
+
+
+	void reset() { _ptr.reset(); }
+
+	tll::Channel * operator -> () { return get(); }
+	const tll::Channel * operator -> () const { return get(); }
+
+	tll::Channel * get() { return _ptr.get(); }
+	const tll::Channel * get() const { return _ptr.get(); }
+
+	operator bool () const { return _ptr.get() != nullptr; }
+};
+
+TEST(Channel, Tcp)
+{
+	auto ctx = tll::channel::Context(tll::Config());
+	Accum s = ctx.channel("tcp://./test-tcp.sock;mode=server;name=server;dump=yes");
+	ASSERT_NE(s.get(), nullptr);
+
+	{
+		auto socket = std::filesystem::path("./test-tcp.sock");
+		if (std::filesystem::exists(socket))
+			std::filesystem::remove(socket);
+	}
+
+	s->open();
+
+	ASSERT_EQ(s->state(), tll::state::Active);
+
+	ASSERT_NE(s->children(), nullptr); // Only one server socket
+	ASSERT_EQ(s->children()->next, nullptr);
+	auto socket = static_cast<tll::Channel *>(s->children()->channel);
+
+	Accum c0 = ctx.channel("tcp://./test-tcp.sock;mode=client;name=c0;dump=yes");
+	Accum c1 = ctx.channel("tcp://./test-tcp.sock;mode=client;name=c1;dump=yes");
+	ASSERT_NE(c0.get(), nullptr);
+	ASSERT_NE(c1.get(), nullptr);
+
+	c0->open();
+
+	ASSERT_EQ(s->children()->next, nullptr);
+	ASSERT_EQ(poll_for(socket), 0);
+	ASSERT_NE(s->children()->next, nullptr);
+
+	auto s0 = static_cast<tll::Channel *>(s->children()->next->channel);
+
+	if (c0->state() == tll::state::Opening) { // Unix socket connects immediately
+		ASSERT_EQ(poll_for(c0.get()), 0);
+		ASSERT_EQ(c0->state(), tll::state::Active);
+	}
+
+	c1->open();
+
+	ASSERT_EQ(s->children()->next->next, nullptr);
+	ASSERT_EQ(poll_for(socket), 0);
+	ASSERT_NE(s->children()->next->next, nullptr);
+
+	auto s1 = static_cast<tll::Channel *>(s->children()->next->next->channel);
+
+	if (c1->state() == tll::state::Opening) { // Unix socket connects immediately
+		ASSERT_EQ(poll_for(c1.get()), 0);
+		ASSERT_EQ(c1->state(), tll::state::Active);
+	}
+
+	ASSERT_EQ(s0->process(), EAGAIN);
+	ASSERT_EQ(s1->process(), EAGAIN);
+
+	tll_msg_t m = {};
+	m.seq = 1;
+	m.data = "xxx";
+	m.size = 3;
+
+	s.result.clear();
+	c0.result.clear();
+	c1.result.clear();
+
+	ASSERT_EQ(c0->post(&m), 0);
+
+	ASSERT_EQ(s.result.size(), 0u);
+
+	{
+		ASSERT_EQ(poll_for(s0), 0);
+		ASSERT_EQ(s.result.size(), 1u);
+		auto m = s.result.front();
+		ASSERT_EQ(m.type, TLL_MESSAGE_DATA);
+		ASSERT_EQ(m.seq, 1);
+		ASSERT_EQ(std::string_view((char *) m.data, m.size), "xxx");
+	}
+
+	c0->process();
+	c1->process();
+
+	ASSERT_EQ(c0.result.size(), 0u);
+	ASSERT_EQ(c1.result.size(), 0u);
+
+	s.result[0].seq = 10;
+	ASSERT_EQ(s->post(&s.result[0]), 0);
+
+	ASSERT_EQ(poll_for(c0.get()), 0);
+
+	{
+		ASSERT_EQ(c0.result.size(), 1u);
+		auto m = c0.result.front();
+		ASSERT_EQ(m.type, TLL_MESSAGE_DATA);
+		ASSERT_EQ(m.seq, 10);
+		ASSERT_EQ(std::string_view((char *) m.data, m.size), "xxx");
+	}
+
+	c0->process();
+	c1->process();
+
+	ASSERT_EQ(c1.result.size(), 0u);
 }
