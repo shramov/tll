@@ -108,14 +108,14 @@ class Base
 		if (msg->type == TLL_MESSAGE_STATE) {
 			_log.info("{} message: type: {}, msgid: {}", text, "State", tll_state_str((tll_state_t) msg->msgid));
 		} else if (msg->type == TLL_MESSAGE_CHANNEL) {
-			_log.info("{} message: type: {}, msgid: {}, seq: {}, size: {}",
-					text, "Channel", msg->msgid, msg->seq, msg->size);
+			_log.info("{} message: type: {}, msgid: {}, seq: {}, size: {}, addr: {:016x}",
+					text, "Channel", msg->msgid, msg->seq, msg->size, msg->addr.u64);
 		} else if (msg->type == TLL_MESSAGE_DATA) {
-			_log.info("{} message: type: {}, msgid: {}, seq: {}, size: {}\n\t{}",
-					text, "Data", msg->msgid, msg->seq, msg->size, std::string_view((const char *) msg->data, msg->size));
+			_log.info("{} message: type: {}, msgid: {}, seq: {}, size: {}, addr: {:016x}\n\t{}",
+					text, "Data", msg->msgid, msg->seq, msg->size, msg->addr.u64, std::string_view((const char *) msg->data, msg->size));
 		} else {
-			_log.info("{} message: type: {}, msgid: {}, seq: {}, size: {}",
-					text, msg->type, msg->msgid, msg->seq, msg->size);
+			_log.info("{} message: type: {}, msgid: {}, seq: {}, size: {}, addr: {:016x}",
+					text, msg->type, msg->msgid, msg->seq, msg->size, msg->addr.u64);
 		}
 	}
 
