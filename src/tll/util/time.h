@@ -23,7 +23,7 @@ long long tll_time_now_cached();
 
 /** Enable or disable thread local time cache
  * Cache is disabled initially and it's enabled when usage counter is non-zero.
- * 
+ *
  * @param enable 0 for decrease, non-zero for increase of usage counter
  */
 void tll_time_cache_enable(int enable);
