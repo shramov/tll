@@ -62,6 +62,7 @@ def _test(s):
     assert_equals(sub.size, 4 + 1 + 8 * 4)
 
     msg = s['test']
+    assert_equals(msg.msgid, 1)
     assert_equals([(f.name, f.type) for f in msg.fields],
         [("f0", F.Int8), ("f1", F.Int64), ("f2", F.Double), ("f3", F.Decimal128), ("f4", F.Bytes), ("f5", F.Pointer), ("f6", F.Array), ("f7", F.Pointer), ('f8', F.Pointer)])
     assert_equals(msg['f6'].count_ptr.type, F.Int16)
@@ -73,6 +74,7 @@ def _test(s):
     assert_equals(msg.size, 1 + 8 + 8 + 16 + 32 + 8 + (2 + 4 * sub.size) + 8 + 8)
 
     msg = s['enums']
+    assert_equals(msg.msgid, 10)
     assert_equals([(f.name, f.type) for f in msg.fields],
         [("f0", F.Int8), ("f1", F.Int16), ("f2", F.Int32), ("f3", F.Int64)])
     assert_equals([(f.name, f.sub_type) for f in msg.fields],

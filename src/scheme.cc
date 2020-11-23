@@ -1143,6 +1143,8 @@ std::string dump(const tll::scheme::Message * m)
 {
 	std::string r;
 	r += fmt::format("- name: '{}'\n", m->name);
+	if (m->msgid)
+		r += "  " + fmt::format("id: {}\n", m->msgid);
 	if (m->options)
 		r += "  " + dump(m->options) + "\n";
 	if (m->enums) {
