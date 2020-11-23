@@ -1,6 +1,6 @@
 fs_link_args = []
 if not meson.get_compiler('cpp').has_header('filesystem')
-	fs_link_args = '-lstdc++fs'
+	fs_link_args = ['-lstdc++fs']
 	#add_project_link_arguments('-lstdc++fs', language: 'cpp')
 endif
 
