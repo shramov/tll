@@ -9,4 +9,9 @@ task:
     ninja -vC build
     cd python
     python3 setup.py build_ext --inplace --library-dirs=../build/src --rpath=`pwd`/../build/src
+
+  test_script: |
+    set -e
+    meson test --no-suite slow -C build --no-rebuild --print-errorlogs
+    cd python
     python3 -m nose -v || true # Not all tests are passing on FreeBSD now
