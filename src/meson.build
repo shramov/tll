@@ -14,9 +14,9 @@ sources += channel_sources
 sources += processor_sources
 
 if host_machine.system() == 'linux'
-  version_script = '-Wl,--version-script,@0@/@1@'.format(meson.current_source_dir(), 'ld.script')
+  version_script = ['-Wl,--version-script,@0@/@1@'.format(meson.current_source_dir(), 'ld.script')]
 else
-  version_script = ''
+  version_script = []
 endif
 
 tll_lib = shared_library('tll',
