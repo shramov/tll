@@ -13,14 +13,26 @@
 
 namespace tll::logger {
 
+struct tll_logger_obj_t : tll::util::refbase_t<tll_logger_obj_t, 0>
+{
+	const char * name = "";
+	void * obj = nullptr;
+	tll_logger_impl_t * impl = nullptr;
+
+	~tll_logger_obj_t()
+	{
+		if (obj && impl && impl->log_free)
+			impl->log_free(name, obj, impl);
+	}
+};
+
 struct Logger : public tll_logger_t, public tll::util::refbase_t<Logger>
 {
 	void destroy();
 
 	std::mutex lock;
 	std::string name;
-	void * obj = nullptr;
-	tll_logger_impl_t * impl = nullptr;
+	tll::util::refptr_t<tll_logger_obj_t> impl;
 };
 
 struct logger_context_t
@@ -48,8 +60,17 @@ struct logger_context_t
 		auto l = new Logger;
 		l->name = name;
 		l->level = _default;
-		l->impl = impl;
-		std::unique_lock<std::mutex> llck(l->lock);
+		l->impl.reset(impl_new_obj(l->name, impl));
+
+		{
+			rlock_t lck(lock);
+			for (auto s : split<'.'>(name)) {
+				auto full = std::string_view(name.begin(), s.end() - name.begin());
+				auto li = _levels.find(full);
+				if (li != _levels.end())
+					l->level = li->second;
+			}
+		}
 
 		{
 			wlock_t lck(lock);
@@ -60,17 +81,6 @@ struct logger_context_t
 			}
 		}
 
-		if (l->impl->log_new)
-			l->obj = (*l->impl->log_new)(l->name.c_str(), impl);
-
-		rlock_t lck(lock);
-		for (auto s : split<'.'>(name)) {
-			auto full = std::string_view(name.begin(), s.end() - name.begin());
-			auto li = _levels.find(full);
-			if (li != _levels.end()) {
-				l->level = li->second;
-			}
-		}
 		return l;
 	}
 
@@ -86,8 +96,7 @@ struct logger_context_t
 				_loggers.erase(it);
 		}
 
-		if (log->impl->log_free)
-			(*log->impl->log_free)(log->name.c_str(), log->obj, impl);
+		log->impl.reset(nullptr);
 		delete log;
 	}
 
@@ -117,20 +126,37 @@ struct logger_context_t
 		return 0;
 	}
 
+	tll_logger_obj_t * impl_new_obj(std::string_view name, tll_logger_impl_t * impl)
+	{
+		auto r = new tll_logger_obj_t;
+		r->name = name.data();
+		r->impl = impl;
+		if (impl->log_new)
+			r->obj = (impl->log_new)(name.data(), impl);
+		return r;
+	}
+
 	int set_impl(tll_logger_impl_t *impl)
 	{
 		if (impl == nullptr)
 			impl = &tll::logger::logger_context_t::stdio;
-		rlock_t lck(lock);
-		this->impl = impl;
-		for (auto & i : _loggers) {
-			auto & l = i.second;
-			std::lock_guard<std::mutex> llck(l->lock);
-			if (l->impl->log_free)
-				(*l->impl->log_free)(l->name.c_str(), l->obj, l->impl);
-			l->impl = this->impl;
-			if (l->impl->log_new)
-				l->obj = (*l->impl->log_new)(l->name.c_str(), l->impl);
+
+		std::list<tll::util::refptr_t<Logger>> loggers;
+
+		{
+			rlock_t lck(lock);
+			this->impl = impl;
+			for (auto & i : _loggers)
+				loggers.emplace_back(i.second);
+		}
+
+		for (auto & l : loggers) {
+			tll::util::refptr_t<tll_logger_obj_t> ref(impl_new_obj(l->name, impl));
+
+			{
+				std::lock_guard<std::mutex> lck(l->lock);
+				std::swap(l->impl, ref);
+			}
 		}
 		return 0;
 	}
@@ -186,8 +212,12 @@ int tll_logger_log(tll_logger_t * l, tll_logger_level_t level, const char * buf,
 {
 	auto log = static_cast<tll::logger::Logger *>(l);
 	if (log->level > level) return 0;
-	std::lock_guard<std::mutex> lck(log->lock);
-	return (*log->impl->log)(0, log->name.c_str(), level, buf, len, log->obj);
+
+	std::unique_lock<std::mutex> lck(log->lock);
+	auto impl = log->impl;
+	lck.unlock();
+
+	return (*impl->impl->log)(0, impl->name, level, buf, len, impl->obj);
 }
 
 tll_logger_buf_t * tll_logger_tls_buf()
