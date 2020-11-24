@@ -205,3 +205,28 @@ def test_alias_copy(): return _test_alias(S.Scheme(SCHEME_ALIAS).copy())
 def test_alias_dump():
     print(S.Scheme(SCHEME_ALIAS).dump())
     return _test_alias(S.Scheme(S.Scheme(SCHEME_ALIAS).dump()))
+
+def test_import():
+    SCHEME = '''yamls://
+- name:
+  import:
+    - |
+        yamls://
+        - name:
+          aliases:
+            - {name: license, type: byte64, options.type: string}
+    - |
+        yamls://
+        - name: sub
+          fields:
+            - {name: s0, type: license}
+
+- name: msg
+  fields:
+    - {name: f0, type: license}
+    - {name: fs, type: sub}
+'''
+
+    s = S.Scheme(SCHEME)
+    assert_equals([(f.name, f.type, f.sub_type) for f in s.aliases.values()], [("license", F.Bytes, F.Sub.ByteString)])
+    assert_equals([m.name for m in s.messages], ['sub', 'msg'])
