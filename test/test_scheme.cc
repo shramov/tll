@@ -8,7 +8,9 @@
 #include "gtest/gtest.h"
 
 #include "tll/scheme.h"
+#include "tll/scheme/format.h"
 #include "tll/scheme/types.h"
+#include "tll/util/memoryview.h"
 
 #include <memory>
 
@@ -144,4 +146,138 @@ TEST(Scheme, OptionGetT)
 	ASSERT_EQ(2, reader.getT("a", 0));
 	ASSERT_EQ(true, reader.getT("b", false));
 	ASSERT_EQ(true, !!reader);
+}
+
+namespace generated {
+struct __attribute__((__packed__)) sub
+{
+    int32_t s0;
+    int8_t s1_size;
+    double s1[4];
+};
+
+struct __attribute__((__packed__)) test
+{
+    int8_t f0;
+    int64_t f1;
+    double f2;
+    int8_t f3[16];
+    char f4[16];
+    tll_scheme_offset_ptr_t f5;
+    int16_t f6_size;
+    sub f6[4];
+    tll_scheme_offset_ptr_t f7;
+};
+
+} // namespace generated
+
+TEST(Scheme, Format)
+{
+	SchemePtr s(Scheme::load(R"(yamls://
+- name: sub
+  fields:
+    - {name: s0, type: int32}
+    - {name: s1, type: 'double[4]'}
+- name: test
+  id: 1
+  fields:
+    - {name: f0, type: int8, options: {a: 10, b: 20}}
+    - {name: f1, type: int64, options.type: enum, enum: {A: 123, B: 456}}
+    - {name: f2, type: double}
+    - {name: f3, type: byte16}
+    - {name: f4, type: byte16, options.type: string}
+    - {name: f5, type: '*int16'}
+    - {name: f6, type: 'sub[4]', list-options.count-type: int16}
+    - {name: f7, type: '*string'}
+)"), tll_scheme_unref);
+	ASSERT_NE(s.get(), nullptr);
+
+	generated::sub sub = {};
+	sub.s0 = 123456;
+	sub.s1_size = 2;
+	sub.s1[0] = 123.456;
+	sub.s1[1] = 1.5;
+
+	const tll::scheme::Message * message = nullptr;
+	for (message = s->messages; message; message = message->next) {
+		if (std::string_view("sub") == message->name)
+			break;
+	}
+
+	ASSERT_NE(message, nullptr);
+
+	tll::memory mem = { &sub, sizeof(sub) };
+
+	auto r = tll::scheme::to_string(message, tll::make_view(mem));
+	ASSERT_TRUE(r);
+	fmt::print("sub:\n{}\n", *r);
+	ASSERT_EQ(*r, R"(s0: 123456
+s1: [123.456, 1.5])");
+
+	struct msgspace : public generated::test
+	{
+		int16_t f5_ptr[16];
+		tll_scheme_offset_ptr_t f7_ptr[8];
+		char f7_ptr_ptr[8][32];
+	} msg = {};
+	msg.f0 = 123;
+	msg.f1 = 1234567890123ll;
+	msg.f2 = 123.456;
+	memcpy(msg.f3, "bytes\x01\x02\x03\x04\x05", 10);
+	memcpy(msg.f4, "bytestring", 10);
+
+	msg.f5.size = 3;
+	msg.f5.entity = sizeof(int16_t);
+	msg.f5.offset = (ptrdiff_t) &msg.f5_ptr - (ptrdiff_t) &msg.f5;
+	msg.f5_ptr[0] = 101;
+	msg.f5_ptr[1] = 111;
+	msg.f5_ptr[2] = 121;
+	msg.f5_ptr[3] = 131;
+
+	msg.f6_size = 2;
+	msg.f6[0].s0 = 120;
+	msg.f6[0].s1_size = 2;
+	msg.f6[0].s1[0] = 120.1;
+	msg.f6[0].s1[1] = 120.2;
+	msg.f6[1].s0 = 220;
+
+	msg.f7.size = 1;
+	msg.f7.entity = sizeof(tll_scheme_offset_ptr_t);
+	msg.f7.offset = (ptrdiff_t) &msg.f7_ptr - (ptrdiff_t) &msg.f7;
+	msg.f7_ptr[0].size = strlen("offset string");
+	msg.f7_ptr[0].entity = 1;
+	msg.f7_ptr[0].offset = (ptrdiff_t) &msg.f7_ptr_ptr - (ptrdiff_t) &msg.f7_ptr[0];
+	strcpy(msg.f7_ptr_ptr[0], "offset string");
+
+	for (message = s->messages; message; message = message->next) {
+		if (std::string_view("test") == message->name)
+			break;
+	}
+
+	ASSERT_NE(message, nullptr);
+
+	mem = { &msg, sizeof(msg) };
+
+	r = tll::scheme::to_string(message, tll::make_view(mem));
+	ASSERT_TRUE(r);
+	fmt::print("test:\n{}\n", *r);
+	ASSERT_EQ(*r, R"(f0: 123
+f1: 1234567890123
+f2: 123.456
+f3: "bytes\x01\x02\x03\x04\x05\x00\x00\x00\x00\x00\x00"
+f4: "bytestring"
+f5: [101, 111, 121]
+f6:
+  - s0: 120
+    s1: [120.1, 120.2]
+  - s0: 220
+    s1: []
+f7: ["offset string"])");
+
+	mem.size = 10;
+	ASSERT_FALSE(tll::scheme::to_string(message, tll::make_view(mem)));
+	mem.size = message->size + 5;
+	r = tll::scheme::to_string(message, tll::make_view(mem));
+	ASSERT_FALSE(r);
+	ASSERT_EQ(r.error(), "Failed to format field f5[2]: Data size too small: 0 < 2");
 }

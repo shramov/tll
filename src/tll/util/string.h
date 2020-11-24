@@ -16,6 +16,8 @@ namespace tll {
 
 namespace util {
 
+inline bool printable(char c) { return c >= 0x20 && c < 0x7f; }
+
 inline std::string_view strip(std::string_view s, std::string_view chars = " ")
 {
 	auto p = s.find_first_not_of(chars);
