@@ -12,13 +12,15 @@ int ChZero::_init(const tll::Channel::Url &url, tll::Channel *master)
 	auto reader = channel_props_reader(url);
 	_size = reader.getT<tll::util::Size>("size", 1024);
 	_with_pending = reader.getT("pending", true);
+	_msg.msgid = reader.getT("msgid", 0);
+	char fill = reader.getT("fill", '\0');
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
 	_buf.resize(_size);
 	_msg.data = _buf.data();
 	_msg.size = _buf.size();
-	memset(_buf.data(), 'z', _buf.size());
+	memset(_buf.data(), fill, _buf.size());
 	return Event<ChZero>::_init(url, master);
 }
 
