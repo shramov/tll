@@ -88,7 +88,7 @@ class Base
 	std::string name;
 	tll::Config _config;
 	tll::Config _config_defaults;
-	bool _dump = false;
+	tll_channel_log_msg_format_t _dump = log_msg_format::Disable;
 
 	bool _scheme_cache = true;
 	std::optional<std::string> _scheme_url;
@@ -103,20 +103,9 @@ class Base
 
 	void _dump_msg(const tll_msg_t *msg, std::string_view text) const
 	{
-		if (!_dump)
+		if (_dump == log_msg_format::Disable)
 			return;
-		if (msg->type == TLL_MESSAGE_STATE) {
-			_log.info("{} message: type: {}, msgid: {}", text, "State", tll_state_str((tll_state_t) msg->msgid));
-		} else if (msg->type == TLL_MESSAGE_CHANNEL) {
-			_log.info("{} message: type: {}, msgid: {}, seq: {}, size: {}, addr: {:016x}",
-					text, "Channel", msg->msgid, msg->seq, msg->size, msg->addr.u64);
-		} else if (msg->type == TLL_MESSAGE_DATA) {
-			_log.info("{} message: type: {}, msgid: {}, seq: {}, size: {}, addr: {:016x}\n\t{}",
-					text, "Data", msg->msgid, msg->seq, msg->size, msg->addr.u64, std::string_view((const char *) msg->data, msg->size));
-		} else {
-			_log.info("{} message: type: {}, msgid: {}, seq: {}, size: {}, addr: {:016x}",
-					text, msg->type, msg->msgid, msg->seq, msg->size, msg->addr.u64);
-		}
+		tll_channel_log_msg(self(), _log.name(), logger::Info, _dump, msg, text.data(), text.size());
 	}
 
 	inline int _callback(tll_msg_t msg) const { return _callback(&msg); }
@@ -163,7 +152,10 @@ class Base
 
 		enum rw_t { None = 0, R = 1, W = 2, RW = R | W };
 		auto dir = reader.getT("dir", None, {{"r", R}, {"w", W}, {"rw", RW}, {"in", R}, {"out", W}, {"inout", RW}});
-		_dump = reader.getT("dump", false);
+		{
+			using namespace tll::channel::log_msg_format;
+			_dump = reader.getT("dump", Disable, {{"no", Disable}, {"yes", Text}, {"frame", Frame}, {"text", Text}, {"text+hex", TextHex}, {"scheme", Scheme}});
+		}
 		//_log = { fmt::format("tll.channel.{}.{}", T::param_prefix(), name) };
 		if (!reader)
 			return _log.fail(EINVAL, "Invalid url: {}", reader.error());
@@ -293,7 +285,7 @@ class Base
 
 	const Scheme * scheme(int type) const
 	{
-		this->_log.debug("Request scheme {} ({}/{})", type, (void *) _scheme.get(), (void *) _scheme_control.get());
+		this->_log.trace("Request scheme {} ({}/{})", type, (void *) _scheme.get(), (void *) _scheme_control.get());
 		switch (type) {
 		case TLL_MESSAGE_DATA: return _scheme.get();
 		case TLL_MESSAGE_CONTROL: return _scheme_control.get();
@@ -336,6 +328,7 @@ class Base
 	const channel::Context context() const { return Context(internal.self->context); }
 
 	Channel * self() { return static_cast<Channel *>(internal.self); }
+	const Channel * self() const { return static_cast<Channel *>(internal.self); }
 	operator Channel * () { return self(); }
 	operator const Channel * () const { return self(); }
 

@@ -9,6 +9,7 @@
 #define _TLL_CHANNEL_IMPL_H
 
 #include "tll/channel.h"
+#include "tll/logger.h"
 #include "tll/scheme.h"
 
 #ifdef __cplusplus
@@ -110,6 +111,27 @@ static inline int tll_channel_callback(const tll_channel_internal_t * in, const 
 	return 0;
 }
 
+/// Message flags for @ref tll_channel_log_msg function
+typedef enum {
+	TLL_MESSAGE_LOG_DISABLE = 0,	///< Disable logging
+	TLL_MESSAGE_LOG_FRAME = 1,	///< Log only frame data (msgid, seq, size, ...)
+	TLL_MESSAGE_LOG_TEXT = 2,	///< Log body as ASCII text (replacing unprintable symbols)
+	TLL_MESSAGE_LOG_TEXT_HEX = 3,	///< Log body as ASCII text and hex representation
+	TLL_MESSAGE_LOG_SCHEME = 4,	///< Log decomposed body as fields from scheme
+} tll_channel_log_msg_format_t;
+
+/** Format message and write it to logger
+ *
+ * @param c channel object
+ * @param log name logger object that is used to write result
+ * @param level logging level
+ * @param format desired format
+ * @param msg message object
+ * @param text additional text
+ * @param tlen length of additional text or -1 if it has trailing \0
+ */
+int tll_channel_log_msg(const tll_channel_t * c, const char * log, tll_logger_level_t level, tll_channel_log_msg_format_t format, const tll_msg_t * msg, const char * text, int tlen);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif//__cplusplus
@@ -197,6 +219,17 @@ constexpr channel_module_t<sizeof...(Args)> make_channel_module()
 {
 	return channel_module_t<sizeof...(Args)>(&Args::impl...);
 }
+
+namespace channel::log_msg_format {
+
+static constexpr auto Disable = TLL_MESSAGE_LOG_DISABLE;
+static constexpr auto Frame = TLL_MESSAGE_LOG_FRAME;
+static constexpr auto Text = TLL_MESSAGE_LOG_TEXT;
+static constexpr auto TextHex = TLL_MESSAGE_LOG_TEXT_HEX;
+static constexpr auto Scheme = TLL_MESSAGE_LOG_SCHEME;
+
+} // namespace channel::log_msg_format
+
 } // namespace tll
 #endif
 
