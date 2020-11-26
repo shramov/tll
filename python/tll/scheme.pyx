@@ -252,10 +252,12 @@ class Field:
             self.pack, self.unpack = self.pack_msg, self.unpack_msg
             #self.pack_data, self.unpack_data = self.pack_data_msg, self.unpack_data_msg
             self.pack_data, self.unpack_data = self.type_msg.pack, self.type_msg.unpack
+            self.unpack_reflection = self.type_msg.reflection
             self.convert = self.convert_msg
             self.default = self.type_msg.klass
         elif type == Field.Array:
             self.pack_data, self.unpack_data = self.pack_array, self.unpack_array
+            self.unpack_reflection = self.unpack_array_reflection
             self.convert = self.convert_array
             self.default = list
         elif type == Field.Pointer:
@@ -265,6 +267,7 @@ class Field:
                 self.default = str
             else:
                 self.pack_data, self.unpack_data = self.pack_olist, self.unpack_olist
+                self.unpack_reflection = self.unpack_olist_reflection
                 self.convert = self.convert_olist
                 self.default = list
 
@@ -280,6 +283,9 @@ class Field:
         memoryview_check(src)
         return self.unpack_data(src[self.offset:self.offset + self.size])
 
+    def unpack_reflection(self, src):
+        return self.unpack_data(src)
+
     def pack_array(self, v, dest, tail, tail_offset):
         self.count_ptr.pack_data(len(v), dest[:self.count_ptr.size], None, None)
         off = self.type_array.offset
@@ -287,16 +293,19 @@ class Field:
             self.type_array.pack_data(e, dest[off:off + self.type_array.size], tail, tail_offset - off)
             off += self.type_array.size
 
-    def unpack_array(self, src):
+    def _unpack_array_f(self, src, f):
         r = []
         cdef int i = 0
         off = self.type_array.offset
         cdef int size = self.count_ptr.unpack_data(src)
         while i < size:
-            r.append(self.type_array.unpack_data(src[off:]))
+            r.append(f(src[off:]))
             off += self.type_array.size
             i += 1
         return r
+
+    def unpack_array(self, src): return self._unpack_array_f(src, self.type_array.unpack_data)
+    def unpack_array_reflection(self, src): return self._unpack_array_f(src, self.type_array.unpack_reflection)
 
     def pack_msg(self, v, dest, tail, tail_offset):
         memoryview_check(dest)
@@ -338,7 +347,7 @@ class Field:
             raise TypeError("Invalid type for list: {}".format(type(l)))
         return [self.type_ptr.convert(x) for x in l]
 
-    def unpack_olist(self, src):
+    def _unpack_olist_f(self, src, f):
         cdef tll_scheme_offset_ptr_t * ptr = read_optr(src)
         if ptr == NULL: return None
         if ptr.size == 0:
@@ -347,10 +356,13 @@ class Field:
         off = ptr.offset
         cdef int i = 0
         while i < ptr.size:
-            r.append(self.type_ptr.unpack_data(src[off:]))
+            r.append(f(src[off:]))
             off += self.type_ptr.size
             i += 1
         return r
+
+    def unpack_olist(self, src): return self._unpack_olist_f(src, self.type_ptr.unpack_data)
+    def unpack_olist_reflection(self, src): return self._unpack_olist_f(src, self.type_ptr.unpack_reflection)
 
     def pack_olist(self, v, dest, tail, tail_offset):
         cdef tll_scheme_offset_ptr_t * ptr = read_optr(dest)
@@ -435,6 +447,18 @@ class Data(object):
                 l.append('{}: {}'.format(f.name, str(r)))
         return "<{} {}>".format(self.SCHEME.name, ", ".join(l))
 
+class Reflection(object):
+    SCHEME = None
+    __slots__ = ['__data']
+    def __init__(self, data):
+        self.__data = memoryview(data)
+
+    def __getattr__(self, k):
+        f = self.SCHEME.get(k, None)
+        if f is None:
+            raise AttributeError("Field {} not found".format(k))
+        return f.unpack_reflection(self.__data[f.offset:])
+
 class Message(OrderedDict):
     def object(self, *a, **kw):
         return self.klass(*a, **kw)
@@ -474,6 +498,11 @@ cdef object message_wrap(Scheme s, tll_scheme_message_t * ptr):
     D.__name__ = r.name
     r.klass = D
 
+    class R(Reflection):
+        SCHEME = r
+    R.__name__ = r.name
+    r.reflection = R
+
     cdef tll_scheme_enum_t * e = ptr.enums
     while e != NULL:
         tmp = enum_wrap(e)
@@ -485,6 +514,7 @@ cdef object message_wrap(Scheme s, tll_scheme_message_t * ptr):
         tmp = field_wrap(s, r, f)
         r[tmp.name] = tmp
         f = f.next
+
     return r
 
 cdef class Scheme:
@@ -587,3 +617,9 @@ cdef class Scheme:
             raise ValueError("No msgid in message")
         m = self.find(msg.msgid)
         return m.unpack(msg.data)
+
+    def reflection(self, msg):
+        if not msg.msgid:
+            raise ValueError("No msgid in message")
+        m = self.find(msg.msgid)
+        return m.reflection(msg.data)

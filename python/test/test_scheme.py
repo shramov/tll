@@ -124,6 +124,11 @@ def test_pack():
     assert_equals(m1.s0, 10)
     assert_equals(m1.s1, [1., 2., 3.])
 
+    r = M.SCHEME.reflection(data)
+    assert_equals(getattr(r, 'xxx', None), None)
+    assert_equals(r.s0, m1.s0)
+    assert_equals(r.s1, m1.s1)
+
 def optr(off, size, entity):
     return (entity << 56) | (size << 32) | off
 
@@ -151,6 +156,12 @@ def test_sub_pack():
     assert_equals([x.s0 for x in m1.f1], [20, 30])
     assert_equals([x.s0 for x in m1.f2], [40, 50])
     assert_equals([[x.s0 for x in y] for y in m1.f3], [[60], [], [70, 80]])
+
+    r = M.reflection(data)
+    assert_equals(r.f0.s0, m1.f0.s0)
+    assert_equals([x.s0 for x in r.f1], [20, 30])
+    assert_equals([x.s0 for x in r.f2], [40, 50])
+    assert_equals([[x.s0 for x in y] for y in r.f3], [[60], [], [70, 80]])
 
 def test_string():
     s = S.Scheme('''yamls://
