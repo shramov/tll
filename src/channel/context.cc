@@ -92,7 +92,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 	{
 		if (name.empty())
 			name = impl->name;
-		_log.debug("Register channel {} as {}", impl->name, name);
+		_log.debug("Register {}channel {} as {}", impl->prefix?"prefix ":"", impl->name, name);
 		if (!registry.emplace(name, impl).second)
 			return _log.fail(EEXIST, "Failed to register '{}': duplicate name", name);
 		return 0;
@@ -122,7 +122,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		auto path = fmt::format("{}lib{}.so", sep == name.npos?std::string():p.substr(0, sep + 1), name);
 
 		log.debug("Loading from {}", path);
-		auto module = dlopen(path.c_str(), RTLD_GLOBAL | RTLD_NOW);
+		auto module = dlopen(path.c_str(), RTLD_LOCAL | RTLD_NOW);
 		if (!module)
 			return log.fail(EINVAL, "Failed to load: {}", dlerror());
 		auto f = (tll_channel_module_t *) dlsym(module, symbol.c_str());
@@ -133,7 +133,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 				reg(*i);
 			}
 		} else
-			log.info("No channels defined in module {}");
+			log.info("No channels defined in module {}:{}", path, symbol);
 		//(*f->init)(this);
 		return 0;
 	}
