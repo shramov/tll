@@ -15,6 +15,7 @@ namespace tll::channel {
 template <typename T>
 class Prefix : public Base<T>
 {
+protected:
 	std::unique_ptr<Channel> _child;
 public:
 
