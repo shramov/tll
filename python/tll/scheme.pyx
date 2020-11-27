@@ -434,6 +434,9 @@ class Data(object):
             raise KeyError("No such field in {}: {}".format(self.SCHEME.name, k))
         object.__setattr__(self, k, f.convert(v))
 
+    def __repr__(self):
+        return "<{}.Data.{} object at {:x}>".format(self.__module__, self.__class__.__name__, id(self))
+
     def __str__(self):
         l = []
         for f in self.SCHEME.fields:
@@ -458,6 +461,9 @@ class Reflection(object):
         if f is None:
             raise AttributeError("Field {} not found".format(k))
         return f.unpack_reflection(self.__data[f.offset:])
+
+    def __repr__(self):
+        return "<{}.Data.{} object at {:x}>".format(self.__module__, self.__class__.__name__, id(self))
 
 class Message(OrderedDict):
     def object(self, *a, **kw):
