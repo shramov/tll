@@ -51,6 +51,7 @@ class MsgMask(enum.IntFlag):
     Control = TLL_MESSAGE_MASK_CONTROL
     State = TLL_MESSAGE_MASK_STATE
     Channel = TLL_MESSAGE_MASK_CHANNEL
+_MsgMask = MsgMask
 
 class Caps(enum.IntFlag):
     Input = TLL_CAPS_INPUT
@@ -78,6 +79,7 @@ cdef class Channel:
     Caps = _Caps
     DCaps = _DCaps
     State = common.State
+    MsgMask = _MsgMask
 
     def __cinit__(self):
         self._ptr = NULL
