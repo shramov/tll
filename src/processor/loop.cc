@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2020 Pavel Shramov <shramov@mexmat.net>
+ *
+ * tll is free software; you can redistribute it and/or modify
+ * it under the terms of the MIT license. See LICENSE for details.
+ */
+
 #include "tll/processor/loop.h"
 #include "tll/util/string.h"
 
