@@ -212,6 +212,7 @@ def convert_int32(v): return <int32_t>v
 def convert_int64(v): return <int64_t>v
 def convert_double(v): return float(v)
 def convert_decimal128(v): return Decimal(v)
+def from_string_int(v): return int(v, 0)
 
 class Field:
     Sub = SubType
@@ -220,34 +221,40 @@ class Field:
         if type == Field.Int8:
             self.pack_data, self.unpack_data = pack_int8, unpack_int8
             self.convert = convert_int8
+            self._from_string = from_string_int
             self.default = int
         elif type == Field.Int16:
             self.pack_data, self.unpack_data = pack_int16, unpack_int16
             self.convert = convert_int16
+            self._from_string = from_string_int
             self.default = int
         elif type == Field.Int32:
             self.pack_data, self.unpack_data = pack_int32, unpack_int32
             self.convert = convert_int32
+            self._from_string = from_string_int
             self.default = int
         elif type == Field.Int64:
             self.pack_data, self.unpack_data = pack_int64, unpack_int64
             self.convert = convert_int64
+            self._from_string = from_string_int
             self.default = int
         elif type == Field.Double:
             self.pack_data, self.unpack_data = pack_double, unpack_double
             self.convert = convert_double
-            self.default = float
+            self.default = self._from_string = float
         elif type == Field.Decimal128:
             self.pack_data, self.unpack_data = pack_decimal128, unpack_decimal128
             self.convert = convert_decimal128
-            self.default = Decimal
+            self.default = self._from_string = Decimal
         elif type == Field.Bytes:
             self.pack_data, self.unpack_data = pack_bytes, unpack_bytes
             self.convert = lambda x: x
             self.default = bytes
             if self.sub_type == SubType.ByteString:
                 self.unpack_data = unpack_str
-                self.default = str
+                self.default = self._from_string = str
+            else:
+                self._from_string = lambda v: v.encode('utf-8')
         elif type == Field.Message:
             self.pack, self.unpack = self.pack_msg, self.unpack_msg
             #self.pack_data, self.unpack_data = self.pack_data_msg, self.unpack_data_msg
@@ -264,6 +271,7 @@ class Field:
             if self.sub_type == SubType.ByteString:
                 self.pack_data, self.unpack_data = pack_vstring, unpack_vstring
                 self.convert = lambda x: x
+                self._from_string = lambda x: x
                 self.default = str
             else:
                 self.pack_data, self.unpack_data = self.pack_olist, self.unpack_olist
@@ -380,6 +388,14 @@ class Field:
             off += f.size
         tail.extend(b)
         if tnew: tail.extend(tnew)
+
+    def from_string(self, v : str):
+        if not hasattr(self, '_from_string'):
+            raise TypeError("Field {} with type {} can not be constructed from string".format(self.name, self.type))
+        return self.convert(self._from_string(v))
+
+    def _from_string_int(self, v):
+        return self.convert(int(v, 0))
 
 for t in Type:
     setattr(Field, t.name, t)

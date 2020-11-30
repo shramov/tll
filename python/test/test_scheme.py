@@ -185,6 +185,36 @@ def test_string():
     assert_equals(m1.f0, "ыыы")
     assert_equals(m1.f1.s0, "nestedtail")
 
+def test_from_string():
+    s = S.Scheme('''yamls://
+- name: msg
+  fields:
+    - {name: int8, type: int8}
+    - {name: int16, type: int16}
+    - {name: int32, type: int32}
+    - {name: int64, type: int64}
+    - {name: double, type: double}
+    - {name: string, type: string}
+    - {name: byte16, type: byte16}
+    - {name: string16, type: byte16, option.type: string}
+    - {name: array, type: 'int8[8]'}
+    - {name: ptr, type: '*int8'}
+''')
+
+    msg = s['msg']
+    assert_equals(msg['int8'].from_string("100"), 100)
+    assert_equals(msg['int16'].from_string("0x1234"), 0x1234)
+    assert_equals(msg['int32'].from_string("0o777777777"), 0o777777777)
+    assert_equals(msg['int64'].from_string("12345678"), 12345678)
+    assert_equals(msg['double'].from_string("123.456"), 123.456)
+    assert_equals(msg['string'].from_string("string"), "string")
+    assert_equals(msg['byte16'].from_string("string"), b"string")
+
+    assert_raises(OverflowError, msg['int8'].from_string, "1000")
+    assert_raises(ValueError, msg['int8'].from_string, "string")
+    assert_raises(TypeError, msg['array'].from_string, "[]")
+    assert_raises(TypeError, msg['ptr'].from_string, "[]")
+
 SCHEME_ALIAS = '''yamls://
 - name:
   aliases:
