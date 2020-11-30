@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # vim: sts=4 sw=4 et
 
+from tll import asynctll
 import tll.channel as C
 from tll.channel.base import Base
 from tll.channel.prefix import Prefix
@@ -217,3 +218,105 @@ def test_logic():
     o.process()
 
     assert_equals([m.data.tobytes() for m in o.result], [b'xxx'])
+
+class _test_base_logic:
+    CHANNELS = {}
+    SCHEME = None
+
+    def __new__(cls):
+        obj = object.__new__(cls)
+        for k,v in cls.__dict__.items():
+            if not k.startswith('async_test') or not callable(v):
+                continue
+            #print("Wrap {}: {}".format(k, v))
+            def wrap(x):
+                def f(*a, **kw):
+                    future = x(obj, *a, **kw)
+                    if future is None:
+                        return
+                    obj.loop.run(future)
+                return f
+            setattr(obj, k, wrap(v))
+        return obj
+
+    def setup(self):
+        self.channels = {}
+        self.ctx = C.Context()
+        self.loop = asynctll.Loop(self.ctx)
+        channels = set()
+        for k,l in self.CHANNELS.items():
+            if not l: continue
+            for c in [x.strip() for x in l.split(',')]:
+                if c == '':
+                    raise ValueError("Empty channel name in '{}'", l)
+                channels.add(c)
+        kw = {}
+        if self.SCHEME:
+            kw['scheme'] = self.SCHEME
+        for c in channels:
+            self.channels['test/' + c] = self.loop.Channel('direct://;name=test/{name}'.format(name=c), **kw)
+            self.channels[c] = self.loop.Channel('direct://;name={name};master=test/{name}'.format(name=c), **kw)
+
+        for n,c in self.channels.items():
+            if n.startswith('test/'):
+                c.open()
+
+    def teardown(self):
+        for c in self.channels.values():
+            c.close()
+        self.channels = None
+        self.loop = None
+        self.ctx = None
+
+class test_logic_async(_test_base_logic):
+    CHANNELS = {'input': 'input', 'output': 'output'}
+    SCHEME = 'yamls://[{name: msg, id: 10, fields: [{name: f0, type: int32}]}]'
+
+    async def async_test(self):
+        self.ctx.register(TestLogic)
+        logic = self.loop.Channel('logic://;name=logic;tll.channel.input=input;tll.channel.output=output')
+        logic.open()
+
+        i, o = self.channels['test/input'], self.channels['test/output']
+
+        self.channels['input'].open()
+        self.channels['output'].open()
+
+        msg = C.Message(msgid=10, data=i.scheme['msg'].object(f0=0xbeef).pack())
+
+        i.post(msg, seq=10)
+        i.post(b'zzz', seq=20)
+
+        m = await o.recv()
+        assert_equals(m.data.tobytes(), b'\xef\xbe\x00\x00')
+        assert_equals(m.seq, 10)
+
+        m = await o.recv()
+        assert_equals(m.data.tobytes(), b'zzz')
+        assert_equals(m.seq, 20)
+
+def test_logic_async_func():
+    ctx = C.Context()
+    ctx.register(TestLogic)
+    loop = asynctll.Loop(ctx)
+    async def main(loop):
+        i, o = loop.Channel('direct://;name=test/input'), loop.Channel('direct://;name=test/output')
+        li, lo = loop.Channel('direct://;name=input;master=test/input'), loop.Channel('direct://;name=output;master=test/output')
+        i.open(), o.open()
+        li.open(), lo.open()
+
+        logic = loop.Channel('logic://;name=logic;tll.channel.input=input;tll.channel.output=output')
+        logic.open()
+
+        i.post(b'xxx', seq=10)
+        i.post(b'zzz', seq=20)
+
+        m = await o.recv()
+        assert_equals(m.data.tobytes(), b'xxx')
+        assert_equals(m.seq, 10)
+
+        m = await o.recv()
+        assert_equals(m.data.tobytes(), b'zzz')
+        assert_equals(m.seq, 20)
+
+    loop.run(main(loop))
