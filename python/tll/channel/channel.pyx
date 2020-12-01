@@ -335,7 +335,7 @@ class Message:
     __slots__ = ["type", "msgid", "seq", "addr", "data"]
 
     def __init__(self, msgid, data=b'', type : _Type =_Type.Data, seq : int = None, addr : int = None):
-        self.type, self.msgid, self.seq, self.addr, self.data = type, msgid, seq, addr, data
+        self.type, self.msgid, self.seq, self.addr, self.data = type, msgid, seq, addr, memoryview(data)
 
 cdef class CMessage:
     Type = _Type
