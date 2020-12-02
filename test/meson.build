@@ -1,5 +1,6 @@
 fs_link_args = []
-if not meson.get_compiler('cpp').has_header('filesystem')
+cxx = meson.get_compiler('cpp')
+if not cxx.has_header('filesystem') or (cxx.get_id() == 'gcc' and cxx.version().version_compare('< 9.0'))
 	fs_link_args = ['-lstdc++fs']
 	#add_project_link_arguments('-lstdc++fs', language: 'cpp')
 endif
