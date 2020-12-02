@@ -16,6 +16,10 @@ notifications:
 
 addons:
   apt:
+    sources: # repository with backports and tll packages
+      - sourceline: "deb http://psha.org.ru/debian/ $TRAVIS_DIST contrib backports"
+        key_url: https://psha.org.ru/debian/pubkey.gpg
+
     packages:
       - clang # For clang variant, PATH is reset
       - cmake
@@ -31,9 +35,9 @@ before_install:
 # TODO: remove when not needed. Enable IPv6, https://github.com/travis-ci/travis-ci/issues/8891
   - sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
 # Get libfmt 5, not available in bionic
-  - wget http://archive.ubuntu.com/ubuntu/pool/universe/f/fmtlib/libfmt-dev_5.2.1+ds-2_amd64.deb && sudo dpkg -i libfmt-dev_5.2.1+ds-2_amd64.deb
+  #- wget http://archive.ubuntu.com/ubuntu/pool/universe/f/fmtlib/libfmt-dev_5.2.1+ds-2_amd64.deb && sudo dpkg -i libfmt-dev_5.2.1+ds-2_amd64.deb
 # Get meson from 19.10, 0.45 is unusable
-  - wget http://archive.ubuntu.com/ubuntu/pool/universe/m/meson/meson_0.51.2-1_all.deb && sudo dpkg -i meson_0.51.2-1_all.deb
+  #- wget http://archive.ubuntu.com/ubuntu/pool/universe/m/meson/meson_0.51.2-1_all.deb && sudo dpkg -i meson_0.51.2-1_all.deb
 
 script:
   - |
@@ -43,11 +47,8 @@ script:
     export PATH=/home/travis/bin:/bin:/usr/bin:/usr/local/bin # Reset path so pyenv is ignored
     meson build
     ninja -vC build
-    #mkdir build
-    #cd build
-    #cmake ..
-    #make VERBOSE=1
-    #ctest -V
     cd python
     python3 setup.py build_ext --inplace --library-dirs=../build/src --rpath=`pwd`/../build/src
     nosetests3 -v
+
+# vim: sts=2 sw=2 et
