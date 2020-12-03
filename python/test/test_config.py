@@ -2,70 +2,70 @@
 # vim: sts=4 sw=4 et
 
 import copy
+import pytest
 
 import common
 
 from tll.config import Config
 from tll.error import TLLError
-from nose.tools import *
 
 from tll.test_util import base64gz
 
 def test_basic():
     cfg = Config.load('yamls://{a: [{x: 0, y: 1}, {x: 1, y: 0}], b: {x: 2, y: 2}}')
-    assert_equal(cfg['b.x'], '2')
-    assert_equal(cfg['b.y'], '2')
-    assert_false('b.z' in cfg)
-    assert_true('b.x' in cfg)
-    assert_equals(cfg.as_dict(), {'a': [{'x': '0', 'y': '1'}, {'x': '1', 'y': '0'}], 'b': {'x': '2', 'y': '2'}})
+    assert cfg['b.x'] == '2'
+    assert cfg['b.y'] == '2'
+    assert 'b.z' not in cfg
+    assert 'b.x' in cfg
+    assert cfg.as_dict() == {'a': [{'x': '0', 'y': '1'}, {'x': '1', 'y': '0'}], 'b': {'x': '2', 'y': '2'}}
     #del cfg['b.x']
     #assert_false('b.x' in cfg)
 
 def test_copy():
     cfg = Config.load('yamls://{a: 1, b: {x: 2, y: 3}}')
-    assert_equals(dict(cfg.browse('**')), {'a':'1', 'b.x':'2', 'b.y':'3'})
+    assert dict(cfg.browse('**')) == {'a':'1', 'b.x':'2', 'b.y':'3'}
     cc0 = cfg.copy()
     cc1 = copy.copy(cfg)
     cdc = copy.deepcopy(cfg)
     for c in [cc0, cc1, cdc]:
-        assert_equals(dict(c.browse('**')), {'a':'1', 'b.x':'2', 'b.y':'3'})
+        assert dict(c.browse('**')) == {'a':'1', 'b.x':'2', 'b.y':'3'}
     cfg['a'] = '9'
     for c in [cc0, cc1, cdc]:
-        assert_equals(dict(c.browse('**')), {'a':'1', 'b.x':'2', 'b.y':'3'})
+        assert dict(c.browse('**')) == {'a':'1', 'b.x':'2', 'b.y':'3'}
 
 def _test_yaml(data, v):
     c = Config.load('yamls://' + data)
     d = dict(c.browse('**'))
-    assert_equals(d, v)
+    assert d == v
 
     c = Config.load('yamls+gz://' + base64gz(data))
     d = dict(c.browse('**'))
-    assert_equals(d, v)
+    assert d == v
 
 def test_yaml():
-    yield _test_yaml, '''a: 1''', {'a': '1'}
-    yield _test_yaml, '''{a: 1}''', {'a': '1'}
-    yield _test_yaml, '''[a: 1]''', {'0000.a': '1'}
-    yield _test_yaml, '''a: [1, 2, 3]''', {'a.0000': '1', 'a.0001': '2', 'a.0002': '3'}
-    yield _test_yaml, '''a: [[1, 2], 3, [4]]''', {'a.0000.0000': '1', 'a.0000.0001': '2', 'a.0001': '3', 'a.0002.0000': '4'}
-    yield _test_yaml, '''[{a: 1}, {b: 2}]''', {'0000.a': '1', '0001.b': '2'}
-    yield _test_yaml, '''[{a: 1}, {b: 2}]''', {'0000.a': '1', '0001.b': '2'}
-    yield _test_yaml, '''a: 1\n\nb: 2''', {'a': '1', 'b': '2'}
-    yield _test_yaml, '''#comment
+    _test_yaml('''a: 1''', {'a': '1'})
+    _test_yaml('''{a: 1}''', {'a': '1'})
+    _test_yaml('''[a: 1]''', {'0000.a': '1'})
+    _test_yaml('''a: [1, 2, 3]''', {'a.0000': '1', 'a.0001': '2', 'a.0002': '3'})
+    _test_yaml('''a: [[1, 2], 3, [4]]''', {'a.0000.0000': '1', 'a.0000.0001': '2', 'a.0001': '3', 'a.0002.0000': '4'})
+    _test_yaml('''[{a: 1}, {b: 2}]''', {'0000.a': '1', '0001.b': '2'})
+    _test_yaml('''[{a: 1}, {b: 2}]''', {'0000.a': '1', '0001.b': '2'})
+    _test_yaml('''a: 1\n\nb: 2''', {'a': '1', 'b': '2'})
+    _test_yaml('''#comment
 a:
   f: 1
 
 b:
-  f: 2''', {'a.f': '1', 'b.f': '2'}
+  f: 2''', {'a.f': '1', 'b.f': '2'})
     #yield _test_yaml, b'''\xef\xbb\xbfa: 1'''.decode('utf-8'), {'a': '1'}
-    yield _test_yaml, '''\ufeffa: 1''', {'a': '1'}
+    _test_yaml('''\ufeffa: 1''', {'a': '1'})
 
-def _test_yaml_fail(data):
-    assert_raises(TLLError, Config.load, 'yamls://' + data)
-
-def test_yaml_fail():
-    yield _test_yaml_fail, '''{a: b[3]}'''
-    yield _test_yaml_fail, '''{a: 1, a: 2}'''
+@pytest.mark.parametrize("data", [
+    '''{a: b[3]}''',
+    '''{a: 1, a: 2}''',
+])
+def test_yaml_fail(data):
+    with pytest.raises(TLLError): Config.load('yamls://' + data)
 
 def test_set_sub():
     c = Config.load("yamls://{a: 1, c: 2}")
@@ -73,43 +73,43 @@ def test_set_sub():
     c["b"] = sub
 
     d = dict(c.browse('**'))
-    assert_equals(d, {'a': '1', 'c': '2', 'b.d': '3', 'b.e.f': '4'})
+    assert d == {'a': '1', 'c': '2', 'b.d': '3', 'b.e.f': '4'}
 
 def _test_merge(ow, c0, c1, r):
     c = Config.load('yamls://' + c0)
     c.merge(Config.load('yamls://' + c1), overwrite = ow == 'overwrite')
     d = dict(c.browse('**'))
-    assert_equals(d, r)
+    assert d == r
 
 def test_merge():
-    yield _test_merge, 'overwrite','a: 1', 'a: 2', {'a': '2'}
-    yield _test_merge, 'overwrite','a: 1', 'b: 2', {'a': '1', 'b': '2'}
-    yield _test_merge, 'overwrite','{a: 1, b.c: 1}', 'b.d: 2', {'a': '1', 'b.c': '1', 'b.d': '2'}
-    yield _test_merge, 'import','a: 1', 'a: 2', {'a': '1'}
-    yield _test_merge, 'import','a: 1', 'b: 2', {'a': '1', 'b': '2'}
-    yield _test_merge, 'import','{a: 1, b.c: 1}', 'b.d: 2', {'a': '1', 'b.c': '1', 'b.d': '2'}
+    _test_merge('overwrite','a: 1', 'a: 2', {'a': '2'})
+    _test_merge('overwrite','a: 1', 'b: 2', {'a': '1', 'b': '2'})
+    _test_merge('overwrite','{a: 1, b.c: 1}', 'b.d: 2', {'a': '1', 'b.c': '1', 'b.d': '2'})
+    _test_merge('import','a: 1', 'a: 2', {'a': '1'})
+    _test_merge('import','a: 1', 'b: 2', {'a': '1', 'b': '2'})
+    _test_merge('import','{a: 1, b.c: 1}', 'b.d: 2', {'a': '1', 'b.c': '1', 'b.d': '2'})
 
-def _test_getT(s, k, t, v):
+@pytest.mark.parametrize("s,k,t,v", [
+    ('{a: 10}', 'a', int, 10),
+    ('{a: 10}', 'a', int, 10),
+    ('{a: 10}', 'a', float, 10.),
+    ('{a: 10}', 'a', bool, None),
+    ('{a: yes}', 'a', bool, True),
+])
+def test_getT(s, k, t, v):
     c = Config.load('yamls://' + s)
     if v is None:
-        assert_raises(ValueError, c.getT, k, t())
+        with pytest.raises(ValueError): c.getT(k, t())
     else:
-        assert_equals(c.getT(k, t()), v)
-
-def test_getT():
-    yield _test_getT, '{a: 10}', 'a', int, 10
-    yield _test_getT, '{a: 10}', 'a', int, 10
-    yield _test_getT, '{a: 10}', 'a', float, 10.
-    yield _test_getT, '{a: 10}', 'a', bool, None
-    yield _test_getT, '{a: yes}', 'a', bool, True
+        assert c.getT(k, t()) == v
 
 def _test_load(proto, data, r):
     c = Config.load_data(proto, data)
-    assert_equals(dict(c.browse("**")), r)
+    assert dict(c.browse("**")) == r
 
 def test_load():
-    yield _test_load, 'url', 'proto://host;a=b;c=d', {'tll.proto':'proto', 'tll.host':'host', 'a':'b', 'c':'d'}
-    yield _test_load, 'props', 'a=b;c=d', {'a':'b', 'c':'d'}
+    _test_load('url', 'proto://host;a=b;c=d', {'tll.proto':'proto', 'tll.host':'host', 'a':'b', 'c':'d'})
+    _test_load('props', 'a=b;c=d', {'a':'b', 'c':'d'})
 
 def test_process_imports():
     c = Config.load('''yamls://
@@ -119,6 +119,6 @@ import:
 b.c: 10
 ''')
 
-    assert_equals(c.as_dict(), {'b': {'c':'10'}, 'import': ['yamls://{a: 1, b.c: 2}', 'yamls://{a: 2, b.d: 3}']})
+    assert c.as_dict(), {'b': {'c':'10'}, 'import': ['yamls://{a: 1, b.c: 2}', 'yamls://{a: 2 == b.d: 3}']}
     c.process_imports('import')
-    assert_equals(c.as_dict(), {'a': '2', 'b': {'c':'10', 'd':'3'}, 'import': ['yamls://{a: 1, b.c: 2}', 'yamls://{a: 2, b.d: 3}']})
+    assert c.as_dict(), {'a': '2', 'b': {'c':'10', 'd':'3'}, 'import': ['yamls://{a: 1, b.c: 2}', 'yamls://{a: 2 == b.d: 3}']}

@@ -2,7 +2,7 @@ task:
   name: FreeBSD
   freebsd_instance:
     image_family: freebsd-11-4
-  install_script: pkg install -y meson pkgconf libfmt libyaml googletest python3 py37-cython py37-nose
+  install_script: pkg install -y meson pkgconf libfmt libyaml googletest python3 py37-cython py37-pytest
   script: |
     set -e
     meson build
@@ -14,4 +14,4 @@ task:
     set -e
     meson test --no-suite slow -C build --no-rebuild --print-errorlogs
     cd python
-    python3 -m nose -v || true # Not all tests are passing on FreeBSD now
+    python3 -m pytest --log-level=DEBUG -v || true # Not all tests are passing on FreeBSD now

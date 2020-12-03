@@ -29,7 +29,7 @@ addons:
       - googletest
       - python3-dev
       - cython3
-      - python3-nose
+      - python3-pytest
 
 before_install:
 # TODO: remove when not needed. Enable IPv6, https://github.com/travis-ci/travis-ci/issues/8891
@@ -49,6 +49,6 @@ script:
     ninja -vC build
     cd python
     python3 setup.py build_ext --inplace --library-dirs=../build/src --rpath=`pwd`/../build/src
-    nosetests3 -v
+    python3 -m pytest --log-level=DEBUG -v
 
 # vim: sts=2 sw=2 et

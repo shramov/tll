@@ -10,8 +10,7 @@ from tll.error import TLLError
 from tll.test_util import Accum
 
 import common
-
-from nose.tools import *
+import pytest
 
 class Echo(Base):
     PROTO = "echo"
@@ -39,6 +38,7 @@ class Echo(Base):
         self._callback(msg.copy())
 
 class TestPrefix(Prefix):
+    __test__ = False
     PROTO = "prefix"
 
     def _init(self, url, master=None):
@@ -48,6 +48,7 @@ class TestPrefix(Prefix):
         super()._open(props)
 
 class TestLogic(Logic):
+    __test__ = False
     PROTO = "logic"
 
     def _init(self, url, master=None):
@@ -74,129 +75,129 @@ class TestLogic(Logic):
 def test():
     ctx = C.Context()
 
-    assert_raises(TLLError, ctx.Channel, "echo://;name=echo")
+    with pytest.raises(TLLError): ctx.Channel("echo://;name=echo")
     ctx.register(Echo)
     c = Accum("echo://;name=echo", context=ctx)
     cfg = c.config
 
-    assert_equals(c.state, c.State.Closed)
-    assert_equals(cfg.get("state", ""), "Closed")
-    assert_equals([x.name for x in c.children], [])
+    assert c.state == c.State.Closed
+    assert cfg.get("state", "") == "Closed"
+    assert [x.name for x in c.children] == []
 
     c.open()
 
-    assert_equals([x.name for x in c.children], ['child', 'orphan'])
+    assert [x.name for x in c.children], ['child' == 'orphan']
 
-    assert_equals(c.state, c.State.Opening)
-    assert_equals(cfg.get("state", ""), "Opening")
+    assert c.state == c.State.Opening
+    assert cfg.get("state", "") == "Opening"
 
     c.process()
 
-    assert_equals(c.state, c.State.Active)
-    assert_equals(cfg.get("state", ""), "Active")
+    assert c.state == c.State.Active
+    assert cfg.get("state", "") == "Active"
 
-    assert_equals(c.result, [])
+    assert c.result == []
     c.post(b'xxx', seq=100)
-    assert_equals([(m.seq, m.data.tobytes()) for m in c.result], [(100, b'xxx')])
+    assert [(m.seq, m.data.tobytes()) for m in c.result], [(100 == b'xxx')]
 
     c.close()
-    assert_equals([x.name for x in c.children], ['orphan'])
+    assert [x.name for x in c.children] == ['orphan']
     del c
 
-    assert_equals(ctx.get('orphan'), None)
+    assert ctx.get('orphan') == None
 
     ctx.unregister(Echo)
-    assert_raises(TLLError, ctx.Channel, "echo://;name=echo")
+    with pytest.raises(TLLError): ctx.Channel("echo://;name=echo")
 
 def test_prefix():
     ctx = C.Context()
 
-    assert_raises(TLLError, ctx.Channel, "prefix+null://;name=channel")
+    with pytest.raises(TLLError): ctx.Channel("prefix+null://;name=channel")
     ctx.register(Echo)
     ctx.register(TestPrefix)
     c = Accum("prefix+echo://;name=channel", context=ctx)
     cfg = c.config
 
-    assert_equals(c.state, c.State.Closed)
-    assert_equals(cfg.get("state", ""), "Closed")
-    assert_equals([x.name for x in c.children], ['channel/prefix'])
+    assert c.state == c.State.Closed
+    assert cfg.get("state", "") == "Closed"
+    assert [x.name for x in c.children] == ['channel/prefix']
 
     c.open()
 
-    assert_equals([x.name for x in c.children], ['channel/prefix'])
+    assert [x.name for x in c.children] == ['channel/prefix']
 
-    assert_equals(c.state, c.State.Opening)
-    assert_equals(cfg.get("state", ""), "Opening")
+    assert c.state == c.State.Opening
+    assert cfg.get("state", "") == "Opening"
 
     c.process()
 
-    assert_equals(c.state, c.State.Opening)
-    assert_equals(cfg.get("state", ""), "Opening")
+    assert c.state == c.State.Opening
+    assert cfg.get("state", "") == "Opening"
 
     c.children[0].process()
 
-    assert_equals(c.state, c.State.Active)
-    assert_equals(cfg.get("state", ""), "Active")
+    assert c.state == c.State.Active
+    assert cfg.get("state", "") == "Active"
 
-    assert_equals(c.result, [])
+    assert c.result == []
     c.post(b'xxx', seq=100)
-    assert_equals([(m.seq, m.data.tobytes()) for m in c.result], [(100, b'xxx')])
+    assert [(m.seq, m.data.tobytes()) for m in c.result], [(100 == b'xxx')]
 
     c.close()
-    assert_equals([x.name for x in c.children], ['channel/prefix'])
+    assert [x.name for x in c.children] == ['channel/prefix']
     del c
 
     ctx.unregister(TestPrefix)
-    assert_raises(TLLError, ctx.Channel, "prefix+null://;name=channel")
+    with pytest.raises(TLLError): ctx.Channel("prefix+null://;name=channel")
 
 def test_prefix():
     ctx = C.Context()
 
-    assert_raises(TLLError, ctx.Channel, "prefix+null://;name=channel")
+    with pytest.raises(TLLError): ctx.Channel("prefix+null://;name=channel")
     ctx.register(Echo)
     ctx.register(TestPrefix)
     c = Accum("prefix+echo://;name=channel", context=ctx)
     cfg = c.config
 
-    assert_equals(c.state, c.State.Closed)
-    assert_equals(cfg.get("state", ""), "Closed")
-    assert_equals([x.name for x in c.children], ['channel/prefix'])
+    assert c.state == c.State.Closed
+    assert cfg.get("state", "") == "Closed"
+    assert [x.name for x in c.children] == ['channel/prefix']
 
     c.open()
 
-    assert_equals([x.name for x in c.children], ['channel/prefix'])
+    assert [x.name for x in c.children] == ['channel/prefix']
 
-    assert_equals(c.state, c.State.Opening)
-    assert_equals(cfg.get("state", ""), "Opening")
+    assert c.state == c.State.Opening
+    assert cfg.get("state", "") == "Opening"
 
     c.process()
 
-    assert_equals(c.state, c.State.Opening)
-    assert_equals(cfg.get("state", ""), "Opening")
+    assert c.state == c.State.Opening
+    assert cfg.get("state", "") == "Opening"
 
     c.children[0].process()
 
-    assert_equals(c.state, c.State.Active)
-    assert_equals(cfg.get("state", ""), "Active")
+    assert c.state == c.State.Active
+    assert cfg.get("state", "") == "Active"
 
-    assert_equals(c.result, [])
+    assert c.result == []
     c.post(b'xxx', seq=100)
-    assert_equals([(m.seq, m.data.tobytes()) for m in c.result], [(100, b'xxx')])
+    assert [(m.seq, m.data.tobytes()) for m in c.result], [(100 == b'xxx')]
 
     c.close()
-    assert_equals([x.name for x in c.children], ['channel/prefix'])
+    assert [x.name for x in c.children] == ['channel/prefix']
     del c
 
     ctx.unregister(TestPrefix)
-    assert_raises(TLLError, ctx.Channel, "prefix+null://;name=channel")
+    with pytest.raises(TLLError): ctx.Channel("prefix+null://;name=channel")
 
 def test_logic():
     ctx = C.Context()
 
-    assert_raises(TLLError, ctx.Channel, "logic://;name=logic")
+    with pytest.raises(TLLError): ctx.Channel("logic://;name=logic")
     ctx.register(TestLogic)
 
-    assert_raises(TLLError, ctx.Channel, "logic://;name=logic;tll.channel.input=input;tll.channel.output=input")
+    with pytest.raises(TLLError): ctx.Channel("logic://;name=logic;tll.channel.input=input;tll.channel.output=input")
 
     i = ctx.Channel('mem://;name=input;dump=yes')
     o = Accum('mem://;name=output;dump=yes', master=i, context=ctx)
@@ -209,37 +210,21 @@ def test_logic():
 
     o.post(b'xxx')
 
-    assert_equals([m.data.tobytes() for m in o.result], [])
+    assert [m.data.tobytes() for m in o.result] == []
 
     i.process()
 
-    assert_equals([m.data.tobytes() for m in o.result], [])
+    assert [m.data.tobytes() for m in o.result] == []
 
     o.process()
 
-    assert_equals([m.data.tobytes() for m in o.result], [b'xxx'])
+    assert [m.data.tobytes() for m in o.result] == [b'xxx']
 
 class _test_base_logic:
     CHANNELS = {}
     SCHEME = None
 
-    def __new__(cls):
-        obj = object.__new__(cls)
-        for k,v in cls.__dict__.items():
-            if not k.startswith('async_test') or not callable(v):
-                continue
-            #print("Wrap {}: {}".format(k, v))
-            def wrap(x):
-                def f(*a, **kw):
-                    future = x(obj, *a, **kw)
-                    if future is None:
-                        return
-                    obj.loop.run(future)
-                return f
-            setattr(obj, k, wrap(v))
-        return obj
-
-    def setup(self):
+    def setup_method(self):
         self.channels = {}
         self.ctx = C.Context()
         self.loop = asynctll.Loop(self.ctx)
@@ -261,14 +246,30 @@ class _test_base_logic:
             if n.startswith('test/'):
                 c.open()
 
-    def teardown(self):
+    def teardown_method(self):
         for c in self.channels.values():
             c.close()
         self.channels = None
         self.loop = None
         self.ctx = None
 
-class test_logic_async(_test_base_logic):
+def async_tests(cls):
+    for k,v in list(cls.__dict__.items()):
+        if not k.startswith('async_test') or not callable(v):
+            continue
+        print(f"Wrap {k}: {v}")
+        def wrap(x):
+            def f(obj, *a, **kw):
+                future = x(obj, *a, **kw)
+                if future is None:
+                    return
+                obj.loop.run(future)
+            return f
+        setattr(cls, 'test_async_' + k, wrap(v))
+    return cls
+
+@async_tests
+class TestLogicAsync(_test_base_logic):
     CHANNELS = {'input': 'input', 'output': 'output'}
     SCHEME = 'yamls://[{name: msg, id: 10, fields: [{name: f0, type: int32}]}]'
 
@@ -288,12 +289,12 @@ class test_logic_async(_test_base_logic):
         i.post(b'zzz', seq=20)
 
         m = await o.recv()
-        assert_equals(m.data.tobytes(), b'\xef\xbe\x00\x00')
-        assert_equals(m.seq, 10)
+        assert m.data.tobytes() == b'\xef\xbe\x00\x00'
+        assert m.seq == 10
 
         m = await o.recv()
-        assert_equals(m.data.tobytes(), b'zzz')
-        assert_equals(m.seq, 20)
+        assert m.data.tobytes() == b'zzz'
+        assert m.seq == 20
 
 def test_logic_async_func():
     ctx = C.Context()
@@ -312,11 +313,11 @@ def test_logic_async_func():
         i.post(b'zzz', seq=20)
 
         m = await o.recv()
-        assert_equals(m.data.tobytes(), b'xxx')
-        assert_equals(m.seq, 10)
+        assert m.data.tobytes() == b'xxx'
+        assert m.seq == 10
 
         m = await o.recv()
-        assert_equals(m.data.tobytes(), b'zzz')
-        assert_equals(m.seq, 20)
+        assert m.data.tobytes() == b'zzz'
+        assert m.seq == 20
 
     loop.run(main(loop))

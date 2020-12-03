@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 # vim: sts=4 sw=4 et
 
-from nose.tools import *
-
 import binascii
 import weakref
 import zlib

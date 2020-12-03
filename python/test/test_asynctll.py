@@ -10,7 +10,7 @@ from tll import asynctll
 
 import common
 
-from nose.tools import *
+import pytest
 
 def test_asynctll():
     loop = asynctll.Loop()
@@ -29,14 +29,14 @@ def test_asynctll():
 
         m = await loop.recv(c)
         loop.log.info("Got message {}", m)
-        assert_equals(m.seq, 100)
-        assert_equals(m.data, b'xxx')
+        assert m.seq == 100
+        assert m.data == b'xxx'
 
         s.post(b'zzz', seq=200)
 
         m = await loop.recv(c)
-        assert_equals(m.seq, 200)
-        assert_equals(m.data, b'zzz')
+        assert m.seq == 200
+        assert m.data == b'zzz'
 
     loop.run(main())
 
@@ -53,14 +53,14 @@ def test_channel():
 
         m = await c.recv()
         loop.log.info("Got message {}", m)
-        assert_equals(m.seq, 100)
-        assert_equals(m.data, b'xxx')
+        assert m.seq == 100
+        assert m.data == b'xxx'
 
         s.post(b'zzz', seq=200)
 
         m = await loop.recv(c) # Mixed syntax
-        assert_equals(m.seq, 200)
-        assert_equals(m.data, b'zzz')
+        assert m.seq == 200
+        assert m.data == b'zzz'
 
     loop.run(main(loop))
 
@@ -77,13 +77,13 @@ def test_nofd():
 
         m = await c.recv()
         loop.log.info("Got message {}", m)
-        assert_equals(m.seq, 100)
-        assert_equals(m.data, b'xxx')
+        assert m.seq == 100
+        assert m.data == b'xxx'
 
         s.post(b'zzz', seq=200)
 
         m = await loop.recv(c) # Mixed syntax
-        assert_equals(m.seq, 200)
-        assert_equals(m.data, b'zzz')
+        assert m.seq == 200
+        assert m.data == b'zzz'
 
     loop.run(main(loop))

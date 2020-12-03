@@ -8,10 +8,8 @@ import tll.scheme as S
 from tll.scheme import Field as F
 from tll.s2b import s2b
 
+import pytest
 import struct
-
-from nose import SkipTest
-from nose.tools import *
 
 scheme = """yamls://
 - name: ''
@@ -52,36 +50,36 @@ scheme = """yamls://
 
 def _test(s):
     for m in s.messages: print(m.fields)
-    assert_equals([m.name for m in s.messages], ["sub", "test", "enums"])
+    assert [m.name for m in s.messages] == ["sub", "test", "enums"]
     sub = s['sub']
-    assert_equals([(f.name, f.type) for f in sub.fields],
-        [("s0", F.Int32), ("s1", F.Array)])
-    assert_equals(sub['s1'].options, {})
-    assert_equals(sub['s1'].count_ptr.type, F.Int8)
-    assert_equals(sub['s1'].type_array.type, F.Double)
-    assert_equals(sub.size, 4 + 1 + 8 * 4)
+    assert [(f.name, f.type) for f in sub.fields] == \
+        [("s0", F.Int32), ("s1", F.Array)]
+    assert sub['s1'].options == {}
+    assert sub['s1'].count_ptr.type == F.Int8
+    assert sub['s1'].type_array.type == F.Double
+    assert sub.size == 4 + 1 + 8 * 4
 
     msg = s['test']
-    assert_equals(msg.msgid, 1)
-    assert_equals([(f.name, f.type) for f in msg.fields],
-        [("f0", F.Int8), ("f1", F.Int64), ("f2", F.Double), ("f3", F.Decimal128), ("f4", F.Bytes), ("f5", F.Pointer), ("f6", F.Array), ("f7", F.Pointer), ('f8', F.Pointer)])
-    assert_equals(msg['f6'].count_ptr.type, F.Int16)
-    assert_equals(msg['f6'].type_array.type, F.Message)
-    assert_equals([(f.name, f.sub_type) for f in msg.fields if f.sub_type != F.Sub.NONE],
-        [("f7", F.Sub.ByteString)])
-    assert_equals([(f.name, f.size) for f in msg.fields],
-        [("f0", 1), ("f1", 8), ("f2", 8), ("f3", 16), ("f4", 32), ("f5", 8), ("f6", 2 + 4 * sub.size), ("f7", 8), ("f8", 8)])
-    assert_equals(msg.size, 1 + 8 + 8 + 16 + 32 + 8 + (2 + 4 * sub.size) + 8 + 8)
+    assert msg.msgid == 1
+    assert [(f.name, f.type) for f in msg.fields] == \
+        [("f0", F.Int8), ("f1", F.Int64), ("f2", F.Double), ("f3", F.Decimal128), ("f4", F.Bytes), ("f5", F.Pointer), ("f6", F.Array), ("f7", F.Pointer), ('f8', F.Pointer)]
+    assert msg['f6'].count_ptr.type == F.Int16
+    assert msg['f6'].type_array.type == F.Message
+    assert [(f.name, f.sub_type) for f in msg.fields if f.sub_type != F.Sub.NONE] == \
+        [("f7", F.Sub.ByteString)]
+    assert [(f.name, f.size) for f in msg.fields] == \
+        [("f0", 1), ("f1", 8), ("f2", 8), ("f3", 16), ("f4", 32), ("f5", 8), ("f6", 2 + 4 * sub.size), ("f7", 8), ("f8", 8)]
+    assert msg.size == 1 + 8 + 8 + 16 + 32 + 8 + (2 + 4 * sub.size) + 8 + 8
 
     msg = s['enums']
-    assert_equals(msg.msgid, 10)
-    assert_equals([(f.name, f.type) for f in msg.fields],
-        [("f0", F.Int8), ("f1", F.Int16), ("f2", F.Int32), ("f3", F.Int64)])
-    assert_equals([(f.name, f.sub_type) for f in msg.fields],
-        [("f0", F.Sub.Enum), ("f1", F.Sub.Enum), ("f2", F.Sub.Enum), ("f3", F.Sub.Enum)])
-    assert_equals([(f.name, f.size) for f in msg.fields],
-        [("f0", 1), ("f1", 2), ("f2", 4), ("f3", 8)])
-    assert_equals(msg.size, 1 + 2 + 4 + 8)
+    assert msg.msgid == 10
+    assert [(f.name, f.type) for f in msg.fields] == \
+        [("f0", F.Int8), ("f1", F.Int16), ("f2", F.Int32), ("f3", F.Int64)]
+    assert [(f.name, f.sub_type) for f in msg.fields] == \
+        [("f0", F.Sub.Enum), ("f1", F.Sub.Enum), ("f2", F.Sub.Enum), ("f3", F.Sub.Enum)]
+    assert [(f.name, f.size) for f in msg.fields] == \
+        [("f0", 1), ("f1", 2), ("f2", 4), ("f3", 8)]
+    assert msg.size == 1 + 2 + 4 + 8
 
 def test():
     return _test(S.Scheme(scheme))
@@ -97,16 +95,16 @@ def _test_options(s):
     for m in s.messages: print(m.options)
     sub = s['sub']
     msg = s['test']
-    assert_equals(s['sub'].options, {'a':'1', 'b':'2'})
-    assert_equals(s['test'].options, {'m':'10'})
-    assert_equals(s['test']['f0'].options, {'a':'10', 'b':'20'})
-    assert_equals(s['test']['f1'].options, {})
-    assert_equals(s['test']['f5'].options, {})
-    assert_equals(s['test']['f5'].type_ptr.options, {'a': '20'})
-    assert_equals(s['test']['f6'].options, {'count-type': 'int16'})
-    assert_equals(s['test']['f6'].type_array.options, {'a': '30'})
-    assert_equals(s['enums'].enums['e1'].options, {'ea': '30', 'eb': '40'})
-    assert_equals(s['enums'].enums['f1'].options, {"_auto": "inline"})
+    assert s['sub'].options == {'a':'1', 'b':'2'}
+    assert s['test'].options == {'m':'10'}
+    assert s['test']['f0'].options == {'a':'10', 'b':'20'}
+    assert s['test']['f1'].options == {}
+    assert s['test']['f5'].options == {}
+    assert s['test']['f5'].type_ptr.options == {'a': '20'}
+    assert s['test']['f6'].options == {'count-type': 'int16'}
+    assert s['test']['f6'].type_array.options == {'a': '30'}
+    assert s['enums'].enums['e1'].options == {'ea': '30', 'eb': '40'}
+    assert s['enums'].enums['f1'].options == {"_auto": "inline"}
 
 def test_options():
     return _test_options(S.Scheme(scheme))
@@ -118,16 +116,16 @@ def test_pack():
     s = S.Scheme(scheme)
     M = s['sub'].object(s0=10, s1=[1., 2., 3.])
     data = M.pack()
-    assert_equals(len(data), M.SCHEME.size)
-    assert_equals(struct.unpack("=ibdddd", data), (10, 3, 1., 2., 3., 0.))
+    assert len(data) == M.SCHEME.size
+    assert struct.unpack("=ibdddd", data) == (10, 3, 1., 2., 3., 0.)
     m1 = s['sub'].object().unpack(data)
-    assert_equals(m1.s0, 10)
-    assert_equals(m1.s1, [1., 2., 3.])
+    assert m1.s0 == 10
+    assert m1.s1 == [1., 2., 3.]
 
     r = M.SCHEME.reflection(data)
-    assert_equals(getattr(r, 'xxx', None), None)
-    assert_equals(r.s0, m1.s0)
-    assert_equals(r.s1, m1.s1)
+    assert getattr(r, 'xxx', None) == None
+    assert r.s0 == m1.s0
+    assert r.s1 == m1.s1
 
 def optr(off, size, entity):
     return (entity << 56) | (size << 32) | off
@@ -149,19 +147,19 @@ def test_sub_pack():
     M = s['msg']
     m0 = M.object(f0 = {'s0':10}, f1 = [{'s0':20}, {'s0':30}], f2 = [{'s0':40}, {'s0':50}], f3 = [[{'s0':60}], [], [{'s0':70}, {'s0':80}]])
     data = m0.pack()
-    assert_equals(len(data), M.size + 2 * 4 + 3 * 8 + 3 * 4)
-    assert_equals(struct.unpack("=ibiiQQiiQQQiii", data), (10, 2, 20, 30, optr(16, 2, 4), optr(16, 3, 8), 40, 50, optr(24, 1, 4), optr(20, 0, 4), optr(12, 2, 4), 60, 70, 80))
+    assert len(data) == M.size + 2 * 4 + 3 * 8 + 3 * 4
+    assert struct.unpack("=ibiiQQiiQQQiii", data) == (10, 2, 20, 30, optr(16, 2, 4), optr(16, 3, 8), 40, 50, optr(24, 1, 4), optr(20, 0, 4), optr(12, 2, 4), 60, 70, 80)
     m1 = M.object().unpack(data)
-    assert_equals(m1.f0.s0, 10)
-    assert_equals([x.s0 for x in m1.f1], [20, 30])
-    assert_equals([x.s0 for x in m1.f2], [40, 50])
-    assert_equals([[x.s0 for x in y] for y in m1.f3], [[60], [], [70, 80]])
+    assert m1.f0.s0 == 10
+    assert [x.s0 for x in m1.f1] == [20, 30]
+    assert [x.s0 for x in m1.f2] == [40, 50]
+    assert [[x.s0 for x in y] for y in m1.f3] == [[60], [], [70, 80]]
 
     r = M.reflection(data)
-    assert_equals(r.f0.s0, m1.f0.s0)
-    assert_equals([x.s0 for x in r.f1], [20, 30])
-    assert_equals([x.s0 for x in r.f2], [40, 50])
-    assert_equals([[x.s0 for x in y] for y in r.f3], [[60], [], [70, 80]])
+    assert r.f0.s0 == m1.f0.s0
+    assert [x.s0 for x in r.f1] == [20, 30]
+    assert [x.s0 for x in r.f2] == [40, 50]
+    assert [[x.s0 for x in y] for y in r.f3] == [[60], [], [70, 80]]
 
 def test_string():
     s = S.Scheme('''yamls://
@@ -179,11 +177,11 @@ def test_string():
     M = s['msg']
     m0 = M.object(f0 = "ыыы", f1 = {'s0':"nestedtail"}, f2 = ["a", "b", "c"])
     data = m0.pack()
-    assert_equals(len(data), M.size + len("string") + len("nestedtail") + 3 * (8 + 1))
-    assert_equals(struct.unpack("=QQQ6s10sQQQ1s1s1s", data), (optr(24, 6, 1), optr(22, 10, 1), optr(24, 3, 8), s2b("ыыы"), b"nestedtail", optr(24, 1, 1), optr(17, 1, 1), optr(10, 1, 1), b'a', b'b', b'c'))
+    assert len(data) == M.size + len("string") + len("nestedtail") + 3 * (8 + 1)
+    assert struct.unpack("=QQQ6s10sQQQ1s1s1s", data) == (optr(24, 6, 1), optr(22, 10, 1), optr(24, 3, 8), s2b("ыыы"), b"nestedtail", optr(24, 1, 1), optr(17, 1, 1), optr(10, 1, 1), b'a', b'b', b'c')
     m1 = M.object().unpack(data)
-    assert_equals(m1.f0, "ыыы")
-    assert_equals(m1.f1.s0, "nestedtail")
+    assert m1.f0 == "ыыы"
+    assert m1.f1.s0 == "nestedtail"
 
 def test_from_string():
     s = S.Scheme('''yamls://
@@ -202,18 +200,22 @@ def test_from_string():
 ''')
 
     msg = s['msg']
-    assert_equals(msg['int8'].from_string("100"), 100)
-    assert_equals(msg['int16'].from_string("0x1234"), 0x1234)
-    assert_equals(msg['int32'].from_string("0o777777777"), 0o777777777)
-    assert_equals(msg['int64'].from_string("12345678"), 12345678)
-    assert_equals(msg['double'].from_string("123.456"), 123.456)
-    assert_equals(msg['string'].from_string("string"), "string")
-    assert_equals(msg['byte16'].from_string("string"), b"string")
+    assert msg['int8'].from_string("100") == 100
+    assert msg['int16'].from_string("0x1234") == 0x1234
+    assert msg['int32'].from_string("0o777777777") == 0o777777777
+    assert msg['int64'].from_string("12345678") == 12345678
+    assert msg['double'].from_string("123.456") == 123.456
+    assert msg['string'].from_string("string") == "string"
+    assert msg['byte16'].from_string("string") == b"string"
 
-    assert_raises(OverflowError, msg['int8'].from_string, "1000")
-    assert_raises(ValueError, msg['int8'].from_string, "string")
-    assert_raises(TypeError, msg['array'].from_string, "[]")
-    assert_raises(TypeError, msg['ptr'].from_string, "[]")
+    with pytest.raises(OverflowError):
+        msg['int8'].from_string("1000")
+    with pytest.raises(ValueError):
+        msg['int8'].from_string("string")
+    with pytest.raises(TypeError):
+        msg['array'].from_string("[]")
+    with pytest.raises(TypeError):
+        msg['ptr'].from_string("[]")
 
 SCHEME_ALIAS = '''yamls://
 - name:
@@ -229,15 +231,15 @@ SCHEME_ALIAS = '''yamls://
 '''
 
 def _test_alias(s):
-    assert_equals([m.name for m in s.messages], ["msg"])
-    assert_equals([(f.name, f.type) for f in s.aliases.values()], [("license", F.Bytes), ("license_list", F.Pointer)])
+    assert [m.name for m in s.messages] == ["msg"]
+    assert [(f.name, f.type) for f in s.aliases.values()] == [("license", F.Bytes), ("license_list", F.Pointer)]
 
     msg = s['msg']
-    assert_equals([(f.name, f.type) for f in msg.fields], [("f0", F.Bytes), ("f1", F.Pointer), ("f2", F.Pointer)])
-    assert_equals([(f.name, f.sub_type) for f in msg.fields if f.sub_type != F.Sub.NONE],
-        [("f0", F.Sub.ByteString)])
-    assert_equals([(f.name, f.type_ptr.type, f.type_ptr.sub_type) for f in msg.fields if hasattr(f, 'type_ptr')],
-        [("f1", F.Bytes, F.Sub.ByteString), ("f2", F.Bytes, F.Sub.ByteString)])
+    assert [(f.name, f.type) for f in msg.fields] == [("f0", F.Bytes), ("f1", F.Pointer), ("f2", F.Pointer)]
+    assert [(f.name, f.sub_type) for f in msg.fields if f.sub_type != F.Sub.NONE] == \
+        [("f0", F.Sub.ByteString)]
+    assert [(f.name, f.type_ptr.type, f.type_ptr.sub_type) for f in msg.fields if hasattr(f, 'type_ptr')] == \
+        [("f1", F.Bytes, F.Sub.ByteString), ("f2", F.Bytes, F.Sub.ByteString)]
 
     #m0 = M.object(f0 = "license", f1 = ['a', 'b'], f2 = ['c', 'd'])
 
@@ -269,5 +271,5 @@ def test_import():
 '''
 
     s = S.Scheme(SCHEME)
-    assert_equals([(f.name, f.type, f.sub_type) for f in s.aliases.values()], [("license", F.Bytes, F.Sub.ByteString)])
-    assert_equals([m.name for m in s.messages], ['sub', 'msg'])
+    assert [(f.name, f.type, f.sub_type) for f in s.aliases.values()] == [("license", F.Bytes, F.Sub.ByteString)]
+    assert [m.name for m in s.messages] == ['sub', 'msg']
