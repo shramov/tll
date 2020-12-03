@@ -744,6 +744,7 @@ int Field::parse_type(tll::Config &cfg, std::string_view type)
 		_log.warning("Deprected notation: {}, use byte{}", type, *s);
 	} else if (starts_with(type, "c") && tll::conv::to_any<unsigned>(type.substr(1))) {
 		this->type = tll::scheme::Field::Bytes;
+		this->sub_type = tll::scheme::Field::ByteString;
 		auto s = tll::conv::to_any<unsigned>(type.substr(1));
 		if (!s)
 			return _log.fail(EINVAL, "Invalid bytes count {}: {}", type.substr(1), s.error());
