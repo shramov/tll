@@ -4,11 +4,15 @@ export TLL_LIBRARY_DIR = $(shell pwd)/obj-$(DEB_BUILD_GNU_TYPE)/src
 
 export PYBUILD_NAME = tll
 export PYBUILD_SYSTEM = distutils
-#export PYBUILD_TEST_ARGS = -v
-export PYBUILD_TEST_NOSE = 1
+export PYBUILD_TEST_ARGS = -v --log-level=DEBUG
+export PYBUILD_TEST_PYTEST = 1
 
 %:
 	dh $@ --with python3 --buildsystem meson
+
+override_dh_auto_clean:
+	dh_auto_clean --buildsystem meson
+	dh_auto_clean --buildsystem pybuild -D python
 
 override_dh_auto_configure:
 	dh_auto_configure --buildsystem meson -- -Dauto_features=enabled
