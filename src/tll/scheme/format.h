@@ -167,6 +167,10 @@ format_result_t to_strings(const tll::scheme::Field * field, const View &data)
 			return unexpected(path_error_t {"", fmt::format("Unknown offset ptr version: {}", field->offset_ptr_version)});
 		}
 
+		if (offset > data.size())
+			return unexpected(path_error_t {"", fmt::format("Offset out of bounds: offset {} > data size {}", offset, data.size())});
+		else if (offset + size * entity > data.size())
+			return unexpected(path_error_t {"", fmt::format("Offset data out of bounds: offset {} + data {} * entity {} > data size {}", offset, size, entity, data.size())});
 		if (field->sub_type == Field::ByteString) {
 			return std::list<std::string> { '"' + std::string(data.view(offset).template dataT<const char>(), size) + '"' };
 		}

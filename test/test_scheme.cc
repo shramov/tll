@@ -279,5 +279,13 @@ f7: ["offset string"])");
 	mem.size = message->size + 5;
 	r = tll::scheme::to_string(message, tll::make_view(mem));
 	ASSERT_FALSE(r);
-	ASSERT_EQ(r.error(), "Failed to format field f5[2]: Data size too small: 0 < 2");
+	ASSERT_EQ(r.error(), "Failed to format field f5: Offset data out of bounds: offset 167 + data 3 * entity 2 > data size 171");
+
+	mem.size = sizeof(msg);
+	msg.f7_ptr[0].offset = 500;
+
+	r = tll::scheme::to_string(message, tll::make_view(mem));
+	ASSERT_FALSE(r);
+
+	ASSERT_EQ(r.error(), "Failed to format field f7[0]: Offset out of bounds: offset 500 > data size 320");
 }
