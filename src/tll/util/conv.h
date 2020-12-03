@@ -9,6 +9,7 @@
 #define _TLL_UTIL_CONV_H
 
 #include <cstring>
+#include <limits>
 #include <list>
 #include <map>
 #include <string_view>
