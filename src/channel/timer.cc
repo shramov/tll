@@ -173,7 +173,7 @@ int ChTimer::_post(const tll_msg_t *msg, int flags)
 	case timer_scheme::absolute::id: {
 		if (_clock_type == CLOCK_MONOTONIC)
 			return _log.fail(EINVAL, "Absolute timestamps not supported with monotonic timer");
-		auto ts = (const timer_scheme::relative *) msg->data;
+		auto ts = (const timer_scheme::absolute *) msg->data;
 		if (msg->size != sizeof(*ts))
 			return _log.fail(EMSGSIZE, "Invalid message size: {} != {}", msg->size, sizeof(*ts));
 		return _rearm(ts->ts);
