@@ -357,7 +357,7 @@ class Field:
         cdef int i = 0
         while i < ptr.size:
             r.append(f(src[off:]))
-            off += self.type_ptr.size
+            off += ptr.entity
             i += 1
         return r
 
@@ -367,14 +367,14 @@ class Field:
     def pack_olist(self, v, dest, tail, tail_offset):
         cdef tll_scheme_offset_ptr_t * ptr = read_optr(dest)
         if ptr == NULL: return None
+        f = self.type_ptr
         ptr.offset = tail_offset + len(tail)
         ptr.size = len(v)
-        ptr.entity = 1
+        ptr.entity = f.size
         b = bytearray(len(v) * self.type_ptr.size)
         view = memoryview(b)
         tnew = bytearray()
         off = 0
-        f = self.type_ptr
         for i in v:
             f.pack_data(i, view[off:off+f.size], tnew, len(b) - off)
             off += f.size
