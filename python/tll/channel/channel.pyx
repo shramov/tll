@@ -171,6 +171,7 @@ cdef class Channel:
             msg.msgid = data.msgid
             msg.seq = data.seq
             msg.addr.i64 = data.addr
+            data = data.data
         if name is not None:
             msg.msgid = self.scheme[name].msgid
         if type is not None: msg.type = int(type)
@@ -334,7 +335,7 @@ class Message:
     Type = _Type
     __slots__ = ["type", "msgid", "seq", "addr", "data"]
 
-    def __init__(self, msgid, data=b'', type : _Type =_Type.Data, seq : int = None, addr : int = None):
+    def __init__(self, msgid, data=b'', type : _Type =_Type.Data, seq : int = 0, addr : int = 0):
         self.type, self.msgid, self.seq, self.addr, self.data = type, msgid, seq, addr, memoryview(data)
 
 cdef class CMessage:
