@@ -212,6 +212,20 @@ def convert_int32(v): return <int32_t>v
 def convert_int64(v): return <int64_t>v
 def convert_double(v): return float(v)
 def convert_decimal128(v): return Decimal(v)
+def convert_str(v):
+    if isinstance(v, bytes):
+        return v.decode('utf-8')
+    elif not isinstance(v, str):
+        raise TypeError(f"Expected str, got {type(v)}: {v}")
+    return v
+
+def convert_bytes(v):
+    if isinstance(v, bytes):
+        return v
+    elif not isinstance(v, str):
+        raise TypeError(f"Expected bytes, got {type(v)}: {v}")
+    return v.encode('utf-8')
+
 def from_string_int(v): return int(v, 0)
 
 class Field:
@@ -248,12 +262,13 @@ class Field:
             self.default = self._from_string = Decimal
         elif type == Field.Bytes:
             self.pack_data, self.unpack_data = pack_bytes, unpack_bytes
-            self.convert = lambda x: x
             self.default = bytes
             if self.sub_type == SubType.ByteString:
                 self.unpack_data = unpack_str
                 self.default = self._from_string = str
+                self.convert = convert_str
             else:
+                self.convert = convert_bytes
                 self._from_string = lambda v: v.encode('utf-8')
         elif type == Field.Message:
             self.pack, self.unpack = self.pack_msg, self.unpack_msg
@@ -270,7 +285,7 @@ class Field:
         elif type == Field.Pointer:
             if self.sub_type == SubType.ByteString:
                 self.pack_data, self.unpack_data = pack_vstring, unpack_vstring
-                self.convert = lambda x: x
+                self.convert = convert_str
                 self._from_string = lambda x: x
                 self.default = str
             else:
