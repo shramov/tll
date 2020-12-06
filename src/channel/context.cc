@@ -31,6 +31,9 @@
 #include "channel/ipc.h"
 #include "channel/file.h"
 #include "channel/framed.h"
+#ifdef WITH_RAPIDJSON
+#include "channel/json.h"
+#endif
 #include "channel/loader.h"
 #include "channel/lz4.h"
 #include "channel/mem.h"
@@ -55,6 +58,9 @@ TLL_DEFINE_IMPL(tll::channel::SeqCheck);
 TLL_DECLARE_IMPL(ChIpc);
 TLL_DECLARE_IMPL(channel::File);
 TLL_DECLARE_IMPL(Framed);
+#ifdef WITH_RAPIDJSON
+TLL_DECLARE_IMPL(ChJSON);
+#endif
 TLL_DECLARE_IMPL(ChMem);
 TLL_DECLARE_IMPL(ChLZ4);
 TLL_DECLARE_IMPL(ChPubServer);
@@ -87,6 +93,9 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChIpc::impl);
 		reg(&channel::File::impl);
 		reg(&Framed::impl);
+#ifdef WITH_RAPIDJSON
+		reg(&ChJSON::impl);
+#endif
 		reg(&ChMem::impl);
 		reg(&ChLZ4::impl);
 		reg(&ChLoader::impl);

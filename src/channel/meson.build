@@ -1,4 +1,4 @@
-channel_deps = [meson.get_compiler('c').find_library('dl'), lz4]
+channel_deps = [meson.get_compiler('c').find_library('dl'), lz4, rapidjson]
 channel_sources = files(
 	[ 'impl.c'
 	, 'context.cc'
@@ -21,4 +21,9 @@ channel_sources = files(
 )
 
 channel_sources += configure_file(output : 'channels.h', configuration : configuration_data({
+	'WITH_RAPIDJSON': rapidjson.found()
 }))
+
+if rapidjson.found()
+	channel_sources += files(['json.cc'])
+endif
