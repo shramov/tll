@@ -213,8 +213,10 @@ class Base
 		if (_scheme_url) {
 			_log.debug("Loading scheme from {}...", _scheme_url->substr(0, 64));
 			_scheme.reset(context().scheme_load(*_scheme_url, _scheme_cache));
-			if (!_scheme)
+			if (!_scheme) {
+				state(state::Error);
 				return _log.fail(EINVAL, "Failed to load scheme from {}...", _scheme_url->substr(0, 64));
+			}
 		}
 		auto props = tll::PropsView::parse(params);
 		if (!props)
