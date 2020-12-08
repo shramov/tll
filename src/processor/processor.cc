@@ -55,7 +55,7 @@ void Processor::decay(Object * obj, bool root)
 	_log.debug("Decay object {}", obj->name());
 	for (auto & o : obj->rdepends)
 		decay(o);
-	if (obj->rdepends.empty()) {
+	if (obj->rdepends.empty() || obj->ready_close()) {
 		_log.debug("Deactivate decayed leaf object {}", obj->name());
 		post<scheme::Deactivate>(obj, { obj });
 	}
