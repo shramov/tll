@@ -244,13 +244,15 @@ void Processor::_free()
 		_log.debug("Destroy object {}", (*c)->name());
 		c->channel.reset(nullptr);
 	}
+	_objects.clear();
+
 	_workers.clear();
 	_workers_ptr.clear();
 
-	_objects.clear();
-
-	loop.del(_ipc.get());
-	_ipc.reset();
+	if (_ipc) {
+		loop.del(_ipc.get());
+		_ipc.reset();
+	}
 }
 
 template <typename T> int Processor::post(tll_addr_t addr, T body)

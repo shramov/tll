@@ -43,6 +43,8 @@ struct Processor : public tll::channel::Base<Processor>
 	std::map<std::string, tll::processor::_::Worker *, std::less<>> _workers;
 	std::unique_ptr<tll::Channel> _ipc;
 
+	~Processor() { _free(); }
+
 	std::optional<tll::Channel::Url> parse_common(std::string_view type, std::string_view path, const Config &cfg);
 	int parse_deps(Object &obj, const Config &cfg);
 
