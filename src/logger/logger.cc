@@ -5,6 +5,7 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
+#include "tll/config.h"
 #include "tll/logger.h"
 #include "tll/util/refptr.h"
 #include "tll/util/string.h"
@@ -17,6 +18,39 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+
+namespace {
+bool icmp(char a, char b)
+{
+	constexpr char shift = 'a' - 'A';
+	if ('a' <= a && a <= 'z') a -= shift;
+	if ('a' <= b && a <= 'z') b -= shift;
+	return a == b;
+}
+
+bool stricmp(std::string_view a, std::string_view b)
+{
+	if (a.size() != b.size())
+		return false;
+	for (auto i = 0u; i < a.size(); i++) {
+		if (!icmp(a[i], b[i])) return false;
+	}
+	return true;
+}
+
+std::optional<tll::Logger::level_t> level_from_str(std::string_view level)
+{
+	if (stricmp(level, "trace")) return tll::Logger::Trace;
+	else if (stricmp(level, "debug")) return tll::Logger::Debug;
+	else if (stricmp(level, "info")) return tll::Logger::Info;
+	else if (stricmp(level, "warning")) return tll::Logger::Warning;
+	else if (stricmp(level, "warn")) return tll::Logger::Warning;
+	else if (stricmp(level, "error")) return tll::Logger::Error;
+	else if (stricmp(level, "critical")) return tll::Logger::Critical;
+	else if (stricmp(level, "crit")) return tll::Logger::Critical;
+	return std::nullopt;
+}
+}
 
 namespace tll::logger {
 
@@ -195,9 +229,18 @@ void tll_logger_free(tll_logger_t * log)
 	static_cast<tll::logger::Logger *>(log)->unref();
 }
 
-int tll_logger_config(struct tll_config_t * cfg)
+int tll_logger_config(struct tll_config_t * _cfg)
 {
-	return ENOSYS;
+	if (!_cfg)
+		return 0;
+	tll::Config cfg(_cfg);
+	for (auto & [k, v] : cfg.browse("**")) {
+		if (!v.value()) continue;
+		auto level = level_from_str(*v.get());
+		if (level)
+			tll::logger::context.set(k, *level, true);
+	}
+	return 0;
 }
 
 int tll_logger_set(const char * name, int len, tll_logger_level_t level, int subtree)
