@@ -228,6 +228,17 @@ def convert_bytes(v):
 
 def from_string_int(v): return int(v, 0)
 
+def _as_dict_list(field, v):
+    return [field.as_dict(x) for x in v]
+
+def _as_dict_msg(msg, v):
+    r = {}
+    for f in msg.fields:
+        x = getattr(v, f.name, None)
+        if x is None: continue
+        r[f.name] = f.as_dict(x)
+    return r
+
 class Field:
     Sub = SubType
     def init(self, name, type):
@@ -277,11 +288,13 @@ class Field:
             self.unpack_reflection = self.type_msg.reflection
             self.convert = self.convert_msg
             self.default = self.type_msg.klass
+            self.as_dict = lambda v: _as_dict_msg(self.type_msg, v)
         elif type == Field.Array:
             self.pack_data, self.unpack_data = self.pack_array, self.unpack_array
             self.unpack_reflection = self.unpack_array_reflection
             self.convert = self.convert_array
             self.default = list
+            self.as_dict = lambda v: _as_dict_list(self.type_array, v)
         elif type == Field.Pointer:
             if self.sub_type == SubType.ByteString:
                 self.pack_data, self.unpack_data = pack_vstring, unpack_vstring
@@ -293,6 +306,7 @@ class Field:
                 self.unpack_reflection = self.unpack_olist_reflection
                 self.convert = self.convert_olist
                 self.default = list
+                self.as_dict = lambda v: _as_dict_list(self.type_ptr, v)
 
     def __repr__(self):
         return "<Field {0.name}, type: {0.type}, size: {0.size}, offset: {0.offset}>".format(self)
@@ -412,6 +426,8 @@ class Field:
     def _from_string_int(self, v):
         return self.convert(int(v, 0))
 
+    def as_dict(self, v): return v
+
 for t in Type:
     setattr(Field, t.name, t)
 
@@ -481,6 +497,9 @@ class Data(object):
                 l.append('{}: {}'.format(f.name, str(r)))
         return "<{} {}>".format(self.SCHEME.name, ", ".join(l))
 
+    def as_dict(self):
+        return _as_dict_msg(self.SCHEME, self)
+
 class Reflection(object):
     SCHEME = None
     __slots__ = ['__data']
@@ -494,7 +513,10 @@ class Reflection(object):
         return f.unpack_reflection(self.__data[f.offset:])
 
     def __repr__(self):
-        return "<{}.Data.{} object at {:x}>".format(self.__module__, self.__class__.__name__, id(self))
+        return "<{}.Reflection.{} object at {:x}>".format(self.__module__, self.__class__.__name__, id(self))
+
+    def as_dict(self):
+        return _as_dict_msg(self.SCHEME, self)
 
 class Message(OrderedDict):
     def object(self, *a, **kw):

@@ -112,6 +112,15 @@ def test_options():
 def test_options_dump():
     return _test_options(S.Scheme(S.Scheme(scheme).dump()))
 
+def test_as_dict():
+    s = S.Scheme(scheme)
+    M = s['sub'].object(s0=10, s1=[1., 2., 3.])
+    assert M.as_dict() == {'s0':10, 's1':[1., 2., 3.]}
+    data = M.pack()
+
+    r = M.SCHEME.reflection(data)
+    assert r.as_dict() == M.as_dict()
+
 def test_pack():
     s = S.Scheme(scheme)
     M = s['sub'].object(s0=10, s1=[1., 2., 3.])
