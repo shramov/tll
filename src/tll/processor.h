@@ -54,7 +54,8 @@ class Processor : public tll::Channel
  public:
 	static std::unique_ptr<Processor> init(Config cfg, tll::channel::Context &ctx)
 	{
-		tll_processor_init(ctx);
+		if (tll_processor_init(ctx))
+			return {};
 
 		auto impl = ctx.impl_get("processor");
 		if (cfg.has("tll.proto"))
