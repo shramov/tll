@@ -8,5 +8,5 @@ clean::
 
 %.pdf: %.rst
 	rst2pdf -s dejavu $< -o $@
-%.html: %.rst
-	rst2html $< $@
+%.html: %.rst tll.css
+	rst2html --stylesheet=tll.css $< $@
