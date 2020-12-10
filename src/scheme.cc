@@ -60,6 +60,9 @@ inline std::optional<tll_scheme_field_type_t> parse_type_int(std::string_view ty
 	else if (type == "int16") return tll::scheme::Field::Int16;
 	else if (type == "int32") return tll::scheme::Field::Int32;
 	else if (type == "int64") return tll::scheme::Field::Int64;
+	else if (type == "uint8") return tll::scheme::Field::UInt8;
+	else if (type == "uint16") return tll::scheme::Field::UInt16;
+	else if (type == "uint32") return tll::scheme::Field::UInt32;
 	else
 		return std::nullopt;
 }
@@ -157,7 +160,7 @@ struct Enum
 			auto s = conv::select<decltype(F::Int8)>(*type, {{"enum1", F::Int8}, {"enum2", F::Int16}, {"enum4", F::Int32}, {"enum8", F::Int64}});
 			if (!s)
 				return _log.fail(std::nullopt, "Failed to parse enum {}: invalid type: {}", name, *type);
-			_log.warning("Deprecated enum notation: {}, use int8/int16/int32/int64", *type);
+			_log.warning("Deprecated enum notation: {}, use int8/int16/...", *type);
 			t = *s;
 		}
 		r.type = *t;
@@ -723,6 +726,9 @@ int Field::parse_type(tll::Config &cfg, std::string_view type)
 	else if (type == "int16") this->type = tll::scheme::Field::Int16;
 	else if (type == "int32") this->type = tll::scheme::Field::Int32;
 	else if (type == "int64") this->type = tll::scheme::Field::Int64;
+	else if (type == "uint8") this->type = tll::scheme::Field::UInt8;
+	else if (type == "uint16") this->type = tll::scheme::Field::UInt16;
+	else if (type == "uint32") this->type = tll::scheme::Field::UInt32;
 	else if (type == "double") this->type = tll::scheme::Field::Double;
 	else if (type == "decimal128") this->type = tll::scheme::Field::Decimal128;
 	else if (type == "string") {
@@ -1046,6 +1052,9 @@ std::string dump_type(tll_scheme_field_type_t t, const tll::scheme::Field * f)
 	case Field::Int16: return "int16";
 	case Field::Int32: return "int32";
 	case Field::Int64: return "int64";
+	case Field::UInt8:  return "uint8";
+	case Field::UInt16: return "uint16";
+	case Field::UInt32: return "uint32";
 	case Field::Double: return "double";
 	case Field::Decimal128: return "decimal128";
 	case Field::Message: if (!f) return "unknown"; return f->type_msg->name;
@@ -1216,6 +1225,9 @@ int tll_scheme_field_fix(tll_scheme_field_t * f)
 	case Field::Int16: f->size = 2; break;
 	case Field::Int32: f->size = 4; break;
 	case Field::Int64: f->size = 8; break;
+	case Field::UInt8: f->size = 1; break;
+	case Field::UInt16: f->size = 2; break;
+	case Field::UInt32: f->size = 4; break;
 	case Field::Double: f->size = 8; break;
 	case Field::Decimal128: f->size = 16; break;
 	case Field::Bytes: if (f->size == 0) f->size = 1; break;

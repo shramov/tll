@@ -46,6 +46,9 @@ typedef enum tll_scheme_field_type_t
 	TLL_SCHEME_FIELD_MESSAGE,
 	TLL_SCHEME_FIELD_ARRAY,
 	TLL_SCHEME_FIELD_POINTER,
+	TLL_SCHEME_FIELD_UINT8,
+	TLL_SCHEME_FIELD_UINT16,
+	TLL_SCHEME_FIELD_UINT32,
 } tll_scheme_field_type_t;
 
 typedef enum tll_scheme_sub_type_t
@@ -160,6 +163,9 @@ typedef struct tll_scheme_field_t
 	static constexpr auto Int16 = TLL_SCHEME_FIELD_INT16;
 	static constexpr auto Int32 = TLL_SCHEME_FIELD_INT32;
 	static constexpr auto Int64 = TLL_SCHEME_FIELD_INT64;
+	static constexpr auto UInt8 = TLL_SCHEME_FIELD_UINT8;
+	static constexpr auto UInt16 = TLL_SCHEME_FIELD_UINT16;
+	static constexpr auto UInt32 = TLL_SCHEME_FIELD_UINT32;
 	static constexpr auto Double = TLL_SCHEME_FIELD_DOUBLE;
 	static constexpr auto Decimal128 = TLL_SCHEME_FIELD_DECIMAL128;
 	static constexpr auto Bytes = TLL_SCHEME_FIELD_BYTES;

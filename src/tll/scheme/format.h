@@ -51,6 +51,9 @@ size_t read_size(const tll::scheme::Field * field, const View &data)
 	case Field::Int16: return *data.template dataT<int16_t>();
 	case Field::Int32: return *data.template dataT<int32_t>();
 	case Field::Int64: return *data.template dataT<int64_t>();
+	case Field::UInt8:  return *data.template dataT<uint8_t>();
+	case Field::UInt16: return *data.template dataT<uint16_t>();
+	case Field::UInt32: return *data.template dataT<uint32_t>();
 	default: return 0;
 	}
 }
@@ -115,6 +118,9 @@ format_result_t to_strings(const tll::scheme::Field * field, const View &data)
 	case Field::Int16: return to_strings_number(field, *data.template dataT<int16_t>());
 	case Field::Int32: return to_strings_number(field, *data.template dataT<int32_t>());
 	case Field::Int64: return to_strings_number(field, *data.template dataT<int64_t>());
+	case Field::UInt8:  return to_strings_number(field, *data.template dataT<uint8_t>());
+	case Field::UInt16: return to_strings_number(field, *data.template dataT<uint16_t>());
+	case Field::UInt32: return to_strings_number(field, *data.template dataT<uint32_t>());
 	case Field::Double: return to_strings_number(field, *data.template dataT<double>());
 	case Field::Decimal128:
 		return std::list<std::string> {fmt::format("0x{:016x}{:016x}", *data.template dataT<uint64_t>(), *data.view(8).template dataT<uint64_t>())};
