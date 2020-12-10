@@ -282,3 +282,33 @@ def test_import():
     s = S.Scheme(SCHEME)
     assert [(f.name, f.type, f.sub_type) for f in s.aliases.values()] == [("license", F.Bytes, F.Sub.ByteString)]
     assert [m.name for m in s.messages] == ['sub', 'msg']
+
+def test_unsigned():
+    scheme = S.Scheme("""yamls://
+- name: msg
+  fields:
+    - {name: u8, type: uint8}
+    - {name: u16, type: uint16}
+    - {name: u32, type: uint32}
+""")
+
+    msg = scheme['msg']
+    m = msg.object(u8 = 200, u16 = 50000, u32 = 0xf0000000)
+    assert m.u8 == 200
+    assert m.u16 == 50000
+    assert m.u32 == 0xf0000000
+    with pytest.raises(OverflowError): msg['u8'].from_string("0x100")
+    with pytest.raises(OverflowError): msg['u16'].from_string("0x10000")
+    with pytest.raises(OverflowError): msg['u32'].from_string("0x100000000")
+    for f in msg.fields:
+        with pytest.raises(OverflowError): f.from_string("-1")
+        with pytest.raises(OverflowError): setattr(m, f.name, -1)
+    data = memoryview(m.pack())
+    u = msg.unpack(data)
+    r = msg.reflection(data)
+    assert u.u8 == m.u8
+    assert u.u16 == m.u16
+    assert u.u32 == m.u32
+    assert r.u8 == m.u8
+    assert r.u16 == m.u16
+    assert r.u32 == m.u32

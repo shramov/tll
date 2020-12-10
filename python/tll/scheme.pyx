@@ -3,7 +3,7 @@
 
 from .scheme cimport *
 from .s2b cimport *
-from libc.stdint cimport int8_t, int16_t, int32_t, int64_t
+from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t
 from libc.string cimport memcpy, memset
 from libc.errno cimport EINVAL, EMSGSIZE
 from cython cimport typeof
@@ -20,6 +20,9 @@ class Type(enum.Enum):
     Int16 = TLL_SCHEME_FIELD_INT16
     Int32 = TLL_SCHEME_FIELD_INT32
     Int64 = TLL_SCHEME_FIELD_INT64
+    UInt8 = TLL_SCHEME_FIELD_UINT8
+    UInt16 = TLL_SCHEME_FIELD_UINT16
+    UInt32 = TLL_SCHEME_FIELD_UINT32
     Double = TLL_SCHEME_FIELD_DOUBLE
     Decimal128 = TLL_SCHEME_FIELD_DECIMAL128
     Bytes = TLL_SCHEME_FIELD_BYTES
@@ -82,6 +85,9 @@ ctypedef fused primitive_t:
     int16_t
     int32_t
     int64_t
+    uint8_t
+    uint16_t
+    uint32_t
     double
 
 cdef int pack_fused(primitive_t v, object dest):
@@ -122,12 +128,18 @@ cdef pack_int8(v, dest, tail, tail_offset): return pack_fused(<int8_t>v, dest)
 cdef pack_int16(v, dest, tail, tail_offset): return pack_fused(<int16_t>v, dest)
 cdef pack_int32(v, dest, tail, tail_offset): return pack_fused(<int32_t>v, dest)
 cdef pack_int64(v, dest, tail, tail_offset): return pack_fused(<int64_t>v, dest)
+cdef pack_uint8(v, dest, tail, tail_offset): return pack_fused(<uint8_t>v, dest)
+cdef pack_uint16(v, dest, tail, tail_offset): return pack_fused(<uint16_t>v, dest)
+cdef pack_uint32(v, dest, tail, tail_offset): return pack_fused(<uint32_t>v, dest)
 cdef pack_double(v, dest, tail, tail_offset): return pack_fused(<double>v, dest)
 
 cdef unpack_int8(src): return unpack_fused(<int8_t>0, src)
 cdef unpack_int16(src): return unpack_fused(<int16_t>0, src)
 cdef unpack_int32(src): return unpack_fused(<int32_t>0, src)
 cdef unpack_int64(src): return unpack_fused(<int64_t>0, src)
+cdef unpack_uint8(src): return unpack_fused(<uint8_t>0, src)
+cdef unpack_uint16(src): return unpack_fused(<uint16_t>0, src)
+cdef unpack_uint32(src): return unpack_fused(<uint32_t>0, src)
 cdef unpack_double(src): return unpack_fused(<double>0, src)
 
 
@@ -210,6 +222,9 @@ def convert_int8(v): return <int8_t>v
 def convert_int16(v): return <int16_t>v
 def convert_int32(v): return <int32_t>v
 def convert_int64(v): return <int64_t>v
+def convert_uint8(v): return <uint8_t>v
+def convert_uint16(v): return <uint16_t>v
+def convert_uint32(v): return <uint32_t>v
 def convert_double(v): return float(v)
 def convert_decimal128(v): return Decimal(v)
 def convert_str(v):
@@ -243,26 +258,33 @@ class Field:
     Sub = SubType
     def init(self, name, type):
         #self.name, self.type, self.sub_type = name, type, sub_type
-        if type == Field.Int8:
-            self.pack_data, self.unpack_data = pack_int8, unpack_int8
-            self.convert = convert_int8
+        if type in (Field.Int8, Field.Int16, Field.Int32, Field.Int64):
             self._from_string = from_string_int
             self.default = int
-        elif type == Field.Int16:
-            self.pack_data, self.unpack_data = pack_int16, unpack_int16
-            self.convert = convert_int16
+            if type == Field.Int8:
+                self.pack_data, self.unpack_data = pack_int8, unpack_int8
+                self.convert = convert_int8
+            elif type == Field.Int16:
+                self.pack_data, self.unpack_data = pack_int16, unpack_int16
+                self.convert = convert_int16
+            elif type == Field.Int32:
+                self.pack_data, self.unpack_data = pack_int32, unpack_int32
+                self.convert = convert_int32
+            elif type == Field.Int64:
+                self.pack_data, self.unpack_data = pack_int64, unpack_int64
+                self.convert = convert_int64
+        elif type in (Field.UInt8, Field.UInt16, Field.UInt32):
             self._from_string = from_string_int
             self.default = int
-        elif type == Field.Int32:
-            self.pack_data, self.unpack_data = pack_int32, unpack_int32
-            self.convert = convert_int32
-            self._from_string = from_string_int
-            self.default = int
-        elif type == Field.Int64:
-            self.pack_data, self.unpack_data = pack_int64, unpack_int64
-            self.convert = convert_int64
-            self._from_string = from_string_int
-            self.default = int
+            if type == Field.UInt8:
+                self.pack_data, self.unpack_data = pack_uint8, unpack_uint8
+                self.convert = convert_uint8
+            elif type == Field.UInt16:
+                self.pack_data, self.unpack_data = pack_uint16, unpack_uint16
+                self.convert = convert_uint16
+            elif type == Field.UInt32:
+                self.pack_data, self.unpack_data = pack_uint32, unpack_uint32
+                self.convert = convert_uint32
         elif type == Field.Double:
             self.pack_data, self.unpack_data = pack_double, unpack_double
             self.convert = convert_double
