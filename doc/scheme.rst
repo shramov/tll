@@ -14,6 +14,7 @@ Field
 -----
 
 Data type is a pair of wire type (e.g. ``int32`` or ``double``) and logical type (e.g. ``duration``).
+Unsigned 64 bit type is not supported.
 
 Simple wire types:
 
@@ -21,6 +22,9 @@ Simple wire types:
  - ``int16``: 2 byte signed integer;
  - ``int32``: 4 byte signed integer;
  - ``int64``: 8 byte signed integer;
+ - ``uint8``: 1 byte unsigned integer;
+ - ``uint16``: 2 byte unsigned integer;
+ - ``uint32``: 4 byte unsigned integer;
  - ``double``: 8 byte floating point value;
  - ``decimal128``: 16 byte IEEE 754 decimal floating point value;
  - ``bytes``: fixed size byte array;
