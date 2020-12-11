@@ -10,6 +10,7 @@
 
 #include "tll/scheme.h"
 #include "tll/scheme/types.h"
+#include "tll/scheme/util.h"
 #include "tll/util/result.h"
 #include "tll/util/string.h"
 
@@ -40,23 +41,6 @@ inline path_error_t append_path(const path_error_t &e, std::string_view path)
 }
 
 using format_result_t = tll::expected<std::list<std::string>, path_error_t>;
-
-template <typename View>
-size_t read_size(const tll::scheme::Field * field, const View &data)
-{
-	using tll::scheme::Field;
-
-	switch (field->type) {
-	case Field::Int8:  return *data.template dataT<int8_t>();
-	case Field::Int16: return *data.template dataT<int16_t>();
-	case Field::Int32: return *data.template dataT<int32_t>();
-	case Field::Int64: return *data.template dataT<int64_t>();
-	case Field::UInt8:  return *data.template dataT<uint8_t>();
-	case Field::UInt16: return *data.template dataT<uint16_t>();
-	case Field::UInt32: return *data.template dataT<uint32_t>();
-	default: return 0;
-	}
-}
 }
 
 template <typename View>
@@ -140,48 +124,27 @@ format_result_t to_strings(const tll::scheme::Field * field, const View &data)
 		return std::list<std::string> {'"' + result + '"'};
 	}
 	case Field::Array: {
-		size_t size = read_size(field->count_ptr, data.view(field->count_ptr->offset));
-		if (size > field->count)
+		auto size = read_size(field->count_ptr, data.view(field->count_ptr->offset));
+		if (size < 0)
+			return unexpected(path_error_t {"", fmt::format("Array size {} is invalid", size)});
+		if ((size_t) size > field->count)
 			return unexpected(path_error_t {"", fmt::format("Array size {} > max count {}", size, field->count)});
 		return to_strings_list(field->type_array, data.view(field->type_array->offset), size, field->type_array->size);
 	}
 	case Field::Pointer: {
-		unsigned size, entity, offset;
-		switch (field->offset_ptr_version) {
-		case TLL_SCHEME_OFFSET_PTR_DEFAULT: {
-			auto ptr = data.template dataT<const tll_scheme_offset_ptr_t>();
-			size = ptr->size;
-			offset = ptr->offset;
-			entity = ptr->entity;
-			break;
-		}
-		case TLL_SCHEME_OFFSET_PTR_LEGACY_LONG: {
-			auto ptr = data.template dataT<const tll_scheme_offset_ptr_t>();
-			size = ptr->size;
-			offset = ptr->offset;
-			entity = ptr->entity;
-			break;
-		}
-		case TLL_SCHEME_OFFSET_PTR_LEGACY_SHORT: {
-			auto ptr = data.template dataT<const tll_scheme_offset_ptr_t>();
-			size = ptr->size;
-			offset = ptr->offset;
-			entity = field->type_ptr->size;
-			break;
-		}
-		default:
+		auto ptr = read_pointer(field, data);
+		if (!ptr)
 			return unexpected(path_error_t {"", fmt::format("Unknown offset ptr version: {}", field->offset_ptr_version)});
-		}
 
-		if (offset > data.size())
-			return unexpected(path_error_t {"", fmt::format("Offset out of bounds: offset {} > data size {}", offset, data.size())});
-		else if (offset + size * entity > data.size())
-			return unexpected(path_error_t {"", fmt::format("Offset data out of bounds: offset {} + data {} * entity {} > data size {}", offset, size, entity, data.size())});
+		if (ptr->offset > data.size())
+			return unexpected(path_error_t {"", fmt::format("Offset out of bounds: offset {} > data size {}", ptr->offset, data.size())});
+		else if (ptr->offset + ptr->size * ptr->entity > data.size())
+			return unexpected(path_error_t {"", fmt::format("Offset data out of bounds: offset {} + data {} * entity {} > data size {}", ptr->offset, (unsigned) ptr->size, ptr->entity, data.size())});
 		if (field->sub_type == Field::ByteString) {
-			return std::list<std::string> { '"' + std::string(data.view(offset).template dataT<const char>(), size) + '"' };
+			return std::list<std::string> { '"' + std::string(data.view(ptr->offset).template dataT<const char>(), ptr->size) + '"' };
 		}
 
-		return to_strings_list(field->type_ptr, data.view(offset), size, entity);
+		return to_strings_list(field->type_ptr, data.view(ptr->offset), ptr->size, ptr->entity);
 	}
 	case Field::Message:
 		return to_strings(field->type_msg, data);
