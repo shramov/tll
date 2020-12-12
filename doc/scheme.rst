@@ -14,7 +14,8 @@ Field
 -----
 
 Data type is a pair of wire type (e.g. ``int32`` or ``double``) and logical type (e.g. ``duration``).
-Unsigned 64 bit type is not supported.
+Since lot of programming languages does not have native support for unsigned integers (for example Lua
+and Java), unsigned 64 bit int type is not supported.
 
 Simple wire types:
 
