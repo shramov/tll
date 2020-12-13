@@ -22,3 +22,5 @@ gtest = dependency('gtest', required: get_option('with_gtest'), disabler: true)
 if not get_option('with_gtest').disabled() and gtest.found()
 	subdir('test')
 endif
+
+subdir('doc')
