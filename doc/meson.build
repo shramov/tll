@@ -1,7 +1,7 @@
 rst2pdf = find_program('rst2pdf', disabler: true, required: false)
 rst2html = find_program('rst2html', disabler: true, required: false)
 
-sources = ['logger.rst', 'stat.rst', 'scheme.rst', 'channel.rst', 'tll.rst']
+sources = ['logger.rst', 'stat.rst', 'scheme.rst', 'channel.rst', 'processor.rst', 'tll.rst']
 
 pdf = custom_target('tll.pdf'
 	, output : '@BASENAME@.pdf'

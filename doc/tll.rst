@@ -26,3 +26,6 @@ around C functions for those reasons:
 
 .. include::
         channel.rst
+
+.. include::
+        processor.rst
