@@ -4,10 +4,11 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ubuntu-18.04
     strategy:
       matrix:
+        os: [ubuntu-18.04, ubuntu-20.04]
         compiler: [gcc]
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
       with:
@@ -15,12 +16,10 @@ jobs:
     - uses: actions/cache@v2
       with:
         path: /home/runner/.ccache
-        key: ccache:ubuntu-18.04
-        restore-keys: |
-          ccache:ubuntu-18.04
+        key: ccache:${{ matrix.os }}
     - name: update
       run: |
-        echo deb https://psha.org.ru/debian/ ubuntu18.04 contrib backports | sudo tee /etc/apt/sources.list.d/psha.org.ru.list
+        echo deb https://psha.org.ru/debian/ `echo ${{ matrix.os }} | tr -d -` contrib backports | sudo tee /etc/apt/sources.list.d/psha.org.ru.list
         sudo wget -O/etc/apt/trusted.gpg.d/psha.org.ru.gpg https://psha.org.ru/debian/pubkey.gpg
         sudo apt update
     - name: install deps
@@ -38,7 +37,7 @@ jobs:
         python3 setup.py build_ext --inplace --library-dirs=../build/src --rpath=`pwd`/../build/src
     - name: test
       run: |
-        meson test -C build --no-rebuild --print-errorlogs --no-stdsplit -v
+        meson test -C build --no-rebuild --print-errorlogs -v
         cd python
         python3 -m pytest --log-level=DEBUG -v
 
