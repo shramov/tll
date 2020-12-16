@@ -25,6 +25,11 @@ cdef extern from "tll/scheme.h":
         TLL_SCHEME_SUB_TIME_POINT
         TLL_SCHEME_SUB_DURATION
 
+    ctypedef enum tll_scheme_offset_ptr_version_t:
+        TLL_SCHEME_OFFSET_PTR_DEFAULT
+        TLL_SCHEME_OFFSET_PTR_LEGACY_SHORT
+        TLL_SCHEME_OFFSET_PTR_LEGACY_LONG
+
     ctypedef struct tll_scheme_option_t:
         tll_scheme_option_t * next
         const char * name
@@ -53,6 +58,8 @@ cdef extern from "tll/scheme.h":
 	# union
         tll_scheme_message_t * type_msg
         tll_scheme_enum_t * type_enum
+
+        tll_scheme_offset_ptr_version_t offset_ptr_version
         tll_scheme_field_t * type_ptr
 
         size_t count
@@ -86,6 +93,15 @@ cdef extern from "tll/scheme.h":
 
 cdef extern from "tll/scheme/types.h":
     ctypedef struct tll_scheme_offset_ptr_t:
+        unsigned offset
+        unsigned size
+        unsigned entity
+
+    ctypedef struct tll_scheme_offset_ptr_legacy_short_t:
+        unsigned offset
+        unsigned size
+
+    ctypedef struct tll_scheme_offset_ptr_legacy_long_t:
         unsigned offset
         unsigned size
         unsigned entity

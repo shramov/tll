@@ -38,6 +38,11 @@ class SubType(enum.Enum):
     TimePoint = TLL_SCHEME_SUB_TIME_POINT
     Duration = TLL_SCHEME_SUB_DURATION
 
+class OffsetPtrVersion(enum.Enum):
+    Default = TLL_SCHEME_OFFSET_PTR_DEFAULT
+    LegacyShort = TLL_SCHEME_OFFSET_PTR_LEGACY_SHORT
+    LegacyLong = TLL_SCHEME_OFFSET_PTR_LEGACY_LONG
+
 cdef class Options(dict):
     @staticmethod
     cdef Options wrap(tll_scheme_option_t * ptr):
@@ -90,6 +95,16 @@ ctypedef fused primitive_t:
     uint32_t
     double
 
+cdef struct offset_ptr_t:
+    unsigned offset
+    int size
+    unsigned entity
+
+cdef offset_ptr_t OFFSET_PTR_INVALID
+OFFSET_PTR_INVALID.offset = 0
+OFFSET_PTR_INVALID.size = -1
+OFFSET_PTR_INVALID.entity = 0
+
 cdef int pack_fused(primitive_t v, object dest):
     if not PyMemoryView_Check(dest): return EINVAL
     cdef Py_buffer * buf = PyMemoryView_GET_BUFFER(dest)
@@ -107,22 +122,75 @@ cdef primitive_t unpack_fused(primitive_t v, object src):
     return v
     #(<typeof(v) *>buf.buf)[0] = v;
 
-cdef tll_scheme_offset_ptr_t * read_optr(object src):
-    if not PyMemoryView_Check(src): return NULL #EINVAL
-    cdef Py_buffer * buf = PyMemoryView_GET_BUFFER(src)
-    if buf.len < <ssize_t>(sizeof(tll_scheme_offset_ptr_t)): return NULL #EMSGSIZE
-#        raise TLLError("Dest buffer too small: {} < {}".format(buf.len, sizeof(typeof(v))))
-    return <tll_scheme_offset_ptr_t *>buf.buf
+cdef offset_ptr_t read_optr_default(Py_buffer * buf, unsigned entity):
+    if buf.len < <ssize_t>(sizeof(tll_scheme_offset_ptr_t)): return OFFSET_PTR_INVALID
+    cdef tll_scheme_offset_ptr_t * ptr = <tll_scheme_offset_ptr_t *>buf.buf
+    cdef offset_ptr_t r
+    r.offset = ptr.offset
+    r.size = ptr.size
+    r.entity = ptr.entity
+    return r
 
-cdef unpack_vstring(object src):
-    cdef tll_scheme_offset_ptr_t * ptr = read_optr(src)
-    if ptr == NULL: return None
-    if ptr.size == 0:
-        return "" #src[sizeof(tll_scheme_offset_ptr_t):sizeof(tll_scheme_offset_ptr_t)]
-    r = src[ptr.offset:ptr.offset + ptr.size]
-    if PY_MAJOR_VERSION == 2:
-        return r.tobytes()
-    return str(r, encoding='utf-8')
+cdef offset_ptr_t read_optr_legacy_short(Py_buffer * buf, unsigned entity):
+    if buf.len < <ssize_t>(sizeof(tll_scheme_offset_ptr_t)): return OFFSET_PTR_INVALID
+    cdef tll_scheme_offset_ptr_legacy_short_t * ptr = <tll_scheme_offset_ptr_legacy_short_t *>buf.buf
+    cdef offset_ptr_t r
+    r.offset = ptr.offset
+    r.size = ptr.size
+    r.entity = entity
+    return r
+
+cdef offset_ptr_t read_optr_legacy_long(Py_buffer * buf, unsigned entity):
+    if buf.len < <ssize_t>(sizeof(tll_scheme_offset_ptr_t)): return OFFSET_PTR_INVALID
+    cdef tll_scheme_offset_ptr_legacy_long_t * ptr = <tll_scheme_offset_ptr_legacy_long_t *>buf.buf
+    cdef offset_ptr_t r
+    r.offset = ptr.offset
+    r.size = ptr.size
+    r.entity = ptr.entity
+    return r
+
+cdef offset_ptr_t read_optr(object src, int optr_type, unsigned entity):
+    if not PyMemoryView_Check(src): return OFFSET_PTR_INVALID
+    cdef Py_buffer * buf = PyMemoryView_GET_BUFFER(src)
+    if optr_type == TLL_SCHEME_OFFSET_PTR_DEFAULT:
+        return read_optr_default(buf, entity)
+    elif optr_type == TLL_SCHEME_OFFSET_PTR_LEGACY_SHORT:
+        return read_optr_legacy_short(buf, entity)
+    elif optr_type == TLL_SCHEME_OFFSET_PTR_LEGACY_LONG:
+        return read_optr_legacy_long(buf, entity)
+
+cdef int write_optr_default(Py_buffer * buf, offset_ptr_t * ptr):
+    if buf.len < <ssize_t>(sizeof(tll_scheme_offset_ptr_t)): return EMSGSIZE
+    cdef tll_scheme_offset_ptr_t * r = <tll_scheme_offset_ptr_t *>buf.buf
+    r.offset = ptr.offset
+    r.size = ptr.size
+    r.entity = ptr.entity
+    return 0
+
+cdef int write_optr_legacy_short(Py_buffer * buf, offset_ptr_t * ptr):
+    if buf.len < <ssize_t>(sizeof(tll_scheme_offset_ptr_legacy_short_t)): return EMSGSIZE
+    cdef tll_scheme_offset_ptr_legacy_short_t * r = <tll_scheme_offset_ptr_legacy_short_t *>buf.buf
+    r.offset = ptr.offset
+    r.size = ptr.size
+    return 0
+
+cdef int write_optr_legacy_long(Py_buffer * buf, offset_ptr_t * ptr):
+    if buf.len < <ssize_t>(sizeof(tll_scheme_offset_ptr_legacy_long_t)): return EMSGSIZE
+    cdef tll_scheme_offset_ptr_legacy_long_t * r = <tll_scheme_offset_ptr_legacy_long_t *>buf.buf
+    r.offset = ptr.offset
+    r.size = ptr.size
+    r.entity = ptr.entity
+    return 0
+
+cdef int write_optr(object src, int optr_type,  offset_ptr_t * ptr):
+    if not PyMemoryView_Check(src): return EINVAL
+    cdef Py_buffer * buf = PyMemoryView_GET_BUFFER(src)
+    if optr_type == TLL_SCHEME_OFFSET_PTR_DEFAULT:
+        return write_optr_default(buf, ptr)
+    elif optr_type == TLL_SCHEME_OFFSET_PTR_LEGACY_SHORT:
+        return write_optr_legacy_short(buf, ptr)
+    elif optr_type == TLL_SCHEME_OFFSET_PTR_LEGACY_LONG:
+        return write_optr_legacy_long(buf, ptr)
 
 cdef pack_int8(v, dest, tail, tail_offset): return pack_fused(<int8_t>v, dest)
 cdef pack_int16(v, dest, tail, tail_offset): return pack_fused(<int16_t>v, dest)
@@ -209,14 +277,15 @@ cdef unpack_str(src):
     cdef int l = strnlen(<char *>buf.buf, buf.len)
     return b2s(bytearray(src[:l])) #<char *>buf.buf, buf.len)
 
-cdef pack_vstring(v, dest, tail, tail_offset):
-    cdef tll_scheme_offset_ptr_t * ptr = read_optr(dest)
-    if ptr == NULL: return None
-    b = s2b(v)
-    ptr.offset = tail_offset + len(tail)
-    ptr.size = len(b)
-    ptr.entity = 1
-    tail.extend(b)
+cdef unpack_vstring(object src, int optr_version):
+    cdef offset_ptr_t ptr = read_optr(src, optr_version, 1)
+    if ptr.size < 0: return None
+    if ptr.size == 0:
+        return "" #src[sizeof(tll_scheme_offset_ptr_t):sizeof(tll_scheme_offset_ptr_t)]
+    r = src[ptr.offset:ptr.offset + ptr.size]
+    if PY_MAJOR_VERSION == 2:
+        return r.tobytes()
+    return str(r, encoding='utf-8')
 
 def convert_int8(v): return <int8_t>v
 def convert_int16(v): return <int16_t>v
@@ -319,7 +388,7 @@ class Field:
             self.as_dict = lambda v: _as_dict_list(self.type_array, v)
         elif type == Field.Pointer:
             if self.sub_type == SubType.ByteString:
-                self.pack_data, self.unpack_data = pack_vstring, unpack_vstring
+                self.pack_data, self.unpack_data = self.pack_vstring, lambda v: unpack_vstring(v, self.offset_ptr_version.value)
                 self.convert = convert_str
                 self._from_string = lambda x: x
                 self.default = str
@@ -407,8 +476,8 @@ class Field:
         return [self.type_ptr.convert(x) for x in l]
 
     def _unpack_olist_f(self, src, f):
-        cdef tll_scheme_offset_ptr_t * ptr = read_optr(src)
-        if ptr == NULL: return None
+        cdef offset_ptr_t ptr = read_optr(src, self.offset_ptr_version.value, self.type_ptr.size)
+        if ptr.size < 0: return None
         if ptr.size == 0:
             return []
         r = []
@@ -424,12 +493,13 @@ class Field:
     def unpack_olist_reflection(self, src): return self._unpack_olist_f(src, self.type_ptr.unpack_reflection)
 
     def pack_olist(self, v, dest, tail, tail_offset):
-        cdef tll_scheme_offset_ptr_t * ptr = read_optr(dest)
-        if ptr == NULL: return None
+        cdef offset_ptr_t ptr
         f = self.type_ptr
         ptr.offset = tail_offset + len(tail)
         ptr.size = len(v)
         ptr.entity = f.size
+        if write_optr(dest, self.offset_ptr_version.value, &ptr):
+            return None
         b = bytearray(len(v) * self.type_ptr.size)
         view = memoryview(b)
         tnew = bytearray()
@@ -439,6 +509,16 @@ class Field:
             off += f.size
         tail.extend(b)
         if tnew: tail.extend(tnew)
+
+    def pack_vstring(self, v, dest, tail, tail_offset):
+        b = s2b(v)
+        cdef offset_ptr_t ptr
+        ptr.offset = tail_offset + len(tail)
+        ptr.size = len(b)
+        ptr.entity = 1
+        if write_optr(dest, self.offset_ptr_version.value, &ptr):
+            return None
+        tail.extend(b)
 
     def from_string(self, v : str):
         if not hasattr(self, '_from_string'):
@@ -467,6 +547,7 @@ cdef object field_wrap(Scheme s, object m, tll_scheme_field_t * ptr):
         r.count_ptr = field_wrap(s, m, ptr.count_ptr)
         r.type_array = field_wrap(s, m, ptr.type_array)
     elif r.type == r.Pointer:
+        r.offset_ptr_version = OffsetPtrVersion(ptr.offset_ptr_version)
         r.type_ptr = field_wrap(s, m, ptr.type_ptr)
     elif r.sub_type == r.Sub.Enum:
         ename = b2s(ptr.type_enum.name)

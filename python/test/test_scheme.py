@@ -329,3 +329,8 @@ def test_pointer_type():
 
     s1 = S.Scheme(scheme.dump())
     assert [(f.name, f.options) for f in scheme['msg'].values()] == [(f.name, f.options) for f in s1['msg'].values()]
+
+    m = msg.object(default = [1, 2, 3], lshort = [10, 11], llong = [100, 101, 102, 103])
+    data = memoryview(m.pack())
+    u = msg.unpack(data)
+    assert m.as_dict() == u.as_dict()
