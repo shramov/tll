@@ -101,10 +101,10 @@ public:
 			}
 			break;
 		case tll::state::Error:
-			_on_error();
+			this->channelT()->_on_error();
 			break;
 		case tll::state::Closing:
-			_on_close();
+			this->channelT()->_on_close();
 			break;
 		default:
 			break;
