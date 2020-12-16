@@ -312,3 +312,20 @@ def test_unsigned():
     assert r.u8 == m.u8
     assert r.u16 == m.u16
     assert r.u32 == m.u32
+
+def test_pointer_type():
+    scheme = S.Scheme("""yamls://
+- name: msg
+  fields:
+    - {name: default, type: '*int8'}
+    - {name: lshort, type: '*int8', list-options.offset-ptr-type: legacy-short}
+    - {name: llong, type: '*int8', list-options.offset-ptr-type: legacy-long}
+""")
+
+    msg = scheme['msg']
+    assert msg['default'].options == {}
+    assert msg['lshort'].options == {'offset-ptr-type': 'legacy-short'}
+    assert msg['llong'].options == {'offset-ptr-type': 'legacy-long'}
+
+    s1 = S.Scheme(scheme.dump())
+    assert [(f.name, f.options) for f in scheme['msg'].values()] == [(f.name, f.options) for f in s1['msg'].values()]

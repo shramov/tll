@@ -50,6 +50,33 @@ tll::scheme::Option * alloc_option(std::string_view name, std::string_view value
 	o->next = next;
 	return o;
 }
+
+std::string_view offset_ptr_type_name(tll_scheme_offset_ptr_version_t v)
+{
+	switch (v) {
+	case TLL_SCHEME_OFFSET_PTR_DEFAULT: return "default";
+	case TLL_SCHEME_OFFSET_PTR_LEGACY_SHORT: return "legacy-short";
+	case TLL_SCHEME_OFFSET_PTR_LEGACY_LONG: return "legacy-long";
+	}
+	return "";
+}
+
+int fix_offset_ptr_options(tll_scheme_field_t * f)
+{
+	if (f->offset_ptr_version == TLL_SCHEME_OFFSET_PTR_DEFAULT) return 0;
+	std::string_view type = offset_ptr_type_name(f->offset_ptr_version);
+	auto o = f->options;
+	for (; o; o = o->next) {
+		if (o->name == std::string_view("offset-ptr-type"))
+			break;
+	}
+	if (!o) {
+		f->options = alloc_option("offset-ptr-type", type, f->options);
+	} else if (o->value != type) {
+		return EINVAL;
+	}
+	return 0;
+}
 }
 
 namespace tll::scheme::internal {
@@ -695,9 +722,20 @@ int Field::parse_type(tll::Config &cfg, std::string_view type)
 {
 	tll::Logger _log = {"tll.scheme.field." + name};
 	if (!type.size()) return _log.fail(EINVAL, "Empty type");
+
+	auto optr_type = TLL_SCHEME_OFFSET_PTR_DEFAULT;
+	auto ot = list_options.get("offset-ptr-type");
+	if (!ot || *ot == "default") {
+		optr_type = TLL_SCHEME_OFFSET_PTR_DEFAULT;
+	} else if (*ot == "legacy-short") {
+		optr_type = TLL_SCHEME_OFFSET_PTR_LEGACY_SHORT;
+	} else if (*ot == "legacy-long") {
+		optr_type = TLL_SCHEME_OFFSET_PTR_LEGACY_LONG;
+	} else
+		return _log.fail(EINVAL, "Unknown offset-ptr-type: {}", *ot);
 	while (type.size()) {
 		if (type[0] != '*') break;
-		nested.push_back(TLL_SCHEME_OFFSET_PTR_DEFAULT);
+		nested.push_back(optr_type);
 		type = type.substr(1);
 	}
 	if (!type.size()) return _log.fail(EINVAL, "Empty type");
@@ -734,7 +772,7 @@ int Field::parse_type(tll::Config &cfg, std::string_view type)
 	else if (type == "string") {
 		this->type = tll::scheme::Field::Int8;
 		this->sub_type = tll::scheme::Field::ByteString;
-		nested.push_back(TLL_SCHEME_OFFSET_PTR_DEFAULT);
+		nested.push_back(optr_type);
 	} else if (starts_with(type, "byte")) {
 		this->type = tll::scheme::Field::Bytes;
 		auto s = tll::conv::to_any<unsigned>(type.substr(4));
@@ -1248,6 +1286,8 @@ int tll_scheme_field_fix(tll_scheme_field_t * f)
 		}
 		if (!f->type_ptr->name)
 			f->type_ptr->name = strdup(f->name);
+		if (fix_offset_ptr_options(f))
+			return EINVAL;
 		return tll_scheme_field_fix(f->type_ptr);
 	case Field::Message:
 		if (f->type_msg->size == 0) {
