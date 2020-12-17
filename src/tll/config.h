@@ -368,6 +368,7 @@ class Config : public ConfigT<false>
 	int link(std::string_view path, tll_config_t *cfg) { return tll_config_set_link(_cfg, path.data(), path.size(), cfg); }
 
 	int unset(std::string_view path) { return tll_config_unset(_cfg, path.data(), path.size()); }
+	int unset() { return tll_config_unset(_cfg, nullptr, 0); }
 
 	int merge(ConfigT & cfg, bool overwrite = true) { return tll_config_merge(_cfg, cfg, overwrite); }
 	int process_imports(std::string_view path) { return tll_config_process_imports(_cfg, path.data(), path.size()); }

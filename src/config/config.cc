@@ -216,9 +216,12 @@ int tll_config_set_link(tll_config_t *cfg, const char * path, int plen, tll_conf
 int tll_config_unset(tll_config_t *cfg, const char * path, int plen)
 {
 	if (!cfg) return EINVAL;
-	auto sub = cfg->find(string_view_from_c(path, plen), 0);
-	if (!sub) return ENOENT;
-	return sub->set();
+	if (path) {
+		auto sub = cfg->find(string_view_from_c(path, plen), 0);
+		if (!sub) return ENOENT;
+		return sub->set();
+	} else
+		return cfg->set();
 }
 
 int tll_config_set_config(tll_config_t *cfg, const char *path, int plen, tll_config_t *ptr, int consume)
