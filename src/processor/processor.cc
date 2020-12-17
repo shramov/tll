@@ -10,6 +10,7 @@
 
 #include "tll/logger/prefix.h"
 #include "tll/util/conv-fmt.h"
+#include "tll/util/result.h"
 
 #include <set>
 
@@ -23,19 +24,36 @@ struct CallbackT<tll::processor::_::Processor>
 };
 }
 
+namespace {
+tll::result_t<tll::Channel::Url> get_url(const tll::Config &cfg, std::string_view name)
+{
+	auto sub = cfg.sub(name);
+	if (!sub)
+		return tll::error(fmt::format("Url not found at '{}'", name));
+	auto str = sub->get();
+	tll::Channel::Url result;
+	if (str) {
+		auto r = tll::Channel::Url::parse(*str);
+		if (!r)
+			return tll::error(r.error());
+		result.merge(*r);
+	}
+	auto copy = sub->copy();
+	result.merge(copy, true);
+	result.unset();
+	return result;
+}
+}
 
 using namespace tll::processor::_;
 
 std::optional<tll::Channel::Url> Processor::parse_common(std::string_view type, std::string_view name, const Config &cfg)
 {
 	auto n = std::string(cfg.get("name").value_or(name));
-	auto u = cfg.get("url");
-	if (!u)
-		return _log.fail(std::nullopt, "No url in {} {}", type, name);
-	_log.debug("Create {} {}: {}", type, name, *u);
-	auto url = tll::Channel::Url::parse(*u);
+	auto url = get_url(cfg, "url");
 	if (!url)
-		return _log.fail(std::nullopt, "Invalid url in {} {}: {}", type, name, url.error());
+		return _log.fail(std::nullopt, "Failed to load url for {}: {}", name, url.error());
+	_log.debug("Create {} {}: {}", type, name, *url);
 	if (url->has("name"))
 		return _log.fail(std::nullopt, "Duplicate name parameter for {} {}", type, name);
 	url->set("name", n);
