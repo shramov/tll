@@ -16,7 +16,8 @@ jobs:
     - uses: actions/cache@v2
       with:
         path: /home/runner/.ccache
-        key: ccache:${{ matrix.os }}
+        key: ccache:${{ matrix.os }}:${{ github.sha }}
+        restore-keys: 'ccache:${{ matrix.os }}:'
     - name: update
       run: |
         echo deb https://psha.org.ru/debian/ `echo ${{ matrix.os }} | tr -d -` contrib backports | sudo tee /etc/apt/sources.list.d/psha.org.ru.list
