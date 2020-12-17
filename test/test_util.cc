@@ -17,6 +17,7 @@
 
 #include <list>
 #include <stdio.h>
+#include <thread>
 
 #include "test_compat.h"
 
@@ -302,7 +303,10 @@ TEST(Util, Varint)
 
 TEST(Util, Time)
 {
+	using namespace std::chrono_literals;
+
 	auto tnow = tll::time::now_cached();
+	std::this_thread::sleep_for(1us);
 	ASSERT_NE(tnow, tll::time::now_cached());
 	auto snow = std::chrono::system_clock::now();
 	ASSERT_LE(tnow, snow);
