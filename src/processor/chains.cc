@@ -59,6 +59,7 @@ int Chains::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 	auto objects = *curl.sub("processor.objects", true);
 
+	unsigned index = 0;
 	for (auto & [_, c] : chains) {
 		_log.debug("Dump chain {}", c.name);
 		std::list<std::string> depends;
@@ -83,7 +84,8 @@ int Chains::_init(const tll::Channel::Url &url, tll::Channel *master)
 				o.depends.insert(lname);
 				o.config.set("depends", tll::conv::to_string<std::list<std::string>>({o.depends.begin(), o.depends.end()}));
 
-				objects.set(o.name, o.config);
+				o.config.set("name", o.name);
+				objects.set(fmt::format("chains/{:04d}/{}", index++, o.name), o.config);
 				depends.push_back(o.name);
 			}
 
