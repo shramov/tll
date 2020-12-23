@@ -482,7 +482,7 @@ struct Scheme
 			imports.emplace(*lurl, *url);
 			auto c = Config::load(*lurl);
 			if (!c)
-				return _log.fail(EINVAL, "Failed to load confgi {}", lurl->substr(0, 64), lurl->size() > 64 ? "..." : "");
+				return _log.fail(EINVAL, "Failed to load config {}", lurl->substr(0, 64), lurl->size() > 64 ? "..." : "");
 			_log.debug("Load scheme import from {}", lurl->substr(0, 64), lurl->size() > 64 ? "..." : "");
 			if (parse(*c))
 				return _log.fail(EINVAL, "Failed to load scheme {}", lurl->substr(0, 64), lurl->size() > 64 ? "..." : "");
