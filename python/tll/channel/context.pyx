@@ -2,7 +2,7 @@
 # vim: sts=4 sw=4 et
 
 from libc.string cimport memset
-from libc.errno cimport EINVAL
+from libc.errno cimport EINVAL, EAGAIN
 from cpython.ref cimport Py_INCREF, Py_DECREF
 from .impl cimport *
 from .channel cimport *
@@ -11,6 +11,9 @@ from ..config cimport Config, Url
 from ..error import TLLError
 from ..s2b cimport *
 from ..logger import Logger
+
+import importlib
+import sys
 
 cdef class Impl:
     cdef tll_channel_impl_t impl
@@ -147,6 +150,9 @@ cdef class Context:
         if r:
             raise TLLError("Unregister {} failed".format(obj), r)
 
+    def register_loader(self):
+        self.register(PyLoader)
+
 cdef int _py_bad_channel(const tll_channel_t * channel):
     if channel == NULL or channel.data == NULL or channel.impl.free != &_py_free: return 1
     return 0
@@ -175,9 +181,15 @@ cdef int _py_init(tll_channel_t * channel, const tll_config_t *curl, tll_channel
         channel.internal = &intr.internal
         intr.internal.self = channel
 
-        r = _py_check_return(pyc.init(url, master=Channel.wrap(parent)))
-        if r:
-            return r
+        r = pyc.init(url, master=Channel.wrap(parent))
+        if isinstance(r, Impl):
+            channel.internal = NULL
+            intr.internal.self = NULL
+            pyc = None
+            channel.impl = &(<Impl>r).impl
+            return EAGAIN
+        else:
+            r = _py_check_return(r)
         channel.data = <void *>pyc
         Py_INCREF(pyc)
         return 0
@@ -255,3 +267,36 @@ cdef int _py_process(tll_channel_t * channel, long timeout, int flags) with gil:
         except:
             pass
         return EINVAL
+
+class PyLoader:
+    PROTO = 'python'
+    PREFIX = False
+
+    def __init__(self, *a, **kw):
+        pass
+
+    def init(self, url, master=None):
+        log = Logger("tll.channel.python")
+        path, module = None, url.get('python', None)
+        if not module:
+            return log.fail(EINVAL, "Need python parameter")
+        if '/' in module:
+            path, module = module.rsplit('/', 1)
+        if ':' not in module:
+            return log.fail(EINVAL, "Invalid module parameter '{}': need 'module:Class'".format(module))
+        module, klass = module.split(':', 1)
+        if path and path not in sys.path:
+            sys.path.insert(0, path)
+        else:
+            path = None
+        try:
+            m = importlib.import_module(module)
+            obj = getattr(m, klass)
+            impl = getattr(obj, '_TLL_IMPL', None)
+            if impl is None:
+                impl = Impl(obj)
+                obj._TLL_IMPL = impl
+            return impl
+        finally:
+            if path:
+                sys.path.remove(path)

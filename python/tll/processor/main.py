@@ -30,6 +30,7 @@ def main():
         logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)-7s %(name)s: %(message)s')
 
     context = Context()
+    context.register_loader()
 
     loader = None
     mcfg = cfg.sub("processor.module")
