@@ -30,6 +30,8 @@ struct state_t
 	std::list<std::pair<Config, variant_t>> stack;
 	variant_t key;
 
+	std::map<std::string, Config, std::less<>> anchors;
+
 	int parse(const yaml_event_t &event);
 
 	std::string key_string()
@@ -46,6 +48,20 @@ struct state_t
 		} else
 			return "";
 	}
+
+	void anchor(const yaml_char_t * name, Config cfg, std::string_view kind)
+	{
+		if (!name) return;
+		_log.trace("New {} anchor {}", kind, (const char *) name);
+		anchors[(const char *) name] = cfg;
+	}
+
+	std::optional<Config> anchor(const yaml_char_t * name)
+	{
+		auto it = anchors.find((const char *) name);
+		if (it == anchors.end()) return std::nullopt;
+		return it->second;
+	}
 };
 
 int state_t::parse(const yaml_event_t &event)
@@ -58,9 +74,17 @@ int state_t::parse(const yaml_event_t &event)
 	case YAML_NO_EVENT:
 		return 0;
 
-	case YAML_ALIAS_EVENT:
-		key_string();
+	case YAML_ALIAS_EVENT: {
+		auto alias = anchor(event.data.alias.anchor);
+		if (!alias)
+			return _log.fail(ENOENT, "Alias {} not found", event.data.alias.anchor);
+		if (std::holds_alternative<bool>(key))
+			return _log.fail(EINVAL, "Got alias event in invalid context");
+		auto k = key_string();
+		_log.trace("Alias: {} to {}", k, event.data.alias.anchor);
+		cfg.set(k, alias->copy());
 		return 0;
+	}
 
 	case YAML_MAPPING_END_EVENT:
 	case YAML_SEQUENCE_END_EVENT:
@@ -82,10 +106,13 @@ int state_t::parse(const yaml_event_t &event)
 		}
 		stack.emplace_back(cfg, std::move(key));
 		cfg = c;
-		if (event.type == YAML_SEQUENCE_START_EVENT)
+		if (event.type == YAML_SEQUENCE_START_EVENT) {
+			anchor(event.data.mapping_start.anchor, cfg, "sequence");
 			key = (size_t) 0;
-		else
+		} else {
+			anchor(event.data.sequence_start.anchor, cfg, "mapping");
 			key = false;
+		}
 		break;
 	}
 
@@ -97,6 +124,7 @@ int state_t::parse(const yaml_event_t &event)
 				return _log.fail(EINVAL, "Failed to set value {}: duplicate entry", k);
 			if (cfg.set(k, value))
 				return _log.fail(EINVAL, "Failed to set value {}: {}", k, value);
+			anchor(event.data.scalar.anchor, *cfg.sub(k), "scalar");
 		} else
 			key = std::string(value);
 		break;

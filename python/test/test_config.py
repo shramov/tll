@@ -119,6 +119,21 @@ import:
 b.c: 10
 ''')
 
-    assert c.as_dict(), {'b': {'c':'10'}, 'import': ['yamls://{a: 1, b.c: 2}', 'yamls://{a: 2 == b.d: 3}']}
+    assert c.as_dict() == {'b': {'c':'10'}, 'import': ['yamls://{a: 1, b.c: 2}', 'yamls://{a: 2, b.d: 3}']}
     c.process_imports('import')
-    assert c.as_dict(), {'a': '2', 'b': {'c':'10', 'd':'3'}, 'import': ['yamls://{a: 1, b.c: 2}', 'yamls://{a: 2 == b.d: 3}']}
+    assert c.as_dict() == {'a': '2', 'b': {'c':'10', 'd':'3'}, 'import': ['yamls://{a: 1, b.c: 2}', 'yamls://{a: 2, b.d: 3}']}
+
+def test_yaml_alias():
+    with pytest.raises(TLLError): Config.load('''yamls://{a: *unknown}''')
+
+    c = Config.load('''yamls://
+a: &list
+  - &scalar 100
+  - 200
+b: &map
+  a: *scalar
+  b: *list
+c: *map
+''')
+
+    assert c.as_dict() == {'a': ['100', '200'], 'b': {'a': '100', 'b': ['100', '200']}, 'c': {'a': '100', 'b': ['100', '200']}}
