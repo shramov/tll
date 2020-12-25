@@ -53,6 +53,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 	std::map<std::string, const tll_channel_impl_t *, std::less<>> registry;
 	std::map<std::string_view, tll_channel_t *> channels;
 	std::map<std::string, scheme::SchemePtr, std::less<>> scheme_cache;
+	std::map<void *, tll_channel_module_t *> modules;
 	std::shared_mutex scheme_cache_lock;
 
 	Config config;
@@ -69,6 +70,17 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChTcp::impl);
 		reg(&ChTimer::impl);
 		reg(&ChZero::impl);
+	}
+
+	~tll_channel_context_t()
+	{
+		for (auto & m : modules) {
+			if (m.second->free)
+				(*m.second->free)(m.second, this);
+			dlclose(m.first);
+		}
+		modules.clear();
+		channels.clear();
 	}
 
 	tll_channel_t * init(std::string_view params, tll_channel_t *master, const tll_channel_impl_t *impl)
@@ -125,16 +137,29 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		auto module = dlopen(path.c_str(), RTLD_LOCAL | RTLD_NOW);
 		if (!module)
 			return log.fail(EINVAL, "Failed to load: {}", dlerror());
+
+		auto it = modules.find(module);
+		if (it != modules.end()) {
+			log.info("Module already loaded");
+			dlclose(module);
+			return 0;
+		}
+
 		auto f = (tll_channel_module_t *) dlsym(module, symbol.c_str());
 		if (!f)
 			return log.fail(EINVAL, "Failed to load: {} not found", symbol);
+		if (f->init) {
+			if ((*f->init)(f, this))
+				return log.fail(EINVAL, "Failed to load: init function returned error");
+		}
+
 		if (f->impl) {
 			for (auto i = f->impl; *i; i++) {
 				reg(*i);
 			}
-		} else
+		} else if (!f->init)
 			log.info("No channels defined in module {}:{}", path, symbol);
-		//(*f->init)(this);
+		modules.insert({module, f});
 		return 0;
 	}
 

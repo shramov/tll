@@ -71,8 +71,8 @@ struct tll_channel_module_t
 	int version;
 	/// Null terminated list of implementations
 	tll_channel_impl_t ** impl;
-	//int (*init)(tll_channel_context_t *ctx);
-	//int (*fini)(tll_channel_context_t *ctx);
+	int (*init)(struct tll_channel_module_t * m, tll_channel_context_t *ctx);
+	int (*free)(struct tll_channel_module_t * m, tll_channel_context_t *ctx);
 };
 
 void tll_channel_list_free(tll_channel_list_t *l);
