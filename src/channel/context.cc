@@ -146,8 +146,19 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		}
 
 		auto f = (tll_channel_module_t *) dlsym(module, symbol.c_str());
-		if (!f)
+		if (!f) {
+			dlclose(module);
 			return log.fail(EINVAL, "Failed to load: {} not found", symbol);
+		}
+
+		if (f->flags & TLL_CHANNEL_MODULE_DLOPEN_GLOBAL) {
+			log.debug("Reload with RTLD_GLOBAL");
+			if (!dlopen(path.c_str(), RTLD_GLOBAL | RTLD_NOLOAD | RTLD_NOW)) {
+				dlclose(module);
+				return log.fail(EINVAL, "Failed to load: failed to reload with RTLD_GLOBAL: {}", dlerror());
+			}
+		}
+
 		if (f->init) {
 			if ((*f->init)(f, this))
 				return log.fail(EINVAL, "Failed to load: init function returned error");

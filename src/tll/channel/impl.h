@@ -65,15 +65,27 @@ typedef struct tll_channel_internal_t
 	tll_channel_callback_pair_t * cb;
 } tll_channel_internal_t;
 
-struct tll_channel_module_t
+/// Flags for tll_channel_module_t structure
+typedef enum tll_channel_module_flags_t
+{
+	/// Load module with RTLD_GLOBAL. Is needed when module is linked with some libraries
+	/// that are needed for symbol resolution of additional plugins like python modules
+	TLL_CHANNEL_MODULE_DLOPEN_GLOBAL = 1,
+} tll_channel_module_flags_t;
+
+typedef struct tll_channel_module_t
 {
 	/// Version of module symbol
 	int version;
 	/// Null terminated list of implementations
 	tll_channel_impl_t ** impl;
+	/// Init function, may be NULL. Non-zero return value indicates error and aborts module loading
 	int (*init)(struct tll_channel_module_t * m, tll_channel_context_t *ctx);
+	/// Free function, called on context destruction as many times as init function.
 	int (*free)(struct tll_channel_module_t * m, tll_channel_context_t *ctx);
-};
+	/// Flags, @see tll_channel_module_flags_t
+	unsigned flags;
+} tll_channel_module_t;
 
 void tll_channel_list_free(tll_channel_list_t *l);
 int tll_channel_list_add(tll_channel_list_t **l, tll_channel_t *c);
