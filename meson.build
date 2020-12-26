@@ -23,6 +23,7 @@ pthread = cc.find_library('pthread', required: false)
 include = include_directories('src')
 
 subdir('src')
+subdir('python')
 
 gtest = dependency('gtest', required: get_option('with_gtest'), disabler: true)
 if not get_option('with_gtest').disabled() and gtest.found()

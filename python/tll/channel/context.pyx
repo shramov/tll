@@ -16,9 +16,6 @@ import importlib
 import sys
 
 cdef class Impl:
-    cdef tll_channel_impl_t impl
-    cdef object name_bytes
-
     def __cinit__(self, object ctype):
         memset(&self.impl, 0, sizeof(tll_channel_impl_t))
         self.impl.init = &_py_init
@@ -283,6 +280,40 @@ cdef int _py_process(tll_channel_t * channel, long timeout, int flags) with gil:
             pass
         return EINVAL
 
+cdef Impl pychannel_lookup(object module):
+    log = Logger("tll.channel.python")
+    path = None
+    if not module:
+        return log.fail(EINVAL, "Need python parameter")
+    module = b2s(module)
+    if '/' in module:
+        path, module = module.rsplit('/', 1)
+    if ':' not in module:
+        return log.fail(EINVAL, "Invalid module parameter '{}': need 'module:Class'".format(module))
+    module, klass = module.split(':', 1)
+    if path and path not in sys.path:
+        sys.path.insert(0, path)
+    else:
+        path = None
+    try:
+        m = importlib.import_module(module)
+        obj = getattr(m, klass)
+        impl = getattr(obj, '_TLL_IMPL', None)
+        if impl is None:
+            impl = Impl(obj)
+            obj._TLL_IMPL = impl
+        return impl
+    finally:
+        if path:
+            sys.path.remove(path)
+
+cdef api:
+    cdef tll_channel_impl_t * tll_pychannel_lookup(const char *s):
+        cdef Impl impl = pychannel_lookup(b2s(s))
+        if impl is None:
+            return NULL
+        return &impl.impl
+
 class PyLoader:
     PROTO = 'python'
     PREFIX = True
@@ -291,27 +322,4 @@ class PyLoader:
         pass
 
     def init(self, url, master=None):
-        log = Logger("tll.channel.python")
-        path, module = None, url.get('python', None)
-        if not module:
-            return log.fail(EINVAL, "Need python parameter")
-        if '/' in module:
-            path, module = module.rsplit('/', 1)
-        if ':' not in module:
-            return log.fail(EINVAL, "Invalid module parameter '{}': need 'module:Class'".format(module))
-        module, klass = module.split(':', 1)
-        if path and path not in sys.path:
-            sys.path.insert(0, path)
-        else:
-            path = None
-        try:
-            m = importlib.import_module(module)
-            obj = getattr(m, klass)
-            impl = getattr(obj, '_TLL_IMPL', None)
-            if impl is None:
-                impl = Impl(obj)
-                obj._TLL_IMPL = impl
-            return impl
-        finally:
-            if path:
-                sys.path.remove(path)
+        return pychannel_lookup(url.get('python', None))
