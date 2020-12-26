@@ -288,7 +288,10 @@ int bufprintf(tll::logger::tls_buf_t * buf, const char * fmt, va_list va)
 	if (buf->size() == 0)
 		buf->resize(1024);
 
-	auto r = vsnprintf(buf->data(), buf->size(), fmt, va);
+	va_list vac;
+	va_copy(vac, va);
+
+	auto r = vsnprintf(buf->data(), buf->size(), fmt, vac); // When buffer is small 'va' is consumed, use copy
 	if (r >= (int) buf->size()) {
 		buf->resize(r + 1);
 		r = vsnprintf(buf->data(), buf->size(), fmt, va);
