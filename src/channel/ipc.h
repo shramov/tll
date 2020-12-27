@@ -36,12 +36,22 @@ class ChIpc : public tll::channel::Event<ChIpc>
 	using cqueue_t = queue_t<ChIpc>;
 	template <typename T> using refptr_t = tll::util::refptr_t<T>;
 
+	struct marker_queue_t : public MarkerQueue<squeue_t *, nullptr>
+	{
+		using MarkerQueue::MarkerQueue;
+		~marker_queue_t()
+		{
+			while (auto q = pop())
+				q->unref();
+		}
+	};
+
  private:
 	tll_addr_t _addr = {};
 
 	refptr_t<cqueue_t> _qin;
 	refptr_t<squeue_t> _qout;
-	std::shared_ptr<MarkerQueue<squeue_t *, nullptr>> _markers;
+	std::shared_ptr<marker_queue_t> _markers;
 	ChIpcServer * master = nullptr;
 
  public:
@@ -63,7 +73,7 @@ class ChIpcServer : public tll::channel::Event<ChIpcServer>
 	tll_addr_t _addr = {};
 
 	template <typename T> using refptr_t = tll::util::refptr_t<T>;
-	std::shared_ptr<MarkerQueue<ChIpc::squeue_t *, nullptr>> _markers;
+	std::shared_ptr<ChIpc::marker_queue_t> _markers;
 	std::mutex _lock;
 	std::map<long long, refptr_t<ChIpc::cqueue_t>> _clients;
  public:

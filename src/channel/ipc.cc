@@ -112,7 +112,7 @@ int ChIpcServer::_open(const PropsView &url)
 {
 	_addr = {};
 	_clients.clear();
-	_markers.reset(new MarkerQueue<ChIpc::squeue_t *, nullptr>(_size));
+	_markers.reset(new ChIpc::marker_queue_t(_size));
 	if (Event<ChIpcServer>::_open(url))
 		return _log.fail(EINVAL, "Failed to open event parent");
 	state(TLL_STATE_ACTIVE);
