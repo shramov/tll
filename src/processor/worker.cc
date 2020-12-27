@@ -78,8 +78,10 @@ int Worker::callback(const Channel * c, const tll_msg_t * msg)
 	case scheme::Deactivate::id: {
 		auto data = (const scheme::Deactivate *) msg->data;
 		if (data->obj->worker != this) return 0;
-		_log.info("Deactivate object {}", data->obj->name());
-		(*data->obj)->close();
+		auto & channel = (*data->obj);
+		auto force = channel->state() == tll::state::Error;
+		_log.info("Deactivate object {}", channel->name());
+		channel->close(force);
 		break;
 	}
 	case scheme::Exit::id: {
