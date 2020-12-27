@@ -25,3 +25,10 @@ test('test-channel', executable('test-channel',
 	link_args: fs_link_args,
 	)
 )
+
+test('test-processor', executable('test-processor',
+	sources: ['test_main.cc', 'test_processor.cc'],
+	dependencies: [gtest, fmt, tll],
+	link_args: fs_link_args,
+	)
+)

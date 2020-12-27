@@ -75,11 +75,15 @@ struct Object
 	{
 		if (std::any_of(depends.begin(), depends.end(), [](auto & o) { return o->decay; }))
 			return false;
+		if (std::any_of(rdepends.begin(), rdepends.end(), [](auto & o) { return o->decay; }))
+			return false;
 		return std::all_of(depends.begin(), depends.end(), [](auto & o) { return o->state == state::Active; });
 	}
 
 	bool ready_close()
 	{
+		if (std::any_of(rdepends.begin(), rdepends.end(), [](auto & o) { return o->opening; }))
+			return false;
 		return std::all_of(rdepends.begin(), rdepends.end(), [](auto & o) { return o->state == state::Closed; });
 	}
 };

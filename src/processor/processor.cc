@@ -66,13 +66,16 @@ void Processor::decay(Object * obj, bool root)
 		return;
 	if (!root)
 		obj->decay = true;
-	if (obj->state == state::Closed && !obj->opening) {
+
+	if (obj->state == state::Closed && !obj->opening && obj->ready_close()) {
 		_log.debug("Object {} is already closed, decay not needed", obj->name());
 		return;
 	}
-	_log.debug("Decay object {}", obj->name());
+
+	_log.debug("Decay subtree of object {}", obj->name());
 	for (auto & o : obj->rdepends)
 		decay(o);
+
 	if (obj->rdepends.empty() || obj->ready_close()) {
 		_log.debug("Deactivate decayed leaf object {}", obj->name());
 		post<scheme::Deactivate>(obj, { obj });
@@ -345,8 +348,7 @@ void Processor::update(const Channel *c, tll_state_t s)
 	case state::Active:
 		for (auto & d : o->rdepends) {
 			if (d->ready_open()) {
-				_log.debug("Activate object {}", d->name());
-				post<scheme::Activate>(d, { d });
+				activate(*d);
 			}
 		}
 		return;
@@ -355,12 +357,27 @@ void Processor::update(const Channel *c, tll_state_t s)
 		post<scheme::Deactivate>( o, { o });
 		break;
 	case state::Closed:
+		if (o->decay) {
+			_log.debug("Clear decay of {}", o->name());
+			o->decay = false;
+		}
+
 		if (!o->ready_close())
 			decay(o, true);
+
 		for (auto & d : o->depends) {
-			if (o->decay)
+			_log.debug("Check dependency {} of {}", d->name(), o->name());
+			if (d->decay && d->ready_close())
 				post<scheme::Deactivate>(d, { d });
+			else if (d->state == tll::state::Closed && !d->opening && d->ready_open())
+				activate(*d);
 		}
+
+		if (state() != tll::state::Active)
+			break;
+
+		if (o->ready_open())
+			activate(*o);
 		break;
 	default:
 		break;
@@ -381,9 +398,15 @@ void Processor::activate()
 	state(state::Active);
 	for (auto & o : _objects) {
 		if (o.depends.size()) continue;
-		_log.debug("Activate object {}", o->name());
-		post(&o, scheme::Activate { &o });
+		activate(o);
 	}
+}
+
+void Processor::activate(Object &o)
+{
+	_log.debug("Activate object {}", o->name());
+	o.opening = true;
+	post(&o, scheme::Activate { &o });
 }
 
 int Processor::_close(bool force)

@@ -54,6 +54,7 @@ struct Processor : public tll::channel::Base<Processor>
 	Worker * init_worker(std::string_view name);
 
 	void decay(Object * obj, bool root = false);
+	void activate(Object & obj);
 
 	int build_rdepends();
 
