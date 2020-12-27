@@ -7,121 +7,118 @@
 using namespace std::chrono_literals;
 using namespace tll::state;
 
-TEST(Processor, Basic)
+class Processor : public ::testing::Test
 {
-	tll::Logger log = { "test" };
-	auto cfg = tll::Config::load(R"(yamls://
+protected:
+	virtual std::string_view config_data()
+	{
+		return R"(yamls://
 processor.objects:
   base:
     url: null://
   null:
     url: null://
     depends: base
-)");
-	ASSERT_TRUE(cfg);
+)";
+	}
 
-	cfg->set("tll.proto", "processor");
-	cfg->set("name", "test");
+	virtual std::vector<std::string> worker_list() { return { "test/worker/default" }; }
+	virtual tll::duration timeout() { return 1000ms; }
 
-	std::list<std::thread> threads;
+	tll::Logger log = { "test" };
+	tll::Config config;
+	tll::channel::Context context { tll::Config() };
 
-	auto context = tll::channel::Context(tll::Config());
-	auto proc = tll::Processor::init(*cfg, context);
+	std::unique_ptr<tll::Processor> proc;
 
-	ASSERT_TRUE(proc);
+public:
+	virtual void SetUp() override
+	{
+		auto cfg = tll::Config::load(config_data());
 
-	ASSERT_EQ(proc->open(), 0);
+		ASSERT_TRUE(cfg);
 
-	ASSERT_EQ(proc->workers().size(), 1u);
-	ASSERT_STREQ(proc->workers()[0]->name(), "test/worker/default"); 
+		cfg->set("tll.proto", "processor");
+		cfg->set("name", "test");
+
+		config = *cfg;
+
+		proc = tll::Processor::init(config, context);
+
+		ASSERT_TRUE(proc);
+
+		ASSERT_EQ(proc->open(), 0);
+
+		auto wl = worker_list();
+		ASSERT_EQ(proc->workers().size(), wl.size());
+		for (auto i = 0u; i < wl.size(); i++)
+			ASSERT_STREQ(proc->workers()[i]->name(), wl[i].c_str());
+
+		for (auto & w : proc->workers())
+			ASSERT_EQ(w->open(), 0);
+	}
+
+	virtual void TearDown() override
+	{
+		proc.reset();
+	}
+
+	template <typename F>
+	void run(F f)
+	{
+		auto end = tll::time::now() + timeout();
+		auto loop = proc->loop();
+		while (!loop->stop) {
+			loop->step(1us);
+			for (auto & w : proc->workers()) {
+				w->loop()->step(1us);
+			}
+
+			f();
+
+			ASSERT_LE(tll::time::now(), end);
+		}
+	}
+};
+
+TEST_F(Processor, Basic)
+{
 
 	auto null = context.get("null");
 	ASSERT_TRUE(null);
 	ASSERT_EQ(null->state(), Closed);
 
-	for (auto & w : proc->workers()) {
-		ASSERT_EQ(w->open(), 0);
-	}
-
-	auto start = tll::time::now();
-	auto loop = proc->loop();
-	while (!loop->stop) {
-		loop->step(1us);
-		for (auto & w : proc->workers()) {
-			w->loop()->step(1us);
+	run([&null, this](){
+		if (null->state() == Active && this->proc->state() == Active) {
+			this->log.info("Close processor");
+			this->proc->close();
 		}
 
-		if (null->state() == Active && proc->state() == Active) {
-			log.info("Close processor");
-			proc->close();
-		}
-
-		ASSERT_LE(tll::time::now() - start, 10ms);
-	}
+	});
 
 	ASSERT_EQ(proc->state(), Closed);
 }
 
-TEST(Processor, Reopen)
+TEST_F(Processor, Reopen)
 {
-	tll::Logger log = { "test" };
-	auto cfg = tll::Config::load(R"(yamls://
-processor.objects:
-  base:
-    url: null://
-  null:
-    url: null://
-    depends: base
-)");
-	ASSERT_TRUE(cfg);
-
-	cfg->set("tll.proto", "processor");
-	cfg->set("name", "test");
-
-	std::list<std::thread> threads;
-
-	auto context = tll::channel::Context(tll::Config());
-	auto proc = tll::Processor::init(*cfg, context);
-
-	ASSERT_TRUE(proc);
-
-	ASSERT_EQ(proc->open(), 0);
-
-	ASSERT_EQ(proc->workers().size(), 1u);
-	ASSERT_STREQ(proc->workers()[0]->name(), "test/worker/default"); 
-
 	auto null = context.get("null");
 	auto base = context.get("base");
 	ASSERT_TRUE(null);
 	ASSERT_TRUE(base);
-
-	for (auto & w : proc->workers()) {
-		ASSERT_EQ(w->open(), 0);
-	}
-
-	auto start = tll::time::now();
 	bool reopen = true;
 
-	auto loop = proc->loop();
-	while (!loop->stop) {
-		loop->step(1us);
-		for (auto & w : proc->workers()) {
-			w->loop()->step(1us);
-		}
-
-		if (null->state() == Active && base->state() == Active && proc->state() == Active) {
+	run([&null, &base, &reopen, this](){
+		if (null->state() == Active && base->state() == Active && this->proc->state() == Active) {
 			if (reopen) {
-				log.info("Close {}", base->name());
+				this->log.info("Close {}", base->name());
 				reopen = false;
 				base->close();
 			} else {
-				log.info("Close processor");
-				proc->close();
+				this->log.info("Close processor");
+				this->proc->close();
 			}
 		}
-
-		ASSERT_LE(tll::time::now() - start, 10ms);
-	}
+	});
 
 	ASSERT_EQ(proc->state(), Closed);
 }
