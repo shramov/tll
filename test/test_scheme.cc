@@ -289,3 +289,17 @@ f7: ["offset string"])");
 
 	ASSERT_EQ(r.error(), "Failed to format field f7[0]: Offset out of bounds: offset 500 > data size 320");
 }
+
+TEST(Scheme, Import)
+{
+	SchemePtr s(Scheme::load("yaml://import.yaml"), tll_scheme_unref);
+
+	ASSERT_NE(s.get(), nullptr);
+
+	auto m = s->messages; ASSERT_NE(m, nullptr); EXPECT_STREQ(m->name, "bsub");
+	m = m->next; ASSERT_NE(m, nullptr); EXPECT_STREQ(m->name, "b");
+	m = m->next; ASSERT_NE(m, nullptr); EXPECT_STREQ(m->name, "c");
+	m = m->next; ASSERT_NE(m, nullptr); EXPECT_STREQ(m->name, "a");
+	m = m->next; ASSERT_NE(m, nullptr); EXPECT_STREQ(m->name, "top");
+	m = m->next; ASSERT_EQ(m, nullptr);
+}

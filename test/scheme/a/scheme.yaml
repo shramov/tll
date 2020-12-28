@@ -1,0 +1,8 @@
+- name:
+  import:
+    - yaml://./b/scheme.yaml
+    - yaml://c.yaml
+
+- name: a
+  fields:
+    - {name: f0, type: int32}

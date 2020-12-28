@@ -1,0 +1,3 @@
+- name: topsub
+  fields:
+    - {name: f0, type: int32}

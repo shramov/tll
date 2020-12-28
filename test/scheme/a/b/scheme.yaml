@@ -1,0 +1,7 @@
+- name:
+  import:
+    - yaml://./sub.yaml
+
+- name: b
+  fields:
+    - {name: f0, type: int32}

@@ -16,7 +16,8 @@ test('test-lib', executable('test-lib',
 	sources: ['test_main.cc', 'test_config.cc', 'test_logger.cc', 'test_scheme.cc', 'test_stat.cc'],
 	cpp_args: '-DSCHEME_PATH="@0@"'.format(meson.current_source_dir() / 'test_scheme.yaml'),
 	dependencies: [gtest, fmt, tll],
-	)
+	),
+	env: ['TLL_SCHEME_PATH=@0@'.format(meson.current_source_dir() / 'scheme')],
 )
 
 test('test-channel', executable('test-channel',

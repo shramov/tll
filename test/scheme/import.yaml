@@ -1,0 +1,7 @@
+- name:
+  import:
+    - yaml://./a/scheme.yaml
+
+- name: top
+  fields:
+    - {name: f0, type: int32}

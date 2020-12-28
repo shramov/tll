@@ -1,0 +1,3 @@
+- name: c
+  fields:
+    - {name: f0, type: int32}

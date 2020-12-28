@@ -1,0 +1,3 @@
+- name: asub
+  fields:
+    - {name: f0, type: int32}

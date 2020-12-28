@@ -13,6 +13,7 @@
 #include "tll/util/conv.h"
 #include "tll/util/listiter.h"
 #include "tll/util/result.h"
+#include "tll/util/string.h"
 #include "tll/util/url.h"
 #include "tll/util/zlib.h"
 
@@ -76,6 +77,15 @@ int fix_offset_ptr_options(tll_scheme_field_t * f)
 		return EINVAL;
 	}
 	return 0;
+}
+
+std::list<std::string> scheme_search_path()
+{
+	auto v = getenv("TLL_SCHEME_PATH");
+	if (!v)
+		return {"/usr/share/tll/scheme"};
+	std::list<std::string> r;
+	return tll::splitl<':', true>(r, v);
 }
 }
 
@@ -381,11 +391,17 @@ struct Message
 
 struct Scheme
 {
+	struct Search
+	{
+		std::string current;
+		std::list<std::string> search;
+	};
+
 	Options options;
 	std::list<Message> messages;
 	std::list<Enum> enums;
 	std::list<Field> aliases;
-	std::list<std::string> search;
+
 	std::map<std::string, std::string> imports;
 
 	tll::scheme::Scheme * finalize()
@@ -414,13 +430,13 @@ struct Scheme
 		return r;
 	}
 
-	static tll::result_t<std::string> lookup(std::string_view path, const std::list<std::string> &search = {})
+	static tll::result_t<std::pair<std::string, std::string>> lookup(std::string_view path, const Search &search = {})
 	{
 		if (starts_with(path, "yamls"))
-			return path;
+			return std::make_pair(path, "");
 
 		if (!starts_with(path, "yaml://"))
-			return path;
+			return std::make_pair(path, "");
 
 		auto url = tll::UrlView::parse(path);
 		if (!url)
@@ -428,22 +444,35 @@ struct Scheme
 		if (!url->host.size())
 			return error("Zero length filename");
 		if (url->host[0] == '/')
-			return path;
+			return std::make_pair(path, "");
 
 		std::string fn = std::string(url->host);
+		if (fn[0] == '.' && fn[1] == '/') {
+			fn = std::string(url->host);
+			auto sep = search.current.rfind('/');
+			if (sep != search.current.npos) {
+				fn = search.current.substr(0, sep) + '/' + fn;
+			}
+			if (!access(fn.c_str(), F_OK)) {
+				url->host = fn;
+				return std::make_pair(conv::to_string(*url), fn);
+			}
+			return error("Relative import not found");
+		}
+
 		if (!access(fn.c_str(), F_OK))
-			return path;
-		for (auto & prefix : search) {
+			return std::make_pair(path, fn);
+		for (auto & prefix : search.search) {
 			fn = prefix + "/" + std::string(url->host);
 			if (!access(fn.c_str(), F_OK)) {
 				url->host = fn;
-				return conv::to_string(*url);
+				return std::make_pair(conv::to_string(*url), fn);
 			}
 		}
 		return error("File not found");
 	}
 
-	int parse_meta(tll::Config &cfg)
+	int parse_meta(tll::Config &cfg, const Search &search)
 	{
 		tll::Logger _log = {"tll.scheme"};
 		auto o = Options::parse(cfg);
@@ -472,25 +501,28 @@ struct Scheme
 		for (auto & [path, ic] : cfg.browse("import.**")) {
 			auto url = ic.get();
 			if (!url) return _log.fail(EINVAL, "Unreadable url for import {}", path);
-			auto lurl = Scheme::lookup(*url, search);
-			if (!lurl)
-				return _log.fail(EINVAL, "Failed to lookup import {} '{}': {}", path, *url, lurl.error());
-			if (imports.find(*lurl) != imports.end()) {
-				_log.debug("Scheme import {} already loaded", *lurl);
+			auto r = Scheme::lookup(*url, search);
+			if (!r)
+				return _log.fail(EINVAL, "Failed to lookup import {} '{}': {}", path, *url, r.error());
+			auto & lurl = r->first;
+			if (imports.find(lurl) != imports.end()) {
+				_log.debug("Scheme import {} already loaded", lurl);
 				continue;
 			}
-			imports.emplace(*lurl, *url);
-			auto c = Config::load(*lurl);
+			imports.emplace(lurl, *url);
+			auto c = Config::load(lurl);
 			if (!c)
-				return _log.fail(EINVAL, "Failed to load config {}", lurl->substr(0, 64), lurl->size() > 64 ? "..." : "");
-			_log.debug("Load scheme import from {}", lurl->substr(0, 64), lurl->size() > 64 ? "..." : "");
-			if (parse(*c))
-				return _log.fail(EINVAL, "Failed to load scheme {}", lurl->substr(0, 64), lurl->size() > 64 ? "..." : "");
+				return _log.fail(EINVAL, "Failed to load config {}", lurl.substr(0, 64), lurl.size() > 64 ? "..." : "");
+			_log.debug("Load scheme import from {}", lurl.substr(0, 64), lurl.size() > 64 ? "..." : "");
+			Search s = search;
+			s.current = r->second;
+			if (parse(*c, s))
+				return _log.fail(EINVAL, "Failed to load scheme {}", lurl.substr(0, 64), lurl.size() > 64 ? "..." : "");
 		}
 		return 0;
 	}
 
-	int parse(tll::Config &cfg)
+	int parse(tll::Config &cfg, const Search &search)
 	{
 		tll::Logger _log = {"tll.scheme"};
 		bool meta = false;
@@ -503,7 +535,7 @@ struct Scheme
 			if (!n || !n->size()) {
 				if (meta)
 					return _log.fail(EINVAL, "Duplicate meta block");
-				if (parse_meta(mc))
+				if (parse_meta(mc, search))
 					return _log.fail(EINVAL, "Failed to load meta block");
 				meta = true;
 				continue;
@@ -521,11 +553,10 @@ struct Scheme
 		return 0;
 	}
 
-	static std::optional<Scheme> parse(tll::Config &cfg, const std::list<std::string> &search)
+	static std::optional<Scheme> load(tll::Config &cfg, const Search &search)
 	{
 		Scheme s;
-		s.search = search;
-		if (s.parse(cfg))
+		if (s.parse(cfg, search))
 			return std::nullopt;
 		return s;
 	}
@@ -818,14 +849,19 @@ tll_scheme_t * tll_scheme_load(const char * curl, int ulen)
 {
 	tll::Logger _log = {"tll.scheme"};
 	if (!curl) return _log.fail(nullptr, "Failed to load config: null string");
-	std::list<std::string> search = {"scheme"};
+
+	tll::scheme::internal::Scheme::Search search;
+	search.search = scheme_search_path();
+
 	std::string_view url(curl, (ulen == -1)?strlen(curl):ulen);
 	auto lurl = tll::scheme::internal::Scheme::lookup(url, search);
 	if (!lurl)
 		return _log.fail(nullptr, "Failed to lookup import '{}': {}", curl, lurl.error());
-	auto cfg = tll::Config::load(*lurl);
-	if (!cfg) return _log.fail(nullptr, "Failed to load config: {}", *lurl);
-	auto s = tll::scheme::internal::Scheme::parse(*cfg, search);
+	auto cfg = tll::Config::load(lurl->first);
+	if (!cfg) return _log.fail(nullptr, "Failed to load config: {}", lurl->first);
+
+	search.current = lurl->second;
+	auto s = tll::scheme::internal::Scheme::load(*cfg, search);
 	if (!s)
 		return _log.fail(nullptr, "Failed to load scheme");
 	auto r = s->finalize();
