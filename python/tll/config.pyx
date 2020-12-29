@@ -209,4 +209,4 @@ cdef class Url(Config):
     def host(self, v): self['tll.host'] = v
 
     def __str__(self):
-        return '{}://{};{}'.format(self.proto, self.host, ['{}={}'.format(k,v) for k,v in self.browse('**') if k not in {'tll.proto', 'tll.host'}])
+        return '{}://{};{}'.format(self.proto, self.host, ';'.join(['{}={}'.format(k,v) for k,v in self.browse('**') if k not in {'tll.proto', 'tll.host'}]))
