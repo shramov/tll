@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # vim: sts=4 sw=4 et
 
+from .config cimport Config
 from .logger cimport *
 from .s2b cimport *
 from .error import TLLError
@@ -130,6 +131,10 @@ def init():
     pylog.reg()
 
 def pyconfigure(config):
+    levels = config.sub("levels", throw=False)
+    if levels:
+        tll_logger_config((<Config>levels)._ptr);
+
     if config is None or config.sub('python', throw=False) is None: return
 
     lcfg = config.sub('python').as_dict()

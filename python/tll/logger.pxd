@@ -1,6 +1,8 @@
 # vim: sts=4 sw=4 et
 # cython: language_level=3
 
+from .config cimport tll_config_t
+
 cdef extern from "tll/logger.h":
     ctypedef enum tll_logger_level_t:
         TLL_LOGGER_TRACE
@@ -27,3 +29,4 @@ cdef extern from "tll/logger.h":
     cdef int tll_logger_log(tll_logger_t * log, tll_logger_level_t lvl, const char * buf, size_t size)
 
     cdef int tll_logger_register(tll_logger_impl_t *)
+    cdef int tll_logger_config(tll_config_t *)
