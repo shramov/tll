@@ -189,6 +189,10 @@ int Processor::init_one(std::string_view extname, const Config &cfg, bool logic)
 	auto o = &_objects.back();
 	o->worker = w;
 
+	auto open = cfg.sub("open");
+	if (open)
+		o->open_parameters = ConstConfig(*open);
+
 	auto deps = cfg.get("depends");
 	if (deps || !deps->empty()) {
 		for (auto d : split<','>(*deps)) {

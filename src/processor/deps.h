@@ -39,7 +39,7 @@ struct Object
 
 	std::list<std::string> depends_names; //< Temporary storage used during initialization
 
-	std::string open_parameters;
+	tll::ConstConfig open_parameters;
 
 	tll::time_point open_ts = {};
 	tll::duration reopen_delay = {};
@@ -55,7 +55,20 @@ struct Object
 	int open()
 	{
 		if (!channel) return EINVAL;
-		return channel->open(open_parameters);
+		tll::Props props;
+		auto v = open_parameters.get();
+		if (v) {
+			auto r = Props::parse(*v);
+			if (!r)
+				return EINVAL;
+			props = *r;
+		}
+		for (auto &[k, c] : open_parameters.browse("**")) {
+			auto v = c.get();
+			if (v)
+				props[k] = *v;
+		}
+		return channel->open(conv::to_string(props));
 	}
 
 	std::string_view name() const { return channel->name(); }
