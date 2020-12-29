@@ -207,12 +207,12 @@ int Processor::init_one(std::string_view extname, const Config &cfg, bool logic)
 int Processor::init_depends()
 {
 	for (auto & p : _cfg.browse("objects.*", true)) {
-		if (p.second.get("type").value_or("") == "logic") continue;
+		if (p.second.sub("channels")) continue;
 		if (init_one(p.first.substr(strlen("objects.")), p.second, false))
 			return EINVAL;
 	}
 	for (auto & p : _cfg.browse("objects.*", true)) {
-		if (p.second.get("type").value_or("") != "logic") continue;
+		if (!p.second.sub("channels")) continue;
 		if (init_one(p.first.substr(strlen("objects.")), p.second, true))
 			return EINVAL;
 	}

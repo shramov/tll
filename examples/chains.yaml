@@ -21,7 +21,6 @@ processor:
       objects:
         fwd:
           url: 'forward://'
-          type: logic
           channels:
             output: a
             input: zz # reference to objects in sub chains
