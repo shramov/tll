@@ -174,7 +174,6 @@ int Processor::init_one(std::string_view extname, const Config &cfg, bool logic)
 	name = *url->getT<std::string>("name", "");
 
 	if (logic) {
-		url->proto("logic+" + url->proto());
 		for (auto & c : cfg.browse("channels.**")) {
 			auto key = "tll.channel." + c.first.substr(strlen("channels."));
 			if (url->has(key))
