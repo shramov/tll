@@ -204,7 +204,7 @@ class Base
 	{
 		if (state() != state::Closed)
 			return _log.fail(EINVAL, "Open failed: invalid state {}", tll_state_str(state()));
-		_log.info("Open channel");
+		_log.info("Open channel: {}", params);
 		state(state::Opening);
 		switch (T::process_policy()) {
 		case ProcessPolicy::Normal:
