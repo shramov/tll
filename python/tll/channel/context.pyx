@@ -30,7 +30,7 @@ cdef class Impl:
         if getattr(ctype, 'PREFIX', 0):
             self.impl.prefix = 1
         self.impl.data = <void *>ctype
-        self.name_bytes = s2b(getattr(ctype, "PROTO", ctype.__name__))
+        self.name_bytes = s2b(getattr(ctype, "PROTO") or ctype.__name__)
         self.impl.name = self.name_bytes
 
 cdef class Internal:
