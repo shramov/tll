@@ -186,8 +186,8 @@ def test_string():
     M = s['msg']
     m0 = M.object(f0 = "ыыы", f1 = {'s0':"nestedtail"}, f2 = ["a", "b", "c"])
     data = m0.pack()
-    assert len(data) == M.size + len("string") + len("nestedtail") + 3 * (8 + 1)
-    assert struct.unpack("=QQQ6s10sQQQ1s1s1s", data) == (optr(24, 6, 1), optr(22, 10, 1), optr(24, 3, 8), s2b("ыыы"), b"nestedtail", optr(24, 1, 1), optr(17, 1, 1), optr(10, 1, 1), b'a', b'b', b'c')
+    assert len(data) == M.size + len(s2b("ыыы\0")) + len(b"nestedtail\0") + 3 * (8 + 2)
+    assert struct.unpack("=QQQ7s11sQQQ2s2s2s", data) == (optr(24, 6 + 1, 1), optr(23, 10 + 1, 1), optr(26, 3, 8), s2b("ыыы\0"), b"nestedtail\0", optr(24, 1 + 1, 1), optr(18, 1 + 1, 1), optr(12, 1 + 1, 1), b'a\0', b'b\0', b'c\0')
     m1 = M.object().unpack(data)
     assert m1.f0 == "ыыы"
     assert m1.f1.s0 == "nestedtail"

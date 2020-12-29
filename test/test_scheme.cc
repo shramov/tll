@@ -244,10 +244,10 @@ s1: [123.456, 1.5])");
 	msg.f7.size = 1;
 	msg.f7.entity = sizeof(tll_scheme_offset_ptr_t);
 	msg.f7.offset = (ptrdiff_t) &msg.f7_ptr - (ptrdiff_t) &msg.f7;
-	msg.f7_ptr[0].size = strlen("offset string");
+	msg.f7_ptr[0].size = strlen("offset string") + 1;
 	msg.f7_ptr[0].entity = 1;
 	msg.f7_ptr[0].offset = (ptrdiff_t) &msg.f7_ptr_ptr - (ptrdiff_t) &msg.f7_ptr[0];
-	strcpy(msg.f7_ptr_ptr[0], "offset string");
+	memcpy(msg.f7_ptr_ptr[0], "offset string\0", msg.f7_ptr[0].size);
 
 	for (message = s->messages; message; message = message->next) {
 		if (std::string_view("test") == message->name)

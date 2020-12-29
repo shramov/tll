@@ -282,7 +282,7 @@ cdef unpack_vstring(object src, int optr_version):
     if ptr.size < 0: return None
     if ptr.size == 0:
         return "" #src[sizeof(tll_scheme_offset_ptr_t):sizeof(tll_scheme_offset_ptr_t)]
-    r = src[ptr.offset:ptr.offset + ptr.size]
+    r = src[ptr.offset:ptr.offset + ptr.size - 1]
     if PY_MAJOR_VERSION == 2:
         return r.tobytes()
     return str(r, encoding='utf-8')
@@ -514,11 +514,11 @@ class Field:
         b = s2b(v)
         cdef offset_ptr_t ptr
         ptr.offset = tail_offset + len(tail)
-        ptr.size = len(b)
+        ptr.size = len(b) + 1
         ptr.entity = 1
         if write_optr(dest, self.offset_ptr_version.value, &ptr):
             return None
-        tail.extend(b)
+        tail.extend(b + b'\0')
 
     def from_string(self, v : str):
         if not hasattr(self, '_from_string'):

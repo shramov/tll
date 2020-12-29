@@ -141,7 +141,10 @@ format_result_t to_strings(const tll::scheme::Field * field, const View &data)
 		else if (ptr->offset + ptr->size * ptr->entity > data.size())
 			return unexpected(path_error_t {"", fmt::format("Offset data out of bounds: offset {} + data {} * entity {} > data size {}", ptr->offset, (unsigned) ptr->size, ptr->entity, data.size())});
 		if (field->sub_type == Field::ByteString) {
-			return std::list<std::string> { '"' + std::string(data.view(ptr->offset).template dataT<const char>(), ptr->size) + '"' };
+			std::string_view r;
+			if (ptr->size)
+				r = {data.view(ptr->offset).template dataT<const char>(), ptr->size - 1};
+			return std::list<std::string> { '"' + std::string(r)  + '"' };
 		}
 
 		return to_strings_list(field->type_ptr, data.view(ptr->offset), ptr->size, ptr->entity);
