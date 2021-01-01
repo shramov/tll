@@ -270,7 +270,7 @@ cdef int _py_process(tll_channel_t * channel, long timeout, int flags) with gil:
 
 class PyLoader:
     PROTO = 'python'
-    PREFIX = False
+    PREFIX = True
 
     def __init__(self, *a, **kw):
         pass
