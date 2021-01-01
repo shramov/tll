@@ -131,6 +131,9 @@ def init():
     pylog.reg()
 
 def pyconfigure(config):
+    if config is None:
+        return
+
     levels = config.sub("levels", throw=False)
     if levels:
         tll_logger_config((<Config>levels)._ptr);
