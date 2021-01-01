@@ -134,6 +134,9 @@ int ChSerial::_process(long timeout, int flags)
 		if (errno == EAGAIN)
 			return EAGAIN;
 		return _log.fail(EINVAL, "Failed to read from serial: {}", strerror(errno));
+	} else if (r == 0) {
+		_log.info("EOF on serial");
+		close();
 	}
 	msg.data = _buf.data();
 	msg.size = r;
