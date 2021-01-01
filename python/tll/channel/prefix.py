@@ -11,7 +11,7 @@ class Prefix(Base):
     OPEN_POLICY = Base.OpenPolicy.Manual
     CLOSE_POLICY = Base.ClosePolicy.Long
     CHILD_POLICY = Base.ChildPolicy.Single
-    PROCESS_POLICY = Base.ChildPolicy.Never
+    PROCESS_POLICY = Base.ProcessPolicy.Never
 
     def _init(self, url, master = None):
         if '+' not in url.proto:
@@ -56,24 +56,29 @@ class Prefix(Base):
                 self.log.exception("Failed to set Active state")
                 self.state = self.State.Error
         elif s == self.State.Error:
-            self.log.info("Child channel failed")
-            self.state = s
+            self._on_error()
         elif s == self.State.Closing:
-            self.log.debug("Child channel is closing")
-            if self.state in (self.State.Opening, self.State.Active):
-                self.close(force=True)
+            self._on_closing()
         elif s == self.State.Closed:
-            self.log.debug("Child channel closed")
-            if self.state == self.State.Closing:
-                self.state = s
+            self._on_closed()
         else:
             pass
 
     def _on_active(self):
         self.state = self.State.Active
 
-    def _on_close(self): pass
+    def _on_closing(self):
+        self.log.debug("Child channel is closing")
+        if self.state in (self.State.Opening, self.State.Active):
+            self.state = self.State.Closing
+
+    def _on_closed(self):
+        self.log.debug("Child channel closed")
+        if self.state == self.State.Closing:
+            Base._close(self)
+
     def _on_error(self):
+        self.log.info("Child channel failed")
         self.state = self.State.Error
 
     def __call__(self, c, msg):
