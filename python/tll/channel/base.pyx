@@ -37,6 +37,13 @@ class ChildPolicy(enum.Enum):
     Many = enum.auto()
 _ChildPolicy = ChildPolicy
 
+class ProcessPolicy(enum.Enum):
+    Normal = enum.auto()
+    Never = enum.auto()
+    Always = enum.auto()
+    Custom = enum.auto()
+_ProcessPolicy = ProcessPolicy
+
 cdef class Base:
     PROTO = None
     PREFIX = False
@@ -44,10 +51,12 @@ cdef class Base:
     OpenPolicy = _OpenPolicy
     ClosePolicy = _ClosePolicy
     ChildPolicy = _ChildPolicy
+    ProcessPolicy = _ProcessPolicy
 
     OPEN_POLICY = OpenPolicy.Auto
     CLOSE_POLICY = ClosePolicy.Normal
     CHILD_POLICY = ChildPolicy.Never
+    PROCESS_POLICY = ProcessPolicy.Normal
 
     Caps = C.Caps
     DCaps = C.DCaps
@@ -176,14 +185,16 @@ cdef class Base:
     def open(self, props):
         self.log.info("Open channel")
         self.state = C.State.Opening
-        self._update_dcaps(C.DCaps.Process)
+
+        if self.PROCESS_POLICY != self.ProcessPolicy.Never:
+            self._update_dcaps(C.DCaps.Process)
 
         try:
             self._open(props)
         except:
             self.log.exception("Failed to open channel")
             self.state = C.State.Error
-            raise
+            return EINVAL
 
         if self.OPEN_POLICY == OpenPolicy.Auto:
             self.state = C.State.Active
@@ -246,6 +257,9 @@ cdef class Base:
         msg.size = sizeof(ccaps)
 
         self.internal.callback(&msg)
+
+    def _update_pending(self, pending : bool = True):
+        return self._update_dcaps(self.dcaps.Pending if pending else 0, self.dcaps.Pending)
 
     def _update_fd(self, fd : int):
         cdef int old = self.internal.internal.fd
