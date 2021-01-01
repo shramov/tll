@@ -230,7 +230,7 @@ class Base
 		auto r = static_cast<ChannelT *>(this)->_open(*props);
 		if (r)
 			state(state::Error);
-		if (T::open_policy() == OpenPolicy::Auto)
+		else if (T::open_policy() == OpenPolicy::Auto)
 			state(state::Active);
 		return r;
 	}
