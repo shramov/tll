@@ -5,14 +5,9 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
-#if __has_include(<filesystem>)
-# include <filesystem>
-#else
-# include <experimental/filesystem>
-namespace std::filesystem { using namespace ::std::experimental::filesystem; }
-#endif
-
 #include "gtest/gtest.h"
+
+#include "tll/compat/filesystem.h"
 
 #include "tll/channel/base.h"
 #include "tll/processor/loop.h"
