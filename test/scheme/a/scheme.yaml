@@ -1,7 +1,7 @@
 - name:
   import:
     - yaml://./b/scheme.yaml
-    - yaml://c.yaml
+    - yaml://./../c.yaml
 
 - name: a
   fields:

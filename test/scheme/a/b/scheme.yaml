@@ -1,6 +1,7 @@
 - name:
   import:
     - yaml://./sub.yaml
+    - yaml://c.yaml
 
 - name: b
   fields:

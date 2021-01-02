@@ -9,6 +9,8 @@
 #include "tll/logger.h"
 #include "tll/scheme.h"
 
+#include "tll/compat/filesystem.h"
+
 #include "tll/util/bin2ascii.h"
 #include "tll/util/conv.h"
 #include "tll/util/listiter.h"
@@ -18,9 +20,7 @@
 #include "tll/util/zlib.h"
 
 #include <errno.h>
-#include <fcntl.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 #include <atomic>
 #include <memory>
@@ -79,12 +79,12 @@ int fix_offset_ptr_options(tll_scheme_field_t * f)
 	return 0;
 }
 
-std::list<std::string> scheme_search_path()
+std::list<std::filesystem::path> scheme_search_path()
 {
 	auto v = getenv("TLL_SCHEME_PATH");
 	if (!v)
 		return {"/usr/share/tll/scheme"};
-	std::list<std::string> r;
+	std::list<std::filesystem::path> r;
 	return tll::splitl<':', true>(r, v);
 }
 }
@@ -393,8 +393,8 @@ struct Scheme
 {
 	struct Search
 	{
-		std::string current;
-		std::list<std::string> search;
+		std::filesystem::path current;
+		std::list<std::filesystem::path> search;
 	};
 
 	Options options;
@@ -430,43 +430,50 @@ struct Scheme
 		return r;
 	}
 
-	static tll::result_t<std::pair<std::string, std::string>> lookup(std::string_view path, const Search &search = {})
+	static tll::result_t<std::pair<std::string, std::filesystem::path>> lookup(std::string_view path, const Search &search = {})
 	{
+		namespace fs = std::filesystem;
+		using tll::filesystem::lexically_normal;
+
 		if (starts_with(path, "yamls"))
 			return std::make_pair(path, "");
 
 		if (!starts_with(path, "yaml://"))
 			return std::make_pair(path, "");
 
-		auto url = tll::UrlView::parse(path);
+		auto url = tll::Url::parse(path);
 		if (!url)
 			return error("Invalid url");
 		if (!url->host.size())
 			return error("Zero length filename");
-		if (url->host[0] == '/')
-			return std::make_pair(path, "");
 
-		std::string fn = std::string(url->host);
-		if (fn[0] == '.' && fn[1] == '/') {
-			fn = std::string(url->host);
-			auto sep = search.current.rfind('/');
-			if (sep != search.current.npos) {
-				fn = search.current.substr(0, sep) + '/' + fn;
-			}
-			if (!access(fn.c_str(), F_OK)) {
-				url->host = fn;
-				return std::make_pair(conv::to_string(*url), fn);
+		fs::path fn = url->host;
+		if (fn.is_absolute()) {
+			fn = lexically_normal(fn);
+			url->host = fn.string();
+			return std::make_pair(conv::to_string(*url), fn);
+		}
+
+		if (*fn.begin() == ".") {
+			auto tmp = lexically_normal(search.current.parent_path() / fn);
+			fmt::print("Check relative {} at {}: {}\n", fn.string(), search.current.parent_path().string(), tmp.string());
+			if (fs::exists(tmp)) {
+				url->host = tmp.string();
+				fmt::print("Found {} at {}\n", fn.string(), conv::to_string(*url));
+				return std::make_pair(conv::to_string(*url), tmp);
 			}
 			return error("Relative import not found");
 		}
 
-		if (!access(fn.c_str(), F_OK))
-			return std::make_pair(path, fn);
+		if (fs::exists(fn))
+			return std::make_pair(path, lexically_normal(fn));
 		for (auto & prefix : search.search) {
-			fn = prefix + "/" + std::string(url->host);
-			if (!access(fn.c_str(), F_OK)) {
-				url->host = fn;
-				return std::make_pair(conv::to_string(*url), fn);
+			auto tmp = lexically_normal(prefix / fn);
+			fmt::print("Check {} at {}: {}\n", fn.string(), prefix.string(), tmp.string());
+			if (fs::exists(tmp)) {
+				url->host = tmp.string();
+				fmt::print("Found {} at {}\n", fn.string(), conv::to_string(*url));
+				return std::make_pair(conv::to_string(*url), tmp);
 			}
 		}
 		return error("File not found");

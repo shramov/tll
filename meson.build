@@ -9,6 +9,12 @@ if cc.get_id() == 'gcc' and cc.version().version_compare('< 8.0')
 	add_project_arguments('-Wno-unused-variable', language: 'cpp')
 endif
 
+cxx_fs_link_args = []
+cxx = meson.get_compiler('cpp')
+if not cxx.has_header('filesystem') or (cxx.get_id() == 'gcc' and cxx.version().version_compare('< 9.0'))
+	cxx_fs_link_args = ['-lstdc++fs']
+endif
+
 zlib = dependency('zlib')
 yaml = dependency('yaml-0.1')
 fmt = dependency('fmt')

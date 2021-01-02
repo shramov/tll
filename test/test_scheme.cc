@@ -297,8 +297,8 @@ TEST(Scheme, Import)
 	ASSERT_NE(s.get(), nullptr);
 
 	auto m = s->messages; ASSERT_NE(m, nullptr); EXPECT_STREQ(m->name, "bsub");
-	m = m->next; ASSERT_NE(m, nullptr); EXPECT_STREQ(m->name, "b");
 	m = m->next; ASSERT_NE(m, nullptr); EXPECT_STREQ(m->name, "c");
+	m = m->next; ASSERT_NE(m, nullptr); EXPECT_STREQ(m->name, "b");
 	m = m->next; ASSERT_NE(m, nullptr); EXPECT_STREQ(m->name, "a");
 	m = m->next; ASSERT_NE(m, nullptr); EXPECT_STREQ(m->name, "top");
 	m = m->next; ASSERT_EQ(m, nullptr);

@@ -24,7 +24,7 @@ tll_lib = shared_library('tll',
                         include_directories : include,
                         dependencies : [fmt, pthread, yaml, zlib] + channel_deps,
 			version: '0', soversion: '0',
-			link_args: version_script,
+			link_args: version_script + cxx_fs_link_args,
 			link_depends: 'ld.script',
                         install : true)
 
