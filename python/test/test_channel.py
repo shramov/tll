@@ -86,13 +86,23 @@ def test():
     c = Accum("echo://;name=echo", context=ctx)
     cfg = c.config
 
+    pyc = C.channel_cast(c)
+    assert isinstance(pyc, Echo)
+
+    pyc = C.channel_cast(c, Echo)
+    assert isinstance(pyc, Echo)
+
+    with pytest.raises(TypeError): C.channel_cast(c, TestPrefix)
+
     assert c.state == c.State.Closed
     assert cfg.get("state", "") == "Closed"
     assert [x.name for x in c.children] == []
 
     c.open()
 
-    assert [x.name for x in c.children], ['child' == 'orphan']
+    assert [x.name for x in c.children] == ['child', 'orphan']
+
+    with pytest.raises(TypeError): C.channel_cast(c.children[0])
 
     assert c.state == c.State.Opening
     assert cfg.get("state", "") == "Opening"
@@ -127,46 +137,8 @@ def test_prefix():
     c = Accum("prefix+echo://;name=channel", context=ctx)
     cfg = c.config
 
-    assert c.state == c.State.Closed
-    assert cfg.get("state", "") == "Closed"
-    assert [x.name for x in c.children] == ['channel/prefix']
-
-    c.open()
-
-    assert [x.name for x in c.children] == ['channel/prefix']
-
-    assert c.state == c.State.Opening
-    assert cfg.get("state", "") == "Opening"
-
-    c.process()
-
-    assert c.state == c.State.Opening
-    assert cfg.get("state", "") == "Opening"
-
-    c.children[0].process()
-
-    assert c.state == c.State.Active
-    assert cfg.get("state", "") == "Active"
-
-    assert c.result == []
-    c.post(b'xxx', seq=100)
-    assert [(m.seq, m.data.tobytes()) for m in c.result], [(100 == b'xxx')]
-
-    c.close()
-    assert [x.name for x in c.children] == ['channel/prefix']
-    del c
-
-    ctx.unregister(TestPrefix)
-    with pytest.raises(TLLError): ctx.Channel("prefix+null://;name=channel")
-
-def test_prefix():
-    ctx = C.Context()
-
-    with pytest.raises(TLLError): ctx.Channel("prefix+null://;name=channel")
-    ctx.register(Echo)
-    ctx.register(TestPrefix)
-    c = Accum("prefix+echo://;name=channel", context=ctx)
-    cfg = c.config
+    pyc = C.channel_cast(c)
+    assert isinstance(pyc, TestPrefix)
 
     assert c.state == c.State.Closed
     assert cfg.get("state", "") == "Closed"

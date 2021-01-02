@@ -153,6 +153,21 @@ cdef class Context:
     def register_loader(self):
         self.register(PyLoader)
 
+def channel_cast(channel, klass=None):
+    if not isinstance(channel, Channel):
+        raise TypeError('Not a channel object')
+    cdef tll_channel_t * ptr = (<Channel>channel)._ptr
+    if _py_bad_channel(ptr):
+        raise TypeError("Not a python channel object")
+    if klass is None:
+        return <object>ptr.data
+    impl = getattr(klass, '_TLL_IMPL', None)
+    if impl is None or not isinstance(impl, Impl):
+        raise TypeError("Invalid or missing _TLL_IMPL")
+    if ptr.impl != &(<Impl>impl).impl:
+        raise TypeError("Expected type {}, got {}".format((<Impl>impl).name_bytes, ptr.impl.name))
+    return <object>ptr.data
+
 cdef int _py_bad_channel(const tll_channel_t * channel):
     if channel == NULL or channel.data == NULL or channel.impl.free != &_py_free: return 1
     return 0

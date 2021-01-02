@@ -3,4 +3,4 @@
 
 from .common import *
 from .channel import *
-from .context import Context
+from .context import Context, channel_cast
