@@ -1,28 +1,24 @@
 #ifndef _TLL_COMPAT_FILESYSTEM_H
 #define _TLL_COMPAT_FILESYSTEM_H
 
+#include <list>
+
 #if __has_include(<filesystem>)
 # include <filesystem>
 
-namespace tll::filesystem {
-
-inline std::filesystem::path lexically_normal(const std::filesystem::path &p) { return p.lexically_normal(); }
-
-}
-
 #else
 # include <experimental/filesystem>
-# include <list>
 
 namespace std::filesystem {
 
 using namespace ::std::experimental::filesystem;
 
 } // namespace std::filesystem
+#endif
 
 namespace tll::filesystem {
 
-inline std::filesystem::path lexically_normal(const std::filesystem::path &p)
+inline std::filesystem::path compat_lexically_normal(const std::filesystem::path &p)
 {
 	if (p.empty())
 		return p;
@@ -53,8 +49,15 @@ inline std::filesystem::path lexically_normal(const std::filesystem::path &p)
 	return r;
 }
 
-} // namespace tll::filesystem
-
+inline std::filesystem::path lexically_normal(const std::filesystem::path &p)
+{
+#if __has_include(<filesystem>)
+	return p.lexically_normal();
+#else
+	return compat_lexically_normal(p);
 #endif
+}
+
+} // namespace tll::filesystem
 
 #endif//_TLL_COMPAT_FILESYSTEM_H

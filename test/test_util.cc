@@ -7,6 +7,8 @@
 
 #include "gtest/gtest.h"
 
+#include "tll/compat/filesystem.h"
+
 #include "tll/util/bin2ascii.h"
 #include "tll/util/browse.h"
 #include "tll/util/string.h"
@@ -325,4 +327,30 @@ TEST(Util, Time)
 
 	tll::time::cache_enable(false);
 	ASSERT_LT(tnow1, tll::time::now_cached());
+}
+
+TEST(Util, Filesystem)
+{
+	using namespace std::filesystem;
+	// Using path in ASSERT_EQ is not working on 18.04
+#define ASSERT_PATH(p, r) ASSERT_EQ(tll::filesystem::compat_lexically_normal(p).string(), path(r).string())
+	ASSERT_PATH("", "");
+	ASSERT_PATH(".", ".");
+	ASSERT_PATH("./", ".");
+	ASSERT_PATH("./.", ".");
+	ASSERT_PATH(".//.", ".");
+	ASSERT_PATH("./..", "..");
+	ASSERT_PATH("./a/../../b", "../b");
+	ASSERT_PATH("..", "..");
+	ASSERT_PATH("../", "..");
+	ASSERT_PATH("../a", "../a");
+	ASSERT_PATH("../a/../b", "../b");
+	ASSERT_PATH("/", "/");
+	ASSERT_PATH("//", "//"); // Compares to "/" as path, but not as string
+	ASSERT_PATH("/.", "/");
+	ASSERT_PATH("/./", "/");
+	ASSERT_PATH("/..", "/");
+	ASSERT_PATH("/../", "/");
+	ASSERT_PATH("/../a", "/a");
+#undef ASSERT_PATH
 }
