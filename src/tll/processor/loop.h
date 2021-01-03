@@ -133,6 +133,8 @@ struct tll_processor_loop_t
 		auto c = poll(timeout);
 		if (c != nullptr)
 			return c->process();
+		else
+			process();
 		return 0;
 	}
 
