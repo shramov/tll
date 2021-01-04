@@ -39,6 +39,7 @@ class ChTimer : public tll::channel::Base<ChTimer>
 
 	int _rearm(tll::duration);
 	int _rearm(tll::time_point);
+	int _rearm_clear();
  public:
 	static constexpr std::string_view param_prefix() { return "timer"; }
 	static constexpr auto process_policy() { return ProcessPolicy::Custom; }

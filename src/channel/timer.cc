@@ -138,7 +138,7 @@ int ChTimer::_rearm(tll::duration ts)
 		return _log.fail(EINVAL, "Failed to rearm timerfd: {}", strerror(errno));
 	caps |= dcaps::CPOLLIN;
 #endif
-	_update_dcaps(ts == 0ns ? 0 : caps, dcaps::Process | dcaps::CPOLLIN);
+	_update_dcaps(caps);
 	return 0;
 }
 
@@ -155,7 +155,21 @@ int ChTimer::_rearm(tll::time_point ts)
 		return _log.fail(EINVAL, "Failed to rearm timerfd: {}", strerror(errno));
 	caps |= dcaps::CPOLLIN;
 #endif
-	_update_dcaps(ts == tll::time_point() ? 0 : caps, dcaps::Process | dcaps::CPOLLIN);
+	_update_dcaps(caps);
+	return 0;
+}
+
+int ChTimer::_rearm_clear()
+{
+	_next = {};
+	_interval = {};
+
+#ifdef __linux__
+	struct itimerspec its = {};
+	if (timerfd_settime(fd(), TFD_TIMER_ABSTIME, &its, nullptr))
+		return _log.fail(EINVAL, "Failed to clear timerfd: {}", strerror(errno));
+#endif
+	_update_dcaps(0, dcaps::Process | dcaps::CPOLLIN);
 	return 0;
 }
 
@@ -168,6 +182,8 @@ int ChTimer::_post(const tll_msg_t *msg, int flags)
 		auto ts = (const timer_scheme::relative *) msg->data;
 		if (msg->size != sizeof(*ts))
 			return _log.fail(EMSGSIZE, "Invalid message size: {} != {}", msg->size, sizeof(*ts));
+		if (ts->ts == tll::duration {})
+			return _rearm_clear();
 		return _rearm(ts->ts);
 	}
 	case timer_scheme::absolute::id: {
@@ -176,6 +192,8 @@ int ChTimer::_post(const tll_msg_t *msg, int flags)
 		auto ts = (const timer_scheme::absolute *) msg->data;
 		if (msg->size != sizeof(*ts))
 			return _log.fail(EMSGSIZE, "Invalid message size: {} != {}", msg->size, sizeof(*ts));
+		if (ts->ts == tll::time_point {})
+			return _rearm_clear();
 		return _rearm(ts->ts);
 	}
 	default:
