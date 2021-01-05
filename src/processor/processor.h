@@ -61,6 +61,7 @@ struct Processor : public tll::channel::Base<Processor>
 	int _init(const tll::Channel::Url &, tll::Channel *);
 	int _open(const tll::PropsView &);
 	int _close(bool force);
+	void _close_workers();
 	void _free();
 
 	void activate();

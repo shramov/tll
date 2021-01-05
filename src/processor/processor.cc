@@ -387,12 +387,7 @@ void Processor::update(const Channel *c, tll_state_t s)
 	}
 
 	if (s == state::Closed && (state() == state::Closing || state() == state::Closed)) {
-		if (!std::all_of(_objects.begin(), _objects.end(), [](auto & o) { return o.state == state::Closed; }))
-			return;
-		_log.info("All objects closed, signal workers");
-		for (auto & w : _workers)
-			post(w.second->proc.addr, scheme::Exit {});
-		return;
+		_close_workers();
 	}
 }
 
@@ -409,7 +404,17 @@ void Processor::activate(Object &o)
 {
 	_log.debug("Activate object {}", o->name());
 	o.opening = true;
+	o.reopen_next = {};
 	post(&o, scheme::Activate { &o });
+}
+
+void Processor::_close_workers()
+{
+	if (std::all_of(_objects.begin(), _objects.end(), [](auto & o) { return o.state == state::Closed; })) {
+		_log.info("All objects closed, signal workers");
+		for (auto & w : _workers)
+			post(w.second->proc.addr, scheme::Exit {});
+	}
 }
 
 int Processor::_close(bool force)
@@ -418,6 +423,9 @@ int Processor::_close(bool force)
 	for (auto & o : _objects) {
 		decay(&o);
 	}
+
+	_close_workers();
+
 	if (!force) return 0;
 
 	_log.info("Close objects");
