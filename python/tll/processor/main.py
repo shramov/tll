@@ -33,7 +33,7 @@ def main():
     context.register_loader()
 
     loader = None
-    mcfg = cfg.sub("processor.module")
+    mcfg = cfg.sub("processor.module", throw=False)
     if mcfg is not None:
         lurl = Url()
         lurl.proto = "loader"
