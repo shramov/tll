@@ -35,7 +35,6 @@ struct Object
 	tll::time_point reopen_next = {};
 
 	unsigned reopen_count = 0;
-	static constexpr unsigned reopen_count_max = 64;
 
 	tll::duration reopen_timeout_min = std::chrono::seconds(1);
 	tll::duration reopen_timeout_max = std::chrono::seconds(30);
@@ -44,9 +43,7 @@ struct Object
 	{
 		if (reopen_count == 0)
 			return {};
-		auto r = reopen_timeout_min;
-		for (auto i = 1u; i < reopen_count; i++)
-			r *= 2;
+		auto r = reopen_timeout_min * (1ll << (reopen_count - 1));
 		return std::min(reopen_timeout_max, r);
 	}
 
@@ -122,7 +119,8 @@ struct Object
 	void on_opening()
 	{
 		opening = false;
-		reopen_count++;
+		if (reopen_timeout() < reopen_timeout_max)
+			reopen_count++;
 	}
 
 	void on_active()
