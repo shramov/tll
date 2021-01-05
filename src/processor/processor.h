@@ -35,7 +35,7 @@ struct Processor : public tll::channel::Base<Processor>
 	tll::processor::Loop loop;
 	tll::Config _cfg;
 	std::list<Object> _objects;
-	std::list<Object *> _pending;
+	std::multimap<tll::time_point, Object *> _pending;
 
 	tll_channel_t context_channel = {};
 	tll_channel_internal_t context_internal = { TLL_STATE_CLOSED };
@@ -43,6 +43,7 @@ struct Processor : public tll::channel::Base<Processor>
 	std::list<std::unique_ptr<tll::Channel>> _workers_ptr;
 	std::map<std::string, tll::processor::_::Worker *, std::less<>> _workers;
 	std::unique_ptr<tll::Channel> _ipc;
+	std::unique_ptr<tll::Channel> _timer;
 
 	~Processor() { _free(); }
 
@@ -92,6 +93,31 @@ struct Processor : public tll::channel::Base<Processor>
 
 	template <typename T> int post(tll_addr_t addr, T body);
 	template <typename T> int post(const Object *o, T body) { return post<T>(o->worker->proc.addr, body); }
+
+	bool pending_has(const tll::time_point &ts, const Object * o)
+	{
+		auto it = _pending.find(ts);
+		if (it == _pending.end())
+			return false;
+		for (; it->first == ts; it++) {
+			if (it->second == o)
+				return true;
+		}
+		return false;
+	}
+
+	void pending_add(tll::time_point ts, Object * o);
+	void pending_del(const tll::time_point &ts, const Object * o);
+	int pending_rearm(const tll::time_point &ts);
+
+	static int pending_process(const tll_channel_t * c, const tll_msg_t * msg, void * user)
+	{
+		if (msg->type != TLL_MESSAGE_DATA)
+			return 0;
+		return static_cast<Processor *>(user)->pending_process(msg);
+	}
+
+	int pending_process(const tll_msg_t * msg);
 };
 
 } // namespace tll::processor

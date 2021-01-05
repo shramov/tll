@@ -26,10 +26,29 @@ struct Object
 {
 	std::unique_ptr<Channel> channel;
 
-	tll_state_t state = TLL_STATE_CLOSED;
+	tll_state_t state = tll::state::Closed;
+	tll_state_t state_prev = tll::state::Closed;
 	bool decay = false;
 	bool opening = false;
 	bool verbose = false;
+
+	tll::time_point reopen_next = {};
+
+	unsigned reopen_count = 0;
+	static constexpr unsigned reopen_count_max = 64;
+
+	tll::duration reopen_timeout_min = std::chrono::seconds(1);
+	tll::duration reopen_timeout_max = std::chrono::seconds(30);
+
+	tll::duration reopen_timeout()
+	{
+		if (reopen_count == 0)
+			return {};
+		auto r = reopen_timeout_min;
+		for (auto i = 1u; i < reopen_count; i++)
+			r *= 2;
+		return std::min(reopen_timeout_max, r);
+	}
 
 	Shutdown shutdown = Shutdown::None;
 	Worker * worker = nullptr;
@@ -98,6 +117,29 @@ struct Object
 		if (std::any_of(rdepends.begin(), rdepends.end(), [](auto & o) { return o->opening; }))
 			return false;
 		return std::all_of(rdepends.begin(), rdepends.end(), [](auto & o) { return o->state == state::Closed; });
+	}
+
+	void on_opening()
+	{
+		opening = false;
+		reopen_count++;
+	}
+
+	void on_active()
+	{
+		reopen_count = 0;
+		reopen_next = {};
+	}
+
+	void on_error()
+	{
+		if (state_prev == tll::state::Opening) {
+			reopen_next = tll::time::now() + reopen_timeout();
+		}
+	}
+
+	void on_closed()
+	{
 	}
 };
 

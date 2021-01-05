@@ -25,7 +25,7 @@ int tll_processor_init(tll_channel_context_t *ctx)
 
 tll_channel_list_t * tll_processor_workers(tll_processor_t *p)
 {
-	return tll::channel_cast<Processor>(p)->self()->children()->next;
+	return tll::channel_cast<Processor>(p)->self()->children()->next->next;
 }
 
 tll_processor_loop_t * tll_processor_loop(tll_processor_t *p)

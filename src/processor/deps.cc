@@ -18,6 +18,8 @@ int Object::init(const tll::Channel::Url &url)
 {
 	auto reader = tll::make_props_reader(url);
 	shutdown = reader.getT("shutdown-on", Shutdown::None, {{"none", Shutdown::None}, {"close", Shutdown::Close}, {"error", Shutdown::Error}});
+	reopen_timeout_min = reader.getT("reopen-timeout", reopen_timeout_min);
+	reopen_timeout_max = reader.getT("reopen-timeout-max", reopen_timeout_max);
 	verbose = reader.getT("tll.processor-verbose", false);
 	if (!reader) {
 		tll::Logger _log("tll.processor");

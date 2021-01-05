@@ -14,6 +14,8 @@
 
 #include <set>
 
+#include "channel/timer-scheme.h"
+
 TLL_DECLARE_IMPL(tll::processor::_::Worker);
 
 namespace tll {
@@ -67,6 +69,12 @@ void Processor::decay(Object * obj, bool root)
 	if (!root)
 		obj->decay = true;
 
+	if (obj->reopen_next != tll::time::epoch) {
+		_log.debug("Disable pending reopen of object {}", obj->name());
+		pending_del(obj->reopen_next, obj);
+		obj->reopen_next = {};
+	}
+
 	if (obj->state == state::Closed && !obj->opening && obj->ready_close()) {
 		_log.debug("Object {} is already closed, decay not needed", obj->name());
 		return;
@@ -99,10 +107,17 @@ int Processor::_init(const tll::Channel::Url &url, Channel * master)
 
 	_ipc = context().channel(fmt::format("ipc://;mode=server;name={}/ipc;dump=no;tll.internal=yes", name));
 	if (!_ipc.get())
-		return _log.fail(EINVAL, "Failed to create IPC link for processor");
+		return _log.fail(EINVAL, "Failed to create IPC channel for processor");
 	_ipc->callback_add(this, TLL_MESSAGE_MASK_DATA);
 	_child_add(_ipc.get(), "ipc");
 	loop.add(_ipc.get());
+
+	_timer = context().channel(fmt::format("timer://;clock=realtime;name={}/timer;dump=no;tll.internal=yes", name));
+	if (!_timer.get())
+		return _log.fail(EINVAL, "Failed to create timer channel for processor");
+	_timer->callback_add(pending_process, this, TLL_MESSAGE_MASK_DATA);
+	_child_add(_timer.get(), "timer");
+	loop.add(_timer.get());
 
 	//static_cast<TChannel *>(_ipc.get())->callback_addT(this, TLL_MESSAGE_MASK_DATA);
 
@@ -121,7 +136,9 @@ int Processor::_open(const tll::PropsView &)
 {
 	loop.stop = false;
 	if (_ipc->open())
-		return _log.fail(EINVAL, "Failed to open IPC link");
+		return _log.fail(EINVAL, "Failed to open IPC channel");
+	if (_timer->open())
+		return _log.fail(EINVAL, "Failed to open timer channel");
 	return 0;
 }
 
@@ -274,6 +291,11 @@ void Processor::_free()
 		loop.del(_ipc.get());
 		_ipc.reset();
 	}
+
+	if (_timer) {
+		loop.del(_timer.get());
+		_timer.reset();
+	}
 }
 
 template <typename T> int Processor::post(tll_addr_t addr, T body)
@@ -340,15 +362,17 @@ void Processor::update(const Channel *c, tll_state_t s)
 	if (!o)
 		return _log.error("Channel {} not found", c->name());
 	_log.info("Channel {} state {} -> {}", c->name(), tll_state_str(o->state), tll_state_str(s));
+	o->state_prev = o->state;
 	o->state = s;
 
 	if (o->verbose)
 		_log.info("Object {} state {}", c->name(), tll_state_str(s));
 	switch (s) {
 	case state::Opening:
-		o->opening = false;
+		o->on_opening();
 		break;
 	case state::Active:
+		o->on_active();
 		for (auto & d : o->rdepends) {
 			if (d->ready_open()) {
 				activate(*d);
@@ -356,10 +380,12 @@ void Processor::update(const Channel *c, tll_state_t s)
 		}
 		return;
 	case state::Error:
+		o->on_error();
 		_log.debug("Deactivate failed object {}", o->name());
 		post<scheme::Deactivate>( o, { o });
 		break;
 	case state::Closed:
+		o->on_closed();
 		if (o->decay) {
 			_log.debug("Clear decay of {}", o->name());
 			o->decay = false;
@@ -379,8 +405,14 @@ void Processor::update(const Channel *c, tll_state_t s)
 		if (state() != tll::state::Active)
 			break;
 
-		if (o->ready_open())
-			activate(*o);
+		if (o->ready_open()) {
+			using namespace std::chrono;
+			if (o->reopen_next > tll::time::now()) {
+				_log.info("Next open in {}", duration_cast<std::chrono::duration<double, std::ratio<1>>>(o->reopen_timeout()));
+				pending_add(o->reopen_next, o);
+			} else
+				activate(*o);
+		}
 		break;
 	default:
 		break;
@@ -437,7 +469,77 @@ int Processor::_close(bool force)
 		w->close();
 
 	_ipc->close();
+	_timer->close();
 	loop.stop = true;
 
 	return Base<Processor>::_close();
+}
+
+void Processor::pending_add(tll::time_point ts, Object * o)
+{
+	if (pending_has(ts, o))
+		return;
+
+	bool rearm = true;
+	if (!_pending.empty())
+		rearm = _pending.begin()->first > ts;
+
+	_pending.insert(std::make_pair(ts, o));
+
+	if (rearm) {
+		_log.debug("New first element in pending list, rearm timer");
+		pending_rearm(ts);
+	}
+}
+
+void Processor::pending_del(const tll::time_point &ts, const Object * o)
+{
+	auto it = _pending.find(ts);
+	if (it == _pending.end())
+		return;
+	while (it->first == ts) {
+		if (it->second == o)
+			it = _pending.erase(it);
+		else
+			it++;
+	}
+
+	if (_pending.empty()) {
+		_log.debug("Pending list empty, disable timer");
+		pending_rearm({});
+	} else if (_pending.begin()->first > ts) {
+		_log.debug("First element of pending list removed, shift timer");
+		pending_rearm(_pending.begin()->first);
+	}
+}
+
+int Processor::pending_rearm(const tll::time_point &ts)
+{
+	timer_scheme::absolute m = { ts };
+	tll_msg_t msg = {};
+	msg.type = TLL_MESSAGE_DATA;
+	msg.msgid = m.id;
+	msg.data = &m;
+	msg.size = sizeof(m);
+	if (_timer->post(&msg))
+		return _log.fail(EINVAL, "Failed to rearm timer");
+	return 0;
+}
+
+int Processor::pending_process(const tll_msg_t * msg)
+{
+	auto now = tll::time::now();
+	for (auto it = _pending.begin(); it != _pending.end() && it->first < now; it = _pending.erase(it)) {
+		auto o  = it->second;
+		_log.debug("Pending action on {}", o->name());
+		if (o->state == tll::state::Closed) {
+			activate(*o);
+		}
+	}
+
+	if (!_pending.empty()) {
+		_log.debug("Shift timer");
+		pending_rearm(_pending.begin()->first);
+	}
+	return 0;
 }
