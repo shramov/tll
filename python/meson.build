@@ -17,3 +17,17 @@ shared_library('tll-channel-python'
 	, dependencies : [tll, pyembed, meson.get_compiler('c').find_library('dl')]
 	, install: true
 	)
+
+if get_option('with_cython_build')
+	subdir('tll')
+	subdir('tll/channel')
+	subdir('tll/processor')
+
+	'''
+	test('python-test', python
+		, args: ['-m', 'pytest', '-vx']
+		, workdir: meson.current_source_dir()
+		, suite: 'slow'
+	)
+	'''
+endif
