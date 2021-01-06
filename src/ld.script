@@ -64,6 +64,7 @@ TLL_0.0.0 {
 		tll_config_set;
 		tll_config_set_callback;
 		tll_config_set_config;
+		tll_config_set_link;
 		tll_config_sub;
 		tll_config_sub_const;
 		tll_config_unref;
