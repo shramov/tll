@@ -160,3 +160,46 @@ tcp:
 
 	ASSERT_FALSE(c->getT<tll::ConfigUrl>("tcp.url"));
 }
+
+TEST(Config, Link)
+{
+	auto c = tll::Config::load(R"(yamls://{a: {a: 100, b: 200}})");
+	ASSERT_TRUE(c);
+
+	compare_keys(c->browse("**"), {"a.a", "a.b"});
+	ASSERT_EQ(*c->get("a.a"), "100");
+
+	ASSERT_EQ(c->link("b", "/a/a"), 0);
+
+	compare_keys(c->browse("**"), {"a.a", "a.b", "b"});
+
+	ASSERT_EQ(*c->get("b"), "100");
+	ASSERT_EQ(c->set("a.a", "300"), 0);
+	ASSERT_EQ(*c->get("b"), "300");
+
+	ASSERT_EQ(c->link("b", "../a/b"), 0);
+
+	ASSERT_EQ(*c->get("b"), "200");
+
+	ASSERT_EQ(c->link("c", "b/../../a"), 0);
+
+	compare_keys(c->browse("**"), {"a.a", "a.b", "b", "c.a", "c.b"});
+
+	ASSERT_EQ(*c->get("c.a"), "300");
+	ASSERT_EQ(*c->get("c.b"), "200");
+
+	auto copy = c->copy();
+
+	ASSERT_EQ(*copy.get("c.a"), "300");
+	ASSERT_EQ(copy.set("a.a", "400"), 0);
+	ASSERT_EQ(*copy.get("c.a"), "400");
+	ASSERT_EQ(*c->get("c.a"), "300");
+
+	ASSERT_EQ(c->link("d.a", "/a"), 0);
+	ASSERT_EQ(c->set("d.b", "d.b"), 0);
+
+	copy = c->sub("d")->copy();
+
+	compare_keys(c->sub("d")->browse("**"), {"a.a", "a.b", "b"});
+	compare_keys(copy.browse("**"), {"a.a", "a.b", "b"});
+}

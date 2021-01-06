@@ -129,7 +129,7 @@ tll_config_t * tll_config_copy(const tll_config_t *cfg)
 {
 	if (cfg == nullptr)
 		return nullptr;
-	return (new tll_config_t(*cfg))->ref();
+	return (new tll_config_t(*cfg, 0))->ref();
 }
 
 tll_config_t * tll_config_load(const char * path, int plen)
@@ -212,12 +212,12 @@ int tll_config_set_callback(tll_config_t *cfg, const char * path, int plen, tll_
 	return sub->set(cb, user);
 }
 
-int tll_config_set_link(tll_config_t *cfg, const char * path, int plen, tll_config_t *link)
+int tll_config_set_link(tll_config_t *cfg, const char * path, int plen, const char * dest, int dlen)
 {
 	if (!cfg) return EINVAL;
 	auto sub = cfg->find(string_view_from_c(path, plen), 1);
 	if (!sub) return EINVAL;
-	return ENOSYS;
+	return sub->set(std::filesystem::path(string_view_from_c(dest, dlen)));
 }
 
 int tll_config_unset(tll_config_t *cfg, const char * path, int plen)
@@ -273,15 +273,17 @@ void * memdup(const void * ptr, size_t size)
 int tll_config_get(const tll_config_t *c, const char *path, int plen, char *value, int * vlen)
 {
 	if (!c) return EINVAL;
-	refptr_t<const tll_config_t> cfg(nullptr);
+	refptr_t<const tll_config_t> cfg(c);
 	if (path != 0) {
 		cfg = c->find(string_view_from_c(path, plen));
-		c = cfg.get();
-		if (!c) return ENOENT;
+		if (!cfg.get()) return ENOENT;
 	} else if (!c->value())
 		return ENOENT;
 	if (!vlen) return EINVAL;
-	auto lock = c->rlock();
+	auto lock = cfg->rlock();
+	cfg = tll_config_t::_lookup_link(cfg.get());
+	c = cfg.get();
+	lock = cfg->rlock();
 	if (std::holds_alternative<std::string>(c->data)) {
 		auto & v = std::get<std::string>(c->data);
 		return _get_sv(v, value, vlen);
@@ -299,14 +301,16 @@ int tll_config_get(const tll_config_t *c, const char *path, int plen, char *valu
 char * tll_config_get_copy(const tll_config_t *c, const char *path, int plen, int * vlen)
 {
 	if (!c) return nullptr;
-	refptr_t<const tll_config_t> cfg(nullptr);
+	refptr_t<const tll_config_t> cfg(c);
 	if (path != 0) {
 		cfg = c->find(string_view_from_c(path, plen));
-		c = cfg.get();
-		if (!c) return 0;
+		if (!cfg.get()) return 0;
 	} else if (!c->value())
 		return nullptr;
-	auto lock = c->rlock();
+	auto lock = cfg->rlock();
+	cfg = tll_config_t::_lookup_link(c);
+	lock = cfg->rlock();
+	c = cfg.get();
 	if (std::holds_alternative<std::string>(c->data)) {
 		auto & v = std::get<std::string>(c->data);
 		if (vlen) *vlen = v.size();

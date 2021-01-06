@@ -8,6 +8,7 @@
 #include "tll/config.h"
 #include "tll/util/string.h"
 #include "tll/util/refptr.h"
+#include "tll/compat/filesystem.h"
 
 #include <atomic>
 #include <cstring>
@@ -30,19 +31,38 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 	typedef std::shared_lock<std::shared_mutex> rlock_t;
 	mutable std::shared_mutex _lock;
 
+	using path_t = std::filesystem::path;
+
 	tll_config_t * parent = 0;
 	map_t kids;
-	std::variant<std::monostate, std::string, cb_pair_t> data = {};
+	std::variant<std::monostate, std::string, cb_pair_t, path_t> data = {};
 
 	tll_config_t(tll_config_t *p = nullptr) : parent(p) { /*printf("  new %p\n", this);*/ }
 	~tll_config_t() { /*printf("  del %p\n", this);*/ }
 
-	tll_config_t(const tll_config_t &cfg)
+	tll_config_t(const tll_config_t &_cfg, unsigned depth)
 	{
-		auto lock = cfg.rlock();
-		data = cfg.data;
-		for (auto & k : cfg.kids) {
-			auto it = kids.emplace(k.first, new tll_config_t(*k.second)).first;
+		refptr_t<const tll_config_t> cfg = &_cfg;
+		auto lock = cfg->rlock();
+		data = cfg->data;
+
+		if (std::holds_alternative<path_t>(data)) {
+			unsigned d = 0;
+			for (auto & p : std::get<path_t>(data)) {
+				if (p != "..") break;
+				d++;
+			}
+			if (d > depth) {
+				cfg = _lookup_link(cfg.get());
+				if (cfg.get()) {
+					lock = cfg->rlock();
+					data = cfg->data;
+				} else
+					data = {};
+			}
+		}
+		for (auto & k : cfg->kids) {
+			auto it = kids.emplace(k.first, new tll_config_t(*k.second, depth + 1)).first;
 			it->second->parent = this;
 		}
 	}
@@ -50,11 +70,41 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 	bool value() const { return !std::holds_alternative<std::monostate>(data); }
 
 	template <typename Cfg>
-	static inline refptr_t<Cfg> _lookup(Cfg *cfg, path_iterator_t &path, const path_iterator_t end)
+	static inline refptr_t<Cfg> _lookup_link(Cfg *cfg)
+	{
+		refptr_t<Cfg> r(cfg);
+		auto lock = r->rlock();
+		if (!std::holds_alternative<path_t>(r->data))
+			return r;
+
+		path_t link = std::get<path_t>(r->data);
+		auto pi = link.begin();
+		for (; pi != link.end() && *pi == ".."; pi++) {
+			if (!r->parent)
+				return {};
+			r = r->parent;
+			lock.unlock();
+			lock = r->rlock();
+		}
+
+		if (pi == link.end())
+			return r;
+
+		r = _lookup<Cfg>(r.get(), pi, link.end());
+		if (pi != link.end())
+			return {};
+		return r;
+	}
+
+	template <typename Cfg, typename Iter>
+	static inline refptr_t<Cfg> _lookup(Cfg *cfg, Iter &path, const Iter end)
 	{
 		refptr_t<Cfg> r(cfg);
 		for (; path != end; ++path) {
 			rlock_t lock(r->_lock);
+			r = _lookup_link(r.get());
+			if (!r.get())
+				return r;
 			auto it = r->kids.find(*path);
 			if (it == r->kids.end()) return r;
 			r = it->second.get();
@@ -89,6 +139,32 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 	}
 	*/
 
+	std::optional<path_t> path(refptr_t<const tll_config_t> child = {}) const
+	{
+		path_t path = {"/"}; //, path_t::format::generic_format};
+		refptr_t<const tll_config_t> self = this;
+		{
+			auto lock = rlock();
+			refptr_t<const tll_config_t> prnt = parent;
+			lock.unlock();
+			if (prnt.get()) {
+				auto p = prnt->path(self);
+				if (!p)
+					return p;
+				path = *p;
+			}
+		}
+		if (child.get()) {
+			auto lock = rlock();
+			for (auto & [k, v]: kids) {
+				if (v.get() == child.get())
+					return path / k;
+			}
+			return std::nullopt;
+		}
+		return path;
+	}
+
 	int set()
 	{
 		data.emplace<std::monostate>();
@@ -99,6 +175,22 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 	{
 		auto lock = wlock();
 		data = std::string(value);
+		return 0;
+	}
+
+	int set(const path_t & v)
+	{
+		auto value = tll::filesystem::lexically_normal(v);
+		if (value.is_absolute()) {
+			auto p = path();
+			if (!p)
+				return EINVAL;
+			auto r = tll::filesystem::relative_simple(value, *p);
+			//fmt::print("Convert path {} to relative to {}: {}\n", value.string(), p->string(), r.string());
+			value = r;
+		}
+		auto lock = wlock();
+		data = value;
 		return 0;
 	}
 
@@ -174,7 +266,11 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 			for (auto & i : map) {
 				std::string p = prefix + i.first;
 				refptr_t<const tll_config_t> ptr = i.second.get();
-				auto lock = i.second->rlock();
+				auto lock = ptr->rlock();
+				ptr = _lookup_link(ptr.get());
+				if (!ptr.get()) continue;
+				lock = ptr->rlock();
+
 				if (next == mask.end()) {
 					if (int r = (*cb)(p.c_str(), p.size(), ptr.get(), user))
 						return r;
@@ -217,6 +313,10 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 			//if (ptr->value()) return 0;
 			if (*i == "*" || *i == "**") break;
 			auto lock = ptr->rlock();
+			ptr = _lookup_link(ptr.get());
+			if (!ptr.get()) return 0;
+			lock = ptr->rlock();
+
 			auto di = ptr->kids.find(*i);
 			if (di == ptr->kids.end()) return 0;
 			prefix += std::string(*i) + ".";
