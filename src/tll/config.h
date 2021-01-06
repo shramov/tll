@@ -51,7 +51,7 @@ int tll_config_set(tll_config_t *cfg, const char * path, int plen, const char * 
 int tll_config_set_callback(tll_config_t *, const char * path, int plen, tll_config_value_callback_t cb, void * user);
 
 /// Set config subtree link
-int tll_config_set_link(tll_config_t *, const char * path, int plen, tll_config_t *link);
+int tll_config_set_link(tll_config_t *, const char * path, int plen, const char * dest, int dlen);
 
 /// Unset value in config
 int tll_config_unset(tll_config_t *, const char * path, int plen);
@@ -365,7 +365,7 @@ class Config : public ConfigT<false>
 		return tll_config_set_callback(_cfg, path.data(), path.size(), _to_string<V>, (void *) ptr);
 	}
 
-	int link(std::string_view path, tll_config_t *cfg) { return tll_config_set_link(_cfg, path.data(), path.size(), cfg); }
+	int link(std::string_view path, std::string_view dest) { return tll_config_set_link(_cfg, path.data(), path.size(), dest.data(), dest.size()); }
 
 	int unset(std::string_view path) { return tll_config_unset(_cfg, path.data(), path.size()); }
 	int unset() { return tll_config_unset(_cfg, nullptr, 0); }
