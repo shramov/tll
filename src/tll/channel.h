@@ -323,6 +323,13 @@ tll_config_t * tll_channel_context_config(tll_channel_context_t *);
  */
 tll_config_t * tll_channel_context_config_defaults(tll_channel_context_t *);
 
+struct tll_stat_list_t;
+
+/**
+ * Get list of all registered stat pages in this context
+ */
+struct tll_stat_list_t * tll_channel_context_stat_list(tll_channel_context_t *);
+
 /**
  * Scheme load function with optional caching.
  *
@@ -543,6 +550,8 @@ class Context
 
 	Config config_defaults() { return Config::consume(tll_channel_context_config_defaults(_ptr)); }
 	const Config config_defaults() const { return Config::consume(tll_channel_context_config_defaults((tll_channel_context_t *) _ptr)); }
+
+	tll_stat_list_t * stat_list() { return tll_channel_context_stat_list(_ptr); }
 
 	const tll_scheme_t * scheme_load(std::string_view url, bool cache = true)
 	{

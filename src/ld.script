@@ -14,6 +14,7 @@ TLL_0.0.0 {
 		tll_channel_context_new;
 		tll_channel_context_ref;
 		tll_channel_context_scheme_load;
+		tll_channel_context_stat_list;
 		tll_channel_dcaps;
 		tll_channel_fd;
 		tll_channel_free;

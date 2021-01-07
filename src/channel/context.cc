@@ -18,6 +18,7 @@
 #include "tll/config.h"
 #include "tll/logger.h"
 #include "tll/logger/prefix.h"
+#include "tll/stat.h"
 #include "tll/util/listiter.h"
 #include "tll/util/refptr.h"
 #include "tll/util/url.h"
@@ -49,6 +50,7 @@ TLL_DECLARE_IMPL(ChZero);
 struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t>
 {
 	Logger _log = {"tll.context"};
+	stat::OwnedList stat_list;
 
 	std::map<std::string, const tll_channel_impl_t *, std::less<>> registry;
 	std::map<std::string_view, tll_channel_t *> channels;
@@ -290,6 +292,12 @@ tll_config_t * tll_channel_context_config_defaults(tll_channel_context_t *c)
 	if (!c) return 0;
 	tll_config_ref(c->config_defaults);
 	return c->config_defaults;
+}
+
+tll_stat_list_t * tll_channel_context_stat_list(tll_channel_context_t *c)
+{
+	if (!c) return nullptr;
+	return c->stat_list;
 }
 
 const tll_scheme_t * tll_channel_context_scheme_load(tll_channel_context_t *c, const char *url, int len, int cache)
