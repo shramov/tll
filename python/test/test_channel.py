@@ -163,7 +163,11 @@ def test_prefix():
 
     assert c.result == []
     c.post(b'xxx', seq=100)
-    assert [(m.seq, m.data.tobytes()) for m in c.result], [(100 == b'xxx')]
+    assert [(m.seq, m.data.tobytes()) for m in c.result] == [(100, b'xxx')]
+
+    c.result = []
+    c.post(b'zzz', seq=200, type=C.Type.Control, addr=0xbeef)
+    assert [(m.type, m.seq, m.addr, m.data.tobytes()) for m in c.result], [(C.Type.Control, 200, 0xbeef, b'zzz')]
 
     c.close()
     assert [x.name for x in c.children] == ['channel/prefix']

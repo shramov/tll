@@ -160,13 +160,14 @@ cdef class Channel:
         return r
 
 
-    def post(self, data, type=Type.Data, msgid=None, seq=None, name=None):
+    def post(self, data, type=None, msgid=None, seq=None, name=None, addr=None):
         if isinstance(data, CMessage):
             if type == data.type and msgid is None and seq is None:
                 return self._post((<CMessage>data)._ptr, 0)
 
         cdef tll_msg_t msg
         memset(&msg, 0, sizeof(msg))
+        msg.type = int(Type.Data)
         if not isinstance(data, scheme.Data) and hasattr(data, 'msgid'):
             msg.type = data.type
             msg.msgid = data.msgid
@@ -178,6 +179,7 @@ cdef class Channel:
         if type is not None: msg.type = int(type)
         if msgid is not None: msg.msgid = msgid
         if seq is not None: msg.seq = seq
+        if addr is not None: msg.addr.i64 = addr
         mv = None
         if isinstance(data, dict):
             data = self.scheme[name].object(**data)
