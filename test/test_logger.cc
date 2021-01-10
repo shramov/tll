@@ -119,6 +119,19 @@ TEST(Logger, Set)
 	ASSERT_EQ(list.back(), log_entry_t(tll::Logger::Debug, "Debug"));
 }
 
+TEST(Logger, SetPrefix)
+{
+	tll::Logger::set("prefix.l0/*", tll::Logger::Info);
+	tll::Logger::set("prefix.l0/child/*", tll::Logger::Trace);
+	tll::Logger::set("prefix.l0/child", tll::Logger::Warning);
+
+	ASSERT_EQ(tll::Logger("prefix").level(), tll::Logger::Debug);
+	ASSERT_EQ(tll::Logger("prefix.l0/child").level(), tll::Logger::Warning);
+	ASSERT_EQ(tll::Logger("prefix.l0/child/a").level(), tll::Logger::Trace);
+	ASSERT_EQ(tll::Logger("prefix.l0/child/b").level(), tll::Logger::Trace);
+	ASSERT_EQ(tll::Logger("prefix.l0/c").level(), tll::Logger::Info);
+}
+
 struct NonCopyConstrutable
 {
 	NonCopyConstrutable() {}

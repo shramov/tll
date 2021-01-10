@@ -83,6 +83,7 @@ struct logger_context_t
 	typedef std::shared_lock<std::shared_mutex> rlock_t;
 
 	std::map<std::string_view, Logger *, std::less<>> _loggers;
+	std::map<std::string, tll_logger_level_t, std::less<>> _levels_prefix;
 	std::map<std::string, tll_logger_level_t, std::less<>> _levels;
 	tll_logger_level_t _default = tll::Logger::Debug;
 
@@ -108,8 +109,13 @@ struct logger_context_t
 			for (auto s : split<'.'>(name)) {
 				auto full = std::string_view(name.begin(), s.end() - name.begin());
 				auto li = _levels.find(full);
-				if (li != _levels.end())
+				if (li != _levels.end()) {
 					l->level = li->second;
+				} else if (!_levels_prefix.empty()) {
+					li = _levels_prefix.upper_bound(full);
+					if (li != _levels_prefix.begin())
+						l->level = (--li)->second;
+				}
 			}
 		}
 
@@ -144,14 +150,24 @@ struct logger_context_t
 	int set(std::string_view path, tll_logger_level_t level, bool subtree)
 	{
 		//fmt::print("Set level {}: {}\n", path, tll_logger_level_name(level));
-		if (path == "") {
+		if (path == "" || path == "*") {
 			_default = level;
 			return 0;
 		}
 
+		auto prefix = (path.back() == '*');
+		if (prefix) {
+			path = path.substr(0, path.size() - 1);
+			fmt::print("Set new prefix mask: '{}' {}\n", path, level);
+			subtree = true;
+		}
+
 		{
 			wlock_t lck(lock);
-			_levels[std::string(path)] = level;
+			if (prefix)
+				_levels_prefix[std::string(path)] = level;
+			else
+				_levels[std::string(path)] = level;
 		}
 
 		rlock_t lck(lock);
