@@ -1,3 +1,7 @@
+logger.levels:
+  tll: DEBUG
+  tll.channel.chains/*: WARNING
+
 processor.module:
   - module: build/src/logic/tll-logic-forward
 
