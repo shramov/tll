@@ -106,15 +106,19 @@ struct logger_context_t
 
 		{
 			rlock_t lck(lock);
+			auto last = _levels.end();
 			for (auto s : split<'.'>(name)) {
 				auto full = std::string_view(name.begin(), s.end() - name.begin());
 				auto li = _levels.find(full);
 				if (li != _levels.end()) {
 					l->level = li->second;
+					last = li;
 				} else if (!_levels_prefix.empty()) {
 					li = _levels_prefix.upper_bound(full);
-					if (li != _levels_prefix.begin())
-						l->level = (--li)->second;
+					if (li != _levels_prefix.begin()) {
+						if (last == _levels.end() || (--li)->first.size() > last->first.size())
+							l->level = (--li)->second;
+					}
 				}
 			}
 		}

@@ -124,11 +124,14 @@ TEST(Logger, SetPrefix)
 	tll::Logger::set("prefix.l0/*", tll::Logger::Info);
 	tll::Logger::set("prefix.l0/child/*", tll::Logger::Trace);
 	tll::Logger::set("prefix.l0/child", tll::Logger::Warning);
+	tll::Logger::set("prefix.l0/child/a", tll::Logger::Error);
 
 	ASSERT_EQ(tll::Logger("prefix").level(), tll::Logger::Debug);
 	ASSERT_EQ(tll::Logger("prefix.l0/child").level(), tll::Logger::Warning);
-	ASSERT_EQ(tll::Logger("prefix.l0/child/a").level(), tll::Logger::Trace);
+	ASSERT_EQ(tll::Logger("prefix.l0/child/a").level(), tll::Logger::Error);
+	ASSERT_EQ(tll::Logger("prefix.l0/child/a.b").level(), tll::Logger::Error);
 	ASSERT_EQ(tll::Logger("prefix.l0/child/b").level(), tll::Logger::Trace);
+	ASSERT_EQ(tll::Logger("prefix.l0/child/c").level(), tll::Logger::Trace);
 	ASSERT_EQ(tll::Logger("prefix.l0/c").level(), tll::Logger::Info);
 }
 
