@@ -30,6 +30,9 @@ class FramedSocket : public tll::channel::TcpSocket<T>
 	int _pending();
 };
 
+template <typename T>
+class FramedSocket<T, void> : public tll::channel::TcpSocket<T> {};
+
 template <typename Frame>
 class ChTcpClient : public tll::channel::TcpClient<ChTcpClient<Frame>, FramedSocket<ChTcpClient<Frame>, Frame>>
 {
@@ -56,6 +59,11 @@ class ChTcpServer : public tll::channel::TcpServer<ChTcpServer<Frame>, ChFramedS
 
 TLL_DEFINE_IMPL(ChTcp);
 
+TLL_DEFINE_IMPL(ChTcpClient<void>);
+TLL_DEFINE_IMPL(ChTcpServer<void>);
+TLL_DEFINE_IMPL(ChFramedSocket<void>);
+TLL_DEFINE_IMPL(tll::channel::TcpServerSocket<ChTcpServer<void>>);
+
 TLL_DEFINE_IMPL(ChTcpClient<tll_frame_t>);
 TLL_DEFINE_IMPL(ChTcpServer<tll_frame_t>);
 TLL_DEFINE_IMPL(ChFramedSocket<tll_frame_t>);
@@ -73,6 +81,13 @@ tll_channel_impl_t * ChTcp::_init_replace(const tll::Channel::Url &url)
 	auto frame = reader.getT<std::string>("frame", "std");
 	if (!reader)
 		return _log.fail(nullptr, "Invalid url: {}", reader.error());
+
+	if (frame == "none") {
+		if (client)
+			return &ChTcpClient<void>::impl;
+		else
+			return &ChTcpServer<void>::impl;
+	}
 	for (auto & n : tll::frame::FrameT<tll_frame_t>::name()) {
 		if (n == frame) {
 			if (client)

@@ -230,6 +230,7 @@ class TestSerial:
 
 class _test_tcp_base:
     PROTO = 'invalid-url'
+    FRAME = True
     CLEANUP = []
 
     def setup(self):
@@ -279,7 +280,8 @@ class _test_tcp_base:
         assert spoll.poll(10) != []
         for i in s.children:
             i.process()
-        assert [(m.data.tobytes(), m.seq, m.msgid) for m in s.result], [(b'xxx', 0x6ead == 0x6eef)] # No frame
+        assert [m.data.tobytes() for m in s.result] == [b'xxx'] # No frame
+        assert [(m.seq, m.msgid) for m in s.result] == [(0x6ead, 0x6eef) if self.FRAME else (0, 0)] # No frame
 
     def test_open_fail(self):
         c = self.c
@@ -319,3 +321,8 @@ class TestTcpAny(_test_tcp_base):
 
 class TestTcpShort(_test_tcp_base):
     PROTO = 'tcp://./test.sock;frame=short'
+
+class TestTcpNone(_test_tcp_base):
+    PROTO = 'tcp://./test.sock;frame=none'
+    CLEANUP = ['./test.sock']
+    FRAME = False
