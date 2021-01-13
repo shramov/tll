@@ -94,5 +94,19 @@ Processor loop implements rules of channel polling and processing. Its exposed a
 same implementation is used inside processor workers and if user needs to work with channels in it's
 own script or program.
 
+Object Configuration
+--------------------
+
+Object parameters are passed to channel init method but they also can be used to control processor
+behaviour. List of supported keys:
+
+ * ``shutdown-on=[none|close|error]``: shutdown processor if this object is closed (``close``) or
+   enters ``Error`` state (``error``), default is ``none``.
+ * ``reopen-timeout=<duration>``: initial reopen timeout, on each failed attempt to open object timeout is
+   doubled until it reach maximum timeout, default is 1 second;
+ * ``reopen-timeout-max=<duration>``: maximum reopen timeout, default is 30 seconds;
+ * ``tll.processor-verbose=<bool>``: report state change of this object with separate info log
+   messages if set to true, default is false.
+
 ..
     vim: sts=4 sw=4 et tw=100
