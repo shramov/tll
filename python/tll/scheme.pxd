@@ -66,6 +66,8 @@ cdef extern from "tll/scheme.h":
         tll_scheme_field_t * type_array
         tll_scheme_field_t * count_ptr
 
+        unsigned fixed_precision
+
 
     ctypedef struct tll_scheme_message_t:
         tll_scheme_message_t * next

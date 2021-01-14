@@ -8,6 +8,7 @@ import tll.scheme as S
 from tll.scheme import Field as F
 from tll.s2b import s2b
 
+import decimal
 import pytest
 import struct
 
@@ -331,6 +332,36 @@ def test_pointer_type():
     assert [(f.name, f.options) for f in scheme['msg'].values()] == [(f.name, f.options) for f in s1['msg'].values()]
 
     m = msg.object(default = [1, 2, 3], lshort = [10, 11], llong = [100, 101, 102, 103])
+    data = memoryview(m.pack())
+    u = msg.unpack(data)
+    assert m.as_dict() == u.as_dict()
+
+def test_fixed():
+    scheme = S.Scheme("""yamls://
+- name: msg
+  fields:
+    - {name: i8, type: int8, options.type: fixed1}
+    - {name: i16, type: int16, options.type: fixed2}
+    - {name: i32, type: int32, options.type: fixed3}
+    - {name: i64, type: int64, options.type: fixed4}
+    - {name: u8,  type: uint8, options.type: fixed5}
+    - {name: u16, type: uint16, options.type: fixed6}
+    - {name: u32, type: uint32, options.type: fixed7}
+""")
+
+    msg = scheme['msg']
+    for (i,f) in enumerate(msg.fields):
+        assert f.fixed_precision == i + 1, f"field {f.name}: {f.fixed_precision} != {i + 1}"
+
+    m = msg.object(i8=-1, i16=2, i32=-3, i64=456, u8='0.0007', u16='0.012345', u32='123')
+    assert m.i8 == decimal.Decimal(-1)
+    assert m.i16 == 2
+    assert m.i32 == decimal.Decimal(-3)
+    assert m.i64 == decimal.Decimal(456)
+    assert m.u8 == decimal.Decimal('0.0007')
+    assert m.u16 == decimal.Decimal('0.012345')
+    assert m.u32 == decimal.Decimal('123')
+
     data = memoryview(m.pack())
     u = msg.unpack(data)
     assert m.as_dict() == u.as_dict()

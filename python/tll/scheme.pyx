@@ -342,6 +342,10 @@ class Field:
             elif type == Field.Int64:
                 self.pack_data, self.unpack_data = pack_int64, unpack_int64
                 self.convert = convert_int64
+            if self.sub_type == SubType.FixedPoint:
+                self.pack_raw, self.unpack_raw = self.pack_data, self.unpack_data
+                self.pack_data, self.unpack_data = self.pack_fixed, self.unpack_fixed
+                self.convert = self.convert_fixed
         elif type in (Field.UInt8, Field.UInt16, Field.UInt32):
             self._from_string = from_string_int
             self.default = int
@@ -354,6 +358,10 @@ class Field:
             elif type == Field.UInt32:
                 self.pack_data, self.unpack_data = pack_uint32, unpack_uint32
                 self.convert = convert_uint32
+            if self.sub_type == SubType.FixedPoint:
+                self.pack_raw, self.unpack_raw = self.pack_data, self.unpack_data
+                self.pack_data, self.unpack_data = self.pack_fixed, self.unpack_fixed
+                self.convert = self.convert_fixed
         elif type == Field.Double:
             self.pack_data, self.unpack_data = pack_double, unpack_double
             self.convert = convert_double
@@ -520,6 +528,19 @@ class Field:
             return None
         tail.extend(b + b'\0')
 
+    def convert_fixed(self, v):
+        if isinstance(v, (str, float, int)):
+            v = Decimal(v)
+        elif not isinstance(v, Decimal):
+            raise TypeError("Expected str, float or int, got {}: {}".format(type(v), v))
+        return v
+
+    def unpack_fixed(self, src):
+        return Decimal(self.unpack_raw(src)) * Decimal((0, (1,), -self.fixed_precision))
+
+    def pack_fixed(self, v, dest, tail, tail_offset):
+        return self.pack_raw(v.shift(self.fixed_precision).to_integral_value(), dest, tail, tail_offset)
+
     def from_string(self, v : str):
         if not hasattr(self, '_from_string'):
             raise TypeError("Field {} with type {} can not be constructed from string".format(self.name, self.type))
@@ -554,6 +575,8 @@ cdef object field_wrap(Scheme s, object m, tll_scheme_field_t * ptr):
         r.type_enum = m.enums.get(ename, s.enums.get(ename, None))
         if r.type_enum is None:
             raise TLLError("Failed to build field {}: Enum {} not found".format(r.name, ename))
+    elif r.sub_type == r.Sub.FixedPoint:
+        r.fixed_precision = ptr.fixed_precision
     r.size = ptr.size
     r.offset = ptr.offset
     r.init(r.name, r.type) #b2s(ptr.name), Type(ptr.type))
