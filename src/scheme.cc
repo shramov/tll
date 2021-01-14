@@ -245,7 +245,7 @@ struct Field
 	int size = -1;
 	std::string type_msg;
 	std::string type_enum;
-	long long resolution; // For fixed
+	unsigned fixed_precision; // For fixed
 	time_resolution_t time_resolution = TLL_SCHEME_TIME_NS;
 
 	tll::scheme::Field * finalize(tll::scheme::Scheme *s, tll::scheme::Message *m);
@@ -264,12 +264,15 @@ struct Field
 		case Field::Int16:
 		case Field::Int32:
 		case Field::Int64:
+		case Field::UInt8:
+		case Field::UInt16:
+		case Field::UInt32:
 			if (starts_with(t, "fixed")) {
 				sub_type = tll::scheme::Field::Fixed;
 				auto s = tll::conv::to_any<unsigned>(t.substr(5));
 				if (!s)
 					return EINVAL; //_log.fail(EINVAL, "Invalid decimal precision {}: {}", t.substr(5), s.error());
-				resolution = *s;
+				fixed_precision = *s;
 			}
 		case Field::Double:
 			if (t == "enum") {
@@ -306,7 +309,7 @@ struct Field
 		type_msg = a.type_msg;
 		type_enum = a.type_enum;
 		size = a.size;
-		resolution = a.resolution;
+		fixed_precision = a.fixed_precision;
 		time_resolution = a.time_resolution;
 
 		for (auto & o : a.options) {
@@ -683,6 +686,8 @@ tll::scheme::Field * Field::finalize(tll::scheme::Scheme *s, tll::scheme::Messag
 		}
 	} else if (sub_type == Field::TimePoint || sub_type == Field::Duration) {
 		r->time_resolution = time_resolution;
+	} else if (sub_type == Field::Fixed) {
+		r->fixed_precision = fixed_precision;
 	} else if (type == Field::Message) {
 		for (auto & i : list_wrap(s->messages)) {
 			if (i.name == type_msg) {
@@ -843,7 +848,7 @@ int Field::parse_type(tll::Config &cfg, std::string_view type)
 		auto s = tll::conv::to_any<unsigned>(type.substr(7));
 		if (!s)
 			return _log.fail(EINVAL, "Invalid decimal precision {}: {}", type.substr(7), s.error());
-		this->resolution = *s;
+		this->fixed_precision = *s;
 		_log.warning("Deprected notation: {}, use fixed{}", type, *s);
 	} else if (type == "enum1" || type == "enum2" || type == "enum4" || type == "enum8") {
 		_log.warning("Deprected notation: {}, use options.type: enum", type);
