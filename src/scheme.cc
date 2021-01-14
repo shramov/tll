@@ -265,6 +265,11 @@ struct Field
 		case Field::Int32:
 		case Field::Int64:
 			if (starts_with(t, "fixed")) {
+				sub_type = tll::scheme::Field::Fixed;
+				auto s = tll::conv::to_any<unsigned>(t.substr(5));
+				if (!s)
+					return EINVAL; //_log.fail(EINVAL, "Invalid decimal precision {}: {}", t.substr(5), s.error());
+				resolution = *s;
 			}
 		case Field::Double:
 			if (t == "enum") {
@@ -454,7 +459,7 @@ struct Scheme
 			return std::make_pair(conv::to_string(*url), fn);
 		}
 
-		if (*fn.begin() == ".") {
+		if (*fn.begin() == "." || *fn.begin() == "..") {
 			auto tmp = lexically_normal(search.current.parent_path() / fn);
 			fmt::print("Check relative {} at {}: {}\n", fn.string(), search.current.parent_path().string(), tmp.string());
 			if (fs::exists(tmp)) {
