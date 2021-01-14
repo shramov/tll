@@ -115,14 +115,14 @@ class Base
 
 	inline int _callback_data(const tll_msg_t * msg)
 	{
-		_dump_msg(msg, "Out");
+		_dump_msg(msg, "Recv");
 		//return tll_channel_callback_data(_this, msg);
 		return tll_channel_callback_data(&internal, msg);
 	}
 
 	inline int _callback(const tll_msg_t * msg) const
 	{
-		_dump_msg(msg, "Out");
+		_dump_msg(msg, "Recv");
 		return tll_channel_callback(&internal, msg);
 	}
 
@@ -298,7 +298,7 @@ class Base
 	{
 		if (state() != state::Active)
 			return _log.fail(EINVAL, "Post in invalid state {}", tll_state_str(state()));
-		_dump_msg(msg, "In");
+		_dump_msg(msg, "Post");
 		auto r = static_cast<ChannelT *>(this)->_post(msg, flags);
 		if (r)
 			_log.error("Post failed: {}", strerror(r));
