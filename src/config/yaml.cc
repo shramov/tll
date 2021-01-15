@@ -122,7 +122,14 @@ int state_t::parse(const yaml_event_t &event)
 			auto k = key_string();
 			if (cfg.has(k))
 				return _log.fail(EINVAL, "Failed to set value {}: duplicate entry", k);
-			if (cfg.set(k, value))
+			if (event.data.scalar.tag) {
+				std::string_view tag((const char *) event.data.scalar.tag);
+				if (tag != "!link")
+					return _log.fail(EINVAL, "Unknown tag {}: '{}'", k, tag);
+				_log.info("Link {} to {}", k, value);
+				if (cfg.link(k, value))
+					return _log.fail(EINVAL, "Failed to set link {}: {}", k, value);
+			} else if (cfg.set(k, value))
 				return _log.fail(EINVAL, "Failed to set value {}: {}", k, value);
 			anchor(event.data.scalar.anchor, *cfg.sub(k), "scalar");
 		} else
