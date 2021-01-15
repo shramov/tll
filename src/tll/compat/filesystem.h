@@ -79,6 +79,40 @@ inline std::filesystem::path lexically_normal(const std::filesystem::path &p)
 #endif
 }
 
+inline std::filesystem::path compat_relative_simple(const std::filesystem::path &_p, const std::filesystem::path &_base)
+{
+	auto p = tll::filesystem::lexically_normal(_p);
+	auto base = tll::filesystem::lexically_normal(_base);
+
+	if (!p.is_absolute() || !base.is_absolute()) // Not possible to compute relative path without CWD
+		return p;
+
+	auto pi = p.begin();
+	auto bi = base.begin();
+	for (; pi != p.end() && bi != base.end(); pi++, bi++) {
+		if (*pi != *bi) break;
+	}
+
+	std::filesystem::path r;
+	for (; bi != base.end(); bi++) {
+		if (bi == --base.end() && *bi == "")
+			break;
+		r /= "..";
+	}
+	for (; pi != p.end(); pi++)
+		r /= *pi;
+	return r;
+}
+
+inline std::filesystem::path relative_simple(const std::filesystem::path &p, const std::filesystem::path &base)
+{
+#if __has_include(<filesystem>)
+	return std::filesystem::relative(p, base);
+#else
+	return compat_relative_simple(p, base);
+#endif
+}
+
 } // namespace tll::filesystem
 
 #endif//_TLL_COMPAT_FILESYSTEM_H

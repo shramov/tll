@@ -362,4 +362,15 @@ TEST(Util, Filesystem)
 	ASSERT_PATH("/../", "/");
 	ASSERT_PATH("/../a", "/a");
 #undef ASSERT_PATH
+
+#define ASSERT_PATH(p, b, r) EXPECT_EQ(tll::filesystem::compat_relative_simple(p, b).string(), path(r).string())
+//#define ASSERT_PATH(p, b, r) EXPECT_EQ(std::filesystem::relative(p, b).string(), path(r).string())
+	ASSERT_PATH("/a", "/", "a");
+	ASSERT_PATH("/a/b/c", "/d/e", "../../a/b/c");
+	ASSERT_PATH("/a/b/c", "/a/b/d/e", "../../c");
+	ASSERT_PATH("/a/b/c", "/a/b/c/d", "..");
+	ASSERT_PATH("/a/b/c", "/a/b/c/d/", "..");
+	ASSERT_PATH("/a/b/c/", "/a/b/c/d", "../");
+	ASSERT_PATH("/a/b/c/", "/a/b/c/d/.", "../");
+#undef ASSERT_PATH
 }
