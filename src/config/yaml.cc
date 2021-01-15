@@ -125,13 +125,18 @@ int state_t::parse(const yaml_event_t &event)
 				return _log.fail(EINVAL, "Failed to set value {}: duplicate entry", k);
 			if (event.data.scalar.tag) {
 				std::string_view tag((const char *) event.data.scalar.tag);
-				if (tag != "tag:yaml.org,2002:binary")
+				if (tag == "tag:yaml.org,2002:binary") {
+					auto r = tll::util::b64_decode(value);
+					if (!r)
+						return _log.fail(EINVAL, "Invalid binary data for {}: {}", k, r.error());
+					if (cfg.set(k, {r->data(), r->size()}))
+						return _log.fail(EINVAL, "Failed to set value {}: {}", k, value);
+				} else if (tag == "!link") {
+					_log.info("Link {} to {}", k, value);
+					if (cfg.link(k, value))
+						return _log.fail(EINVAL, "Failed to set link {}: {}", k, value);
+				} else
 					return _log.fail(EINVAL, "Unknown tag {}: '{}'", k, tag);
-				auto r = tll::util::b64_decode(value);
-				if (!r)
-					return _log.fail(EINVAL, "Invalid binary data for {}: {}", k, r.error());
-				if (cfg.set(k, {r->data(), r->size()}))
-					return _log.fail(EINVAL, "Failed to set value {}: {}", k, value);
 			} else if (cfg.set(k, value))
 				return _log.fail(EINVAL, "Failed to set value {}: {}", k, value);
 			anchor(event.data.scalar.anchor, *cfg.sub(k), "scalar");
