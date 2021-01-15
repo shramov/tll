@@ -154,3 +154,17 @@ def test_yaml_binary():
     c = Config.load('''yamls://{a: !!binary AAECAw== }''')
 
     assert c.get('a', decode=False) == b'\x00\x01\x02\x03'
+
+def test_yaml_link():
+    c = Config.load('''yamls://
+a:
+  - 100
+  - 200
+b:
+  a: !link /a/0001/../0000
+  b: !link ../../a
+c: !link /b
+''')
+
+    print(c.as_dict())
+    assert c.as_dict() == {'a': ['100', '200'], 'b': {'a': '100', 'b': ['100', '200']}, 'c': {'a': '100', 'b': ['100', '200']}}
