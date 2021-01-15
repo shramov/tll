@@ -28,6 +28,7 @@ cdef extern from "tll/config.h":
     cdef int tll_config_process_imports(tll_config_t *, const char * path, int plen)
 
     cdef int tll_config_set(tll_config_t *, const char * path, int plen, const char * value, int vlen)
+    cdef int tll_config_set_link(tll_config_t *, const char * path, int plen, const char * value, int vlen)
     cdef int tll_config_set_config(tll_config_t *, const char * path, int plen, tll_config_t *, int consume)
     cdef int tll_config_set_callback(tll_config_t *, const char * path, int plen, tll_config_value_callback_t cb, void * user)
 

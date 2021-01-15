@@ -92,6 +92,13 @@ cdef class Config:
         if r:
             raise TLLError("Failed to set key {}".format(key), r)
 
+    def set_link(self, key, value):
+        k = s2b(key)
+        v = s2b(value)
+        r = tll_config_set_link(self._ptr, k, len(k), v, len(v))
+        if r:
+            raise TLLError("Failed to set link {} -> {}".format(key, value), r)
+
     def set_config(self, key, value):
         k = s2b(key)
         r = tll_config_set_config(self._ptr, k, len(k), (<Config>value)._ptr, 0)
