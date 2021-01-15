@@ -23,9 +23,22 @@ inline std::filesystem::path compat_lexically_normal(const std::filesystem::path
 	if (p.empty())
 		return p;
 	std::list<std::filesystem::path> components = {p.begin(), p.end()};
+	auto ri = components.rbegin();
+	while (ri != components.rend()) {
+		if (*ri != "." && *ri != "")
+			break;
+		if (++ri == components.rend()) break;
+		if (*ri != "." && *ri != "..") break;
+		components.pop_back();
+		ri = components.rbegin();
+	}
+
 	auto i = components.begin();
 	while (i != components.end()) {
 		if (*i == "." || *i == "") {
+			if (i == --components.end()) {
+				break;
+			}
 			i = components.erase(i);
 		} else if (*i == ".." && i != components.begin()) {
 			auto prev = i;
@@ -42,6 +55,14 @@ inline std::filesystem::path compat_lexically_normal(const std::filesystem::path
 
 	if (components.empty())
 		components.push_back(".");
+
+	if (components.size() > 1 && (components.back() == "" || components.back() == ".")) {
+		auto prev = ++components.rbegin();
+		if (*prev == ".." || *prev == ".")
+			components.pop_back();
+		else
+			components.back() = "";
+	}
 
 	std::filesystem::path r;
 	for (auto & c : components)

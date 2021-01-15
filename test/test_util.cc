@@ -333,16 +333,25 @@ TEST(Util, Filesystem)
 {
 	using namespace std::filesystem;
 	// Using path in ASSERT_EQ is not working on 18.04
-#define ASSERT_PATH(p, r) ASSERT_EQ(tll::filesystem::compat_lexically_normal(p).string(), path(r).string())
+//#define ASSERT_PATH(p, r) ASSERT_EQ(path(p).lexically_normal().string(), path(r).string())
+#define ASSERT_PATH(p, r) EXPECT_EQ(tll::filesystem::compat_lexically_normal(p).string(), path(r).string())
 	ASSERT_PATH("", "");
 	ASSERT_PATH(".", ".");
 	ASSERT_PATH("./", ".");
 	ASSERT_PATH("./.", ".");
+	ASSERT_PATH("./././", ".");
+	ASSERT_PATH("./././.", ".");
 	ASSERT_PATH(".//.", ".");
+	ASSERT_PATH("a/", "a/");
+	ASSERT_PATH("a/.", "a/");
+	ASSERT_PATH("/a/", "/a/");
+	ASSERT_PATH("/a/.", "/a/");
 	ASSERT_PATH("./..", "..");
 	ASSERT_PATH("./a/../../b", "../b");
 	ASSERT_PATH("..", "..");
 	ASSERT_PATH("../", "..");
+	ASSERT_PATH("../.", "..");
+	ASSERT_PATH("../../", "../..");
 	ASSERT_PATH("../a", "../a");
 	ASSERT_PATH("../a/../b", "../b");
 	ASSERT_PATH("/", "/");
