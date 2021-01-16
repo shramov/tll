@@ -365,3 +365,40 @@ def test_fixed():
     data = memoryview(m.pack())
     u = msg.unpack(data)
     assert m.as_dict() == u.as_dict()
+
+@pytest.mark.parametrize("version", ['default', 'legacy-long', 'legacy-short'])
+def test_list(version):
+    scheme = S.Scheme("""yamls://
+- name: sub
+  fields:
+    - {name: f0, type: int8}
+
+- name: msg
+  fields:
+    - {name: scalar, type: '*int8', list-options.offset-ptr-type: %(version)s}
+    - {name: msg, type: '*sub', list-options.offset-ptr-type: %(version)s}
+    - {name: fixed, type: 'int8[8]'}
+""" % {'version': version})
+
+    msg = scheme['msg']
+
+    m = msg.object(scalar = [1, 2, 3], fixed = [4, 3, 2, 1], msg = [{'f0': 10}, {'f0': 20}])
+    u = msg.unpack(memoryview(m.pack()))
+    assert m.as_dict() == u.as_dict()
+
+    m = msg.object(scalar = [], fixed = [], msg = [])
+    u = msg.unpack(memoryview(m.pack()))
+    assert m.as_dict() == u.as_dict()
+
+@pytest.mark.parametrize("version", ['default', 'legacy-long', 'legacy-short'])
+def test_list_empty(version):
+    scheme = S.Scheme("""yamls://
+- name: msg
+  fields:
+    - {name: list, type: '*int8', list-options.offset-ptr-type: %s}
+""" % version)
+
+    msg = scheme['msg']
+    m = msg.object(list = [])
+    u = msg.unpack(memoryview(m.pack()))
+    assert m.as_dict() == u.as_dict()

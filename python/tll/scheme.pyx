@@ -132,7 +132,7 @@ cdef offset_ptr_t read_optr_default(Py_buffer * buf, unsigned entity):
     return r
 
 cdef offset_ptr_t read_optr_legacy_short(Py_buffer * buf, unsigned entity):
-    if buf.len < <ssize_t>(sizeof(tll_scheme_offset_ptr_t)): return OFFSET_PTR_INVALID
+    if buf.len < <ssize_t>(sizeof(tll_scheme_offset_ptr_legacy_short_t)): return OFFSET_PTR_INVALID
     cdef tll_scheme_offset_ptr_legacy_short_t * ptr = <tll_scheme_offset_ptr_legacy_short_t *>buf.buf
     cdef offset_ptr_t r
     r.offset = ptr.offset
@@ -141,7 +141,7 @@ cdef offset_ptr_t read_optr_legacy_short(Py_buffer * buf, unsigned entity):
     return r
 
 cdef offset_ptr_t read_optr_legacy_long(Py_buffer * buf, unsigned entity):
-    if buf.len < <ssize_t>(sizeof(tll_scheme_offset_ptr_t)): return OFFSET_PTR_INVALID
+    if buf.len < <ssize_t>(sizeof(tll_scheme_offset_ptr_legacy_long_t)): return OFFSET_PTR_INVALID
     cdef tll_scheme_offset_ptr_legacy_long_t * ptr = <tll_scheme_offset_ptr_legacy_long_t *>buf.buf
     cdef offset_ptr_t r
     r.offset = ptr.offset
