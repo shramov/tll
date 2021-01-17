@@ -346,6 +346,7 @@ class Field:
                 self.pack_raw, self.unpack_raw = self.pack_data, self.unpack_data
                 self.pack_data, self.unpack_data = self.pack_fixed, self.unpack_fixed
                 self.convert = self.convert_fixed
+                self.default = Decimal
         elif type in (Field.UInt8, Field.UInt16, Field.UInt32):
             self._from_string = from_string_int
             self.default = int
@@ -362,6 +363,7 @@ class Field:
                 self.pack_raw, self.unpack_raw = self.pack_data, self.unpack_data
                 self.pack_data, self.unpack_data = self.pack_fixed, self.unpack_fixed
                 self.convert = self.convert_fixed
+                self.default = Decimal
         elif type == Field.Double:
             self.pack_data, self.unpack_data = pack_double, unpack_double
             self.convert = convert_double
