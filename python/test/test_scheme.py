@@ -402,3 +402,20 @@ def test_list_empty(version):
     m = msg.object(list = [])
     u = msg.unpack(memoryview(m.pack()))
     assert m.as_dict() == u.as_dict()
+
+def test_field_del():
+    scheme = S.Scheme("""yamls://
+- name: msg
+  fields:
+    - {name: f0, type: int32}
+""")
+
+    msg = scheme['msg']
+    m = msg.object(f0 = 0xbeef)
+
+    assert m.as_dict() == {'f0': 0xbeef}
+    del m.f0
+    assert m.as_dict() == {}
+
+    u = msg.unpack(memoryview(m.pack()))
+    assert u.as_dict() == {'f0': 0}

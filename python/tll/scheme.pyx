@@ -609,6 +609,12 @@ class Data(object):
             raise KeyError("No such field in {}: {}".format(self.SCHEME.name, k))
         object.__setattr__(self, k, f.convert(v))
 
+    def __delattr__(self, k):
+        f = self.SCHEME.get(k, None)
+        if f is None:
+            raise KeyError("No such field in {}: {}".format(self.SCHEME.name, k))
+        object.__delattr__(self, k)
+
     def __repr__(self):
         return "<{}.Data.{} object at {:x}>".format(self.__module__, self.__class__.__name__, id(self))
 
