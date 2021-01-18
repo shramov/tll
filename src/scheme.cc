@@ -464,10 +464,8 @@ struct Scheme
 
 		if (*fn.begin() == "." || *fn.begin() == "..") {
 			auto tmp = lexically_normal(search.current.parent_path() / fn);
-			fmt::print("Check relative {} at {}: {}\n", fn.string(), search.current.parent_path().string(), tmp.string());
 			if (fs::exists(tmp)) {
 				url->host = tmp.string();
-				fmt::print("Found {} at {}\n", fn.string(), conv::to_string(*url));
 				return std::make_pair(conv::to_string(*url), tmp);
 			}
 			return error("Relative import not found");
@@ -477,10 +475,8 @@ struct Scheme
 			return std::make_pair(path, lexically_normal(fn));
 		for (auto & prefix : search.search) {
 			auto tmp = lexically_normal(prefix / fn);
-			fmt::print("Check {} at {}: {}\n", fn.string(), prefix.string(), tmp.string());
 			if (fs::exists(tmp)) {
 				url->host = tmp.string();
-				fmt::print("Found {} at {}\n", fn.string(), conv::to_string(*url));
 				return std::make_pair(conv::to_string(*url), tmp);
 			}
 		}
