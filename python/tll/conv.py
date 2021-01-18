@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # vim: sts=4 sw=4 et
 
+import enum
+
 REGISTRY = {}
 REGISTRY[int] = lambda s: int(s, 0)
 
@@ -22,13 +24,24 @@ def from_string(t, s):
 
 _default_tag = object()
 
+def enum_from_string(e, s):
+    v = e._member_map_.get(s, _default_tag)
+    if v is _default_tag:
+        raise ValueError(f"Invalid {e} string: {s}, expected one of {e._member_names_}")
+    return v
+
 def getT(obj, key, default):
     s = obj.get(key, _default_tag)
     if s in (_default_tag, None, ''):
         return default
-    if type(s) == type(default):
+    dtype = default if type(default) == type else type(default)
+    if dtype == type(s):
         return s
-    return from_string(type(default), s)
+    elif dtype == enum.EnumMeta:
+        return enum_from_string(default, s)
+    elif isinstance(dtype, enum.EnumMeta):
+        return enum_from_string(dtype, s)
+    return from_string(dtype, s)
 
 class GetT:
     def getT(self, key, default):

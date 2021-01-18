@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # vim: sts=4 sw=4 et
 
+import enum
 import copy
 import pytest
 
@@ -89,19 +90,28 @@ def test_merge():
     _test_merge('import','a: 1', 'b: 2', {'a': '1', 'b': '2'})
     _test_merge('import','{a: 1, b.c: 1}', 'b.d: 2', {'a': '1', 'b.c': '1', 'b.d': '2'})
 
+class E(enum.Enum):
+    A = 1
+    B = 2
+
 @pytest.mark.parametrize("s,k,t,v", [
     ('{a: 10}', 'a', int, 10),
     ('{a: 10}', 'a', int, 10),
+    ('{a: 10}', 'a', 0, 10),
     ('{a: 10}', 'a', float, 10.),
     ('{a: 10}', 'a', bool, None),
     ('{a: yes}', 'a', bool, True),
+    ('{a: yes}', 'a', False, True),
+    ('{a: A}', 'a', E, E.A),
+    ('{a: A}', 'a', E.A, E.A),
+    ('{a: x}', 'a', E, None),
 ])
 def test_getT(s, k, t, v):
     c = Config.load('yamls://' + s)
     if v is None:
-        with pytest.raises(ValueError): c.getT(k, t())
+        with pytest.raises(ValueError): c.getT(k, t)
     else:
-        assert c.getT(k, t()) == v
+        assert c.getT(k, t) == v
 
 def _test_load(proto, data, r):
     c = Config.load_data(proto, data)
