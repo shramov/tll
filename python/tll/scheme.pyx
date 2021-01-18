@@ -10,6 +10,7 @@ from cython cimport typeof
 from cpython.version cimport PY_MAJOR_VERSION
 
 from collections import OrderedDict
+import copy
 from decimal import Decimal
 import enum
 from .error import TLLError
@@ -630,6 +631,14 @@ class Data(object):
             else:
                 l.append('{}: {}'.format(f.name, str(r)))
         return "<{} {}>".format(self.SCHEME.name, ", ".join(l))
+
+    def __copy__(self):
+        r = self.SCHEME.object()
+        for k,v in self.SCHEME.fields:
+            object.__setattr__(r, k, copy.copy(object.__getattr__(self, k, None)))
+
+    def __deepcopy__(self, memo):
+        return self.__copy__()
 
     def as_dict(self):
         return _as_dict_msg(self.SCHEME, self)
