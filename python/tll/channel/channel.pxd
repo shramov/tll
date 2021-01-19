@@ -139,6 +139,7 @@ cdef class Channel:
     cdef int _own
     cdef object _callbacks
     cdef Scheme _scheme_cache
+    cdef Scheme _scheme_control_cache
     cdef object __weakref__
 
     cdef _post(self, const tll_msg_t * msg, int flags)

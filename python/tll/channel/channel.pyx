@@ -87,6 +87,7 @@ cdef class Channel:
         self._own = False
         self._callbacks = {}
         self._scheme_cache = None
+        self._scheme_control_cache = None
 
     def __init__(self, url, master=None, context=None, **kw):
         if url is None:
@@ -261,6 +262,16 @@ cdef class Channel:
         if not self._scheme_cache or not self._scheme_cache.same(ptr):
             self._scheme_cache = Scheme.wrap(ptr, ref=True)
         return self._scheme_cache
+
+    @property
+    def scheme_control(self):
+        cdef const tll_scheme_t * ptr = tll_channel_scheme(self._ptr, TLL_MESSAGE_CONTROL)
+        if ptr == NULL:
+            self._scheme_control_cache = None
+            return None
+        if not self._scheme_control_cache or not self._scheme_control_cache.same(ptr):
+            self._scheme_control_cache = Scheme.wrap(ptr, ref=True)
+        return self._scheme_control_cache
 
     def __hash__(self): return hash(<intptr_t>self._ptr)
 
