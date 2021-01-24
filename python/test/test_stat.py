@@ -31,11 +31,28 @@ def test_swap():
 
     fields = i.swap()
     assert fields != None
-    assert [(f.name, f.value) for f in fields] == [(b'sum', 21), (b'min', 19.5), (b'max', 31), (b'last', 41.)]
+    assert [(f.name, f.value) for f in fields] == [('sum', 21), ('min', 19.5), ('max', 31), ('last', 41.)]
 
     s.update(min=20.5, max=30, last=40)
     s.update(sum=11, min=21.5, last=41)
     s.update(max=29, sum=9)
     fields = i.swap()
     assert fields != None
-    assert [(f.name, f.value) for f in fields] == [(b'sum', 20), (b'min', 20.5), (b'max', 30), (b'last', 41.)]
+    assert [(f.name, f.value) for f in fields] == [('sum', 20), ('min', 20.5), ('max', 30), ('last', 41.)]
+
+def test_list_iter():
+    s0 = Stat('s0')
+    s1 = Stat('s1')
+    l = S.List(new=True)
+
+    assert len(list(l)) == 0
+    l.add(s0)
+    l.add(s1)
+    assert len(list(l)) == 2
+
+    assert [x.name for x in l] == ['s0' , 's1']
+
+    s0.update(sum=10)
+    s1.update(sum=11)
+
+    assert [x.swap()[0].value for x in l] == [10, 11]

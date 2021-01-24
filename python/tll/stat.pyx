@@ -53,10 +53,13 @@ cdef class Field:
     def unit(self): return Unit(self.ptr.unit)
 
     @property
-    def name(self): return self.ptr.name[:strnlen(self.ptr.name, sizeof(self.ptr.name))]
+    def name(self): return b2s(self.ptr.name[:strnlen(self.ptr.name, sizeof(self.ptr.name))])
 
     @property
     def value(self): return self.ptr.value if self.ptr.type == TLL_STAT_INT else self.ptr.fvalue
+
+    def __repr__(self):
+        return f"<Field {self.name} {self.method.name} {self.unit.name} {self.value}>"
 
 cdef class Page:
     cdef tll_stat_page_t * ptr
@@ -196,10 +199,11 @@ cdef class Iter:
     def empty(self):
         return tll_stat_iter_empty(self.ptr)
 
+    @property
     def name(self):
         cdef const char * name = tll_stat_iter_name(self.ptr)
         if name == NULL: return
-        return name[:]
+        return b2s(name[:])
 
     def swap(self, timeout=0.001):
         if self.ptr == NULL: return
@@ -216,13 +220,11 @@ cdef class Iter:
     def __next__(self):
         if self.ptr == NULL:
             raise StopIteration()
+        tmp = Iter.wrap(self.ptr)
         self.ptr = tll_stat_iter_next(self.ptr)
-        return self
+        return tmp
 
 cdef class List:
-    cdef tll_stat_list_t * ptr
-    cdef int owner
-
     def __cinit__(self, new=True):
         self.ptr = NULL
         self.owner = new
@@ -234,7 +236,7 @@ cdef class List:
             tll_stat_list_free(self.ptr)
 
     @staticmethod
-    cdef wrap(tll_stat_list_t * ptr):
+    cdef List wrap(tll_stat_list_t * ptr):
         l = List(new=False)
         l.ptr = ptr
         return l

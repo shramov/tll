@@ -66,3 +66,13 @@ cdef extern from "tll/stat.h" nogil:
 
     cdef tll_stat_iter_t * tll_stat_iter_next(tll_stat_iter_t *)
     cdef tll_stat_page_t * tll_stat_iter_swap(tll_stat_iter_t *)
+
+cdef class List:
+    cdef tll_stat_list_t * ptr
+    cdef int owner
+
+    @staticmethod
+    cdef List wrap(tll_stat_list_t * cfg)
+
+    @staticmethod
+    cdef tll_stat_block_t * unwrap(object obj)
