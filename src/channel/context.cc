@@ -385,12 +385,23 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &url, tll_ch
 			c->internal->caps |= caps::Custom;
 		if (!c->internal)
 			return _log.fail(nullptr, "Failed to init channel {}: NULL internal pointer", url_str);
-		if (!*internal && c->internal->name) {
-			channels.emplace(c->internal->name, c.get()); // Check for dup
-			tll_config_set_config(config, c->internal->name, -1, c->internal->config, 0);
-		}
 		break;
 	} while (true);
+
+	if (!*internal && c->internal->name) {
+		channels.emplace(c->internal->name, c.get()); // Check for dup
+		tll_config_set_config(config, c->internal->name, -1, c->internal->config, 0);
+	}
+
+	if (c->internal->stat) {
+		_log.info("Register channel {} stat", c->internal->name);
+		if (!c->internal->stat->name && c->internal->name) {
+			_log.info("Set stat name for channel {}", c->internal->name);
+			c->internal->stat->name = c->internal->name;
+		} else
+			_log.info("Stat name for channel {}: '{}'", c->internal->name, c->internal->stat->name);
+		stat_list.add(c->internal->stat);
+	}
 
 	tll_channel_context_ref(c->context);
 	return c.release();
@@ -409,10 +420,16 @@ void tll_channel_free(tll_channel_t *c)
 {
 	if (!c) return;
 	std::string_view name = tll_channel_name(c);
+
+	if (c->internal->stat) {
+		c->context->stat_list.remove(c->internal->stat);
+	}
+
 	if ((tll_channel_caps(c) & caps::Custom) == 0) {
 		c->context->channels.erase(name);
 		tll_config_del(c->context->config, name.data(), name.size(), 0);
 	}
+
 	if (c->impl)
 		(*c->impl->free)(c);
 	tll_channel_context_free(c->context);
@@ -430,7 +447,17 @@ int tll_channel_process(tll_channel_t *c, long timeout, int flags)
 int tll_channel_post(tll_channel_t *c, const tll_msg_t *msg, int flags)
 {
 	if (!c || !c->impl) return EINVAL;
-	return (*c->impl->post)(c, msg, flags);
+	auto r = (*c->impl->post)(c, msg, flags);
+	if (!r && msg->type == TLL_MESSAGE_DATA && c->internal->stat) {
+		auto p = tll::stat::acquire(c->internal->stat);
+		if (p) {
+			auto f = (tll::channel::Stat *) p->fields;
+			f->tx.update(1);
+			f->txb.update(msg->size);
+			tll::stat::release(c->internal->stat, p);
+		}
+	}
+	return r;
 }
 
 namespace {

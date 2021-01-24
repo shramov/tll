@@ -11,6 +11,7 @@
 #include "tll/channel.h"
 #include "tll/logger.h"
 #include "tll/scheme.h"
+#include "tll/stat.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -38,6 +39,23 @@ struct tll_channel_impl_t
 	void * data;
 };
 
+#ifdef __cplusplus
+#define TLL_DECLARE_STAT(...) tll::stat::FieldT<__VA_ARGS__>
+#else
+#define TLL_DECLARE_STAT(...) tll_stat_field_t
+#endif
+
+typedef struct tll_channel_stat_t
+{
+	TLL_DECLARE_STAT(tll_stat_int_t, tll::stat::Sum, tll::stat::Unknown, 'r', 'x') rx;
+	TLL_DECLARE_STAT(tll_stat_int_t, tll::stat::Sum, tll::stat::Bytes, 'r', 'x') rxb;
+
+	TLL_DECLARE_STAT(tll_stat_int_t, tll::stat::Sum, tll::stat::Unknown, 't', 'x') tx;
+	TLL_DECLARE_STAT(tll_stat_int_t, tll::stat::Sum, tll::stat::Bytes, 't', 'x') txb;
+} tll_channel_stat_t;
+
+#undef TLL_DECLARE_STAT
+
 typedef struct tll_channel_callback_pair_t
 {
 	tll_channel_callback_t cb;
@@ -63,6 +81,8 @@ typedef struct tll_channel_internal_t
 
 	unsigned cb_size;
 	tll_channel_callback_pair_t * cb;
+
+	tll_stat_block_t * stat;
 } tll_channel_internal_t;
 
 /// Flags for tll_channel_module_t structure
@@ -98,6 +118,21 @@ int tll_channel_internal_child_del(tll_channel_internal_t *ptr, const tll_channe
 
 static inline int tll_channel_callback_data(const tll_channel_internal_t * in, const tll_msg_t * msg)
 {
+	if (in->stat) {
+		tll_stat_page_t * p = tll_stat_page_acquire(in->stat);
+		if (p) {
+			tll_channel_stat_t *f = (tll_channel_stat_t *) p->fields;
+#ifdef __cplusplus
+			f->rx.update(1);
+			f->rxb.update(msg->size);
+#else
+			f->rx.value += 1;
+			f->rxb.value += msg->size;
+#endif
+			tll_stat_page_release(in->stat, p);
+		}
+	}
+
 	unsigned size = in->data_cb_size;
 	//if (size == 1) {
 	//	(*in->data_cb_fixed[0].cb)(c, msg, in->data_cb_fixed[0].user);

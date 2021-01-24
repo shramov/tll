@@ -14,6 +14,7 @@
 
 #include "tll/util/url.h"
 #include "tll/logger.h"
+#include "tll/stat.h"
 
 #include "tll/channel.h"
 #include "tll/channel/impl.h"
@@ -51,6 +52,11 @@ T * channel_cast(tll_channel_t * c)
 
 namespace channel {
 
+using Stat = tll_channel_stat_t;
+
+template <typename T>
+struct StatType { using type = Stat; };
+
 template <typename T>
 class Base
 {
@@ -85,6 +91,9 @@ class Base
 	static constexpr auto child_policy() { return ChildPolicy::Never; }
 
 	tll_channel_internal_t internal = {};
+
+	stat::Block<typename StatType<T>::type> _stat_block = { "" };
+	bool _stat_enable = false;
 
 	scheme::ConstSchemePtr _scheme = {nullptr, &tll_scheme_unref};
 	scheme::ConstSchemePtr _scheme_control = {nullptr, &tll_scheme_unref};
@@ -152,6 +161,7 @@ class Base
 		_log = { fmt::format("tll.channel.{}", name) };
 		_scheme_url = reader.get("scheme");
 		_scheme_cache = reader.getT("scheme-cache", true);
+		_stat_enable = reader.getT("stat", false);
 
 		enum rw_t { None = 0, R = 1, W = 2, RW = R | W };
 		auto dir = reader.getT("dir", None, {{"r", R}, {"w", W}, {"rw", RW}, {"in", R}, {"out", W}, {"inout", RW}});
@@ -182,7 +192,16 @@ class Base
 		if (ChannelT::close_policy() == ClosePolicy::Long)
 			internal.caps |= caps::LongClose;
 
-		return channelT()->_init(url, master);
+		auto r = channelT()->_init(url, master);
+
+		if (r) return r;
+
+		if (_stat_enable) {
+			_stat_block.name = name.c_str();
+			internal.stat = &_stat_block;
+		}
+
+		return 0;
 	}
 
 	const tll_channel_impl_t * _init_replace(const Channel::Url &url) { return nullptr; }
