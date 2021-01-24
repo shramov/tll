@@ -116,7 +116,7 @@ tll_stat_block_t * tll_stat_iter_block(tll_stat_iter_t *);
  *
  * @return `NULL` if there is no block
  */
-const char * tll_stat_iter_name(const tll_stat_iter_t *);
+const char * tll_stat_iter_name(tll_stat_iter_t *);
 
 /// Check if there is non-NULL block in this iterator
 int tll_stat_iter_empty(const tll_stat_iter_t *);

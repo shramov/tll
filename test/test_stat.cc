@@ -126,12 +126,13 @@ TEST(Stat, List)
 	list.add(b);
 	auto it = list.begin();
 	ASSERT_NE(*it, nullptr);
+	ASSERT_STREQ(tll_stat_iter_name(it), "test");
+
 	ASSERT_EQ(tll_stat_iter_block(it), (tll_stat_block_t *) &b);
 
 	auto page = tll_stat_iter_swap(it);
 	ASSERT_NE(page, nullptr);
 	ASSERT_EQ(page->size, b.inactive->size);
-	ASSERT_STREQ(tll_stat_iter_name(it), "test");
 
 	ASSERT_EQ(*++it, nullptr);
 }

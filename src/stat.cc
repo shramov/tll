@@ -135,9 +135,12 @@ tll_stat_block_t * tll_stat_iter_block(tll_stat_iter_t *i)
 	return i->block;
 }
 
-const char * tll_stat_iter_name(const tll_stat_iter_t *i)
+const char * tll_stat_iter_name(tll_stat_iter_t *i)
 {
 	if (!i || !i->block) return nullptr;
+	if (i->cached != i->block)
+		i->update();
+
 	return i->name.c_str();
 }
 
