@@ -4,6 +4,7 @@
 import tll.channel as C
 from tll.config import Config
 from tll.error import TLLError
+from tll.stat import Method, Unit
 from tll.test_util import Accum
 
 import common
@@ -59,6 +60,53 @@ def test_context_scheme():
     assert c1.scheme != None
     with pytest.raises(TLLError): ctx.scheme_load('channel://unknown')
     with pytest.raises(TLLError): ctx.scheme_load('zzz://scheme')
+
+def test_stat():
+    ctx = C.Context()
+
+    assert [x.name for x in ctx.stat_list] == []
+
+    null = ctx.Channel('null://;stat=yes;name=null')
+
+    null.open()
+
+    assert [x.name for x in ctx.stat_list] == ['null']
+
+    null_stat = list(ctx.stat_list)[0]
+
+    assert [(f.name, f.method, f.unit) for f in null_stat.swap()] == [
+            ('rx', Method.Sum, Unit.Unknown),
+            ('rx', Method.Sum, Unit.Bytes),
+            ('tx', Method.Sum, Unit.Unknown),
+            ('tx', Method.Sum, Unit.Bytes),
+    ]
+
+    assert [(f.name, f.value) for f in null_stat.swap()] == [('rx', 0), ('rx', 0), ('tx', 0), ('tx', 0)]
+
+    null.post(b'xxx')
+    null.post(b'xxx')
+    null.post(b'xxx')
+
+    assert [(f.name, f.value) for f in null_stat.swap()] == [('rx', 0), ('rx', 0), ('tx', 3), ('tx', 9)]
+    assert [(f.name, f.value) for f in null_stat.swap()] == [('rx', 0), ('rx', 0), ('tx', 0), ('tx', 0)]
+
+    del null
+
+    assert null_stat.name == None
+    assert null_stat.swap() == None
+
+    zero = ctx.Channel('zero://;stat=yes;name=zero;size=1kb')
+    zero.open()
+
+    assert [x.name for x in ctx.stat_list] == ['zero']
+
+    assert null_stat.name == "zero"
+
+    assert [(f.name, f.value) for f in null_stat.swap()] == [('rx', 0), ('rx', 0), ('tx', 0), ('tx', 0)]
+    zero.process()
+    zero.process()
+    zero.process()
+    assert [(f.name, f.value) for f in null_stat.swap()] == [('rx', 3), ('rx', 3 * 1024), ('tx', 0), ('tx', 0)]
 
 _test_zero_params = [
     ('fd=no;pending=no', 0),

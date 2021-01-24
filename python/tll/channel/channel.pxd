@@ -3,6 +3,7 @@
 
 from ..config cimport tll_config_t
 from ..scheme cimport tll_scheme_t, Scheme
+from ..stat cimport tll_stat_list_t
 from .impl cimport tll_channel_internal_t, tll_channel_impl_t
 from .common cimport tll_state_t
 from libc.stdint cimport int64_t
@@ -112,6 +113,7 @@ cdef extern from "tll/channel.h" nogil:
     cdef tll_config_t * tll_channel_context_config(tll_channel_context_t *)
     cdef tll_config_t * tll_channel_context_config_defaults(tll_channel_context_t *)
     cdef tll_scheme_t * tll_channel_context_scheme_load(tll_channel_context_t *, const char *url, int len, int cache)
+    cdef tll_stat_list_t * tll_channel_context_stat_list(tll_channel_context_t *)
 
     cdef int tll_channel_impl_register(tll_channel_context_t *ctx, tll_channel_impl_t *impl, const char *name)
     cdef int tll_channel_impl_unregister(tll_channel_context_t *ctx, tll_channel_impl_t *impl, const char *name)

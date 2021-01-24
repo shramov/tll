@@ -10,6 +10,7 @@ from .common import State
 from ..config cimport Config, Url
 from ..error import TLLError
 from ..s2b cimport *
+from ..stat cimport List as StatList
 from ..logger import Logger
 
 import importlib
@@ -98,6 +99,11 @@ cdef class Context:
     def config_defaults(self):
         cdef tll_config_t * cfg = tll_channel_context_config_defaults(self._ptr)
         return Config.wrap(cfg)
+
+    @property
+    def stat_list(self):
+        cdef tll_stat_list_t * stat = tll_channel_context_stat_list(self._ptr)
+        return StatList.wrap(stat)
 
     def get(self, name):
         n = s2b(name)
