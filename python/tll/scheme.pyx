@@ -374,10 +374,10 @@ class Field:
             self.convert = convert_decimal128
             self.default = self._from_string = Decimal
         elif type == Field.Bytes:
-            self.pack_data, self.unpack_data = pack_bytes, unpack_bytes
+            self.pack_data, self.unpack_data = pack_bytes, self.unpack_bytes
             self.default = bytes
             if self.sub_type == SubType.ByteString:
-                self.unpack_data = unpack_str
+                self.unpack_data = self.unpack_str
                 self.default = self._from_string = str
                 self.convert = convert_str
             else:
@@ -445,6 +445,9 @@ class Field:
 
     def unpack_array(self, src): return self._unpack_array_f(src, self.type_array.unpack_data)
     def unpack_array_reflection(self, src): return self._unpack_array_f(src, self.type_array.unpack_reflection)
+
+    def unpack_bytes(self, src): return unpack_bytes(src[:self.size])
+    def unpack_str(self, src): return unpack_str(src[:self.size])
 
     def pack_msg(self, v, dest, tail, tail_offset):
         memoryview_check(dest)

@@ -430,3 +430,19 @@ def test_field_del():
 
     u = msg.unpack(memoryview(m.pack()))
     assert u.as_dict() == {'f0': 0}
+
+
+def test_bytes():
+    scheme = S.Scheme("""yamls://
+- name: msg
+  fields:
+    - {name: f0, type: byte1}
+    - {name: f1, type: byte1, options.type: string}
+    - {name: f2, type: byte14, options.type: string}
+""")
+
+    msg = scheme['msg']
+    m = msg.object(f0 = b'A', f1='B', f2='CDE')
+
+    u = msg.unpack(memoryview(m.pack()))
+    assert u.as_dict() == m.as_dict()
