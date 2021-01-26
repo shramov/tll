@@ -24,6 +24,9 @@ def main():
     cfg = Config.load(args.config)
     cfg.process_imports('processor.include')
 
+    return run(cfg)
+
+def run(cfg):
     try:
         tll.logger.pyconfigure(cfg.sub('logger', throw=False))
     finally:
