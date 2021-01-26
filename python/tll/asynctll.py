@@ -49,7 +49,7 @@ class AsyncChannel(C.Channel):
                 raise TimeoutError("Timeout waiting for message")
 
 class Loop:
-    def __init__(self, context = None):
+    def __init__(self, context = None, tick_interval = 0.1):
         self.context = context
         self.channels = weakref.WeakKeyDictionary()
         self.asyncchannels = weakref.WeakSet()
@@ -62,7 +62,7 @@ class Loop:
         self._loop.add(self._timer)
         self._timer_cb_ref = self._timer_cb
         self._timer.callback_add(self._timer_cb, mask=C.MsgMask.Data)
-        self._timer.open("interval=100ms")
+        self._timer.open("interval={}ms".format(int(1000 * tick_interval)))
         self._timer_queue = []
 
     def __del__(self):
