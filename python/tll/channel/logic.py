@@ -4,6 +4,8 @@
 from .base import Base
 
 class Logic(Base):
+    PROCESS_POLICY = Base.ProcessPolicy.Never
+
     def _init(self, url, master=None):
         super()._init(url, master)
         self._channels = {}
