@@ -6,6 +6,7 @@ from .impl cimport *
 from . cimport channel as C
 from . import channel as C
 from ..config cimport Config
+from ..scheme cimport Scheme
 from .context cimport Context, Internal
 from libc.string cimport memset
 from libc.errno cimport EINVAL
@@ -64,6 +65,7 @@ cdef class Base:
 
     cdef Internal internal
     cdef Context context
+    cdef Scheme scheme
     cdef object _children
     cdef object log
 
@@ -86,6 +88,7 @@ cdef class Base:
         self._children = set()
         if self.internal is None or self.internal.state == C.State.Destroy:
             return
+        self.scheme = None
         self.state = C.State.Destroy
 
     def _callback(self, msg):
@@ -152,6 +155,13 @@ cdef class Base:
 
     @property
     def name(self): return self.internal.name
+
+    @property
+    def scheme(self): return self.scheme
+
+    @scheme.setter
+    def scheme(self, v):
+        self.scheme = v
 
     def init(self, url, master=None):
         self.internal.state = C.State.Closed
@@ -244,9 +254,10 @@ cdef class Base:
         old = self.dcaps
         if old & mask == caps:
             return
+
+        cdef unsigned ccaps = self.dcaps
         self.log.debug("Update caps: {!s} -> {!s}", old, caps)
         self.internal.internal.dcaps = (self.dcaps & ~mask) | caps
-        cdef unsigned ccaps = self.dcaps
 
         cdef tll_msg_t msg
         memset(&msg, 0, sizeof(tll_msg_t))

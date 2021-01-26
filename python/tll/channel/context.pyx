@@ -25,6 +25,7 @@ cdef class Impl:
         self.impl.close = &_py_close
         self.impl.process = &_py_process
         self.impl.post = &_py_post
+        self.impl.scheme = &_py_scheme
         if getattr(ctype, 'PREFIX', 0):
             self.impl.prefix = 1
         self.impl.data = <void *>ctype
@@ -259,6 +260,27 @@ cdef int _py_close(tll_channel_t * channel, int force) with gil:
         except:
             pass
         return EINVAL
+
+cdef const tll_scheme_t * _py_scheme(const tll_channel_t * channel, int stype) with gil:
+    if _py_bad_channel(channel): return NULL
+    pyc = <object>(channel.data)
+    try:
+        if stype == TLL_MESSAGE_DATA:
+            s = getattr(pyc, 'scheme', None)
+            if s is None:
+                return NULL
+            if not isinstance(s, Scheme):
+                return NULL
+            return (<Scheme>(s))._ptr
+        else:
+            return NULL
+    except:
+        try:
+            log = Logger("tll.channel.python")
+            log.exception("Failed to get scheme from channel '{}'", pyc)
+        except:
+            pass
+        return NULL
 
 cdef int _py_post(tll_channel_t * channel, const tll_msg_t *msg, int flags) with gil:
     if _py_bad_channel(channel): return EINVAL
