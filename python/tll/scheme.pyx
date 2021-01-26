@@ -634,8 +634,9 @@ class Data(object):
 
     def __copy__(self):
         r = self.SCHEME.object()
-        for k,v in self.SCHEME.fields:
-            object.__setattr__(r, k, copy.copy(object.__getattr__(self, k, None)))
+        for f in self.SCHEME.fields:
+            object.__setattr__(r, f.name, copy.deepcopy(getattr(self, f.name, None)))
+        return r
 
     def __deepcopy__(self, memo):
         return self.__copy__()

@@ -8,6 +8,7 @@ import tll.scheme as S
 from tll.scheme import Field as F
 from tll.s2b import s2b
 
+import copy
 import decimal
 import pytest
 import struct
@@ -385,6 +386,16 @@ def test_list(version):
     m = msg.object(scalar = [1, 2, 3], fixed = [4, 3, 2, 1], msg = [{'f0': 10}, {'f0': 20}])
     u = msg.unpack(memoryview(m.pack()))
     assert m.as_dict() == u.as_dict()
+
+    c = copy.deepcopy(m)
+    assert c.as_dict() == m.as_dict()
+
+    c.msg[1].f0 = 100
+
+    assert m.msg[1].f0 == 20
+
+    u = msg.unpack(memoryview(c.pack()))
+    assert c.as_dict() == u.as_dict()
 
     m = msg.object(scalar = [], fixed = [], msg = [])
     u = msg.unpack(memoryview(m.pack()))
