@@ -30,6 +30,15 @@ cdef extern from "tll/scheme.h":
         TLL_SCHEME_OFFSET_PTR_LEGACY_SHORT
         TLL_SCHEME_OFFSET_PTR_LEGACY_LONG
 
+    ctypedef enum tll_scheme_time_resolution_t:
+        TLL_SCHEME_TIME_NS
+        TLL_SCHEME_TIME_US
+        TLL_SCHEME_TIME_MS
+        TLL_SCHEME_TIME_SECOND
+        TLL_SCHEME_TIME_MINUTE
+        TLL_SCHEME_TIME_HOUR
+        TLL_SCHEME_TIME_DAY
+
     ctypedef struct tll_scheme_option_t:
         tll_scheme_option_t * next
         const char * name
@@ -67,6 +76,7 @@ cdef extern from "tll/scheme.h":
         tll_scheme_field_t * count_ptr
 
         unsigned fixed_precision
+        tll_scheme_time_resolution_t time_resolution
 
 
     ctypedef struct tll_scheme_message_t:

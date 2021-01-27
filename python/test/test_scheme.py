@@ -9,6 +9,7 @@ from tll.scheme import Field as F
 from tll.s2b import s2b
 
 import copy
+import datetime
 import decimal
 import pytest
 import struct
@@ -431,7 +432,6 @@ def test_field_del():
     u = msg.unpack(memoryview(m.pack()))
     assert u.as_dict() == {'f0': 0}
 
-
 def test_bytes():
     scheme = S.Scheme("""yamls://
 - name: msg
@@ -443,6 +443,53 @@ def test_bytes():
 
     msg = scheme['msg']
     m = msg.object(f0 = b'A', f1='B', f2='CDE')
+
+    u = msg.unpack(memoryview(m.pack()))
+    assert u.as_dict() == m.as_dict()
+
+def test_time_point():
+    scheme = S.Scheme("""yamls://
+- name: msg
+  fields:
+    - {name: us, type: int64, options.type: time_point, options.resolution: us}
+    - {name: fms, type: double, options.type: time_point, options.resolution: ms}
+    - {name: second, type: uint32, options.type: time_point, options.resolution: second}
+    - {name: day, type: int32, options.type: time_point, options.resolution: day}
+""")
+
+    now = datetime.datetime(2021, 1, 27, 21, 47, 49, 123456)
+
+    msg = scheme['msg']
+    m = msg.object(us = now, fms=now, second = now, day = now)
+
+    assert m.us.value == int(now.timestamp()) * 1000000 + now.microsecond
+    assert m.fms.value == now.timestamp() * 1000
+    assert m.second.value == int(now.timestamp())
+    assert m.day.value == m.second.value // 86400
+
+    u = msg.unpack(memoryview(m.pack()))
+    assert u.as_dict() == m.as_dict()
+
+def test_duration():
+    scheme = S.Scheme("""yamls://
+- name: msg
+  fields:
+    - {name: us, type: int64, options.type: duration, options.resolution: us}
+    - {name: fms, type: double, options.type: duration, options.resolution: ms}
+    - {name: second, type: uint32, options.type: duration, options.resolution: second}
+    - {name: day, type: int32, options.type: duration, options.resolution: day}
+""")
+
+    dt = datetime.timedelta(days=5, seconds=12345, microseconds=123456)
+
+    msg = scheme['msg']
+    m = msg.object(us = dt, fms = dt, second = dt, day = dt)
+
+    assert m.us.value == int(dt.total_seconds()) * 1000000 + dt.microseconds
+    assert m.fms.value == dt.total_seconds() * 1000
+    assert m.second.value == int(dt.total_seconds())
+    assert m.day.value == m.second.value // 86400
+
 
     u = msg.unpack(memoryview(m.pack()))
     assert u.as_dict() == m.as_dict()

@@ -112,7 +112,7 @@ def test_post(clock, msg, wait):
     ts = ms / 1000
     if msg == 'absolute':
         ts += time.time()
-    c.post({'ts':ts * 1000000000}, name=msg) # nanoseconds
+    c.post({'ts':ts}, name=msg) # nanoseconds
 
     assert c.dcaps == c.DCaps.Process | c.DCaps.PollIn
     assert poll.poll(0) == []

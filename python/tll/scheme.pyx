@@ -15,6 +15,7 @@ from decimal import Decimal
 import enum
 from .error import TLLError
 from .buffer cimport *
+from . import chrono
 
 class Type(enum.Enum):
     Int8 = TLL_SCHEME_FIELD_INT8
@@ -38,6 +39,16 @@ class SubType(enum.Enum):
     FixedPoint = TLL_SCHEME_SUB_FIXED_POINT
     TimePoint = TLL_SCHEME_SUB_TIME_POINT
     Duration = TLL_SCHEME_SUB_DURATION
+
+_time_resolution_map = {
+    TLL_SCHEME_TIME_NS: chrono.Resolution.ns,
+    TLL_SCHEME_TIME_US: chrono.Resolution.us,
+    TLL_SCHEME_TIME_MS: chrono.Resolution.ms,
+    TLL_SCHEME_TIME_SECOND: chrono.Resolution.second,
+    TLL_SCHEME_TIME_MINUTE: chrono.Resolution.minute,
+    TLL_SCHEME_TIME_HOUR: chrono.Resolution.hour,
+    TLL_SCHEME_TIME_DAY: chrono.Resolution.day,
+}
 
 class OffsetPtrVersion(enum.Enum):
     Default = TLL_SCHEME_OFFSET_PTR_DEFAULT
@@ -343,11 +354,20 @@ class Field:
             elif type == Field.Int64:
                 self.pack_data, self.unpack_data = pack_int64, unpack_int64
                 self.convert = convert_int64
+            self.pack_raw, self.unpack_raw = self.pack_data, self.unpack_data
+            self.default_raw = self.default
             if self.sub_type == SubType.FixedPoint:
-                self.pack_raw, self.unpack_raw = self.pack_data, self.unpack_data
                 self.pack_data, self.unpack_data = self.pack_fixed, self.unpack_fixed
                 self.convert = self.convert_fixed
                 self.default = Decimal
+            elif self.sub_type == SubType.TimePoint:
+                self.pack_data, self.unpack_data = self.pack_timepoint, self.unpack_timepoint
+                self.convert = self.convert_timepoint
+                self.default = chrono.TimePoint
+            elif self.sub_type == SubType.Duration:
+                self.pack_data, self.unpack_data = self.pack_duration, self.unpack_duration
+                self.convert = self.convert_duration
+                self.default = chrono.Duration
         elif type in (Field.UInt8, Field.UInt16, Field.UInt32):
             self._from_string = from_string_int
             self.default = int
@@ -360,15 +380,34 @@ class Field:
             elif type == Field.UInt32:
                 self.pack_data, self.unpack_data = pack_uint32, unpack_uint32
                 self.convert = convert_uint32
+            self.pack_raw, self.unpack_raw = self.pack_data, self.unpack_data
+            self.default_raw = self.default
             if self.sub_type == SubType.FixedPoint:
-                self.pack_raw, self.unpack_raw = self.pack_data, self.unpack_data
                 self.pack_data, self.unpack_data = self.pack_fixed, self.unpack_fixed
                 self.convert = self.convert_fixed
                 self.default = Decimal
+            elif self.sub_type == SubType.TimePoint:
+                self.pack_data, self.unpack_data = self.pack_timepoint, self.unpack_timepoint
+                self.convert = self.convert_timepoint
+                self.default = chrono.TimePoint
+            elif self.sub_type == SubType.Duration:
+                self.pack_data, self.unpack_data = self.pack_duration, self.unpack_duration
+                self.convert = self.convert_duration
+                self.default = chrono.Duration
         elif type == Field.Double:
             self.pack_data, self.unpack_data = pack_double, unpack_double
             self.convert = convert_double
             self.default = self._from_string = float
+            self.pack_raw, self.unpack_raw = self.pack_data, self.unpack_data
+            self.default_raw = self.default
+            if self.sub_type == SubType.TimePoint:
+                self.pack_data, self.unpack_data = self.pack_timepoint, self.unpack_timepoint
+                self.convert = self.convert_timepoint
+                self.default = chrono.TimePoint
+            elif self.sub_type == SubType.Duration:
+                self.pack_data, self.unpack_data = self.pack_duration, self.unpack_duration
+                self.convert = self.convert_duration
+                self.default = chrono.Duration
         elif type == Field.Decimal128:
             self.pack_data, self.unpack_data = pack_decimal128, unpack_decimal128
             self.convert = convert_decimal128
@@ -547,6 +586,24 @@ class Field:
     def pack_fixed(self, v, dest, tail, tail_offset):
         return self.pack_raw(v.shift(self.fixed_precision).to_integral_value(), dest, tail, tail_offset)
 
+    def convert_timepoint(self, v):
+        return chrono.TimePoint(chrono.TimePoint(v), self.time_resolution, type=self.default_raw)
+
+    def unpack_timepoint(self, src):
+        return chrono.TimePoint(self.unpack_raw(src), self.time_resolution, type=self.default_raw)
+
+    def pack_timepoint(self, v, dest, tail, tail_offset):
+        return self.pack_raw(chrono.TimePoint(v, self.time_resolution, type=self.default_raw).value, dest, tail, tail_offset)
+
+    def convert_duration(self, v):
+        return chrono.Duration(chrono.Duration(v), self.time_resolution, type=self.default_raw)
+
+    def unpack_duration(self, src):
+        return chrono.Duration(self.unpack_raw(src), self.time_resolution, type=self.default_raw)
+
+    def pack_duration(self, v, dest, tail, tail_offset):
+        return self.pack_raw(chrono.Duration(v, self.time_resolution, type=self.default_raw).value, dest, tail, tail_offset)
+
     def from_string(self, v : str):
         if not hasattr(self, '_from_string'):
             raise TypeError("Field {} with type {} can not be constructed from string".format(self.name, self.type))
@@ -583,6 +640,8 @@ cdef object field_wrap(Scheme s, object m, tll_scheme_field_t * ptr):
             raise TLLError("Failed to build field {}: Enum {} not found".format(r.name, ename))
     elif r.sub_type == r.Sub.FixedPoint:
         r.fixed_precision = ptr.fixed_precision
+    elif r.sub_type == r.Sub.TimePoint or r.sub_type == r.Sub.Duration:
+        r.time_resolution = _time_resolution_map[ptr.time_resolution]
     r.size = ptr.size
     r.offset = ptr.offset
     r.init(r.name, r.type) #b2s(ptr.name), Type(ptr.type))
