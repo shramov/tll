@@ -180,6 +180,8 @@ cdef class Base:
         if self.CLOSE_POLICY == ClosePolicy.Long:
             self.caps |= self.Caps.LongClose
 
+        self._scheme_url = url.get('scheme', None)
+
         self.log.info("Init channel")
         self._init(url, master)
 
@@ -195,6 +197,9 @@ cdef class Base:
     def open(self, props):
         self.log.info("Open channel")
         self.state = C.State.Opening
+
+        if self._scheme_url:
+            self.scheme = self.context.scheme_load(self._scheme_url)
 
         if self.PROCESS_POLICY != self.ProcessPolicy.Never:
             self._update_dcaps(C.DCaps.Process)
@@ -243,6 +248,7 @@ cdef class Base:
     def _close(self, force : bool = False):
             self._update_dcaps(0, C.DCaps.Process | C.DCaps.PollMask)
             self.state = C.State.Closed
+            self.scheme = None
 
     def _process(self, timeout, flags): pass
     def _post(self, msg, flags): pass
