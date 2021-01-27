@@ -143,7 +143,7 @@ tll_config_t * yaml_parse(tll::Logger &_log, yaml_parser_t * parser)
 
 	do {
 		if (!yaml_parser_parse(parser, &event))
-			return _log.fail(nullptr, "Failed to parse YAML at {}:{}: {} {}", parser->problem_mark.line + 1, parser->problem_mark.column + 1, parser->problem, parser->context);
+			return _log.fail(nullptr, "Failed to parse YAML at {}:{}: {} {}", parser->problem_mark.line + 1, parser->problem_mark.column + 1, parser->problem ? parser->problem : "null", parser->context ? parser->context : "null");
 		std::unique_ptr<yaml_event_t, decltype(&yaml_event_delete)> _event = { &event, yaml_event_delete };
 		if (event.type == YAML_STREAM_END_EVENT) break;
 		if (state.parse(event))
