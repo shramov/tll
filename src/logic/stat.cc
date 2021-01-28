@@ -8,10 +8,21 @@
 #include "tll/channel/logic.h"
 #include "tll/stat.h"
 
+#include <regex>
+
 class Stat : public tll::LogicBase<Stat>
 {
 	tll_stat_list_t * _stat = nullptr;
 	tll::Channel * _timer = nullptr;
+
+	struct page_rule_t
+	{
+		std::regex re;
+		tll::Logger log;
+	};
+
+	std::list<page_rule_t> _rules;
+
  public:
 	static constexpr std::string_view param_prefix() { return "stat"; }
 
@@ -31,6 +42,26 @@ int Stat::_init(const tll::Channel::Url &url, tll::Channel *)
 	_stat = context().stat_list();
 	if (!_stat)
 		return _log.fail(EINVAL, "Context does not have stat list");
+
+	for (auto &[_, c] : url.browse("page.*", true)) {
+		auto m = c.get("match");
+		if (!m || m->empty()) continue;
+		try {
+			auto l = c.get("logger");
+			tll::Logger log = _log;
+			if (l && l->size()) {
+				std::string lname(*l);
+				if (lname[0] == '.')
+					lname = _log.name() + lname;
+				log = tll::Logger(lname);
+			}
+
+			_log.info("Pages '{}' via logger {}", *m, log.name());
+			_rules.emplace_back(page_rule_t { std::regex(std::string(*m)), std::move(log) });
+		} catch (std::regex_error &e) {
+			return _log.fail(EINVAL, "Invalid regex {}: {}", *m, e.what());
+		}
+	}
 	return 0;
 }
 
@@ -49,6 +80,20 @@ int Stat::logic(const tll::Channel * c, const tll_msg_t *msg)
 
 int Stat::_dump(tll_stat_iter_t * iter)
 {
+	if (tll_stat_iter_empty(iter)) return 0;
+	std::string name(tll_stat_iter_name(iter));
+
+	tll::Logger * log = nullptr;
+	for (auto & r : _rules) {
+		if (std::regex_match(name, r.re)) {
+			log = &r.log;
+			break;
+		}
+	}
+
+	if (!log)
+		log = &_log;
+
 	auto page = tll_stat_iter_swap(iter);
 	while (page == nullptr) {
 		if (tll_stat_iter_empty(iter)) return 0;
@@ -61,8 +106,41 @@ int Stat::_dump(tll_stat_iter_t * iter)
 			r += ", ";
 		r += _dump(page->fields[i]);
 	}
-	_log.info("Page {}: {}", tll_stat_iter_name(iter), r);
+
+	log->info("Page {}: {}", name, r);
 	return 0;
+}
+
+namespace {
+template <typename T>
+std::pair<T, std::string_view> shorten_bytes(T v)
+{
+	if (v > 1024ll * 1024 * 1024 * 1000)
+		return {v / (1024 * 1024 * 1000), "gb"};
+	else if (v > 1024 * 1024 * 1000)
+		return {v / (1024 * 1024), "mb"};
+	else if (v > 1024 * 1000)
+		return {v / (1024), "kb"};
+	return {v, "b"};
+}
+
+template <typename T>
+std::pair<T, std::string_view> shorten_time(T v)
+{
+	if (v > 1000ll * 1000 * 1000 * 100)
+		return {v / (1000ll * 1000 * 1000) , "s"};
+	else if (v > 1000 * 1000 * 1000)
+		return {v / (1000 * 1000), "mb"};
+	else if (v > 1000 * 1000)
+		return {v / (1000), "us"};
+	return {v, "ns"};
+}
+
+template <typename T>
+std::string format_field(std::string_view name, std::string_view suffix, std::pair<T, std::string_view> v)
+{
+	return fmt::format("{}/{}: {}{}", name, suffix, v.first, v.second);
+}
 }
 
 std::string Stat::_dump(tll_stat_field_t & v)
@@ -71,8 +149,16 @@ std::string Stat::_dump(tll_stat_field_t & v)
 
 	std::string_view suffix = "";
 	switch (v.unit) {
-	case tll::stat::Bytes: suffix = "b"; break;
-	case tll::stat::Ns: suffix = "ns"; break;
+	case tll::stat::Bytes:
+		if (v.type == TLL_STAT_INT)
+			return format_field(name, "b", shorten_bytes(v.value));
+		else
+			return format_field(name, "b", shorten_bytes(v.fvalue));
+	case tll::stat::Ns:
+		if (v.type == TLL_STAT_INT)
+			return format_field(name, "ns", shorten_time(v.value));
+		else
+			return format_field(name, "ns", shorten_time(v.fvalue));
 	default: break;
 	}
 
