@@ -14,11 +14,13 @@ class Stat : public tll::LogicBase<Stat>
 {
 	tll_stat_list_t * _stat = nullptr;
 	tll::Channel * _timer = nullptr;
+	bool _secondary;
 
 	struct page_rule_t
 	{
 		std::regex re;
 		tll::Logger log;
+		bool skip = false;
 	};
 
 	std::list<page_rule_t> _rules;
@@ -43,6 +45,11 @@ int Stat::_init(const tll::Channel::Url &url, tll::Channel *)
 	if (!_stat)
 		return _log.fail(EINVAL, "Context does not have stat list");
 
+	auto reader = channel_props_reader(url);
+	_secondary = reader.getT("secondary", false);
+	if (!reader)
+		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
+
 	for (auto &[_, c] : url.browse("page.*", true)) {
 		auto m = c.get("match");
 		if (!m || m->empty()) continue;
@@ -56,8 +63,12 @@ int Stat::_init(const tll::Channel::Url &url, tll::Channel *)
 				log = tll::Logger(lname);
 			}
 
+			auto skip = c.getT<bool>("skip", false);
+			if (!skip)
+				return _log.fail(EINVAL, "Invalid 'skip' value: {}", skip.error()); 
+
 			_log.info("Pages '{}' via logger {}", *m, log.name());
-			_rules.emplace_back(page_rule_t { std::regex(std::string(*m)), std::move(log) });
+			_rules.emplace_back(page_rule_t { std::regex(std::string(*m)), std::move(log), *skip });
 		} catch (std::regex_error &e) {
 			return _log.fail(EINVAL, "Invalid regex {}: {}", *m, e.what());
 		}
@@ -86,13 +97,22 @@ int Stat::_dump(tll_stat_iter_t * iter)
 	tll::Logger * log = nullptr;
 	for (auto & r : _rules) {
 		if (std::regex_match(name, r.re)) {
+			if (r.skip) {
+				_log.debug("Skip page {}", name);
+				return 0;
+			}
 			log = &r.log;
 			break;
 		}
 	}
 
-	if (!log)
+	if (!log) {
+		if (_secondary) {
+			_log.debug("Skip page {}", name);
+			return 0;
+		}
 		log = &_log;
+	}
 
 	auto page = tll_stat_iter_swap(iter);
 	while (page == nullptr) {
