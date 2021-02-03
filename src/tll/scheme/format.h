@@ -52,7 +52,12 @@ format_result_t to_strings(const tll::scheme::Field * msg, const View &data);
 template <typename Int>
 format_result_t to_strings_number(const tll::scheme::Field * field, Int v)
 {
-	return std::list<std::string> {tll::conv::to_string(v)};
+	auto r = std::list<std::string> {tll::conv::to_string(v)};
+	if (field->sub_type == field->Duration)
+		r.front() += time_resolution_str(field->time_resolution);
+	else if (field->sub_type == field->TimePoint)
+		r.front() += time_resolution_str(field->time_resolution);
+	return r;
 }
 
 template <typename View>
