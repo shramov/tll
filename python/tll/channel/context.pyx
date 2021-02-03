@@ -157,6 +157,10 @@ cdef class Context:
     def register_loader(self):
         self.register(PyLoader)
 
+    def has_impl(self, proto : str):
+        p = s2b(proto)
+        return tll_channel_impl_get(self._ptr, p) != NULL
+
 def channel_cast(channel, klass=None):
     if not isinstance(channel, Channel):
         raise TypeError('Not a channel object')
