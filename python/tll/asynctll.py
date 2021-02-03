@@ -37,16 +37,20 @@ class AsyncChannel(C.Channel):
             l._ticks += 1
 
     async def recv(self, timeout=1.):
-        ts = time.time() + timeout
         l = self._loop()
         if not l:
             raise RuntimeError("Async TLL loop destroyed, bailing out")
-        while True:
-            await l._wait()
-            if not self._result.empty():
-                return self._result.get()
-            if time.time() > ts:
-                raise TimeoutError("Timeout waiting for message")
+
+        ts = l._timer_arm(timeout)
+        try:
+            while True:
+                await l._wait()
+                if not self._result.empty():
+                    return self._result.get()
+                if time.time() > ts:
+                    raise TimeoutError("Timeout waiting for message")
+        finally:
+            l._timer_done(ts)
 
 class Loop:
     def __init__(self, context = None, tick_interval = 0.1):
@@ -58,7 +62,7 @@ class Loop:
         self.tick = 0.01
         self._ticks = 0
         self._ctx = C.Context()
-        self._timer = self._ctx.Channel("timer://;clock=realtime;name=asynctll;dump=yes")
+        self._timer = self._ctx.Channel("timer://;clock=realtime;name=asynctll;dump=scheme")
         self._loop.add(self._timer)
         self._timer_cb_ref = self._timer_cb
         self._timer.callback_add(self._timer_cb, mask=C.MsgMask.Data)
@@ -89,15 +93,32 @@ class Loop:
     def _timer_cb(self, c, m):
         self.log.info("Timer cb")
         self._ticks += 1
+        now = time.time()
+        for ts in self._timer_queue:
+            if ts <= now:
+                self._ticks += 1
+            self._timer.post({'ts':ts}, name='absolute')
+            break
 
     def _timer_arm(self, timeout):
         ts = time.time() + timeout
+        self.log.debug("Arm timer {}: {}", timeout, ts)
         if self._timer_queue == [] or self._timer_queue[0] > ts:
             self._timer.post({'ts':timeout}, name='relative')
             self._timer_queue.insert(0, ts)
         else:
             heapq.heappush(self._timer_queue, ts)
         return ts
+
+    def _timer_done(self, ts):
+        self.log.debug("Timer {} done", ts)
+        if ts not in self._timer_queue:
+            return
+        idx = self._timer_queue.index(ts)
+        self._timer_queue.pop(idx)
+        if idx == 0:
+            if self._timer_queue:
+                self._timer.post({'ts':self._timer_queue[0]}, name='absolute')
 
     def channel_add(self, c):
         self.log.debug("Add channel {}", c.name)
@@ -124,25 +145,33 @@ class Loop:
             del self.channels[c]
 
     async def sleep(self, timeout):
+        if timeout == 0:
+            return
         ts = self._timer_arm(timeout)
         while time.time() < ts:
             await self._wait()
+        self._timer_done(ts)
 
     async def recv(self, c, timeout=1.):
         if c in self.asyncchannels:
             return await c.recv(timeout)
+        return await self._recv(c, timeout)
 
+    async def _recv(self, c, timeout):
         entry = self.channels.get(c, None)
         if entry is None:
             raise KeyError("Channel {} not processed by loop".format(c.name))
 
-        ts = time.time() + timeout
-        while True:
-            if not entry.queue.empty():
-                return entry.queue.get()
-            if time.time() > ts:
-                raise TimeoutError("Timeout waiting for message")
-            await self._wait()
+        ts = self._timer_arm(timeout)
+        try:
+            while True:
+                if not entry.queue.empty():
+                    return entry.queue.get()
+                if time.time() > ts:
+                    raise TimeoutError("Timeout waiting for message")
+                await self._wait()
+        finally:
+            self._timer_done(ts)
 
     @types.coroutine
     def _wait(self):

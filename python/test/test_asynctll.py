@@ -87,3 +87,16 @@ def test_nofd():
         assert m.data == b'zzz'
 
     loop.run(main(loop))
+
+def test_sleep():
+    loop = asynctll.Loop(context=C.Context())
+    async def main(loop):
+        print("Sleep start")
+        await loop.sleep(0.001)
+        print("Sleep next")
+        await loop.sleep(0.001)
+        print("Sleep next")
+        await loop.sleep(0.001)
+        print("Sleep done")
+
+    loop.run(main(loop))
