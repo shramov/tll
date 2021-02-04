@@ -8,20 +8,20 @@
 #ifndef _TLL_SCHEME_TYPES_H
 #define _TLL_SCHEME_TYPES_H
 
-typedef struct tll_scheme_offset_ptr_legacy_short_t
+typedef struct __attribute__((packed)) tll_scheme_offset_ptr_legacy_short_t
 {
 	uint16_t offset;
 	uint16_t size;
 } tll_scheme_offset_ptr_legacy_short_t;
 
-typedef struct tll_scheme_offset_ptr_legacy_long_t
+typedef struct __attribute__((packed)) tll_scheme_offset_ptr_legacy_long_t
 {
 	uint32_t offset;
 	uint16_t size;
 	uint16_t entity;
 } tll_scheme_offset_ptr_legacy_long_t;
 
-typedef struct tll_scheme_offset_ptr_t
+typedef struct __attribute__((packed)) tll_scheme_offset_ptr_t
 {
 	uint32_t offset;
 	uint32_t size : 24;
@@ -36,7 +36,7 @@ typedef struct tll_scheme_offset_ptr_t
 namespace tll::scheme {
 
 template <typename T = void, typename Ptr = tll_scheme_offset_ptr_t>
-struct offset_ptr_t : public Ptr
+struct __attribute__((packed)) offset_ptr_t : public Ptr
 {
 	T * data() { return (T *) (((char *) this) + this->offset); }
 	const T * data() const { return (const T *) (((const char *) this) + this->offset); }
