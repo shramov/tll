@@ -8,26 +8,15 @@
 #include "channel/curl.h"
 
 #include "tll/util/curl++.h"
+#include "tll/util/memoryview.h"
 #include "tll/util/size.h"
 
 #include <unistd.h>
 
 #include "channel/timer-scheme.h"
+#include "channel/curl-scheme.h"
 
 using namespace tll;
-
-void curl_session_t::reset()
-{
-	if (curl)
-		curl_easy_cleanup(curl);
-	curl = nullptr;
-
-	if (url)
-		curl_url_cleanup(url);
-	url = nullptr;
-
-	headers.clear();
-}
 
 class ChCURLSocket;
 
@@ -108,6 +97,10 @@ tll_channel_impl_t * ChCURL::_init_replace(const Channel::Url &url)
 
 int ChCURLMulti::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
+	_scheme_control.reset(context().scheme_load(curl_scheme::scheme));
+	if (!_scheme_control.get())
+		return _log.fail(EINVAL, "Failed to load control scheme");
+
 	auto reader = channel_props_reader(url);
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
@@ -280,6 +273,25 @@ static constexpr std::string_view curl_url_strerror(CURLUcode r)
 	}
 	return "Unknown error";
 }
+
+static constexpr std::string_view method_str(curl_scheme::method_t m)
+{
+       using method_t = curl_scheme::method_t;
+
+       switch (m) {
+       case method_t::UNDEFINED: return "UNDEFINED";
+       case method_t::GET: return "GET";
+       case method_t::HEAD: return "HEAD";
+       case method_t::POST: return "POST";
+       case method_t::PUT: return "PUT";
+       case method_t::DELETE: return "DELETE";
+       case method_t::CONNECT: return "CONNECT";
+       case method_t::OPTIONS: return "OPTIONS";
+       case method_t::TRACE: return "TRACE";
+       case method_t::PATCH: return "PATCH";
+       }
+       return "UNDEFINED";
+}
 }
 
 int ChCURLMulti::_curl_socket_cb(CURL *e, curl_socket_t fd, int what, ChCURLSocket *c)
@@ -340,6 +352,8 @@ int ChCURL::_init(const tll::Channel::Url &url, tll::Channel *master)
 	if (!_master)
 		return _log.fail(EINVAL, "CURL needs CURLMulti master channel, got {}", master->name());
 
+	this->_scheme_control.reset(tll_scheme_ref(_master->_scheme_control.get()));
+
 	auto proto = url.proto();
 	auto sep = proto.find("+");
 	if (sep == proto.npos)
@@ -352,9 +366,9 @@ int ChCURL::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_host = proto.substr(sep + 1) + "://" + _host;
 
 	{
-		_base.url = curl_url();
+		_curl_url = curl_url();
 
-		if (auto r = curl_url_set(_base.url, CURLUPART_URL, _host.c_str(), 0); r)
+		if (auto r = curl_url_set(_curl_url, CURLUPART_URL, _host.c_str(), 0); r)
 			return _log.fail(EINVAL, "Failed to parse url '{}': {}", _host, curl_url_strerror(r));
 	}
 
@@ -362,7 +376,21 @@ int ChCURL::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 	_recv_chunked = reader.getT("recv-chunked", false);
 	_recv_size = reader.getT<tll::util::Size>("recv-size", 64 * 1024);
-	_autoclose = reader.getT("autoclose", false);
+	_expect_timeout = reader.getT("expect-timeout", _expect_timeout);
+
+	_mode = reader.getT("transfer", Mode::Single, {{"single", Mode::Single}, {"data", Mode::Data}, {"control", Mode::Full}});
+	if (_mode == Mode::Single)
+		_autoclose = reader.getT("autoclose", false);
+
+	using method_t = curl_scheme::method_t;
+	auto method = reader.getT("method", method_t::GET, {{"GET", method_t::GET}, {"HEAD", method_t::HEAD}, {"POST", method_t::POST}, {"PUT", method_t::PUT}, {"DELETE", method_t::DELETE}, {"CONNECT", method_t::CONNECT}, {"OPTIONS", method_t::OPTIONS}, {"TRACE", method_t::TRACE}, {"PATCH", method_t::PATCH}});
+	_method = method_str(method);
+
+	for (auto & [k, c] : url.browse("header.**")) {
+		auto v = c.get();
+		if (v)
+			_headers.emplace(k.substr(strlen("header.")), *v);
+	}
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
@@ -377,9 +405,7 @@ int curl_session_t::init()
 {
 	auto & _log = parent->_log;
 
-	finished = false;
-	wbuf.resize(0);
-	rbuf.resize(0);
+	state = tll::state::Closed;
 
 	bool http = (parent->_host.substr(0, 4) == "http");
 
@@ -397,16 +423,33 @@ int curl_session_t::init()
 
 	tll::curl::setopt<CURLOPT_CURLU>(curl, url);
 
+	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, parent->_method.data());
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
 	curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 32);
 
 	tll::curl::setopt<CURLOPT_PRIVATE>(curl, this);
+
+	if (rsize != -1) {
+		_log.debug("Set upload size to {}", rsize);
+		tll::curl::setopt<CURLOPT_INFILESIZE_LARGE>(curl, rsize);
+	}
+	if (rsize > 0) {
+		_log.debug("Enable upload");
+		tll::curl::setopt<CURLOPT_UPLOAD>(curl, 1);
+		tll::curl::setopt<CURLOPT_EXPECT_100_TIMEOUT_MS>(curl, parent->_expect_timeout.count());
+	}
 
 	if (http) {
 		tll::curl::setopt<CURLOPT_HEADERDATA>(curl, this);
 		tll::curl::setopt<CURLOPT_HEADERFUNCTION>(curl, [](char *data, size_t size, size_t nmemb, void *user) {
 			return static_cast<curl_session_t *>(user)->header(data, size * nmemb);
 		});
+
+		for (auto & [k, v] : headers)
+			headers_list = curl_slist_append(headers_list, fmt::format("{}: {}", k, v).c_str());
+
+		if (headers_list)
+			tll::curl::setopt<CURLOPT_HTTPHEADER>(curl, headers_list);
 	}
 
 	tll::curl::setopt<CURLOPT_WRITEDATA>(curl, this);
@@ -421,7 +464,19 @@ int curl_session_t::init()
 
 	curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2);
 
+	state = tll::state::Opening;
+	headers.clear();
+
 	return 0;
+}
+
+void ChCURL::_free()
+{
+	// TODO: Can not be called from curl callback
+	if (_curl_url)
+		curl_url_cleanup(_curl_url);
+
+	_curl_url = nullptr;
 }
 
 int ChCURL::_open(const PropsView &)
@@ -434,12 +489,22 @@ int ChCURL::_open(const PropsView &)
 
 	_log.info("Create curl easy handle for {}", _host);
 
-	if (_base.init())
-		return _log.fail(EINVAL, "Failed to init base curl handle");
+	if (_mode == Mode::Single) {
+		std::unique_ptr<curl_session_t> s(new curl_session_t);
+		s->parent = this;
+		s->url = curl_url_dup(_curl_url);
+		s->headers = _headers;
 
-	_log.debug("Add curl handle to {}", _master->name);
-	if (auto r = curl_multi_add_handle(_master->multi(), _base.curl); r)
-		return _log.fail(EINVAL, "curl_multi_add_handle({}) failed: {}", _host, curl_multi_strerror(r));
+		if (s->init())
+			return _log.fail(EINVAL, "Failed to init base curl handle");
+
+		_log.debug("Add curl handle to {}", _master->name);
+		if (auto r = curl_multi_add_handle(_master->multi(), s->curl); r)
+			return _log.fail(EINVAL, "curl_multi_add_handle({}) failed: {}", _host, curl_multi_strerror(r));
+
+		_sessions.emplace(0, s.release());
+	}
+
 	return 0;
 }
 
@@ -447,11 +512,7 @@ int ChCURL::_close()
 {
 	// TODO: Can not be called from curl callback
 
-	if (_base.curl) {
-		curl_multi_remove_handle(_master->multi(), _base.curl);
-		curl_easy_cleanup(_base.curl);
-		_base.curl = nullptr;
-	}
+	_sessions.clear();
 
 	if (_master_ptr)
 		_master_ptr->close();
@@ -463,18 +524,98 @@ int ChCURL::_post(const tll_msg_t *msg, int flags)
 {
 	if (msg->type != TLL_MESSAGE_DATA)
 		return 0;
+
+	if (_mode == Mode::Data) {
+		_log.debug("Create new session {} with data size {}", msg->addr.u64, msg->size);
+
+		if (_sessions.find(msg->addr.u64) != _sessions.end())
+			return _log.fail(EEXIST, "Failed to create new session: address {} already used", msg->addr.u64);
+		std::unique_ptr<curl_session_t> s(new curl_session_t);
+		s->parent = this;
+		s->url = curl_url_dup(_curl_url);
+		s->headers = _headers;
+		s->addr = msg->addr;
+
+		s->rsize = msg->size;
+		s->rbuf.resize(msg->size);
+		memcpy(s->rbuf.data(), msg->data, msg->size);
+
+		if (s->init())
+			return _log.fail(EINVAL, "Failed to init base curl handle");
+
+		_log.debug("Add curl handle to {}", _master->name);
+		if (auto r = curl_multi_add_handle(_master->multi(), s->curl); r)
+			return _log.fail(EINVAL, "curl_multi_add_handle({}) failed: {}", _host, curl_multi_strerror(r));
+
+		_sessions.emplace(msg->addr.u64, s.release());
+	}
 	return 0;
 }
 
 int ChCURL::_process(long timeout, int flags)
 {
-	if (_base.curl && _base.finished) {
-		_base.close();
-		_update_dcaps(0, dcaps::Pending | dcaps::Process);
-		if (_autoclose)
-			close();
+	auto i = _sessions.begin();
+	while (i != _sessions.end()) {
+		auto & s = i->second;
+		if (s->state == tll::state::Closing || s->state == tll::state::Error) {
+			std::unique_ptr<curl_session_t> ptr;
+			ptr.swap(s);
+
+			i = _sessions.erase(i);
+
+			ptr->close();
+		} else
+			i++;
 	}
+	_update_dcaps(0, dcaps::Pending | dcaps::Process);
+
+	if (_autoclose && _sessions.empty())
+		close();
 	return EAGAIN;
+}
+
+namespace {
+
+std::string asciilower(std::string_view str)
+{
+	std::string r(str.size(), '\0');
+	for (auto i = 0u; i < str.size(); i++) {
+		auto c = str[i];
+		if ('A' <= c && c <= 'Z')
+			r[i] = c - 'A' + 'a';
+		else
+			r[i] = c;
+	}
+	return r;
+}
+
+template <typename Buf, typename T, typename Ptr>
+void offset_ptr_resize(Buf & buf, tll::scheme::offset_ptr_t<T, Ptr> * ptr, size_t size)
+{
+	if (size == 0) {
+		ptr->size = 0;
+		return;
+	}
+
+	auto view = tll::make_view(buf);
+	auto off = ((char *) ptr) - view.template dataT<char>();
+
+	auto poff = buf.size() - off;
+
+	buf.resize(buf.size() + sizeof(T) * size);
+
+	ptr = view.view(off).template dataT<tll::scheme::offset_ptr_t<T, Ptr>>();
+	ptr->offset = poff;
+	ptr->size = size;
+
+	if constexpr (!std::is_same_v<Ptr, tll_scheme_offset_ptr_legacy_short_t>) {
+		ptr->entity = sizeof(T);
+	}
+}
+
+template <typename Buf, typename T, typename Ptr>
+void offset_ptr_resize(Buf & buf, tll::scheme::offset_ptr_t<T, Ptr> &ptr, size_t size) { return offset_ptr_resize(buf, &ptr, size); }
+
 }
 
 size_t curl_session_t::header(char * cdata, size_t size)
@@ -485,11 +626,6 @@ size_t curl_session_t::header(char * cdata, size_t size)
 
 	if (data.empty()) {
 		parent->_log.debug("Last header");
-		wsize = tll::curl::getinfo<CURLINFO_CONTENT_LENGTH_DOWNLOAD_T>(curl);
-		if (wsize) {
-			parent->_log.info("Content-Size: {}", *wsize);
-		} else
-			parent->_log.info("Content-Size is not supported for this protocol");
 		return size;
 	}
 
@@ -512,11 +648,73 @@ size_t curl_session_t::header(char * cdata, size_t size)
 		v = v.substr(1);
 
 	parent->_log.debug("Header: '{}': '{}'", k, v);
-	headers.emplace(std::string(k), std::string(v));
+	headers.emplace(asciilower(k), std::string(v));
 	return size;
 }
 
-size_t curl_session_t::read(char * data, size_t size) { return 0; }
+size_t curl_session_t::read(char * data, size_t size)
+{
+	parent->_log.error("Requested {} bytes of data", size);
+	if (roff == rbuf.size())
+		return 0; //CURL_READFUNC_PAUSE;
+
+	auto s = std::min(rbuf.size() - roff, size);
+	parent->_log.debug("Send {} bytes of data (requested {})", s, size);
+	memcpy(data, rbuf.data() + roff, s);
+	roff += s;
+	return s;
+}
+
+void curl_session_t::connected()
+{
+	state = tll::state::Active;
+
+	wsize = tll::curl::getinfo<CURLINFO_CONTENT_LENGTH_DOWNLOAD_T>(curl);
+	if (wsize)
+		parent->_log.info("Content-Size: {}", *wsize);
+	else
+		parent->_log.info("Content-Size is not supported for this protocol");
+
+	std::string_view url = tll::curl::getinfo<CURLINFO_EFFECTIVE_URL>(curl).value_or("");
+	parent->_log.info("Send connect message for {}", url);
+
+	std::vector<unsigned char> buf;
+	buf.resize(sizeof(curl_scheme::connect));
+	auto data = (curl_scheme::connect *) buf.data();
+
+	data->code = tll::curl::getinfo<CURLINFO_RESPONSE_CODE>(curl).value_or(0);
+	data->method = curl_scheme::method_t::UNDEFINED;
+	data->size = wsize.value_or(-1);
+
+	offset_ptr_resize(buf, data->path, url.size() + 1);
+
+	data = (curl_scheme::connect *) buf.data();
+	memcpy(data->path.data(), url.data(), url.size());
+
+	offset_ptr_resize(buf, data->headers, headers.size());
+
+	auto i = 0u;
+	for (auto & [k, v] : headers) {
+		data = (curl_scheme::connect *) buf.data();
+		offset_ptr_resize(buf, data->headers.data()[i].header, k.size() + 1);
+		data = (curl_scheme::connect *) buf.data();
+		memcpy(data->headers.data()[i].header.data(), k.data(), k.size());
+
+		offset_ptr_resize(buf, data->headers.data()[i].value, v.size() + 1);
+		data = (curl_scheme::connect *) buf.data();
+		memcpy(data->headers.data()[i].value.data(), v.data(), v.size());
+
+		i++;
+	}
+
+	tll_msg_t msg = {};
+	msg.type = TLL_MESSAGE_CONTROL;
+	msg.msgid = curl_scheme::connect::id;
+	msg.addr = addr;
+	msg.data = buf.data();
+	msg.size = buf.size();
+	parent->_callback(&msg);
+}
 
 size_t curl_session_t::callback_data(const void * data, size_t size)
 {
@@ -530,6 +728,12 @@ size_t curl_session_t::callback_data(const void * data, size_t size)
 
 size_t curl_session_t::write(char * data, size_t size)
 {
+	if (state == tll::state::Opening)
+		connected();
+
+	if (state != tll::state::Active) // Session is not active, don't generate messages
+		return size;
+
 	if (parent->_recv_chunked)
 		return callback_data(data, size);
 
@@ -558,7 +762,7 @@ size_t curl_session_t::write(char * data, size_t size)
 void curl_session_t::finalize(int code)
 {
 	parent->_log.info("Finalize transfer: {}", code);
-	finished = true;
+	state = tll::state::Closing;
 
 	parent->_update_dcaps(dcaps::Pending | dcaps::Process);
 
@@ -566,6 +770,26 @@ void curl_session_t::finalize(int code)
 		return;
 
 	callback_data(wbuf.data(), wbuf.size());
+}
+
+void curl_session_t::reset()
+{
+	if (curl) {
+		curl_multi_remove_handle(parent->_master->multi(), curl);
+		curl_easy_cleanup(curl);
+	}
+	curl = nullptr;
+
+	if (headers_list)
+		curl_slist_free_all(headers_list);
+	
+	headers_list = nullptr;
+
+	if (url)
+		curl_url_cleanup(url);
+	url = nullptr;
+
+	headers.clear();
 }
 
 void curl_session_t::close()

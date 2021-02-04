@@ -26,9 +26,14 @@ template <CURLoption option> struct _curlopt {};
 template <> struct _curlopt<CURLOPT_URL> { using type = const char *; };
 
 template <> struct _curlopt<CURLOPT_CURLU> { using type = CURLU *; };
+template <> struct _curlopt<CURLOPT_HTTPHEADER> { using type = struct curl_slist *; };
 
+template <> struct _curlopt<CURLOPT_EXPECT_100_TIMEOUT_MS> { using type = long; };
 template <> struct _curlopt<CURLOPT_FOLLOWLOCATION> { using type = long; };
 template <> struct _curlopt<CURLOPT_MAXREDIRS> { using type = long; };
+template <> struct _curlopt<CURLOPT_UPLOAD> { using type = long; };
+
+template <> struct _curlopt<CURLOPT_INFILESIZE_LARGE> { using type = curl_off_t; };
 
 template <> struct _curlopt<CURLOPT_PRIVATE> { using type = void *; };
 
@@ -53,6 +58,7 @@ template <CURLINFO option> struct _curlinfo {};
 template <> struct _curlinfo<CURLINFO_PRIVATE> { using type = void *; };
 template <> struct _curlinfo<CURLINFO_RESPONSE_CODE> { using type = long; };
 template <> struct _curlinfo<CURLINFO_CONTENT_LENGTH_DOWNLOAD_T> { using type = curl_off_t; };
+template <> struct _curlinfo<CURLINFO_EFFECTIVE_URL> { using type = const char *; };
 }
 
 template <CURLINFO info>
