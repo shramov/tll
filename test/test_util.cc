@@ -335,7 +335,7 @@ TEST(Util, Filesystem)
 	// Using path in ASSERT_EQ is not working on 18.04
 //#define ASSERT_PATH(p, r) ASSERT_EQ(path(p).lexically_normal().string(), path(r).string())
 
-#if defined(__GNUC__) && __GNUC__ < 8
+#if defined(__GNUC__) && __GNUC__ < 8 && !defined(__llvm__)
 	std::string slash_suffix = "";
 #else
 	std::string slash_suffix = "/";
