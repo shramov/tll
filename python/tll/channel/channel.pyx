@@ -273,6 +273,26 @@ cdef class Channel:
             self._scheme_control_cache = Scheme.wrap(ptr, ref=True)
         return self._scheme_control_cache
 
+    def _scheme(self, t):
+        if t == Type.Data:
+            return self.scheme
+        elif t == Type.Control:
+            return self.scheme_control
+        else:
+            raise ValueError("No scheme defined for message type {}".format(t))
+
+    def unpack(self, msg):
+        s = self._scheme(msg.type)
+        if s is None:
+            raise ValueError("Channel has no scheme for message type {}".format(msg.type))
+        return s.unpack(msg)
+
+    def reflection(self, msg):
+        s = self._scheme(msg.type)
+        if s is None:
+            raise ValueError("Channel has no scheme for message type {}".format(msg.type))
+        return s.reflection(msg)
+
     def __hash__(self): return hash(<intptr_t>self._ptr)
 
     def __richcmp__(Channel self, Channel other, int op):

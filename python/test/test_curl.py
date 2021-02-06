@@ -81,7 +81,7 @@ class Test:
 
             m = await c.recv()
             assert m.type == m.Type.Control
-            assert c.scheme_control.unpack(m).as_dict() == {'code': 200, 'method': -1, 'headers': HEADERS, 'path': f'http://[::1]:{ports.TCP6}/some/path', 'size': -1}
+            assert c.unpack(m).as_dict() == {'code': 200, 'method': -1, 'headers': HEADERS, 'path': f'http://[::1]:{ports.TCP6}/some/path', 'size': -1}
 
             m = await c.recv()
             assert m.data.tobytes() == b'GET /some/path'
@@ -109,7 +109,7 @@ class Test:
 
             m = await c0.recv()
             assert m.type == m.Type.Control
-            assert c0.scheme_control.unpack(m).as_dict() == {'code': 200, 'method': -1, 'headers': HEADERS, 'path': f'http://[::1]:{ports.TCP6}/c0', 'size': -1}
+            assert c0.unpack(m).as_dict() == {'code': 200, 'method': -1, 'headers': HEADERS, 'path': f'http://[::1]:{ports.TCP6}/c0', 'size': -1}
 
             m = await c0.recv(0.11)
             assert m.data.tobytes() == b'GET /c0'
@@ -118,7 +118,7 @@ class Test:
 
             m = await c1.recv()
             assert m.type == m.Type.Control
-            assert c1.scheme_control.unpack(m).as_dict() == {
+            assert c1.unpack(m).as_dict() == {
                 'code': 500,
                 'method': -1,
                 'size': 10,
@@ -157,7 +157,7 @@ class Test:
                 m = await c.recv(0.01)
                 assert m.type == m.Type.Control
                 assert m.addr == 0
-                assert c.scheme_control.unpack(m).as_dict() == {
+                assert c.unpack(m).as_dict() == {
                     'code': 500,
                     'method': -1,
                     'size': 12 + len(data),
@@ -184,7 +184,7 @@ class Test:
                 m = await c.recv(0.01)
                 assert m.type == m.Type.Control
                 assert m.addr == addr
-                assert c.scheme_control.unpack(m).as_dict() == {
+                assert c.unpack(m).as_dict() == {
                     'code': 500,
                     'method': -1,
                     'size': 12 + len(data),
