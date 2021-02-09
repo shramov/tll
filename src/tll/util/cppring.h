@@ -1,0 +1,205 @@
+#ifndef _TLL_UTIL_CPPRING_H
+#define _TLL_UTIL_CPPRING_H
+
+#include <vector>
+#include <cerrno>
+#include <fmt/format.h>
+
+namespace tll::util {
+
+template <typename T>
+class circular_iterator
+{
+	std::vector<T> * _data = nullptr;
+	unsigned _idx = 0;
+
+	void shift()
+	{
+		if (++_idx == _data->size())
+			_idx = 0;
+	}
+
+public:
+	using iterator_category = std::forward_iterator_tag;
+
+	using value_type = typename std::vector<T>::value_type;
+	using reference = typename std::vector<T>::reference;
+	using pointer = typename std::vector<T>::pointer;
+	using const_reference = typename std::vector<T>::const_reference;
+	using const_pointer = typename std::vector<T>::const_pointer;
+
+	circular_iterator(typename std::vector<T> &data, unsigned idx) : _data(&data), _idx(idx) {}
+
+	circular_iterator operator ++ (int) { shift(); return *this; }
+	circular_iterator operator ++ () { circular_iterator tmp = *this; shift(); return tmp; }
+
+	pointer ptr() { return &(*_data)[_idx]; }
+	const pointer ptr() const { return &(*_data)[_idx]; }
+
+	reference operator * () { return *ptr(); }
+	const_reference operator * () const { return *ptr(); }
+	pointer operator -> () { return ptr(); }
+	const_pointer operator -> () const { return ptr(); }
+
+	bool operator == (const circular_iterator& rhs) const { return ptr() == rhs.ptr(); }
+	bool operator != (const circular_iterator& rhs) const { return ptr() != rhs.ptr(); }
+};
+
+template <typename T>
+class Ring
+{
+	using vector_t = std::vector<T>;
+
+	vector_t _data;
+	unsigned _head = 0;
+	unsigned _tail = 0;
+
+	unsigned shift(unsigned v)
+	{
+		if (++v == _data.size())
+			return 0;
+		return v;
+	}
+
+	unsigned prev(unsigned v)
+	{
+		if (v == 0)
+			return _data.size() - 1;
+		return v - 1;
+	}
+
+public:
+	using iterator = circular_iterator<T>;
+
+	using value_type = typename std::vector<T>::value_type;
+	using reference = typename std::vector<T>::reference;
+	using pointer = typename std::vector<T>::pointer;
+	using const_reference = typename std::vector<T>::const_reference;
+	using const_pointer = typename std::vector<T>::const_pointer;
+
+	Ring() = default;
+	Ring(size_t size) : _data(size) {}
+
+	void resize(size_t size) { _head = _tail = 0; _data.resize(size); }
+	void clear() { _head = _tail = 0; }
+
+	iterator begin() { return iterator(_data, _head); }
+	iterator end() { return iterator(_data, _tail); }
+
+	reference front() { return _data[_head]; }
+	const_reference front() const { return _data[_head]; }
+
+	reference back() { return _data[prev(_tail)]; }
+	const_reference back() const { return _data[prev(_tail)]; }
+
+	size_t size() const {
+		if (_head <= _tail)
+			return _tail - _head;
+		return _tail + _data.size() - _head;
+	}
+
+	size_t capacity() const { return _data.size() - 1; }
+	bool empty() const { return _head == _tail; }
+
+	T * push_back(T value)
+	{
+		auto t = shift(_tail);
+		if (t == _head)
+			return nullptr;
+		_data[_tail] = std::move(value);
+		_tail = t;
+		return &_data[_tail]; 
+	}
+
+	void pop_front()
+	{
+		if (_head == _tail)
+			return;
+		_head = shift(_head);
+	}
+};
+
+template <typename T>
+struct framed_data_t
+{
+	T * frame = nullptr;
+	size_t size = 0;
+
+	void * data() { return (void *) (frame + 1); }
+	void * end() { return ((char *) data()) + size; }
+};
+
+template <typename T>
+class DataRing : public Ring<framed_data_t<T>>
+{
+	std::vector<uint8_t> _data;
+
+	using Ring<framed_data_t<T>>::push_back;
+
+	uint8_t * data_head()
+	{
+		if (this->empty())
+			return data_end();
+		return (uint8_t *) this->front().frame;
+	}
+
+	uint8_t * data_tail()
+	{
+		if (this->empty())
+			return data_begin();
+		return (uint8_t *) this->back().end();
+	}
+
+	uint8_t * data_begin()
+	{
+		return _data.data();
+	}
+
+	uint8_t * data_end()
+	{
+		return _data.data() + _data.size();
+	}
+
+public:
+	using value_type = typename Ring<framed_data_t<T>>::value_type;
+
+	DataRing() = default;
+	DataRing(size_t size, size_t data_size) : Ring<framed_data_t<T>>(size), _data(data_size) {}
+
+	void data_resize(size_t size) { this->clear(); _data.resize(size); }
+	size_t data_capacity() const { return _data.size(); }
+
+	value_type * push_back(T value, const void * data, size_t size)
+	{
+		if (this->size() == this->capacity())
+			return nullptr;
+
+		size_t full = sizeof(value) + size;
+		if (full > _data.size())
+			return nullptr;
+		auto tail = data_tail();
+		auto head = data_head();
+		if (tail > head) {
+			size_t free = data_end() - tail;
+			if (free < full) {
+				free = head - data_begin();
+				if (free < full) // No space in front of head
+					return nullptr;
+				tail = data_begin(); // Wrap, data fits
+			}
+		} else {
+			size_t free = head - tail;
+			if (free < full)
+				return nullptr;
+		}
+
+		auto ptr = (T *) tail;
+		*ptr = value;
+		memcpy(ptr + 1, data, size);
+		return push_back(value_type {ptr, size});
+	}
+};
+
+} // namespace tll::util
+
+#endif//_TLL_UTIL_CPPRING_H

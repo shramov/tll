@@ -11,12 +11,14 @@
 
 #include "tll/util/bin2ascii.h"
 #include "tll/util/browse.h"
+#include "tll/util/cppring.h"
 #include "tll/util/string.h"
 #include "tll/util/time.h"
 #include "tll/util/url.h"
 #include "tll/util/varint.h"
 #include "tll/util/zlib.h"
 
+#include <fmt/format.h>
 #include <list>
 #include <stdio.h>
 #include <thread>
@@ -379,4 +381,89 @@ TEST(Util, Filesystem)
 	ASSERT_PATH("/a/b/c/", "/a/b/c/d", ".." + slash_suffix);
 	ASSERT_PATH("/a/b/c/", "/a/b/c/d/.", ".." + slash_suffix);
 #undef ASSERT_PATH
+}
+
+TEST(Util, Ring)
+{
+	tll::util::Ring<unsigned> ring;
+
+	ring.resize(8);
+
+	for(auto i = 0u; i < 7; i++) {
+		ASSERT_EQ(ring.size(), i);
+		ASSERT_NE(ring.push_back(i), nullptr);
+	}
+
+	auto sum = 0;
+
+	for (auto & i : ring) sum += i;
+	ASSERT_EQ(sum, 0 + 1 + 2 + 3 + 4 + 5 + 6);
+
+	ASSERT_EQ(ring.push_back(8), nullptr);
+	ASSERT_EQ(ring.front(), 0u);
+	ring.pop_front();
+
+	ASSERT_EQ(ring.size(), 6u);
+	ASSERT_EQ(ring.front(), 1u);
+
+	sum = 0;
+	for (auto & i : ring) sum += i;
+	ASSERT_EQ(sum, 1 + 2 + 3 + 4 + 5 + 6);
+
+	ASSERT_NE(ring.push_back(7), nullptr);
+	ASSERT_EQ(ring.size(), 7u);
+
+	sum = 0;
+	for (auto & i : ring) sum += i;
+	ASSERT_EQ(sum, 1 + 2 + 3 + 4 + 5 + 6 + 7);
+}
+
+TEST(Util, DataRing)
+{
+	tll::util::DataRing<unsigned> ring(8, 64);
+
+	std::string data(64 - 4, 'a');
+	ASSERT_NE(ring.push_back(1, data.data(), 28), nullptr);
+	data = std::string(64 - 4, 'b');
+	ASSERT_NE(ring.push_back(2, data.data(), 28), nullptr);
+
+	ASSERT_EQ(*ring.front().frame, 1u);
+	ASSERT_EQ(ring.front().size, 28u);
+
+	ASSERT_EQ(*ring.back().frame, 2u);
+	ASSERT_EQ(ring.back().size, 28u);
+
+	ASSERT_EQ(ring.push_back(3, "", 0), nullptr);
+
+	ring.pop_front();
+
+	for (auto i = 0u; i < 4; i++) {
+		std::string data(4, 'a' + 2 + i);
+		fmt::print("Push {}: {}\n", i, data);
+		ASSERT_NE(ring.push_back(3 + i, data.data(), data.size()), nullptr);
+	}
+
+	auto sum = 0;
+	for (auto & i : ring) sum += *i.frame;
+	ASSERT_EQ(sum, 2 + 3 + 4 + 5 + 6);
+
+	ring.pop_front();
+
+	for (auto i = 0u; i < 2; i++) {
+		std::string data(12, 'a' + 6 + i);
+		fmt::print("Push {}: {}\n", i, data);
+		ASSERT_NE(ring.push_back(7 + i, data.data(), data.size()), nullptr);
+	}
+
+	sum = 0;
+	for (auto & i : ring) sum += *i.frame;
+	ASSERT_EQ(sum, 3 + 4 + 5 + 6 + 7 + 8);
+
+	ring.pop_front();
+	ring.pop_front();
+
+	ASSERT_NE(ring.push_back(9, nullptr, 0), nullptr);
+	ASSERT_NE(ring.push_back(10, nullptr, 0), nullptr);
+	ASSERT_NE(ring.push_back(11, nullptr, 0), nullptr);
+	ASSERT_EQ(ring.push_back(12, nullptr, 0), nullptr);
 }
