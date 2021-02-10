@@ -28,10 +28,11 @@ public:
 	using const_reference = typename std::vector<T>::const_reference;
 	using const_pointer = typename std::vector<T>::const_pointer;
 
+	circular_iterator() = default;
 	circular_iterator(typename std::vector<T> &data, unsigned idx) : _data(&data), _idx(idx) {}
 
-	circular_iterator operator ++ (int) { shift(); return *this; }
-	circular_iterator operator ++ () { circular_iterator tmp = *this; shift(); return tmp; }
+	circular_iterator operator ++ () { shift(); return *this; }
+	circular_iterator operator ++ (int) { circular_iterator tmp = *this; shift(); return tmp; }
 
 	pointer ptr() { return &(*_data)[_idx]; }
 	const pointer ptr() const { return &(*_data)[_idx]; }
@@ -107,8 +108,8 @@ public:
 		if (t == _head)
 			return nullptr;
 		_data[_tail] = std::move(value);
-		_tail = t;
-		return &_data[_tail]; 
+		std::swap(_tail, t);
+		return &_data[t];
 	}
 
 	void pop_front()
@@ -122,10 +123,22 @@ public:
 template <typename T>
 struct framed_data_t
 {
+	static constexpr size_t frame_size = sizeof(T);
 	T * frame = nullptr;
 	size_t size = 0;
 
 	void * data() { return (void *) (frame + 1); }
+	void * end() { return ((char *) data()) + size; }
+};
+
+template <>
+struct framed_data_t<void>
+{
+	static constexpr size_t frame_size = 0;
+	void * frame = nullptr;
+	size_t size = 0;
+
+	void * data() { return frame; }
 	void * end() { return ((char *) data()) + size; }
 };
 
@@ -169,12 +182,12 @@ public:
 	void data_resize(size_t size) { this->clear(); _data.resize(size); }
 	size_t data_capacity() const { return _data.size(); }
 
-	value_type * push_back(T value, const void * data, size_t size)
+	value_type * push_back(const void * data, size_t size)
 	{
 		if (this->size() == this->capacity())
 			return nullptr;
 
-		size_t full = sizeof(value) + size;
+		size_t full = value_type::frame_size + size;
 		if (full > _data.size())
 			return nullptr;
 		auto tail = data_tail();
@@ -193,10 +206,22 @@ public:
 				return nullptr;
 		}
 
-		auto ptr = (T *) tail;
-		*ptr = value;
-		memcpy(ptr + 1, data, size);
-		return push_back(value_type {ptr, size});
+		value_type v = { (T *) tail, size };
+		memcpy(v.data(), data, size);
+		return push_back(std::move(v));
+	}
+
+	template <typename U>
+	value_type * push_back(U value, const void * data, size_t size)
+	{
+		auto ptr = push_back(data, size);
+		if (ptr) {
+			if constexpr (std::is_rvalue_reference_v<U> && !std::is_lvalue_reference_v<U>)
+				*(ptr->frame) = std::move(value);
+			else
+				*(ptr->frame) = value;
+		}
+		return ptr;
 	}
 };
 

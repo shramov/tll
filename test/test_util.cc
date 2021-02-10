@@ -389,6 +389,8 @@ TEST(Util, Ring)
 
 	ring.resize(8);
 
+	ASSERT_EQ(ring.begin(), ring.end());
+
 	for(auto i = 0u; i < 7; i++) {
 		ASSERT_EQ(ring.size(), i);
 		ASSERT_NE(ring.push_back(i), nullptr);
@@ -466,4 +468,48 @@ TEST(Util, DataRing)
 	ASSERT_NE(ring.push_back(10, nullptr, 0), nullptr);
 	ASSERT_NE(ring.push_back(11, nullptr, 0), nullptr);
 	ASSERT_EQ(ring.push_back(12, nullptr, 0), nullptr);
+}
+
+TEST(Util, DataRingVoid)
+{
+	tll::util::DataRing<void> ring(8, 64);
+	auto sum = [](auto ring) { auto sum = 0; for (auto &i: ring) sum += i.size; return sum; };
+
+	std::string data(32, 'a');
+	ASSERT_NE(ring.push_back(data.data(), data.size()), nullptr);
+
+	auto it = ring.begin();
+
+	ASSERT_EQ(ring.size(), 1u);
+	ASSERT_EQ(sum(ring), 32);
+
+	{
+		ASSERT_EQ(it->data(), it->frame);
+		ASSERT_EQ(it->size, 32u);
+		ASSERT_EQ(std::string_view((const char *) it->data(), it->size), data);
+	}
+
+	ASSERT_EQ(++it, ring.end());
+
+	data = std::string(32, 'b');
+	ASSERT_NE(ring.push_back(data.data(), data.size()), nullptr);
+
+	ASSERT_EQ(ring.size(), 2u);
+	ASSERT_EQ(sum(ring), 64);
+
+	ASSERT_NE(it, ring.end());
+
+	{
+		ASSERT_EQ(it->data(), it->frame);
+		ASSERT_EQ(it->size, 32u);
+		ASSERT_EQ(std::string_view((const char *) it->data(), it->size), data);
+	}
+
+	ASSERT_NE(ring.push_back("", 0), nullptr);
+	ASSERT_NE(ring.push_back("", 0), nullptr);
+
+	ASSERT_EQ(ring.size(), 4u);
+	ASSERT_EQ(sum(ring), 64);
+
+	ASSERT_EQ(ring.push_back("z", 1), nullptr);
 }
