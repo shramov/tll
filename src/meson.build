@@ -22,7 +22,7 @@ endif
 tll_lib = shared_library('tll',
                         sources,
                         include_directories : include,
-                        dependencies : [fmt, pthread, yaml, zlib] + channel_deps,
+                        dependencies : [fmt, threads, yaml, zlib] + channel_deps,
 			version: '0', soversion: '0',
 			link_args: version_script + cxx_fs_link_args,
 			link_depends: 'ld.script',
@@ -32,7 +32,7 @@ tll = declare_dependency(include_directories: include, link_with: tll_lib)
 
 executable('tll-processor'
 	, ['processor/main.cc']
-	, dependencies: [fmt, pthread, tll]
+	, dependencies: [fmt, threads, tll]
 	, install: true
 	)
 
