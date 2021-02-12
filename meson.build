@@ -19,6 +19,7 @@ zlib = dependency('zlib')
 yaml = dependency('yaml-0.1')
 curl = dependency('libcurl', version: '>=7.63', required: false)
 fmt = dependency('fmt')
+spdlog = dependency('spdlog')
 threads = dependency('threads')
 
 include = include_directories('src')

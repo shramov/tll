@@ -1,0 +1,11 @@
+logger:
+  type: spdlog
+  spdlog:
+    format: "%^%Y-%m-%d %H:%M:%S.%e %l %n%$: %v" # Default format
+    sinks:
+      - {type: console, level: debug}
+      - {type: rotating-file, level: error, filename: error.log, max-size: 10mb, max-files: 10}
+      - {type: daily-file, level: debug, filename: output.log, rotate-hour: 2, rotate-minute: 30, max-files: 10}
+      - {type: syslog, level: critical}
+
+      - {prefix: tll.channel.stat, type: daily-file, level: debug, filename: stat.log, max-files: 10}

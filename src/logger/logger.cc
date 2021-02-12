@@ -21,38 +21,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-namespace {
-bool icmp(char a, char b)
-{
-	constexpr char shift = 'a' - 'A';
-	if ('a' <= a && a <= 'z') a -= shift;
-	if ('a' <= b && a <= 'z') b -= shift;
-	return a == b;
-}
-
-bool stricmp(std::string_view a, std::string_view b)
-{
-	if (a.size() != b.size())
-		return false;
-	for (auto i = 0u; i < a.size(); i++) {
-		if (!icmp(a[i], b[i])) return false;
-	}
-	return true;
-}
-
-std::optional<tll::Logger::level_t> level_from_str(std::string_view level)
-{
-	if (stricmp(level, "trace")) return tll::Logger::Trace;
-	else if (stricmp(level, "debug")) return tll::Logger::Debug;
-	else if (stricmp(level, "info")) return tll::Logger::Info;
-	else if (stricmp(level, "warning")) return tll::Logger::Warning;
-	else if (stricmp(level, "warn")) return tll::Logger::Warning;
-	else if (stricmp(level, "error")) return tll::Logger::Error;
-	else if (stricmp(level, "critical")) return tll::Logger::Critical;
-	else if (stricmp(level, "crit")) return tll::Logger::Critical;
-	return std::nullopt;
-}
-}
+#include "logger/spdlog.h"
+#include "logger/util.h"
 
 namespace tll::logger {
 
@@ -238,6 +208,12 @@ struct logger_context_t
 				if (level)
 					set(k, *level, true);
 			}
+		}
+
+		auto type = cfg.get("type");
+		if (!type) {
+		} else if (*type == "spdlog") {
+			set_impl(spdlog_impl());
 		}
 
 		if (impl && impl->configure)
