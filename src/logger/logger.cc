@@ -21,8 +21,13 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#include "logger/spdlog.h"
+#include "logger/config.h"
+
 #include "logger/util.h"
+
+#ifdef WITH_SPDLOG
+#include "logger/spdlog.h"
+#endif
 
 namespace tll::logger {
 
@@ -212,8 +217,10 @@ struct logger_context_t
 
 		auto type = cfg.get("type");
 		if (!type) {
+#ifdef WITH_SPDLOG
 		} else if (*type == "spdlog") {
 			set_impl(spdlog_impl());
+#endif
 		}
 
 		if (impl && impl->configure)

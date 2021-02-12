@@ -1,12 +1,13 @@
 sources = []
 sources += ['config/config.cc', 'config/yaml.cc']
 sources += ['scheme.cc']
-sources += ['logger/logger.cc', 'logger/spdlog.cc']
 sources += ['processor/loop.cc']
 sources += ['stat.cc']
 sources += ['time.cc']
 sources += ['ring.c']
 
+
+subdir('logger')
 subdir('channel')
 subdir('processor')
 
@@ -24,6 +25,7 @@ tll_lib = shared_library('tll',
                         include_directories : include,
                         dependencies : [fmt, threads, yaml, zlib] + channel_deps,
 			version: '0', soversion: '0',
+			link_with: tll_logger,
 			link_args: version_script + cxx_fs_link_args,
 			link_depends: 'ld.script',
                         install : true)
