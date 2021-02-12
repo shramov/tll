@@ -6,6 +6,8 @@
 #include "logger/spdlog.h"
 #include "logger/util.h"
 
+#include <cassert>
+
 #include <spdlog/sinks/sink.h>
 #include <spdlog/spdlog.h>
 
@@ -77,7 +79,14 @@ struct spdlog_impl_t : public tll_logger_impl_t
 
 		auto self = static_cast<spdlog_impl_t *>(obj);
 		std::string_view name(category);
-		spdlog::details::log_msg msg(ts, {}, name, tll2spdlog(level), std::string_view(data, size));
+#if SPDLOG_VERSION >= 10800
+		spdlog::details::log_msg msg(ts, spdlog::source_loc {}, name, tll2spdlog(level), std::string_view(data, size));
+#elif SPDLOG_VERSION >= 10500
+		spdlog::details::log_msg msg(spdlog::source_loc {}, name, tll2spdlog(level), spdlog::string_view_t(data, size));
+#else
+		std::string name_str(name);
+		spdlog::details::log_msg msg(spdlog::source_loc {}, &name_str, tll2spdlog(level), spdlog::string_view_t(data, size));
+#endif
 		for (auto & s : self->sinks)
 			if (s.match(name, level))
 				s.sink->log(msg);
@@ -135,7 +144,12 @@ struct spdlog_impl_t : public tll_logger_impl_t
 					auto max_files = reader.getT("max-files", 5u);
 					if (!reader)
 						return log.fail(EINVAL, "Invalid parameters for sink {}: {}", *type, reader.error());
+#if SPDLOG_VERSION < 10500
+					sink.sink.reset(new spdlog::sinks::daily_file_sink_mt(filename, hour, minute, truncate));
+					(void) max_files;
+#else
 					sink.sink.reset(new spdlog::sinks::daily_file_sink_mt(filename, hour, minute, truncate, max_files));
+#endif
 				} else if (*type == "rotating-file") {
 					auto filename = reader.getT<std::string>("filename");
 					auto max_size = reader.getT<tll::util::Size>("max-size", 64 * 1024 * 1024);
@@ -143,12 +157,21 @@ struct spdlog_impl_t : public tll_logger_impl_t
 					auto rotate_on_open = reader.getT("rotate-on-open", false);
 					if (!reader)
 						return log.fail(EINVAL, "Invalid parameters for sink {}: {}", *type, reader.error());
+#if SPDLOG_VERSION < 10500
+					sink.sink.reset(new spdlog::sinks::rotating_file_sink_mt(filename, max_size, max_files));
+					(void) rotate_on_open;
+#else
 					sink.sink.reset(new spdlog::sinks::rotating_file_sink_mt(filename, max_size, max_files, rotate_on_open));
+#endif
 				} else if (*type == "syslog") {
 					auto ident = reader.getT<std::string>("ident", "");
 					if (!reader)
 						return log.fail(EINVAL, "Invalid parameters for sink {}: {}", *type, reader.error());
+#if SPDLOG_VERSION < 10500
+					sink.sink.reset(new spdlog::sinks::syslog_sink_mt(ident, LOG_PID, 0));
+#else
 					sink.sink.reset(new spdlog::sinks::syslog_sink_mt(ident, LOG_PID, 0, false));
+#endif
 				} else {
 					log.error("Unknown sink type {}", *type);
 					continue;
