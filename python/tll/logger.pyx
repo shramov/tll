@@ -7,6 +7,7 @@ from .s2b cimport *
 from .error import TLLError
 
 from cpython.ref cimport Py_INCREF, Py_DECREF
+from libc.errno cimport EINVAL
 from libc.string cimport memset
 
 import enum
@@ -99,6 +100,8 @@ cdef class PyLog:
         self.impl.log = self.pylog
         self.impl.log_new = self.pylog_new
         self.impl.log_free = self.pylog_free
+        self.impl.configure = self.pylog_configure
+        self.impl.release = self.pylog_release
         self.impl.user = <void *>self
 
     def reg(self):
@@ -113,34 +116,43 @@ cdef class PyLog:
         o.log(tll2logging.get(level, logging.INFO), b2s(data[:size]))
 
     @staticmethod
-    cdef void * pylog_new(const char * category, tll_logger_impl_t * impl) with gil:
+    cdef void * pylog_new(tll_logger_impl_t * impl, const char * category) with gil:
         o = <PyLog>(impl.user)
         l = logging.getLogger(b2s(category))
         Py_INCREF(l)
         return <void *>l
 
     @staticmethod
-    cdef void pylog_free(const char * category, void * obj, tll_logger_impl_t * impl) with gil:
+    cdef void pylog_free(tll_logger_impl_t * impl, const char * category, void * obj) with gil:
         if obj == NULL: return
         o = <object>obj
         Py_DECREF(o)
+
+    @staticmethod
+    cdef void pylog_release(tll_logger_impl_t * impl) with gil:
+        pass
+
+    @staticmethod
+    cdef int pylog_configure(tll_logger_impl_t * impl, const tll_config_t * _cfg) with gil:
+        cdef Config config = Config.wrap(<tll_config_t *>_cfg)
+        if config.sub('python', throw=False) is None:
+            return 0
+
+        try:
+            lcfg = config.sub('python').as_dict()
+            lcfg['version'] = int(lcfg.get('version', '1'))
+            logging.config.dictConfig(lcfg)
+        except Exception as e:
+            Logger("tll.logger.python").exception("Failed to configure python logging")
+            return EINVAL
 
 pylog = PyLog()
 
 def init():
     pylog.reg()
 
-def pyconfigure(config):
+def configure(config):
     if config is None:
         return
 
-    levels = config.sub("levels", throw=False)
-    if levels:
-        tll_logger_config((<Config>levels)._ptr);
-
-    if config is None or config.sub('python', throw=False) is None: return
-
-    lcfg = config.sub('python').as_dict()
-    lcfg['version'] = int(lcfg.get('version', '1'))
-    print(lcfg)
-    logging.config.dictConfig(lcfg)
+    tll_logger_config((<Config>config)._ptr);

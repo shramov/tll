@@ -28,7 +28,7 @@ def main():
 
 def run(cfg):
     try:
-        tll.logger.pyconfigure(cfg.sub('logger', throw=False))
+        tll.logger.configure(cfg.sub('logger', throw=False))
     finally:
         logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)-7s %(name)s: %(message)s')
 
