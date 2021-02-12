@@ -8,6 +8,7 @@
 #include "gtest/gtest.h"
 
 #include "tll/logger.h"
+#include "tll/logger/impl.h"
 #include "tll/logger/prefix.h"
 
 #include <list>
@@ -20,6 +21,7 @@ struct log_map : public tll_logger_impl_t
 
 	log_map()
 	{
+		*(tll_logger_impl_t *) this = {};
 		log = _log;
 		log_new = _new;
 		log_free = _free;
@@ -35,7 +37,7 @@ struct log_map : public tll_logger_impl_t
 		return 0;
 	}
 
-	static void * _new(const char * category, tll_logger_impl_t * impl)
+	static void * _new(tll_logger_impl_t * impl, const char * category)
 	{
 		fmt::print(stderr, "Create new logger {}\n", category);
 		auto self = static_cast<log_map *>(impl);
@@ -43,7 +45,7 @@ struct log_map : public tll_logger_impl_t
 		return &r.first->second;
 	}
 
-	static void _free(const char * category, void * user, tll_logger_impl_t * impl)
+	static void _free(tll_logger_impl_t * impl, const char * category, void * user)
 	{
 		fmt::print(stderr, "Drop logger {}\n", category);
 		auto self = static_cast<log_map *>(impl);

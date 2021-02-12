@@ -7,8 +7,10 @@
 
 #include "tll/config.h"
 #include "tll/logger.h"
+#include "tll/logger/impl.h"
 #include "tll/util/refptr.h"
 #include "tll/util/string.h"
+#include "tll/util/time.h"
 
 #include <atomic>
 #include <map>
@@ -63,7 +65,7 @@ struct tll_logger_obj_t : tll::util::refbase_t<tll_logger_obj_t, 0>
 	~tll_logger_obj_t()
 	{
 		if (obj && impl && impl->log_free)
-			impl->log_free(name, obj, impl);
+			impl->log_free(impl, name, obj);
 	}
 };
 
@@ -162,7 +164,7 @@ struct logger_context_t
 		auto prefix = (path.back() == '*');
 		if (prefix) {
 			path = path.substr(0, path.size() - 1);
-			fmt::print("Set new prefix mask: '{}' {}\n", path, level);
+			//fmt::print("Set new prefix mask: '{}' {}\n", path, level);
 			subtree = true;
 		}
 
@@ -193,7 +195,7 @@ struct logger_context_t
 		r->name = name.data();
 		r->impl = impl;
 		if (impl->log_new)
-			r->obj = (impl->log_new)(name.data(), impl);
+			r->obj = (impl->log_new)(impl, name.data());
 		return r;
 	}
 
@@ -204,8 +206,10 @@ struct logger_context_t
 
 		std::list<tll::util::refptr_t<Logger>> loggers;
 
+		tll_logger_impl_t * old = nullptr;
 		{
 			rlock_t lck(lock);
+			old = this->impl;
 			this->impl = impl;
 			for (auto & i : _loggers)
 				loggers.emplace_back(i.second);
@@ -219,6 +223,25 @@ struct logger_context_t
 				std::swap(l->impl, ref);
 			}
 		}
+		if (old && old->release)
+			(old->release)(old);
+		return 0;
+	}
+
+	int configure(const tll::Config &cfg)
+	{
+		auto levels = cfg.sub("levels");
+		if (levels) {
+			for (auto & [k, v] : levels->browse("**")) {
+				if (!v.value()) continue;
+				auto level = level_from_str(*v.get());
+				if (level)
+					set(k, *level, true);
+			}
+		}
+
+		if (impl && impl->configure)
+			return (impl->configure)(impl, cfg);
 		return 0;
 	}
 
@@ -253,14 +276,7 @@ int tll_logger_config(struct tll_config_t * _cfg)
 {
 	if (!_cfg)
 		return 0;
-	tll::Config cfg(_cfg);
-	for (auto & [k, v] : cfg.browse("**")) {
-		if (!v.value()) continue;
-		auto level = level_from_str(*v.get());
-		if (level)
-			tll::logger::context.set(k, *level, true);
-	}
-	return 0;
+	return tll::logger::context.configure(tll::Config(_cfg));
 }
 
 int tll_logger_set(const char * name, int len, tll_logger_level_t level, int subtree)
@@ -287,7 +303,9 @@ int tll_logger_log(tll_logger_t * l, tll_logger_level_t level, const char * buf,
 	auto impl = log->impl;
 	lck.unlock();
 
-	return (*impl->impl->log)(0, impl->name, level, buf, len, impl->obj);
+	auto ts = tll::time::now();
+
+	return (*impl->impl->log)(ts.time_since_epoch().count(), impl->name, level, buf, len, impl->obj);
 }
 
 tll_logger_buf_t * tll_logger_tls_buf()

@@ -74,15 +74,6 @@ int tll_logger_log(tll_logger_t * log, tll_logger_level_t lvl, const char * buf,
 int tll_logger_printf(tll_logger_t * log, tll_logger_level_t lvl, const char * fmt, ...)
 	__attribute__((format(printf, 3, 4)));
 
-typedef struct tll_logger_impl_t {
-	int (*log)(long long ts, const char * category, tll_logger_level_t level, const char * data, size_t size, void * obj);
-	void * (*log_new)(const char * category, struct tll_logger_impl_t * impl);
-	void (*log_free)(const char * category, void * obj, struct tll_logger_impl_t * impl);
-	void * user;
-} tll_logger_impl_t;
-
-int tll_logger_register(tll_logger_impl_t *);
-
 typedef struct {
 	char * data;
 	size_t size;
