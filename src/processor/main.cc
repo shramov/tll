@@ -44,9 +44,11 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	auto levels = cfg->sub("logger.levels");
-	if (levels)
-		tll_logger_config(*levels);
+	auto logger = cfg->sub("logger");
+	if (logger && tll_logger_config(*logger)) {
+		printf("Failed to configure logger\n");
+		return 1;
+	}
 
 	tll::channel::Context context(cfg->sub("processor.defaults").value_or(tll::Config()));
 
