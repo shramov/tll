@@ -93,10 +93,9 @@ cdef class Channel:
         if url is None:
             return
 
-        cdef Url curl = Url()
+        cdef Url curl = None
         if isinstance(url, Config):
-            for k,v in url.browse('**'):
-                curl[k] = v
+            curl = Url(url.copy())
         else:
             curl = Url.parse(url)
 
