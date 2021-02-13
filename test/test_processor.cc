@@ -195,3 +195,25 @@ TEST_F(ProcessorLong, Test)
 
 	ASSERT_EQ(proc->state(), Closed);
 }
+
+class ProcessorOrder : public Processor
+{
+public:
+	virtual std::string_view config_data()
+	{
+		return R"(yamls://
+processor.objects:
+  a:
+    url: mem://;master=z
+  b:
+    url: null://
+    channels.input: z
+  z:
+    url: mem://
+)";
+	}
+};
+
+TEST_F(ProcessorOrder, Test)
+{
+}

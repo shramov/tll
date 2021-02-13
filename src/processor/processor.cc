@@ -167,74 +167,178 @@ Worker * Processor::init_worker(std::string_view name)
 	return w;
 }
 
-int Processor::init_one(std::string_view extname, const Config &cfg, bool logic)
+int Processor::init_one(const PreObject &obj)
 {
-	auto name = std::string(cfg.get("name").value_or(extname));
-	auto log = _log.prefix("{} {}:", logic?"logic":"channel", std::string_view(name)); // TODO: name is moved and left empty without std::string_view wrapper
-	log.debug("Init channel {} (external name {})", name, extname);
+	auto & name = obj.name;
+	auto log = _log.prefix("{} {}:", "object", std::string_view(name)); // TODO: name is moved and left empty without std::string_view wrapper
+	log.debug("Init");
 
-	auto disable = cfg.getT("disable", false);
-	if (!disable || *disable) {
-		log.debug("Object is disabled", name);
-		return 0;
-	}
-
-	auto wname = std::string(cfg.get("worker").value_or("default"));
+	auto wname = std::string(obj.config.get("worker").value_or("default"));
 	auto w = init_worker(wname);
 	if (!w)
 		return log.fail(EINVAL, "Failed to init worker {}", wname);
 
-	auto url = parse_common(logic?"logic":"channel", name, cfg);
-	if (!url)
-		return log.fail(EINVAL, "Failed to init channel");
-	url->set("tll.worker", w->name);
-	name = *url->getT<std::string>("name", "");
-
-	if (logic) {
-		for (auto & c : cfg.browse("channels.**")) {
-			auto key = "tll.channel." + c.first.substr(strlen("channels."));
-			if (url->has(key))
-				return log.fail(EINVAL, "Duplicate channel '{}'");
-			url->set(key, *c.second.get());
-		}
-	}
-
-	auto channel = context().channel(*url);
+	auto channel = context().channel(obj.url);
 	if (!channel)
-		return log.fail(EINVAL, "Failed to create channel {}", conv::to_string(*url));
+		return log.fail(EINVAL, "Failed to create channel {}", conv::to_string(obj.url));
 	_objects.emplace_back(std::move(channel));
 	auto o = &_objects.back();
 	o->worker = w;
 
-	auto open = cfg.sub("open");
+	auto open = obj.config.sub("open");
 	if (open)
 		o->open_parameters = ConstConfig(*open);
+
+	o->depends_names = {obj.depends_open.list.begin(), obj.depends_open.list.end()};
+	if (o->init(obj.url))
+		return log.fail(EINVAL, "Failed to init extra parameters");
+	return 0;
+}
+
+std::optional<Processor::PreObject> Processor::init_pre(std::string_view extname, tll::Config &cfg)
+{
+	auto name = std::string(cfg.get("name").value_or(extname));
+	auto log = _log.prefix("object {}:", std::string_view(name)); // TODO: name is moved and left empty without std::string_view wrapper
+	log.debug("Parse dependencies (external name {})", extname);
+
+	auto disable = cfg.getT("disable", false);
+	if (!disable || *disable) {
+		log.debug("Object is disabled", name);
+		PreObject obj;
+		obj.disabled = true;
+		return obj;
+	}
+
+	auto url = get_url(cfg, "url");
+	if (!url)
+		return log.fail(std::nullopt, "Failed to load url: {}", name, url.error());
+
+	if (url->has("name"))
+		return log.fail(std::nullopt, "Duplicate name parameter", name);
+	url->set("name", name);
+
+	for (auto & [k, c] : cfg.browse("channels.**")) {
+		auto key = "tll.channel." + k.substr(strlen("channels."));
+		if (url->has(key))
+			return log.fail(std::nullopt, "Duplicate channel group '{}': in config and in url", key);
+		url->set(key, *c.get());
+	}
+
+	PreObject obj = { *url, cfg, name };
 
 	auto deps = cfg.get("depends");
 	if (deps || !deps->empty()) {
 		for (auto d : split<','>(*deps)) {
 			auto n = tll::util::strip(d);
 			if (n.empty())
-				return log.fail(EINVAL, "Empty dependency: '{}'", *deps);
-			o->depends_names.emplace_back(n);
+				return log.fail(std::nullopt, "Empty dependency: '{}'", *deps);
+			obj.depends_open.list.emplace(n);
 		}
 	}
 
-	if (o->init(*url))
-		return log.fail(EINVAL, "Failed to init extra parameters");
-	return 0;
+	for (auto & [k, c] : obj.url.browse("tll.channel.**")) {
+		auto deps = c.get();
+		if (!deps || deps->empty())
+			continue;
+		for (auto d : split<','>(*deps)) {
+			auto n = tll::util::strip(d);
+			if (n.size() == 0)
+				return log.fail(std::nullopt, "Empty channel in {}: '{}'", k, deps);
+			obj.depends_init.list.emplace(n);
+		}
+	}
+
+	auto master = obj.url.get("master");
+	if (master)
+		obj.depends_init.list.insert(std::string(*master));
+
+	{
+		std::list<std::string_view> tmp(obj.depends_init.list.begin(), obj.depends_init.list.end());
+		log.debug("Init dependencies: {}", tmp);
+	}
+	{
+		std::list<std::string_view> tmp(obj.depends_open.list.begin(), obj.depends_open.list.end());
+		log.debug("Open dependencies: {}", tmp);
+	}
+
+	return obj;
+}
+
+int Processor::object_depth(std::map<std::string, PreObject, std::less<>> &map, PreObject &o, std::list<std::string_view> & path, bool init)
+{
+	std::string_view stage = init ? "Init" : "Open";
+
+	auto obj = o.depends(init);
+	if (obj.depth != -1)
+		return obj.depth;
+
+	auto it = path.begin();
+	for (; it != path.end() && *it != o.name; it++) {}
+	if (it != path.end()) {
+		std::list<std::string_view> cycle = { it, path.end() };
+		cycle.push_back(o.name);
+		return _log.fail(-1, "{} dependency cycle detected: {}", stage, cycle);
+	}
+
+	path.push_back(o.name);
+
+	int depth = 0;
+	for (auto & d : obj.list) {
+		auto di = map.find(d);
+		if (di == map.end())
+			return _log.fail(-1, "{} dependency for '{}' missing: '{}'", o.name, d);
+		auto dd = object_depth(map, di->second, path, init);
+		if (dd == -1)
+			return -1;
+		depth = std::max(depth, dd + 1);
+	}
+
+	path.pop_back();
+	obj.depth = depth;
+	return depth;
 }
 
 int Processor::init_depends()
 {
+	std::map<std::string, PreObject, std::less<>> objects;
+
+	std::list<std::string_view> order;
+
 	for (auto & p : _cfg.browse("objects.*", true)) {
-		if (p.second.sub("channels")) continue;
-		if (init_one(p.first.substr(strlen("objects.")), p.second, false))
+		auto obj = init_pre(p.first.substr(strlen("objects.")), p.second);
+		if (!obj)
 			return EINVAL;
+		if (obj->disabled)
+			continue;
+		objects.emplace(obj->name, std::move(*obj));
 	}
-	for (auto & p : _cfg.browse("objects.*", true)) {
-		if (!p.second.sub("channels")) continue;
-		if (init_one(p.first.substr(strlen("objects.")), p.second, true))
+
+	int max_depth = 0;
+	for (auto & [_, o] : objects) {
+		std::list<std::string_view> path;
+		if (o.depends_open.depth == -1)
+			o.depends_open.depth = object_depth(objects, o, path, false);
+		if (o.depends_open.depth == -1)
+			return EINVAL;
+		path.clear();
+		if (o.depends_init.depth == -1)
+			o.depends_init.depth = object_depth(objects, o, path, true);
+		if (o.depends_init.depth == -1)
+			return EINVAL;
+		_log.debug("Object {} depth: init {}, open {}", o.name, o.depends_init.depth, o.depends_open.depth);
+		max_depth = std::max(max_depth, o.depends_init.depth);
+	}
+
+	for (auto i = 0; i < max_depth + 1; i++) {
+		for (auto & [k, o] : objects) {
+			if (o.depends_init.depth == i)
+				order.push_back(k);
+		}
+	}
+	_log.debug("Init order: {}", order);
+
+	for (auto & n : order) {
+		if (init_one(objects[std::string(n)]))
 			return EINVAL;
 	}
 	return 0;

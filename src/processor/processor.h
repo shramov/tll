@@ -19,8 +19,9 @@
 #include "processor/deps.h"
 #include "processor/worker.h"
 
-#include <map>
 #include <list>
+#include <map>
+#include <set>
 
 namespace tll::processor::_ {
 
@@ -31,6 +32,27 @@ struct Processor : public tll::channel::Base<Processor>
 	static constexpr auto process_policy() { return ProcessPolicy::Never; }
 	static constexpr auto child_policy() { return ChildPolicy::Single; } // Set Proxy cap to access IPC child channel
 	static constexpr std::string_view param_prefix() { return "processor"; }
+
+	struct PreObject {
+		tll::Channel::Url url;
+		tll::Config config;
+		std::string name;
+
+		bool disabled = false;
+
+		struct depends_t {
+			std::set<std::string> list;
+			int depth = -1;
+		} depends_open, depends_init;
+
+		depends_t & depends(bool init)
+		{
+			if (init)
+				return depends_init;
+			else
+				return depends_open;
+		}
+	};
 
 	tll::processor::Loop loop;
 	tll::Config _cfg;
@@ -50,8 +72,10 @@ struct Processor : public tll::channel::Base<Processor>
 	std::optional<tll::Channel::Url> parse_common(std::string_view type, std::string_view path, const Config &cfg);
 	int parse_deps(Object &obj, const Config &cfg);
 
-	int init_one(std::string_view name, const Config &cfg, bool logic);
+	int init_one(const PreObject &obj);
 	int init_depends();
+	std::optional<PreObject> init_pre(std::string_view name, Config &cfg);
+	int object_depth(std::map<std::string, PreObject, std::less<>> &map, PreObject &o, std::list<std::string_view> & path, bool init);
 	Worker * init_worker(std::string_view name);
 
 	void decay(Object * obj, bool root = false);
