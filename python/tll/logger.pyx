@@ -134,7 +134,7 @@ cdef class PyLog:
 
     @staticmethod
     cdef int pylog_configure(tll_logger_impl_t * impl, const tll_config_t * _cfg) with gil:
-        cdef Config config = Config.wrap(<tll_config_t *>_cfg)
+        cdef Config config = Config.wrap(<tll_config_t *>_cfg, ref=True)
         if config.sub('python', throw=False) is None:
             return 0
 
