@@ -96,17 +96,21 @@ struct spdlog_impl_t : public tll_logger_impl_t
 		return 0;
 	}
 
+	sink_t default_sink()
+	{
+		sink_t sink;
+		sink.sink.reset(new spdlog::sinks::ansicolor_stderr_sink_mt);
+		sink.sink->set_pattern(std::string(default_format));
+		return sink;
+	}
+
 	int configure(const tll_config_t * _cfg)
 	{
 		tll::ConstConfig cfg(_cfg);
 		tll::Logger log("tll.logger.spdlog");
 
-		if (sinks.empty()) {
-			sink_t sink;
-			sink.sink.reset(new spdlog::sinks::ansicolor_stderr_sink_mt);
-			sink.sink->set_pattern(std::string(default_format));
-			sinks.push_back(std::move(sink));
-		}
+		if (sinks.empty())
+			sinks.push_back(default_sink());
 
 		std::string format { cfg.get("format").value_or(default_format) };
 
@@ -186,6 +190,9 @@ struct spdlog_impl_t : public tll_logger_impl_t
 			sink.sink->set_pattern(reader.getT("format", format));
 			result.push_back(std::move(sink));
 		}
+
+		if (!result.size())
+			result.push_back(default_sink());
 
 		std::swap(sinks, result);
 		return 0;
