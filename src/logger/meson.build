@@ -1,9 +1,9 @@
 logger_sources = files(['logger.cc'])
-logger_deps = []
+logger_deps = [fmt, threads]
 
 if spdlog.found()
 	logger_sources += files(['spdlog.cc'])
-	logger_deps += [spdlog]
+	#logger_deps += [spdlog]
 endif
 
 logger_sources += configure_file(output : 'config.h', configuration : configuration_data({
@@ -13,6 +13,6 @@ logger_sources += configure_file(output : 'config.h', configuration : configurat
 tll_logger = static_library('tll-logger',
 	logger_sources,
 	include_directories: include,
-	dependencies: [fmt, spdlog, threads],
+	dependencies: logger_deps,
 	install: false,
 )

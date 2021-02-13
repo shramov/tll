@@ -8,6 +8,9 @@
 
 #include <cassert>
 
+#define SPDLOG_HEADER_ONLY
+#undef SPDLOG_COMPILED_LIB
+
 #include <spdlog/sinks/sink.h>
 #include <spdlog/spdlog.h>
 
