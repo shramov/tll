@@ -493,3 +493,37 @@ def test_duration():
 
     u = msg.unpack(memoryview(m.pack()))
     assert u.as_dict() == m.as_dict()
+
+def test_bits():
+    scheme = S.Scheme("""yamls://
+- name: msg
+  fields:
+    - {name: i8, type: int8, options.type: bits, bits: [a, b, c]}
+    - {name: u32, type: uint32, options.type: bits, bits: [c, d, e]}
+""")
+
+    msg = scheme['msg']
+    m = msg.object(i8 = 0, u32 = 0)
+    m.i8.a = 1
+    m.i8.b = 0
+    m.i8.c = 1
+    m.u32.d = 1
+
+    assert m.i8._value == 5
+
+    assert m.i8.a == True
+    assert m.i8.b == False
+    assert m.i8.c == True
+    assert m.u32.c == False
+    assert m.u32.d == True
+    assert m.u32.e == False
+
+    u = msg.unpack(memoryview(m.pack()))
+    assert u.as_dict() == m.as_dict()
+
+    assert u.i8.a == True
+    assert u.i8.b == False
+    assert u.i8.c == True
+    assert u.u32.c == False
+    assert u.u32.d == True
+    assert u.u32.e == False

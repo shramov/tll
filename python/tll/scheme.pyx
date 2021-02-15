@@ -16,6 +16,7 @@ import enum
 from .error import TLLError
 from .buffer cimport *
 from . import chrono
+from .bits import Bits, BitField, fill_properties
 
 class Type(enum.Enum):
     Int8 = TLL_SCHEME_FIELD_INT8
@@ -39,6 +40,7 @@ class SubType(enum.Enum):
     FixedPoint = TLL_SCHEME_SUB_FIXED_POINT
     TimePoint = TLL_SCHEME_SUB_TIME_POINT
     Duration = TLL_SCHEME_SUB_DURATION
+    Bits = TLL_SCHEME_SUB_BITS
 
 _time_resolution_map = {
     TLL_SCHEME_TIME_NS: chrono.Resolution.ns,
@@ -368,6 +370,11 @@ class Field:
                 self.pack_data, self.unpack_data = self.pack_duration, self.unpack_duration
                 self.convert = self.convert_duration
                 self.default = chrono.Duration
+            elif self.sub_type == SubType.Bits:
+                self.pack_data, self.unpack_data = self.pack_bits, self.unpack_bits
+                self.convert = self.convert_bits
+                self.default = self.bitclass
+                self.as_dict = self._as_dict_bits
         elif type in (Field.UInt8, Field.UInt16, Field.UInt32):
             self._from_string = from_string_int
             self.default = int
@@ -394,6 +401,11 @@ class Field:
                 self.pack_data, self.unpack_data = self.pack_duration, self.unpack_duration
                 self.convert = self.convert_duration
                 self.default = chrono.Duration
+            elif self.sub_type == SubType.Bits:
+                self.pack_data, self.unpack_data = self.pack_bits, self.unpack_bits
+                self.convert = self.convert_bits
+                self.default = self.bitclass
+                self.as_dict = self._as_dict_bits
         elif type == Field.Double:
             self.pack_data, self.unpack_data = pack_double, unpack_double
             self.convert = convert_double
@@ -604,6 +616,15 @@ class Field:
     def pack_duration(self, v, dest, tail, tail_offset):
         return self.pack_raw(chrono.Duration(v, self.time_resolution, type=self.default_raw).value, dest, tail, tail_offset)
 
+    def convert_bits(self, v):
+        return self.bitclass(v)
+
+    def unpack_bits(self, src):
+        return self.bitclass(self.unpack_raw(src))
+
+    def pack_bits(self, v, dest, tail, tail_offset):
+        return self.pack_raw(v._value, dest, tail, tail_offset)
+
     def from_string(self, v : str):
         if not hasattr(self, '_from_string'):
             raise TypeError("Field {} with type {} can not be constructed from string".format(self.name, self.type))
@@ -612,12 +633,17 @@ class Field:
     def _from_string_int(self, v):
         return self.convert(int(v, 0))
 
+    def _as_dict_bits(self, v):
+        return {f.name: getattr(v, f.name) for f in v.BITS.values()}
+
     def as_dict(self, v): return v
 
 for t in Type:
     setattr(Field, t.name, t)
 
 cdef object field_wrap(Scheme s, object m, tll_scheme_field_t * ptr):
+    cdef tll_scheme_bit_field_t * bits
+
     r = Field()
     r.name = b2s(ptr.name)
     r.name_bytes = ptr.name
@@ -642,6 +668,19 @@ cdef object field_wrap(Scheme s, object m, tll_scheme_field_t * ptr):
         r.fixed_precision = ptr.fixed_precision
     elif r.sub_type == r.Sub.TimePoint or r.sub_type == r.Sub.Duration:
         r.time_resolution = _time_resolution_map[ptr.time_resolution]
+    elif r.sub_type == r.Sub.Bits:
+        r.bitfields = {}
+        bits = ptr.bitfields
+        while bits != NULL:
+            name = b2s(bits.name)
+            r.bitfields[name] = BitField(name, bits.size, bits.offset)
+            bits = bits.next
+        @fill_properties
+        class B(Bits):
+            BITS = r.bitfields
+        B.__name__ = r.name
+        r.bitclass = B
+
     r.size = ptr.size
     r.offset = ptr.offset
     r.init(r.name, r.type) #b2s(ptr.name), Type(ptr.type))

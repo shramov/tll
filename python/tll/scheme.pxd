@@ -24,6 +24,7 @@ cdef extern from "tll/scheme.h":
         TLL_SCHEME_SUB_FIXED_POINT
         TLL_SCHEME_SUB_TIME_POINT
         TLL_SCHEME_SUB_DURATION
+        TLL_SCHEME_SUB_BITS
 
     ctypedef enum tll_scheme_offset_ptr_version_t:
         TLL_SCHEME_OFFSET_PTR_DEFAULT
@@ -38,6 +39,12 @@ cdef extern from "tll/scheme.h":
         TLL_SCHEME_TIME_MINUTE
         TLL_SCHEME_TIME_HOUR
         TLL_SCHEME_TIME_DAY
+
+    ctypedef struct tll_scheme_bit_field_t:
+        tll_scheme_bit_field_t * next
+        const char * name
+        unsigned size
+        unsigned offset
 
     ctypedef struct tll_scheme_option_t:
         tll_scheme_option_t * next
@@ -77,6 +84,8 @@ cdef extern from "tll/scheme.h":
 
         unsigned fixed_precision
         tll_scheme_time_resolution_t time_resolution
+
+        tll_scheme_bit_field_t * bitfields
 
 
     ctypedef struct tll_scheme_message_t:
