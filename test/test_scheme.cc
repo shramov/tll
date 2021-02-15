@@ -303,3 +303,38 @@ TEST(Scheme, Import)
 	m = m->next; ASSERT_NE(m, nullptr); EXPECT_STREQ(m->name, "top");
 	m = m->next; ASSERT_EQ(m, nullptr);
 }
+
+void check_load_fail(std::string_view scheme)
+{
+	SchemePtr s(Scheme::load(scheme), tll_scheme_unref);
+	ASSERT_EQ(s.get(), nullptr);
+}
+
+TEST(Scheme, Duplicates)
+{
+	check_load_fail(R"(yamls://
+- name: msg
+  fields:
+    - {name: s0, type: int32}
+- name: other
+  fields:
+    - {name: s0, type: int32}
+- name: msg
+  fields:
+    - {name: s0, type: int32}
+)");
+	check_load_fail(R"(yamls://
+- name: msg
+  fields:
+    - {name: s0, type: int32}
+    - {name: s1, type: 'double[4]'}
+    - {name: s0, type: int64}
+)");
+	check_load_fail(R"(yamls://
+- name: ''
+  aliases:
+    - {name: a0, type: int32}
+    - {name: a1, type: int32}
+    - {name: a0, type: int32}
+)");
+}

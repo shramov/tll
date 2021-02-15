@@ -387,6 +387,12 @@ struct Message
 			if (!n || !n->size())
 				return _log.fail(std::nullopt, "Field without name");
 
+			for (auto & f : m.fields) {
+				if (f.name == *n)
+					return _log.fail(std::nullopt, "Duplicate field name {}", *n);
+			}
+
+
 			_log.trace("Loading field {}", *n);
 			auto f = Field::parse(m, fc, *n);
 			if (!f)
@@ -497,6 +503,11 @@ struct Scheme
 			auto n = fc.get("name");
 			if (!n || !n->size())
 				return _log.fail(EINVAL, "Alias without name");
+
+			for (auto & a : aliases) {
+				if (a.name == *n)
+					return _log.fail(EEXIST, "Duplicate alias name {}", *n);
+			}
 
 			_log.trace("Loading alias {}", *n);
 			Message m;
