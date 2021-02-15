@@ -52,6 +52,16 @@ tll::scheme::Option * alloc_option(std::string_view name, std::string_view value
 	return o;
 }
 
+tll_scheme_bit_field_t * alloc_bit_field(std::string_view name, size_t size, size_t offset)
+{
+	auto f = (tll_scheme_bit_field_t*) malloc(sizeof(tll_scheme_bit_field_t));
+	*f = {};
+	f->name = strndup(name.data(), name.size());
+	f->offset = offset;
+	f->size = size;
+	return f;
+}
+
 std::string_view offset_ptr_type_name(tll_scheme_offset_ptr_version_t v)
 {
 	switch (v) {
@@ -247,6 +257,7 @@ struct Field
 	std::string type_enum;
 	unsigned fixed_precision; // For fixed
 	time_resolution_t time_resolution = TLL_SCHEME_TIME_NS;
+	std::list<std::string> bitfields; // For bitfield
 
 	tll::scheme::Field * finalize(tll::scheme::Scheme *s, tll::scheme::Message *m);
 
@@ -278,6 +289,11 @@ struct Field
 				if (!s)
 					return EINVAL; //_log.fail(EINVAL, "Invalid decimal precision {}: {}", t.substr(5), s.error());
 				fixed_precision = *s;
+			} else if (t == "bits") {
+				sub_type = tll::scheme::Field::Bits;
+				for (auto & [k, c] : cfg.browse("bits.*")) {
+					bitfields.emplace_back(*c.get());
+				}
 			}
 		case Field::Double:
 			if (t == "enum") {
@@ -700,6 +716,13 @@ tll::scheme::Field * Field::finalize(tll::scheme::Scheme *s, tll::scheme::Messag
 		r->time_resolution = time_resolution;
 	} else if (sub_type == Field::Fixed) {
 		r->fixed_precision = fixed_precision;
+	} else if (sub_type == Field::Bits) {
+		auto last = &r->bitfields;
+		size_t offset = 0;
+		for (auto & f : bitfields) {
+			*last = alloc_bit_field(f, 1, offset++);
+			last = &(*last)->next;
+		}
 	} else if (type == Field::Message) {
 		for (auto & i : list_wrap(s->messages)) {
 			if (i.name == type_msg) {
@@ -981,6 +1004,13 @@ Field * copy_fields(Scheme *ds, Message *dm, Field **result, const Field *src)
 				}
 			}
 		}
+	} else if (r->sub_type == Field::Bits) {
+		r->bitfields = nullptr;
+		auto last = &r->bitfields;
+		for (auto &f : list_wrap(src->bitfields)) {
+			*last = alloc_bit_field(f.name, f.size, f.offset);
+			last = &(*last)->next;
+		}
 	}
 	copy_fields(ds, dm, &r->next, src->next);
 	return r;
@@ -1077,6 +1107,14 @@ void tll_scheme_enum_free(tll_scheme_enum_t *e)
 	free(e);
 }
 
+void tll_scheme_bit_field_free(tll_scheme_bit_field_t *f)
+{
+	if (!f) return;
+	if (f->name) free((char *) f->name);
+	tll_scheme_bit_field_free(f->next);
+	free(f);
+}
+
 void tll_scheme_field_free(tll_scheme_field_t *f)
 {
 	if (!f) return;
@@ -1090,8 +1128,10 @@ void tll_scheme_field_free(tll_scheme_field_t *f)
 	if (f->type == Field::Array) {
 		tll_scheme_field_free(f->count_ptr);
 		tll_scheme_field_free(f->type_array);
-	} else if (f->type == Field::Pointer)
+	} else if (f->type == Field::Pointer) {
 		tll_scheme_field_free(f->type_ptr);
+	} else if (f->sub_type == Field::Bits)
+		tll_scheme_bit_field_free(f->bitfields);
 	if (f->name) free((char *) f->name);
 	free(f);
 }
@@ -1235,6 +1275,22 @@ std::string dump_options(const tll::scheme::Field * f, bool skip=false)
 	return r;
 }
 
+std::string dump(const tll_scheme_bit_field_t * fields)
+{
+	if (!fields) return "";
+	std::string r;
+	r += "bits: {";
+	bool comma = false;
+	for (auto &o : list_wrap(fields)) {
+		if (comma)
+			r += ", ";
+		comma = true;
+		r += fmt::format("'{}'", o.name);
+	}
+	r += "}";
+	return r;
+}
+
 std::string dump(const tll::scheme::Field * f)
 {
 	std::string r;
@@ -1247,6 +1303,9 @@ std::string dump(const tll::scheme::Field * f)
 			r += ", " + dump_body(f->type_enum);
 		//if (f->type_enum->options)
 		//	r += ", " + dump(f->type_enum->options, "enum-options");
+	}
+	if (f->sub_type == tll::scheme::Field::Bits) {
+		r += ", " + dump(f->bitfields);
 	}
 	r += "}";
 	return r;

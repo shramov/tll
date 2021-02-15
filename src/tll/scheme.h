@@ -59,6 +59,7 @@ typedef enum tll_scheme_sub_type_t
 	TLL_SCHEME_SUB_FIXED_POINT,
 	TLL_SCHEME_SUB_TIME_POINT,
 	TLL_SCHEME_SUB_DURATION,
+	TLL_SCHEME_SUB_BITS,
 } tll_scheme_sub_type_t;
 
 typedef struct tll_scheme_option_t
@@ -111,6 +112,14 @@ typedef enum tll_scheme_offset_ptr_version_t {
 	TLL_SCHEME_OFFSET_PTR_LEGACY_LONG,
 } tll_scheme_offset_ptr_version_t;
 
+typedef struct tll_scheme_bit_field_t
+{
+	struct tll_scheme_bit_field_t * next;
+	const char * name;
+	unsigned offset;
+	unsigned size;
+} tll_scheme_bit_field_t;
+
 typedef struct tll_scheme_field_t
 {
 	/// Pointer to next entity
@@ -151,6 +160,9 @@ typedef struct tll_scheme_field_t
 		unsigned fixed_precision;
 		/// Time resolution (from 2^32/1 to 1/2^32) for TLL_SCHEME_SUB_TIME_POINT/DURATION fields
 		tll_scheme_time_resolution_t time_resolution;
+
+		/// List of bit fields with corresponding offsets
+		struct tll_scheme_bit_field_t * bitfields;
 	};
 
 	/// User defined data
@@ -179,6 +191,7 @@ typedef struct tll_scheme_field_t
 	static constexpr auto TimePoint = TLL_SCHEME_SUB_TIME_POINT;
 	static constexpr auto Duration = TLL_SCHEME_SUB_DURATION;
 	static constexpr auto Fixed = TLL_SCHEME_SUB_FIXED_POINT;
+	static constexpr auto Bits = TLL_SCHEME_SUB_BITS;
 #endif
 } tll_scheme_field_t;
 

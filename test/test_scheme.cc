@@ -26,10 +26,17 @@ using namespace tll::scheme;
 		EXPECT_EQ(f->offset, o); \
 	} while (0)
 
-TEST(Scheme, Size)
+#define CHECK_BIT_FIELD(f, n, s, o) do { \
+		ASSERT_NE(f, nullptr); \
+		EXPECT_STREQ(f->name, n); \
+		EXPECT_EQ(f->size, s); \
+		EXPECT_EQ(f->offset, o); \
+	} while (0)
+
+void verify_scheme(tll::scheme::Scheme * s)
 {
-	SchemePtr s(Scheme::load(scheme), tll_scheme_unref);
-	ASSERT_NE(s.get(), nullptr);
+	ASSERT_NE(s, nullptr);
+
 	auto m = s->messages;
 	ASSERT_NE(m, nullptr);
 	EXPECT_STREQ(m->name, "sub");
@@ -109,28 +116,39 @@ TEST(Scheme, Size)
 	ASSERT_EQ(f, nullptr);
 
 	m = m->next;
+
+	ASSERT_NE(m, nullptr);
+	EXPECT_STREQ(m->name, "bits");
+	EXPECT_EQ(m->enums, nullptr);
+	f = m->fields;
+	CHECK_FIELD(f, "f0", Field::Int8, 1u, 0u); EXPECT_EQ(f->sub_type, Field::Bits);
+	CHECK_BIT_FIELD(f->bitfields, "a", 1u, 0u); CHECK_BIT_FIELD(f->bitfields->next, "b", 1u, 1u);
+	EXPECT_EQ(f->bitfields->next->next, nullptr); f = f->next;
+
+	CHECK_FIELD(f, "f1", Field::UInt32, 4u, 1u); EXPECT_EQ(f->sub_type, Field::Bits);
+	CHECK_BIT_FIELD(f->bitfields, "c", 1u, 0u); CHECK_BIT_FIELD(f->bitfields->next, "d", 1u, 1u);
+	EXPECT_EQ(f->bitfields->next->next, nullptr); f = f->next;
+	ASSERT_EQ(f, nullptr);
+
+	EXPECT_EQ(m->size, 1u + 4u);
+
+	m = m->next;
 	EXPECT_EQ(m, nullptr);
+}
+
+TEST(Scheme, Size)
+{
+	SchemePtr s(Scheme::load(scheme), tll_scheme_unref);
+	verify_scheme(s.get());
 }
 
 TEST(Scheme, Copy)
 {
 	SchemePtr ptr(Scheme::load(scheme), tll_scheme_unref);
 	ASSERT_NE(ptr.get(), nullptr);
-	if (!ptr) return;
-	SchemePtr copy(ptr->copy(), tll_scheme_unref);
-	auto m = copy->messages;
-	ASSERT_NE(m, nullptr);
-	ASSERT_STREQ(m->name, "sub");
-	/*
-	ASSERT_NE(m->fields, nullptr); ASSERT_NE(m->fields->next, nullptr); ASSERT_NE(m->fields->next->next, nullptr);
 
-	auto f = m->fields->next;
-	ASSERT_STREQ(f->name, "s1_count");
-	ASSERT_STREQ(f->next->name, "s1");
-	ASSERT_NE(f->next->count_ptr, nullptr);
-	ASSERT_STREQ(f->next->count_ptr->name, "s1_count");
-	ASSERT_EQ(f, f->next->count_ptr);
-	*/
+	SchemePtr copy(ptr->copy(), tll_scheme_unref);
+	verify_scheme(ptr.get());
 }
 
 TEST(Scheme, OptionGetT)

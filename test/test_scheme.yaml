@@ -48,3 +48,8 @@
     - {name: f0, type: license}
     - {name: f1, type: license_list}
     - {name: f2, type: '*license'}
+
+- name: bits
+  fields:
+    - {name: f0, type: int8, options.type: bits, bits: [a, b]}
+    - {name: f1, type: uint32, options.type: bits, bits: [c, d]}
