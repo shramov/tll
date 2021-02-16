@@ -261,6 +261,11 @@ struct Field
 			if (t == "string") sub_type = Field::ByteString;
 			break;
 		case Field::Int8:
+			if (t == "string") {
+				if (nested.size() == 0 || std::holds_alternative<array_t>(nested.back()))
+					return EINVAL;
+				sub_type = Field::ByteString;
+			}
 		case Field::Int16:
 		case Field::Int32:
 		case Field::Int64:
