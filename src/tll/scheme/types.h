@@ -30,6 +30,10 @@ typedef struct __attribute__((packed)) tll_scheme_offset_ptr_t
 
 #define tll_scheme_offset_ptr_data(ptr) (((char *) (ptr)) + (ptr)->offset)
 
+#define tll_scheme_bit_field_mask(width, value) ((0xffffffffu >> (32 - (width))) & (value))
+#define tll_scheme_bit_field_get(data, offset, width) tll_scheme_bit_field_mask(width, ((data) >> offset))
+#define tll_scheme_bit_field_set(data, offset, width, value) ((data) ^ ((tll_scheme_bit_field_get(data, offset, width) ^ tll_scheme_bit_field_mask(width, (value))) << (offset)))
+
 #ifdef __cplusplus
 #include <string_view>
 
@@ -57,6 +61,29 @@ struct ByteString : public std::array<char, Size>
 	static_assert(Size > 0, "Empty Chars are not allowed");
 	operator std::string_view () { return {this->data(), strnlen(this->data(), Size)}; }
 };
+
+template <typename T>
+struct __attribute__((packed)) Bits
+{
+	T _bits = 0;
+
+	operator T () const { return _bits; }
+	void clear() { _bits = T(); }
+
+	constexpr bool get(size_t offset) const { return get(offset, 1); }
+	constexpr void set(size_t offset, bool v) { set(offset, 1, v); }
+
+	constexpr unsigned get(size_t offset, size_t width) const
+	{
+		return tll_scheme_bit_field_get(_bits, offset, width);
+	}
+
+	constexpr void set(size_t offset, size_t width, unsigned v)
+	{
+		_bits = tll_scheme_bit_field_set(_bits, offset, width, v);
+	}
+};
+
 } // namespace tll::scheme
 #endif
 

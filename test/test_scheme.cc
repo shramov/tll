@@ -356,3 +356,44 @@ TEST(Scheme, Duplicates)
     - {name: a0, type: int32}
 )");
 }
+
+struct __attribute__((__packed__)) BitsABC : public tll::scheme::Bits<uint32_t>
+{
+	auto a() const { return get(0); }; void a(bool v) { return set(0, v); };
+	auto b() const { return get(1, 2); }; void b(unsigned v) { return set(1, 2, v); };
+	auto c() const { return get(3); }; void c(bool v) { return set(3, v); };
+};
+
+TEST(Scheme, BitsWrapper)
+{
+	BitsABC bits;
+
+	ASSERT_EQ((uint32_t) bits, 0u);
+	ASSERT_EQ(bits.a(), false);
+	ASSERT_EQ(bits.b(), 0u);
+	ASSERT_EQ(bits.c(), false);
+
+	bits.a(true);
+
+	ASSERT_EQ((uint32_t) bits, (1u << 0));
+	ASSERT_EQ(bits.a(), true);
+	ASSERT_EQ(bits.b(), 0u);
+	ASSERT_EQ(bits.c(), false);
+
+	bits.c(true);
+
+	ASSERT_EQ((uint32_t) bits, (1u << 0) | (1u << 3));
+	ASSERT_EQ(bits.a(), true);
+	ASSERT_EQ(bits.b(), 0u);
+	ASSERT_EQ(bits.c(), true);
+
+	bits.clear();
+	ASSERT_EQ((uint32_t) bits, 0u);
+
+	bits.b(0xf);
+
+	ASSERT_EQ((uint32_t) bits, (3u << 1));
+	ASSERT_EQ(bits.a(), false);
+	ASSERT_EQ(bits.b(), 3u);
+	ASSERT_EQ(bits.c(), false);
+}
