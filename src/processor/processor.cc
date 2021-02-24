@@ -14,7 +14,7 @@
 
 #include <set>
 
-#include "channel/timer-scheme.h"
+#include "tll/scheme/channel/timer.h"
 
 TLL_DECLARE_IMPL(tll::processor::_::Worker);
 

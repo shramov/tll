@@ -6,7 +6,7 @@
  */
 
 #include "channel/timer.h"
-#include "channel/timer-scheme.h"
+#include "tll/scheme/channel/timer.h"
 
 #ifdef __linux__
 #include <sys/timerfd.h>
