@@ -68,8 +68,15 @@ class Loop:
         self._timer.callback_add(self._timer_cb, mask=C.MsgMask.Data)
         self._timer.open("interval={}ms".format(int(1000 * tick_interval)))
         self._timer_queue = []
+        self._state = C.State.Closed
 
     def __del__(self):
+        self.destroy()
+
+    def destroy(self):
+        if self._state == C.State.Destroy:
+            return
+        self._state = C.State.Destroy
         self.log.debug("Destroy async helper")
         if self._timer:
             self._timer.callback_del(self._timer_cb, mask=C.MsgMask.Data)
