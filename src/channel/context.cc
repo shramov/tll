@@ -25,9 +25,6 @@
 
 #include "channel/channels.h"
 
-#ifdef WITH_CURL
-#include "channel/curl.h"
-#endif
 #include "channel/direct.h"
 #include "channel/ipc.h"
 #include "channel/loader.h"
@@ -51,10 +48,6 @@ TLL_DECLARE_IMPL(ChTcp);
 TLL_DECLARE_IMPL(ChTimer);
 TLL_DECLARE_IMPL(ChZero);
 
-#ifdef WITH_CURL
-TLL_DECLARE_IMPL(ChCURL);
-#endif
-
 struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t>
 {
 	Logger _log = {"tll.context"};
@@ -71,9 +64,6 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 
 	tll_channel_context_t(Config defaults) : config_defaults(defaults)
 	{
-#ifdef WITH_CURL
-		reg(&ChCURL::impl);
-#endif
 		reg(&ChDirect::impl);
 		reg(&ChIpc::impl);
 		reg(&ChMem::impl);

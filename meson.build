@@ -17,7 +17,6 @@ endif
 
 zlib = dependency('zlib')
 yaml = dependency('yaml-0.1')
-curl = dependency('libcurl', version: '>=7.63', required: false)
 fmt = dependency('fmt')
 spdlog = dependency('spdlog', version: '>=1.0', required: false)
 threads = dependency('threads')
