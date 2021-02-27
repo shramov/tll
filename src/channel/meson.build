@@ -3,6 +3,7 @@ channel_sources = files(
 	[ 'impl.c'
 	, 'context.cc'
 	, 'ipc.cc'
+	, 'file.cc'
 	, 'log.cc'
 	, 'lz4.cc'
 	, 'mem.cc'
