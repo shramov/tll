@@ -16,6 +16,7 @@ if not cxx.has_header('filesystem') or (cxx.get_id() == 'gcc' and cxx.version().
 endif
 
 zlib = dependency('zlib')
+lz4 = dependency('liblz4', version: '>=1.9')
 yaml = dependency('yaml-0.1')
 fmt = dependency('fmt')
 spdlog = dependency('spdlog', version: '>=1.0', required: false)

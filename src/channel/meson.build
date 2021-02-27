@@ -1,9 +1,10 @@
-channel_deps = [meson.get_compiler('c').find_library('dl')]
+channel_deps = [meson.get_compiler('c').find_library('dl'), lz4]
 channel_sources = files(
 	[ 'impl.c'
 	, 'context.cc'
 	, 'ipc.cc'
 	, 'log.cc'
+	, 'lz4.cc'
 	, 'mem.cc'
 	, 'pub.cc'
 	, 'pub-client.cc'

@@ -8,6 +8,7 @@ from tll.stat import Method, Unit
 from tll.test_util import Accum, ports
 from tll.processor import Loop
 
+import lz4.block
 import os
 import pytest
 import select
@@ -642,3 +643,21 @@ class TestPub:
             loop.step(0)
 
         assert [m.seq for m in c.result] == list(range(0, 1000))
+
+def test_lz4():
+    s = Accum('lz4+direct://', name='server', context=ctx)
+    c = Accum('direct://', name='client', master=s, context=ctx)
+
+    s.open()
+    c.open()
+
+    s.post(b'xxx', seq=10)
+
+    assert [(m.data.tobytes(), m.seq) for m in c.result] == [(lz4.block.compress(b'xxx', store_size=False), 10)]
+    assert s.result == []
+
+    c.post(lz4.block.compress(b'yyy', store_size=False), seq=21)
+    assert [(m.data.tobytes(), m.seq) for m in s.result] == [(b'yyy', 21)]
+
+    c.post(b'xxx')
+    assert s.state == s.State.Error

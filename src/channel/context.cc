@@ -30,6 +30,7 @@
 #include "channel/direct.h"
 #include "channel/ipc.h"
 #include "channel/loader.h"
+#include "channel/lz4.h"
 #include "channel/mem.h"
 #include "channel/null.h"
 #include "channel/pub.h"
@@ -51,6 +52,7 @@ TLL_DEFINE_IMPL(tll::channel::SeqCheck);
 
 TLL_DECLARE_IMPL(ChIpc);
 TLL_DECLARE_IMPL(ChMem);
+TLL_DECLARE_IMPL(ChLZ4);
 TLL_DECLARE_IMPL(ChPubServer);
 TLL_DECLARE_IMPL(ChSerial);
 TLL_DECLARE_IMPL(ChTcp);
@@ -80,6 +82,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChDirect::impl);
 		reg(&ChIpc::impl);
 		reg(&ChMem::impl);
+		reg(&ChLZ4::impl);
 		reg(&ChLoader::impl);
 		reg(&ChNull::impl);
 		reg(&ChPubServer::impl);
