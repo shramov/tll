@@ -54,6 +54,7 @@ class MsgMask(enum.IntFlag):
 _MsgMask = MsgMask
 
 class Caps(enum.IntFlag):
+    Zero = 0
     Input = TLL_CAPS_INPUT
     Output = TLL_CAPS_OUTPUT
     InOut = TLL_CAPS_INOUT
@@ -66,6 +67,7 @@ class Caps(enum.IntFlag):
 _Caps = Caps
 
 class DCaps(enum.IntFlag):
+    Zero = 0
     PollIn = TLL_DCAPS_POLLIN
     PollOut = TLL_DCAPS_POLLOUT
     PollMask = TLL_DCAPS_POLLMASK
