@@ -150,9 +150,11 @@ class Base
 		_config.set("state", "Closed");
 		_config.set("url", url.copy());
 
-		auto replace = channelT()->_init_replace(url);
-		if (replace) {
-			self()->impl = replace;
+		auto replace = channelT()->_init_replace(url, master);
+		if (!replace)
+			return _log.fail(EINVAL, "Failed to find impl replacement");
+		if (*replace) {
+			self()->impl = *replace;
 			return EAGAIN;
 		}
 
@@ -204,7 +206,7 @@ class Base
 		return 0;
 	}
 
-	const tll_channel_impl_t * _init_replace(const Channel::Url &url) { return nullptr; }
+	std::optional<const tll_channel_impl_t *> _init_replace(const Channel::Url &url, tll::Channel *master) { return nullptr; }
 	int _init(const tll::Channel::Url &url, tll::Channel *master) { return 0; }
 
 	void free()

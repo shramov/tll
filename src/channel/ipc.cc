@@ -17,11 +17,11 @@ using namespace tll;
 TLL_DEFINE_IMPL(ChIpc);
 TLL_DEFINE_IMPL(ChIpcServer);
 
-tll_channel_impl_t * ChIpc::_init_replace(const Channel::Url &url)
+std::optional<const tll_channel_impl_t *> ChIpc::_init_replace(const Channel::Url &url, tll::Channel *master)
 {
 	auto client = url.getT("mode", true, {{"client", true}, {"server", false}});
 	if (!client)
-		return _log.fail(nullptr, "Invalid mode field: {}", client.error());
+		return _log.fail(std::nullopt, "Invalid mode field: {}", client.error());
 	if (!*client)
 		return &ChIpcServer::impl;
 	return nullptr;

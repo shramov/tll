@@ -33,7 +33,7 @@ class Echo : public tll::channel::Base<Echo>
 	static constexpr auto open_policy() { return OpenPolicy::Manual; }
 	static constexpr auto close_policy() { return ClosePolicy::Long; }
 
-	const tll_channel_impl_t * _init_replace(const tll::Channel::Url &url)
+	std::optional<const tll_channel_impl_t *> _init_replace(const tll::Channel::Url &url, tll::Channel *master)
 	{
 		auto null = url.getT("null", false);
 		if (null && *null)

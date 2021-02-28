@@ -74,13 +74,13 @@ TLL_DEFINE_IMPL(ChTcpServer<tll_frame_short_t>);
 TLL_DEFINE_IMPL(ChFramedSocket<tll_frame_short_t>);
 TLL_DEFINE_IMPL(tll::channel::TcpServerSocket<ChTcpServer<tll_frame_short_t>>);
 
-tll_channel_impl_t * ChTcp::_init_replace(const tll::Channel::Url &url)
+std::optional<const tll_channel_impl_t *> ChTcp::_init_replace(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = channel_props_reader(url);
 	auto client = reader.getT("mode", true, {{"client", true}, {"server", false}});
 	auto frame = reader.getT<std::string>("frame", "std");
 	if (!reader)
-		return _log.fail(nullptr, "Invalid url: {}", reader.error());
+		return _log.fail(std::nullopt, "Invalid url: {}", reader.error());
 
 	if (frame == "none") {
 		if (client)
@@ -104,7 +104,7 @@ tll_channel_impl_t * ChTcp::_init_replace(const tll::Channel::Url &url)
 				return &ChTcpServer<tll_frame_short_t>::impl;
 		}
 	}
-	return _log.fail(nullptr, "Unknown frame '{}", frame);
+	return _log.fail(std::nullopt, "Unknown frame '{}", frame);
 }
 
 template <typename T, typename Frame>
