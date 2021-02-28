@@ -38,7 +38,7 @@ spdlog::level::level_enum tll2spdlog(tll_logger_level_t l)
 struct sink_t
 {
 	std::string prefix;
-	tll_logger_level_t level = tll::Logger::Debug;
+	tll_logger_level_t level = tll::Logger::Trace;
 	std::unique_ptr<spdlog::sinks::sink> sink;
 
 	bool match(std::string_view name, tll_logger_level_t l)
