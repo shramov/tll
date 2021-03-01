@@ -10,6 +10,7 @@
 #include <set>
 #include <shared_mutex>
 #include <string>
+#include <variant>
 
 #include <dlfcn.h>
 
@@ -53,7 +54,8 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 	Logger _log = {"tll.context"};
 	stat::OwnedList stat_list;
 
-	std::map<std::string, const tll_channel_impl_t *, std::less<>> registry;
+	using impl_t = std::variant<const tll_channel_impl_t *, tll::Channel::Url>;
+	std::map<std::string, impl_t, std::less<>> registry;
 	std::map<std::string_view, tll_channel_t *> channels;
 	std::map<std::string, scheme::SchemePtr, std::less<>> scheme_cache;
 	std::map<void *, tll_channel_module_t *> modules;
@@ -120,8 +122,46 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		auto it = registry.find(name);
 		if (it == registry.end())
 			return _log.fail(ENOENT, "Failed to unregister '{}': not found", name);
-		if (it->second != impl)
+		if (!std::holds_alternative<const tll_channel_impl_t *>(it->second))
+			return _log.fail(EINVAL, "Failed to unregister '{}': not impl, but alias", name);
+		if (std::get<const tll_channel_impl_t *>(it->second) != impl)
 			return _log.fail(EINVAL, "Failed to unregister '{}': invalid impl pointer", name);
+		registry.erase(it);
+		return 0;
+	}
+
+	int alias_reg(std::string_view name, tll::Channel::Url cfg)
+	{
+		if (name.empty())
+			return _log.fail(EINVAL, "Failed to register: Empty alias name");
+		constexpr std::string_view keys[] = {"tll.host", "name"};
+
+		for (auto &k : keys) {
+			auto v = cfg.get(k);
+			if (!v || v->empty()) continue;
+			return _log.fail(EINVAL, "Aliases has non-empty field '{}'");
+		}
+		tll::Channel::Url url = cfg.copy();
+		auto r = lookup(cfg);
+		if (r == nullptr)
+			return _log.fail(ENOENT, "Failed to register '{}': can not resolve protocol '{}'", name, cfg.proto());
+		_log.debug("Register alias {} as {}", name, cfg.proto());
+		if (!registry.emplace(name, cfg).second)
+			return _log.fail(EEXIST, "Failed to register '{}': duplicate name", name);
+		return 0;
+	}
+
+	int alias_unreg(std::string_view name, tll::Channel::Url cfg)
+	{
+		if (name.empty())
+			return _log.fail(EINVAL, "Failed to unregister: Empty alias name");
+		auto it = registry.find(name);
+		if (it == registry.end())
+			return _log.fail(ENOENT, "Failed to unregister '{}': not found", name);
+		if (!std::holds_alternative<tll::Channel::Url>(it->second))
+			return _log.fail(EINVAL, "Failed to unregister '{}': not alias, but impl", name);
+		if (std::get<tll::Channel::Url>(it->second).proto() != cfg.proto())
+			return _log.fail(EINVAL, "Failed to unregister '{}': invalid alias protocol", name, cfg.proto());
 		registry.erase(it);
 		return 0;
 	}
@@ -177,12 +217,12 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		return 0;
 	}
 
-	const tll_channel_impl_t * lookup(std::string_view proto) const
+	const impl_t * lookup(std::string_view proto) const
 	{
 		_log.debug("Lookup proto '{}'", proto);
 		auto i = registry.find(proto);
 		if (i != registry.end())
-			return i->second;
+			return &i->second;
 
 		auto sep = proto.find('+');
 		if (sep == proto.npos)
@@ -194,8 +234,36 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		i = registry.find(prefix);
 		if (i == registry.end())
 			return nullptr;
-		return i->second;
 
+		return &i->second;
+	}
+
+	const tll_channel_impl_t * lookup(tll::Channel::Url &url) const
+	{
+		auto proto = url.proto();
+		do {
+			auto impl = lookup(proto);
+			if (!impl)
+				return _log.fail(nullptr, "Channel impl '{}' not found", proto);
+			if (std::holds_alternative<const tll_channel_impl_t *>(*impl))
+				return std::get<const tll_channel_impl_t *>(*impl);
+			auto alias = std::get<tll::Channel::Url>(*impl);
+			_log.debug("Found alias '{}' for '{}'", alias.proto(), proto);
+			auto aproto = alias.proto();
+			auto sep = proto.find('+');
+			if (sep != proto.npos && aproto.back() == '+') {
+				proto = aproto + proto.substr(sep + 1);
+			} else
+				proto = aproto;
+			for (auto &[k, v]: alias.browse("**")) {
+				if (k == "tll.proto" || k == "tll.host") continue;
+				if (url.has(k))
+					return _log.fail(nullptr, "Duplicate field '{}': both in alias '{}' and in url", k, alias.proto());
+				url.set(k, *v.get());
+			}
+			url.proto(proto);
+		} while (true);
+		return nullptr;
 	}
 
 	const tll_scheme_t * scheme_load(std::string_view url, bool cache)
@@ -320,7 +388,41 @@ int tll_channel_impl_unregister(tll_channel_context_t *ctx, const tll_channel_im
 const tll_channel_impl_t * tll_channel_impl_get(const tll_channel_context_t *ctx, const char *name)
 {
 	if (!name) return nullptr;
-	return context(ctx)->lookup(name);
+	auto r = context(ctx)->lookup(name);
+	if (r == nullptr)
+		return nullptr;
+	if (!std::holds_alternative<const tll_channel_impl_t *>(*r))
+		return nullptr;
+	return std::get<const tll_channel_impl_t *>(*r);
+}
+
+int tll_channel_alias_register(tll_channel_context_t *ctx, const char *name, const char *url, int len)
+{
+	if (!name || !url) return EINVAL;
+	auto cfg = tll::Channel::Url::parse(string_view_from_c(url, len));
+	if (!cfg) return EINVAL;
+	return context(ctx)->alias_reg(name, std::move(*cfg));
+}
+
+int tll_channel_alias_register_url(tll_channel_context_t *ctx, const char *name, const tll_config_t *cfg)
+{
+	if (!name || !cfg) return EINVAL;
+	return context(ctx)->alias_reg(name, tll::ConstConfig(cfg).copy());
+}
+
+int tll_channel_alias_unregister(tll_channel_context_t *ctx, const char *name, const char *url, int len)
+{
+	if (!name || !url) return EINVAL;
+	auto cfg = tll::Channel::Url::parse(string_view_from_c(url, len));
+	if (!cfg) return EINVAL;
+	return context(ctx)->alias_unreg(name, std::move(*cfg));
+}
+
+
+int tll_channel_alias_unregister_url(tll_channel_context_t *ctx, const char *name, const tll_config_t *cfg)
+{
+	if (!name || !cfg) return EINVAL;
+	return context(ctx)->alias_unreg(name, tll::ConstConfig(cfg).copy());
 }
 
 int tll_channel_module_load(tll_channel_context_t *ctx, const char *module, const char * symbol)
@@ -340,10 +442,11 @@ tll_channel_t * tll_channel_new_url(tll_channel_context_t * ctx, const tll_confi
 	return context(ctx)->init(url, master, impl);
 }
 
-tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &url, tll_channel_t *master, const tll_channel_impl_t * impl)
+tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_channel_t *master, const tll_channel_impl_t * impl)
 {
+	tll::Channel::Url url = _url.copy();
 	if (!impl) {
-		impl = lookup(url.proto());
+		impl = lookup(url);
 		if (!impl)
 			return _log.fail(nullptr, "Channel '{}' not found", url.proto());
 	}

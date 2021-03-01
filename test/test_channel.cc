@@ -101,8 +101,11 @@ TEST(Channel, Register)
 	ASSERT_NE(ctx.unreg(&Echo::impl), 0);
 }
 
-void _test_channel(tll::channel::Context &ctx, std::string_view url, const tll_channel_impl_t * impl)
+void _test_channel(tll::channel::Context &ctx, std::string_view url, const tll_channel_impl_t * impl, std::string_view eurl = "")
 {
+	if (eurl.empty())
+		eurl = url;
+
 	auto process = [](tll::Channel *c) {
 		if (c->children()) { // Prefix test
 			return static_cast<tll::Channel *>(c->children()->channel)->process();
@@ -122,7 +125,7 @@ void _test_channel(tll::channel::Context &ctx, std::string_view url, const tll_c
 
 	auto cfg = c->config();
 	ASSERT_EQ(std::string(cfg.get("state").value_or("")), "Active");
-	ASSERT_EQ(tll::conv::to_string(tll::Channel::Url(*cfg.sub("url"))), url);
+	ASSERT_EQ(tll::conv::to_string(tll::Channel::Url(*cfg.sub("url"))), eurl);
 
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	msg.seq = 100;
@@ -159,6 +162,61 @@ TEST(Channel, PrefixEcho)
 	ASSERT_EQ(ctx.reg(&Prefix::impl), 0);
 
 	return _test_channel(ctx, "prefix+echo://;name=echo", &Prefix::impl);
+}
+
+TEST(Channel, AliasEcho)
+{
+	auto ctx = tll::channel::Context(tll::Config());
+
+	ASSERT_EQ(ctx.alias_reg("null", "zero://"), EEXIST);
+	ASSERT_EQ(ctx.alias_reg("alias", "echo://"), ENOENT);
+	ASSERT_EQ(ctx.alias_reg("alias", "echo://host"), EINVAL);
+	ASSERT_EQ(ctx.alias_reg("alias", "echo://;name=name"), EINVAL);
+
+	ASSERT_EQ(ctx.reg(&Echo::impl), 0);
+	ASSERT_EQ(ctx.alias_reg("alias", "echo://"), 0);
+	ASSERT_EQ(ctx.alias_reg("alias", "echo://"), EEXIST);
+
+	return _test_channel(ctx, "alias://;name=echo", &Echo::impl, "echo://;name=echo");
+}
+
+TEST(Channel, AliasPrefix)
+{
+	auto ctx = tll::channel::Context(tll::Config());
+
+	ASSERT_EQ(ctx.reg(&Echo::impl), 0);
+	ASSERT_EQ(ctx.reg(&Prefix::impl), 0);
+
+	ASSERT_EQ(ctx.alias_reg("alias+", "prefix+://"), 0);
+	ASSERT_EQ(ctx.alias_reg("other", "echo://"), 0);
+
+	return _test_channel(ctx, "alias+other://;name=echo", &Prefix::impl, "prefix+other://;name=echo");
+}
+
+TEST(Channel, AliasIndirect)
+{
+	auto ctx = tll::channel::Context(tll::Config());
+
+	ASSERT_EQ(ctx.reg(&Echo::impl), 0);
+	ASSERT_EQ(ctx.reg(&Prefix::impl), 0);
+
+	ASSERT_EQ(ctx.alias_reg("other+", "prefix+://"), 0);
+	ASSERT_EQ(ctx.alias_reg("alias", "other+echo://"), 0);
+
+	return _test_channel(ctx, "alias://;name=echo", &Prefix::impl, "prefix+echo://;name=echo");
+}
+
+TEST(Channel, AliasNull)
+{
+	auto ctx = tll::channel::Context(tll::Config());
+
+	ASSERT_EQ(ctx.reg(&Echo::impl), 0);
+	ASSERT_EQ(ctx.alias_reg("alias", "echo://;null=yes"), 0);
+
+	auto c = ctx.channel("alias://;name=alias");
+	ASSERT_NE(c.get(), nullptr);
+	ASSERT_EQ(c->impl, &Null::impl);
+	ASSERT_EQ(tll::conv::to_string(tll::Channel::Url(*c->config().sub("url"))), "echo://;name=alias;null=yes");
 }
 
 TEST(Channel, InitReplace)

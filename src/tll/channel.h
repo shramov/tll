@@ -353,6 +353,12 @@ int tll_channel_impl_register(tll_channel_context_t *ctx, const tll_channel_impl
 int tll_channel_impl_unregister(tll_channel_context_t *ctx, const tll_channel_impl_t *impl, const char *name);
 const tll_channel_impl_t * tll_channel_impl_get(const tll_channel_context_t *ctx, const char *name);
 
+int tll_channel_alias_register_url(tll_channel_context_t *ctx, const char *name, const tll_config_t *cfg);
+int tll_channel_alias_unregister_url(tll_channel_context_t *ctx, const char *name, const tll_config_t *cfg);
+
+int tll_channel_alias_register(tll_channel_context_t *ctx, const char *name, const char *url, int len);
+int tll_channel_alias_unregister(tll_channel_context_t *ctx, const char *name, const char *url, int len);
+
 int tll_channel_module_load(tll_channel_context_t *ctx, const char *module, const char * symbol);
 int tll_channel_module_unload(tll_channel_context_t *ctx, const char *module);
 
@@ -542,6 +548,12 @@ class Context
 	int reg(const tll_channel_impl_t * impl, const std::string &name = "") { return tll_channel_impl_register(_ptr, impl,  name.c_str()); }
 	int unreg(const tll_channel_impl_t * impl, const std::string &name = "") { return tll_channel_impl_unregister(_ptr, impl, name.c_str()); }
 	const tll_channel_impl_t * impl_get(const std::string &name) const { return tll_channel_impl_get(_ptr, name.c_str()); }
+
+	int alias_reg(const std::string &name, tll::ConstConfig &cfg) { return tll_channel_alias_register_url(_ptr, name.c_str(), cfg); }
+	int alias_unreg(const std::string &name, tll::ConstConfig &cfg) { return tll_channel_alias_unregister_url(_ptr, name.c_str(), cfg); }
+
+	int alias_reg(const std::string &name, std::string_view url) { return tll_channel_alias_register(_ptr, name.c_str(), url.data(), url.size()); }
+	int alias_unreg(const std::string &name, std::string_view url) { return tll_channel_alias_unregister(_ptr, name.c_str(), url.data(), url.size()); }
 
 	int load(const std::string &path, const std::string &symbol = "module") { return tll_channel_module_load(_ptr, path.c_str(), symbol.c_str()); }
 

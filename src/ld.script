@@ -1,5 +1,9 @@
 TLL_0.0.0 {
 	global:
+		tll_channel_alias_register;
+		tll_channel_alias_register_url;
+		tll_channel_alias_unregister;
+		tll_channel_alias_unregister_url;
 		tll_channel_callback_add;
 		tll_channel_callback_del;
 		tll_channel_caps;
