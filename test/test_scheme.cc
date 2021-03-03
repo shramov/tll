@@ -138,23 +138,23 @@ void verify_scheme(tll::scheme::Scheme * s)
 
 TEST(Scheme, Size)
 {
-	SchemePtr s(Scheme::load(scheme), tll_scheme_unref);
+	SchemePtr s(Scheme::load(scheme));
 	verify_scheme(s.get());
 }
 
 TEST(Scheme, Copy)
 {
-	SchemePtr ptr(Scheme::load(scheme), tll_scheme_unref);
+	SchemePtr ptr(Scheme::load(scheme));
 	ASSERT_NE(ptr.get(), nullptr);
 
-	SchemePtr copy(ptr->copy(), tll_scheme_unref);
+	SchemePtr copy(ptr->copy());
 	verify_scheme(ptr.get());
 }
 
 TEST(Scheme, OptionGetT)
 {
 	static const char options_scheme[] = "yamls://[{name: '', options: {a: 2, b: yes}}]";
-	SchemePtr ptr(Scheme::load(options_scheme), tll_scheme_unref);
+	SchemePtr ptr(Scheme::load(options_scheme));
 	ASSERT_NE(ptr.get(), nullptr);
 
 	auto reader = tll::make_props_reader(ptr->options);
@@ -207,7 +207,7 @@ TEST(Scheme, Format)
     - {name: f5, type: '*int16'}
     - {name: f6, type: 'sub[4]', list-options.count-type: int16}
     - {name: f7, type: '*string'}
-)"), tll_scheme_unref);
+)"));
 	ASSERT_NE(s.get(), nullptr);
 
 	generated::sub sub = {};
@@ -310,7 +310,7 @@ f7: ["offset string"])");
 
 TEST(Scheme, Import)
 {
-	SchemePtr s(Scheme::load("yaml://import.yaml"), tll_scheme_unref);
+	SchemePtr s(Scheme::load("yaml://import.yaml"));
 
 	ASSERT_NE(s.get(), nullptr);
 
@@ -324,7 +324,7 @@ TEST(Scheme, Import)
 
 void check_load_fail(std::string_view scheme)
 {
-	SchemePtr s(Scheme::load(scheme), tll_scheme_unref);
+	SchemePtr s(Scheme::load(scheme));
 	ASSERT_EQ(s.get(), nullptr);
 }
 

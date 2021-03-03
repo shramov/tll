@@ -307,8 +307,8 @@ using Field = tll_scheme_field_t;
 using Message = tll_scheme_message_t;
 using Scheme = tll_scheme_t;
 
-using ConstSchemePtr = std::unique_ptr<const Scheme, decltype(&tll_scheme_unref)>;
-using SchemePtr = std::unique_ptr<Scheme, decltype(&tll_scheme_unref)>;
+using ConstSchemePtr = std::unique_ptr<const Scheme>;
+using SchemePtr = std::unique_ptr<Scheme>;
 
 using time_resolution_t = tll_scheme_time_resolution_t;
 
@@ -328,6 +328,16 @@ constexpr std::string_view time_resolution_str(time_resolution_t r)
 
 } // namespace scheme
 } // namespace tll
-#endif
+
+namespace std {
+template <> struct default_delete<tll::scheme::Scheme> { void operator ()(tll::scheme::Scheme *ptr) const { tll_scheme_unref(ptr); } };
+template <> struct default_delete<const tll::scheme::Scheme> { void operator ()(const tll::scheme::Scheme *ptr) const { tll_scheme_unref(ptr); } };
+
+template <> struct default_delete<tll::scheme::Message> { void operator ()(tll::scheme::Message *ptr) const { tll_scheme_message_free(ptr); } };
+template <> struct default_delete<tll::scheme::Field> { void operator ()(tll::scheme::Field *ptr) const { tll_scheme_field_free(ptr); } };
+template <> struct default_delete<tll::scheme::Enum> { void operator ()(tll::scheme::Enum *ptr) const { tll_scheme_enum_free(ptr); } };
+} // namespace std
+
+#endif //__cplusplus
 
 #endif//_TLL_SCHEME_H

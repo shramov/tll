@@ -95,8 +95,8 @@ class Base
 	stat::Block<typename StatType<T>::type> _stat_block = { "" };
 	bool _stat_enable = false;
 
-	scheme::ConstSchemePtr _scheme = {nullptr, &tll_scheme_unref};
-	scheme::ConstSchemePtr _scheme_control = {nullptr, &tll_scheme_unref};
+	scheme::ConstSchemePtr _scheme;
+	scheme::ConstSchemePtr _scheme_control;
 	std::string name;
 	tll::Config _config;
 	tll::Config _config_defaults;

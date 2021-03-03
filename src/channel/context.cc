@@ -222,7 +222,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		if (!s) return nullptr;
 
 		std::unique_lock<std::shared_mutex> lock(scheme_cache_lock);
-		if (!scheme_cache.insert({std::string(url), scheme::SchemePtr {s, &tll_scheme_unref}}).second)
+		if (!scheme_cache.insert({std::string(url), scheme::SchemePtr {s}}).second)
 			return s;
 		return tll_scheme_ref(s);
 	}
