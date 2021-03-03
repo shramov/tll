@@ -14,6 +14,9 @@
 
 namespace tll::zlib {
 
+struct inflate_delete { void operator () (z_stream *ptr) const { inflateEnd(ptr); } };
+struct deflate_delete { void operator () (z_stream *ptr) const { deflateEnd(ptr); } };
+
 template <typename T, typename Buf>
 inline result_t<bool> decompress(const T &data, Buf & buf)
 {
@@ -26,7 +29,7 @@ inline result_t<bool> decompress(const T &data, Buf & buf)
 
 	if (inflateInit(&stream))
 		return error("Failed to init inflate stream");
-	std::unique_ptr<z_stream, decltype(&inflateEnd)> _stream = { &stream, inflateEnd };
+	std::unique_ptr<z_stream, inflate_delete> _stream { &stream };
 
 	buf.resize(data.size() * 2);
 	stream.avail_in = data.size();
@@ -74,7 +77,7 @@ inline result_t<bool> compress(const T &data, Buf & buf, int level = Z_DEFAULT_C
 	if (deflateInit(&stream, level))
 		return error("Failed to init deflate stream");
 
-	std::unique_ptr<z_stream, decltype(&deflateEnd)> _stream = { &stream, deflateEnd };
+	std::unique_ptr<z_stream, deflate_delete> _stream { &stream };
 
 	buf.resize(deflateBound(&stream, data.size()));
 	stream.avail_in = data.size();
