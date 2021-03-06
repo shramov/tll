@@ -45,7 +45,7 @@ class Echo(Base):
 
 class TestPrefix(Prefix):
     __test__ = False
-    PROTO = "prefix"
+    PROTO = "prefix+"
 
     def _init(self, url, master=None):
         super()._init(url, master)

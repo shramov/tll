@@ -7,7 +7,6 @@ import sys
 import weakref
 
 class Prefix(Base):
-    PREFIX = True
     OPEN_POLICY = Base.OpenPolicy.Manual
     CLOSE_POLICY = Base.ClosePolicy.Long
     CHILD_POLICY = Base.ChildPolicy.Single

@@ -47,7 +47,6 @@ _ProcessPolicy = ProcessPolicy
 
 cdef class Base:
     PROTO = None
-    PREFIX = False
 
     OpenPolicy = _OpenPolicy
     ClosePolicy = _ClosePolicy

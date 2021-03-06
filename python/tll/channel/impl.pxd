@@ -18,8 +18,6 @@ cdef extern from "tll/channel/impl.h":
 
         const char * name
 
-        int prefix
-
         void * data
 
     ctypedef struct tll_channel_list_t

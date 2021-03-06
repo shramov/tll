@@ -26,8 +26,6 @@ cdef class Impl:
         self.impl.process = &_py_process
         self.impl.post = &_py_post
         self.impl.scheme = &_py_scheme
-        if getattr(ctype, 'PREFIX', 0):
-            self.impl.prefix = 1
         self.impl.data = <void *>ctype
         self.name_bytes = s2b(getattr(ctype, "PROTO") or ctype.__name__)
         self.impl.name = self.name_bytes
