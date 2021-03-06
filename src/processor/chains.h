@@ -17,7 +17,7 @@ namespace tll::processor::_ {
 class Chains : public tll::channel::Prefix<Chains>
 {
 public:
-	static constexpr std::string_view param_prefix() { return "ppp-chains"; }
+	static constexpr std::string_view channel_protocol() { return "ppp-chains+"; }
 
 	struct Object
 	{

@@ -38,7 +38,7 @@ class ChTcpClient : public tll::channel::TcpClient<ChTcpClient<Frame>, FramedSoc
 {
  public:
 	static constexpr std::string_view param_prefix() { return "tcp"; }
-	static constexpr std::string_view impl_protocol() { return "tcp-client"; } // Only visible in logs
+	static constexpr std::string_view channel_protocol() { return "tcp-client"; } // Only visible in logs
 };
 
 template <typename Frame>
@@ -46,7 +46,7 @@ class ChFramedSocket : public FramedSocket<ChFramedSocket<Frame>, Frame>
 {
  public:
 	static constexpr std::string_view param_prefix() { return "tcp"; }
-	static constexpr std::string_view impl_protocol() { return "tcp-socket"; } // Only visible in logs
+	static constexpr std::string_view channel_protocol() { return "tcp-socket"; } // Only visible in logs
 };
 
 template <typename Frame>
@@ -54,7 +54,7 @@ class ChTcpServer : public tll::channel::TcpServer<ChTcpServer<Frame>, ChFramedS
 {
  public:
 	static constexpr std::string_view param_prefix() { return "tcp"; }
-	static constexpr std::string_view impl_protocol() { return "tcp-server"; } // Only visible in logs
+	static constexpr std::string_view channel_protocol() { return "tcp-server"; } // Only visible in logs
 };
 
 TLL_DEFINE_IMPL(ChTcp);

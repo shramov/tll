@@ -71,12 +71,28 @@ class Base
 	static tll::channel_impl<ChannelT> impl;
 
 	// Static properties
-	/// Parameter prefix used for parsing init/open property strings
-	static constexpr std::string_view param_prefix() { return "base"; }
-	/// Protocol name
-	static constexpr std::string_view impl_protocol() { return T::param_prefix(); }
-	/// If channel is prefix or not
-	static constexpr bool impl_prefix_channel() { return false; }
+	/** Protocol name
+	 *
+	 * Define channel protocol name, for prefix channels add '+' in the end: "proto+".
+	 * This function is required since protocol name is used not only to instantiate channel but
+	 * also for debugging purposes.
+	 */
+	static constexpr std::string_view channel_protocol(); // { return "base"; }
+
+	/** Parameter prefix used for parsing init/open property strings, optional
+	 *
+	 * By default it's derived from channel_protocol() by removing trailing '+'
+	 */
+	static constexpr std::string_view param_prefix()
+	{
+		constexpr auto s = T::channel_protocol();
+		if constexpr (s.size() == 0) {
+			return s;
+		} else if constexpr (s[s.size() - 1] == '+') {
+			return std::string_view(s.data(), s.size() - 1);
+		} else
+			return s;
+	}
 
 	enum class ProcessPolicy { Normal, Never, Always, Custom };
 	static constexpr auto process_policy() { return ProcessPolicy::Normal; }

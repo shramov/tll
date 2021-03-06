@@ -19,7 +19,6 @@ protected:
 	std::unique_ptr<Channel> _child;
 public:
 
-	static constexpr bool impl_prefix_channel() { return true; }
 	static constexpr auto open_policy() { return Base<T>::OpenPolicy::Manual; }
 	static constexpr auto child_policy() { return Base<T>::ChildPolicy::Single; }
 	static constexpr auto close_policy() { return Base<T>::ClosePolicy::Long; }

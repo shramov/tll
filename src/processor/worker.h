@@ -23,7 +23,7 @@ struct Worker : public tll::channel::Base<Worker>
 	static constexpr auto open_policy() { return OpenPolicy::Manual; }
 	static constexpr auto process_policy() { return ProcessPolicy::Never; }
 	static constexpr auto child_policy() { return ChildPolicy::Many; }
-	static constexpr std::string_view param_prefix() { return "tll.worker"; }
+	static constexpr std::string_view channel_protocol() { return "tll.worker"; }
 
 	tll::processor::Loop loop;
 

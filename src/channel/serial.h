@@ -25,7 +25,7 @@ class ChSerial : public tll::channel::Base<ChSerial>
 	std::vector<unsigned char> _buf;
 
  public:
-	static constexpr std::string_view param_prefix() { return "serial"; }
+	static constexpr std::string_view channel_protocol() { return "serial"; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::PropsView &);

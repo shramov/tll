@@ -107,7 +107,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 	{
 		if (name.empty())
 			name = impl->name;
-		_log.debug("Register {}channel {} as {}", impl->prefix?"prefix ":"", impl->name, name);
+		_log.debug("Register channel {} as {}", impl->name, name);
 		if (!registry.emplace(name, impl).second)
 			return _log.fail(EEXIST, "Failed to register '{}': duplicate name", name);
 		return 0;
@@ -188,12 +188,12 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		if (sep == proto.npos)
 			return nullptr;
 
-		_log.debug("Lookup prefix '{}'", proto.substr(0, sep));
-		i = registry.find(proto.substr(0, sep));
+		auto prefix = proto.substr(0, sep + 1);
+
+		_log.debug("Lookup prefix '{}'", prefix);
+		i = registry.find(prefix);
 		if (i == registry.end())
 			return nullptr;
-		if (!i->second->prefix)
-			return _log.fail(nullptr, "Channel impl '{}' is not prefix impl", proto.substr(0, sep));
 		return i->second;
 
 	}

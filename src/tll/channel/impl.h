@@ -201,11 +201,10 @@ public:
 		process = _process;
 		post = _post;
 		scheme = _scheme;
-		prefix = T::impl_prefix_channel();
 		if (name.size())
 			_name = name;
 		else
-			_name = T::impl_protocol();
+			_name = T::channel_protocol();
 		this->name = _name.c_str();
 	}
 

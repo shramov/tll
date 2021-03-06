@@ -55,7 +55,7 @@ class ChIpc : public tll::channel::Event<ChIpc>
 	ChIpcServer * master = nullptr;
 
  public:
-	static constexpr std::string_view param_prefix() { return "ipc"; }
+	static constexpr std::string_view channel_protocol() { return "ipc"; }
 
 	std::optional<const tll_channel_impl_t *> _init_replace(const tll::Channel::Url &url, tll::Channel *master);
 	int _init(const tll::Channel::Url &, tll::Channel *master);
@@ -77,7 +77,7 @@ class ChIpcServer : public tll::channel::Event<ChIpcServer>
 	std::mutex _lock;
 	std::map<long long, refptr_t<ChIpc::cqueue_t>> _clients;
  public:
-	static constexpr std::string_view param_prefix() { return "ipc"; }
+	static constexpr std::string_view channel_protocol() { return "ipc"; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 

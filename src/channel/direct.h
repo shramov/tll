@@ -16,7 +16,7 @@ class ChDirect : public tll::channel::Base<ChDirect>
 	bool _sub = false;
 
  public:
-	static constexpr std::string_view param_prefix() { return "direct"; }
+	static constexpr std::string_view channel_protocol() { return "direct"; }
 	static constexpr auto process_policy() { return ProcessPolicy::Never; }
 
 	int _init(const tll::Channel::Url &url, tll::Channel * master)

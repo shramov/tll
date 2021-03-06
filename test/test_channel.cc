@@ -10,13 +10,14 @@
 #include "tll/compat/filesystem.h"
 
 #include "tll/channel/base.h"
+#include "tll/channel/prefix.h"
 #include "tll/processor/loop.h"
 #include "tll/util/ownedmsg.h"
 
 class Null : public tll::channel::Base<Null>
 {
  public:
-	static constexpr std::string_view param_prefix() { return "null"; }
+	static constexpr std::string_view channel_protocol() { return "null"; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master) { return 0; }
 
@@ -29,7 +30,7 @@ TLL_DEFINE_IMPL(Null);
 class Echo : public tll::channel::Base<Echo>
 {
  public:
-	static constexpr std::string_view param_prefix() { return "echo"; }
+	static constexpr std::string_view channel_protocol() { return "echo"; }
 	static constexpr auto open_policy() { return OpenPolicy::Manual; }
 	static constexpr auto close_policy() { return ClosePolicy::Long; }
 
@@ -60,6 +61,14 @@ class Echo : public tll::channel::Base<Echo>
 
 TLL_DEFINE_IMPL(Echo);
 
+class Prefix : public tll::channel::Prefix<Prefix>
+{
+ public:
+	static constexpr std::string_view channel_protocol() { return "prefix+"; }
+};
+
+TLL_DEFINE_IMPL(Prefix);
+
 TEST(Channel, Register)
 {
 	auto cfg = tll::Config();
@@ -81,29 +90,39 @@ TEST(Channel, Register)
 	ASSERT_NE(c.get(), nullptr);
 	c.reset();
 
+	ASSERT_EQ(ctx.channel("prefix+echo://;name=echo"), nullptr);
+	ASSERT_EQ(ctx.reg(&Prefix::impl), 0);
+
+	c = ctx.channel("prefix+echo://;name=echo");
+	ASSERT_NE(c.get(), nullptr);
+	c.reset();
+
 	ASSERT_EQ(ctx.unreg(&Echo::impl), 0);
 	ASSERT_NE(ctx.unreg(&Echo::impl), 0);
 }
 
-TEST(Channel, New)
+void _test_channel(tll::channel::Context &ctx, std::string_view url, const tll_channel_impl_t * impl)
 {
-	auto ctx = tll::channel::Context(tll::Config());
+	auto process = [](tll::Channel *c) {
+		if (c->children()) { // Prefix test
+			return static_cast<tll::Channel *>(c->children()->channel)->process();
+		} else
+			return c->process();
+	};
 
-	ASSERT_EQ(ctx.reg(&Echo::impl), 0);
-
-	auto c = ctx.channel("echo://;name=echo");
+	auto c = ctx.channel(url);
 	ASSERT_NE(c.get(), nullptr);
-	ASSERT_EQ(c->impl, &Echo::impl);
+	ASSERT_EQ(c->impl, impl);
 	ASSERT_EQ(c->state(), tll::state::Closed);
 	ASSERT_EQ(c->open(), 0);
 	ASSERT_EQ(c->state(), tll::state::Opening);
-	ASSERT_EQ(c->process(), 0);
+	ASSERT_EQ(process(c.get()), 0);
 	ASSERT_EQ(c->state(), tll::state::Active);
-	ASSERT_EQ(c->process(), EAGAIN);
+	ASSERT_EQ(process(c.get()), EAGAIN);
 
 	auto cfg = c->config();
 	ASSERT_EQ(std::string(cfg.get("state").value_or("")), "Active");
-	ASSERT_EQ(tll::conv::to_string(tll::Channel::Url(*cfg.sub("url"))), "echo://;name=echo");
+	ASSERT_EQ(tll::conv::to_string(tll::Channel::Url(*cfg.sub("url"))), url);
 
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	msg.seq = 100;
@@ -119,10 +138,36 @@ TEST(Channel, New)
 
 	c->close();
 	ASSERT_EQ(c->state(), tll::state::Closing);
-	c->process();
+	process(c.get());
 	ASSERT_EQ(c->state(), tll::state::Closed);
+}
 
-	c = ctx.channel("echo://;name=echo-null;null=yes");
+TEST(Channel, Echo)
+{
+	auto ctx = tll::channel::Context(tll::Config());
+
+	ASSERT_EQ(ctx.reg(&Echo::impl), 0);
+
+	_test_channel(ctx, "echo://;name=echo", &Echo::impl);
+}
+
+TEST(Channel, PrefixEcho)
+{
+	auto ctx = tll::channel::Context(tll::Config());
+
+	ASSERT_EQ(ctx.reg(&Echo::impl), 0);
+	ASSERT_EQ(ctx.reg(&Prefix::impl), 0);
+
+	return _test_channel(ctx, "prefix+echo://;name=echo", &Prefix::impl);
+}
+
+TEST(Channel, InitReplace)
+{
+	auto ctx = tll::channel::Context(tll::Config());
+
+	ASSERT_EQ(ctx.reg(&Echo::impl), 0);
+
+	auto c = ctx.channel("echo://;name=echo-null;null=yes");
 	ASSERT_NE(c.get(), nullptr);
 	ASSERT_EQ(c->impl, &Null::impl);
 

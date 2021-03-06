@@ -16,7 +16,7 @@ class ChLoader : public tll::channel::Base<ChLoader>
 {
 public:
 	static constexpr auto process_policy() { return ProcessPolicy::Never; }
-	static constexpr std::string_view param_prefix() { return "loader"; }
+	static constexpr std::string_view channel_protocol() { return "loader"; }
 
 	int _init(const tll::Channel::Url &url, tll::Channel *)
 	{

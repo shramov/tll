@@ -54,7 +54,7 @@ class TcpSocket : public Base<T>
 	using tcp_socket_t = TcpSocket<T>;
  public:
 	using iov_t = std::pair<const void *, size_t>;
-	static constexpr std::string_view param_prefix() { return "tcp"; }
+	static constexpr std::string_view channel_protocol() { return "tcp"; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::PropsView &);
@@ -145,7 +145,7 @@ class TcpServerSocket : public tll::channel::Base<TcpServerSocket<T>>
 	using tcp_server_socket_t = TcpServerSocket<T>;
 
  public:
-	static constexpr std::string_view param_prefix() { return "tcp"; }
+	static constexpr std::string_view channel_protocol() { return "tcp"; }
 
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
 
@@ -174,7 +174,7 @@ class TcpServer : public Base<T>
 	bool _cleanup_flag = false;
 
  public:
-	static constexpr std::string_view param_prefix() { return "tcp"; }
+	static constexpr std::string_view channel_protocol() { return "tcp"; }
 	static constexpr auto child_policy() { return Base<T>::ChildPolicy::Many; }
 	static constexpr auto open_policy() { return Base<T>::OpenPolicy::Manual; }
 

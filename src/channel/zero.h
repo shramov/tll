@@ -18,7 +18,7 @@ class ChZero : public tll::channel::Event<ChZero>
 	tll_msg_t _msg = { TLL_MESSAGE_DATA };
 
  public:
-	static constexpr std::string_view param_prefix() { return "zero"; }
+	static constexpr std::string_view channel_protocol() { return "zero"; }
 
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
 	int _open(const tll::PropsView &url);

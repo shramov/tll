@@ -20,8 +20,6 @@ class LogicBase : public channel::Base<T>
 	std::map<std::string, std::vector<tll::Channel *>> _channels;
 
  public:
-	static constexpr std::string_view param_prefix() { return "logic"; }
-
 	int init(const tll::Channel::Url &url, tll::Channel *master, tll_channel_context_t *ctx)
 	{
 		for (auto & p : url.browse("tll.channel.**")) {
@@ -64,4 +62,3 @@ class LogicBase : public channel::Base<T>
 } // namespace tll
 
 #endif//_TLL_CHANNEL_LOGIC_H
-

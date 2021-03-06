@@ -26,7 +26,7 @@ class Stat : public tll::LogicBase<Stat>
 	std::list<page_rule_t> _rules;
 
  public:
-	static constexpr std::string_view param_prefix() { return "stat"; }
+	static constexpr std::string_view channel_protocol() { return "stat"; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 

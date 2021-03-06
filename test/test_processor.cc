@@ -130,7 +130,7 @@ TEST_F(Processor, Reopen)
 class Long : public tll::channel::Base<Long>
 {
  public:
-	static constexpr std::string_view param_prefix() { return "long"; }
+	static constexpr std::string_view channel_protocol() { return "long"; }
 	static constexpr auto open_policy() { return OpenPolicy::Manual; }
 	static constexpr auto close_policy() { return ClosePolicy::Long; }
 

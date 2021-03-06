@@ -13,7 +13,7 @@
 class ChTcp : public tll::channel::Base<ChTcp>
 {
  public:
-	static constexpr std::string_view param_prefix() { return "tcp"; }
+	static constexpr std::string_view channel_protocol() { return "tcp"; }
 
 	std::optional<const tll_channel_impl_t *> _init_replace(const tll::Channel::Url &url, tll::Channel *master);
 

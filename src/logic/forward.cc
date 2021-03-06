@@ -12,7 +12,7 @@ class Forward : public tll::LogicBase<Forward>
 	tll::Channel * _input = nullptr;
 	tll::Channel * _output = nullptr;
  public:
-	static constexpr std::string_view param_prefix() { return "forward"; }
+	static constexpr std::string_view channel_protocol() { return "forward"; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 
