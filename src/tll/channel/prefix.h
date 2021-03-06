@@ -20,6 +20,7 @@ protected:
 public:
 
 	static constexpr bool impl_prefix_channel() { return true; }
+	static constexpr auto open_policy() { return Base<T>::OpenPolicy::Manual; }
 	static constexpr auto child_policy() { return Base<T>::ChildPolicy::Single; }
 	static constexpr auto close_policy() { return Base<T>::ClosePolicy::Long; }
 	static constexpr auto process_policy() { return Base<T>::ProcessPolicy::Never; }
@@ -76,6 +77,11 @@ public:
 	int _close(bool force)
 	{
 		return _child->close(force);
+	}
+
+	int _post(const tll_msg_t *msg, int flags)
+	{
+		return _child->post(msg, flags);
 	}
 
 	int callback(const Channel * c, const tll_msg_t *msg)
