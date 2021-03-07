@@ -53,12 +53,15 @@ int main(int argc, char *argv[])
 	tll::channel::Context context(cfg->sub("processor.defaults").value_or(tll::Config()));
 
 	std::unique_ptr<tll::Channel> loader;
-	if (auto mcfg = cfg->sub("processor.module")) {
+	{
 		tll::Channel::Url lurl;
 		lurl.set("tll.proto", "loader");
 		lurl.set("tll.internal", "yes");
 		lurl.set("name", fmt::format("{}/loader", "processor"));
-		lurl.set("module", mcfg->copy());
+		if (auto mcfg = cfg->sub("processor.module"))
+			lurl.set("module", mcfg->copy());
+		if (auto acfg = cfg->sub("processor.alias"))
+			lurl.set("alias", acfg->copy());
 		loader = context.channel(lurl);
 		if (!loader) {
 			printf("Failed to load channel modules");

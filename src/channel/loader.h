@@ -26,6 +26,16 @@ public:
 			if (context().load(std::string(*m), "channel_module"))
 				return _log.fail(EINVAL, "Failed to load module {}", *m);
 		}
+		auto aliases = url.sub("alias");
+		if (!aliases) return 0;
+		for (auto & [k, c] : aliases->browse("*", true)) {
+			auto v = c.get();
+			if (v) {
+				if (context().alias_reg(k, *v))
+					return _log.fail(EINVAL, "Failed to register alias {} -> {}", k, v);
+			} else if (context().alias_reg(k, c))
+				return _log.fail(EINVAL, "Failed to register alias {}", k);
+		}
 		return 0;
 	}
 };
