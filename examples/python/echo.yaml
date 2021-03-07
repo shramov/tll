@@ -6,12 +6,15 @@ logger:
 processor.include:
   - yaml://colorlog.yaml
 
+processor.alias:
+  echo: python://;python=./echo:Echo
+
 processor.objects:
   tcp:
     url: tcp://*:8080;mode=server;dump=text;frame=none
     depends: echo
   echo:
-    url: python://;python=./echo:Echo
+    url: echo://
     channels.input: tcp
 
 # vim: sts=2 sw=2 et
