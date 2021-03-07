@@ -125,6 +125,26 @@ cdef class Context:
             raise TLLError("Failed to load scheme from '{}'".format(url))
         return Scheme.wrap(s)
 
+    def alias(self, name, alias):
+        bname = s2b(name)
+        if isinstance(alias, Config):
+            r = tll_channel_alias_register_url(self._ptr, bname, (<Config>alias)._ptr)
+        else:
+            balias = s2b(alias)
+            r = tll_channel_alias_register(self._ptr, bname, balias, len(balias))
+        if r:
+            raise TLLError(f"Failed to register alias {name}")
+
+    def alias_unregister(self, name, alias):
+        bname = s2b(name)
+        if isinstance(alias, Config):
+            r = tll_channel_alias_unregister_url(self._ptr, bname, (<Config>alias)._ptr)
+        else:
+            balias = s2b(alias)
+            r = tll_channel_alias_unregister(self._ptr, bname, balias, len(balias))
+        if r:
+            raise TLLError(f"Failed to unregister alias {name}")
+
     def register(self, obj, proto=None):
         if proto is None:
             proto = obj.PROTO

@@ -6,6 +6,7 @@ import tll.channel as C
 from tll.channel.base import Base
 from tll.channel.prefix import Prefix
 from tll.channel.logic import Logic
+from tll.config import Url
 from tll.error import TLLError
 from tll.test_util import Accum
 
@@ -175,6 +176,25 @@ def test_prefix():
 
     ctx.unregister(TestPrefix)
     with pytest.raises(TLLError): ctx.Channel("prefix+null://;name=channel")
+
+def test_alias():
+    ctx = C.Context()
+
+    ctx.register(Echo)
+    ctx.register(TestPrefix)
+
+    ctx.alias('aecho', 'echo://')
+    ctx.alias('aprefix+', 'prefix+://')
+    ctx.alias('alias', 'aprefix+echo://')
+
+    c = ctx.Channel('aecho://;name=echo')
+    assert str(Url(c.config.sub('url'))) == 'echo://;name=echo'
+
+    c = ctx.Channel('aprefix+aecho://;name=prefix')
+    assert str(Url(c.config.sub('url'))) == 'prefix+aecho://;name=prefix'
+
+    c = ctx.Channel('alias://;name=alias')
+    assert str(Url(c.config.sub('url'))) == 'prefix+echo://;name=alias'
 
 def test_logic():
     ctx = C.Context()

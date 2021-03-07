@@ -115,6 +115,11 @@ cdef extern from "tll/channel.h" nogil:
     cdef tll_scheme_t * tll_channel_context_scheme_load(tll_channel_context_t *, const char *url, int len, int cache)
     cdef tll_stat_list_t * tll_channel_context_stat_list(tll_channel_context_t *)
 
+    cdef int tll_channel_alias_register(tll_channel_context_t *ctx, const char *name, const char *url, int len)
+    cdef int tll_channel_alias_unregister(tll_channel_context_t *ctx, const char *name, const char *url, int len)
+    cdef int tll_channel_alias_register_url(tll_channel_context_t *ctx, const char *name, const tll_config_t *cfg)
+    cdef int tll_channel_alias_unregister_url(tll_channel_context_t *ctx, const char *name, const tll_config_t *cfg)
+
     cdef int tll_channel_impl_register(tll_channel_context_t *ctx, tll_channel_impl_t *impl, const char *name)
     cdef int tll_channel_impl_unregister(tll_channel_context_t *ctx, tll_channel_impl_t *impl, const char *name)
     cdef const tll_channel_impl_t * tll_channel_impl_get(tll_channel_context_t *ctx, const char *name)
