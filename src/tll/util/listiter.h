@@ -15,6 +15,10 @@ struct list_iterator
 {
 	T * data;
 
+	using poiner = T *;
+	using value_type = T;
+	using reference = T &;
+
 	struct iterator
 	{
 		T * data;
