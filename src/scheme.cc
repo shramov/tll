@@ -39,6 +39,33 @@ struct tll_scheme_internal_t
 };
 
 namespace {
+template <typename T>
+typename T::pointer find_entry(std::string_view name, T &l)
+{
+	for (auto & i : l) {
+		if (i.name == name)
+			return &i;
+	}
+	return nullptr;
+}
+
+template <typename T>
+typename T::pointer find_entry(std::string_view name, T &l0, T &l1)
+{
+	if (auto r = find_entry(name, l0); r) return r;
+	return find_entry(name, l1);
+}
+
+template <typename T>
+T * find_entry(std::string_view name, T *l0, T *l1 = nullptr)
+{
+	auto w = list_wrap(l0);
+	if (auto r = find_entry(name, w); r)
+		return r;
+	if (l1 == nullptr) return nullptr;
+	return find_entry(name, l1);
+}
+
 bool starts_with(std::string_view l, std::string_view r)
 {
 	return l.size() >= r.size() && l.substr(0, r.size()) == r;
@@ -264,14 +291,23 @@ struct Field
 	int size = -1;
 	std::string type_msg;
 	std::string type_enum;
+	std::string type_union;
 	unsigned fixed_precision; // For fixed
 	time_resolution_t time_resolution = TLL_SCHEME_TIME_NS;
 	std::list<std::string> bitfields; // For bitfield
 
-	tll::scheme::Field * finalize(tll::scheme::Scheme *s, tll::scheme::Message *m);
+	void finalize(tll::scheme::Scheme *s, tll::scheme::Message *m, tll::scheme::Field *r);
+	tll::scheme::Field * finalize(tll::scheme::Scheme *s, tll::scheme::Message *m)
+	{
+		auto r = (tll::scheme::Field *) malloc(sizeof(tll::scheme::Field));
+		*r = {};
+		finalize(s, m, r);
+		return r;
+	}
 
 	int lookup(std::string_view type);
 	int parse_enum_inline(tll::Config &cfg);
+	int parse_union_inline(tll::Config &cfg);
 	int parse_type(tll::Config &cfg, std::string_view type);
 	int parse_sub_type(tll::Config &cfg, std::string_view t)
 	{
@@ -361,6 +397,74 @@ struct Field
 	static std::optional<Field> parse(Message & m, tll::Config &cfg, std::string_view name);
 };
 
+struct Union
+{
+	Scheme * parent = nullptr;
+	std::string name;
+	Options options;
+	tll_scheme_field_type_t type = TLL_SCHEME_FIELD_INT8;
+	std::list<Field> fields;
+
+	using unique_ptr = std::unique_ptr<tll::scheme::Enum, decltype(&tll_scheme_enum_free)>;
+
+	tll::scheme::Union * finalize(tll::scheme::Scheme * s, tll::scheme::Message * m)
+	{
+		auto r = (tll::scheme::Union *) malloc(sizeof(tll::scheme::Union));
+		*r = {};
+		r->name = strdup(name.c_str());
+		r->options = options.finalize();
+		Field f;
+		f.type = tll::scheme::Field::Int8;
+		f.name = "_type";
+		f.options["_auto"] = "union";
+		r->type_ptr = f.finalize(s, m);
+		r->size = fields.size();
+		r->fields = (tll_scheme_field_t *) malloc(sizeof(tll_scheme_field_t) * fields.size());
+		auto it = fields.begin();
+		for (auto uf = r->fields; uf != r->fields + r->size; uf++, it++) {
+			*uf = {};
+			it->finalize(s, m, uf);
+		}
+		return r;
+	}
+
+	static int parse_list(tll::Logger &_log, Message &m, tll::Config &cfg, std::list<Union> &r)
+	{
+		std::set<std::string_view> names;
+		for (auto & e : r) names.insert(e.name);
+		for (auto & [path, c] : cfg.browse("unions.*", true)) {
+			auto n = path.substr(7);
+			if (names.find(n) != names.end())
+				return _log.fail(EINVAL, "Duplicate union name {}", n);
+			auto u = Union::parse(m, c, n);
+			if (!u)
+				return _log.fail(EINVAL, "Failed to load union {}", n);
+			r.push_back(*u);
+			names.insert(r.back().name);
+		}
+		return 0;
+	}
+
+	static std::optional<Union> parse(Message &m, tll::Config &cfg, std::string_view name)
+	{
+		Union r;
+		r.name = name;
+		tll::Logger _log = {"tll.scheme.union." + r.name};
+
+		for (auto &[k, c]: cfg.browse("union.*", true)) {
+			auto n = c.get("name");
+			if (!n || !n->size())
+				return _log.fail(std::nullopt, "Union field without name");
+
+			auto f = Field::parse(m, c, *n);
+			if (!f)
+				return _log.fail(std::nullopt, "Failed to load union field {}", *n);
+			r.fields.push_back(*f);
+		}
+		return r;
+	}
+};
+
 struct Scheme;
 struct Message
 {
@@ -370,6 +474,7 @@ struct Message
 	Options options;
 	std::list<Field> fields;
 	std::list<Enum> enums;
+	std::list<Union> unions;
 
 	tll::scheme::Message * finalize(tll::scheme::Scheme * s)
 	{
@@ -382,6 +487,11 @@ struct Message
 		for (auto & e : enums) {
 			*elast = e.finalize();
 			elast = &(*elast)->next;
+		}
+		auto ulast = &r->unions;
+		for (auto & u : unions) {
+			*ulast = u.finalize(s, r);
+			ulast = &(*ulast)->next;
 		}
 		auto flast = &r->fields;
 		for (auto & f : fields) {
@@ -411,6 +521,9 @@ struct Message
 
 		if (Enum::parse_list(_log, cfg, m.enums))
 			return _log.fail(std::nullopt, "Failed to parse enums");
+
+		if (Union::parse_list(_log, m, cfg, m.unions))
+			return _log.fail(std::nullopt, "Failed to parse unions");
 
 		for (auto & [unused, fc] : cfg.browse("fields.*", true)) {
 			auto n = fc.get("name");
@@ -444,6 +557,7 @@ struct Scheme
 	Options options;
 	std::list<Message> messages;
 	std::list<Enum> enums;
+	std::list<Union> unions;
 	std::list<Field> aliases;
 
 	std::map<std::string, std::string> imports;
@@ -457,6 +571,13 @@ struct Scheme
 		for (auto & e : enums) {
 			*elast = e.finalize();
 			elast = &(*elast)->next;
+		}
+
+		auto ulast = &r->unions;
+		for (auto & u : unions) {
+			tll::scheme::Message m = {};
+			*ulast = u.finalize(r, &m);
+			ulast = &(*ulast)->next;
 		}
 
 		auto alast = &r->aliases;
@@ -526,8 +647,14 @@ struct Scheme
 		if (!o) return _log.fail(EINVAL, "Failed to parse options");
 		std::swap(options, *o);
 
+		Message message;
+		message.parent = this;
+
 		if (Enum::parse_list(_log, cfg, enums))
 			return _log.fail(EINVAL, "Failed to load enums");
+
+		if (Union::parse_list(_log, message, cfg, unions))
+			return _log.fail(EINVAL, "Failed to parse unions");
 
 		for (auto & [unused, fc] : cfg.browse("aliases.*", true)) {
 			auto n = fc.get("name");
@@ -540,13 +667,13 @@ struct Scheme
 			}
 
 			_log.trace("Loading alias {}", *n);
-			Message m;
-			m.parent = this;
-			auto f = Field::parse(m, fc, *n);
+			auto f = Field::parse(message, fc, *n);
 			if (!f)
 				return _log.fail(EINVAL, "Failed to load alias {}", *n);
-			if (m.enums.size())
+			if (message.enums.size())
 				return _log.fail(EINVAL, "Failed to load alias {}: inline enums not allowed", *n);
+			if (message.unions.size())
+				return _log.fail(EINVAL, "Failed to load alias {}: inline unions not allowed", *n);
 			aliases.push_back(*f);
 		}
 
@@ -630,10 +757,24 @@ int Field::lookup(std::string_view type)
 			return 0;
 		}
 	}
+	for (auto & i : parent->unions) {
+		if (i.name == type) {
+			type_union = type;
+			this->type = tll::scheme::Field::Union;
+			return 0;
+		}
+	}
 	for (auto & i : parent->parent->enums) {
 		if (i.name == type) {
 			type_enum = type;
 			this->sub_type = tll::scheme::Field::Enum;
+			return 0;
+		}
+	}
+	for (auto & i : parent->parent->unions) {
+		if (i.name == type) {
+			type_union = type;
+			this->type = tll::scheme::Field::Union;
 			return 0;
 		}
 	}
@@ -691,12 +832,10 @@ std::optional<Field> Field::parse(Message &m, tll::Config &cfg, std::string_view
 	return f;
 }
 
-tll::scheme::Field * Field::finalize(tll::scheme::Scheme *s, tll::scheme::Message *m)
+void Field::finalize(tll::scheme::Scheme *s, tll::scheme::Message *m, tll::scheme::Field *r)
 {
 	using tll::scheme::Field;
 
-	auto r = (tll::scheme::Field *) malloc(sizeof(tll::scheme::Field));
-	*r = {};
 	r->name = strdup(name.c_str());
 	r->options = options.finalize();
 	r->type = type;
@@ -705,22 +844,8 @@ tll::scheme::Field * Field::finalize(tll::scheme::Scheme *s, tll::scheme::Messag
 		r->size = size;
 
 	if (sub_type == Field::Enum) {
-		for (auto & i : list_wrap(m->enums)) {
-			if (i.name == type_enum) {
-				r->type = i.type;
-				r->type_enum = &i;
-				break;
-			}
-		}
-		if (!r->type_enum) {
-			for (auto & i : list_wrap(s->enums)) {
-				if (i.name == type_enum) {
-					r->type = i.type;
-					r->type_enum = &i;
-					break;
-				}
-			}
-		}
+		r->type_enum = find_entry(type_enum, m->enums, s->enums);
+		r->type = r->type_enum->type;
 	} else if (sub_type == Field::TimePoint || sub_type == Field::Duration) {
 		r->time_resolution = time_resolution;
 	} else if (sub_type == Field::Fixed) {
@@ -733,60 +858,53 @@ tll::scheme::Field * Field::finalize(tll::scheme::Scheme *s, tll::scheme::Messag
 			last = &(*last)->next;
 		}
 	} else if (type == Field::Message) {
-		for (auto & i : list_wrap(s->messages)) {
-			if (i.name == type_msg) {
-				r->type_msg = &i;
-				break;
-			}
-		}
+		r->type_msg = find_entry(type_msg, s->messages);
+	} else if (type == Field::Union) {
+		r->type_union = find_entry(type_union, m->unions, s->unions);
 	}
 
 	bool bytestring = type == Field::Int8 && sub_type == Field::ByteString;
 	for (auto n = nested.rbegin(); n != nested.rend(); n++) {
 		if (!std::holds_alternative<array_t>(*n)) { // Pointer
 			auto ptr = (Field *) malloc(sizeof(Field));
-			*ptr = {};
-			ptr->name = strdup(name.c_str());
-			ptr->type = Field::Pointer;
-			ptr->type_ptr = r;
-			ptr->offset_ptr_version = std::get<tll_scheme_offset_ptr_version_t>(*n);
-			ptr->options = list_options.finalize();
+			*ptr = *r;
+			*r = {};
+			r->name = strdup(name.c_str());
+			r->type = Field::Pointer;
+			r->type_ptr = ptr;
+			r->offset_ptr_version = std::get<tll_scheme_offset_ptr_version_t>(*n);
+			r->options = list_options.finalize();
 
 			if (bytestring) {
-				r->sub_type = Field::SubNone;
-				ptr->sub_type = Field::ByteString;
+				ptr->sub_type = Field::SubNone;
+				r->sub_type = Field::ByteString;
 			}
-			r = ptr;
 		} else {
 			auto ptr = (Field *) malloc(sizeof(Field));
-			*ptr = {};
-			ptr->name = strdup(name.c_str());
-			ptr->type = Field::Array;
+			*ptr = *r;
+			*r = {};
+			r->name = strdup(name.c_str());
+			r->type = Field::Array;
 			auto & a = std::get<array_t>(*n);
-			ptr->count = a.first;
-			ptr->type_array = r;
-			ptr->options = list_options.finalize();
+			r->count = a.first;
+			r->type_array = ptr;
+			r->options = list_options.finalize();
 
 			tll::scheme::internal::Field f;
 			f.type = a.second; //Field::Int16;
 			f.name = name + "_count";
 			f.options["_auto"] = "count";
-			ptr->count_ptr = f.finalize(s, m);
-			r = ptr;
+			r->count_ptr = f.finalize(s, m);
 		}
 		bytestring = false;
 	}
-
-	return r;
 }
 
 int Field::parse_enum_inline(tll::Config &cfg)
 {
 	tll::Logger _log = {"tll.scheme.field." + name};
-	for (auto & e : parent->enums) {
-		if (e.name == name)
-			return _log.fail(EINVAL, "Can not create auto-enum {}, duplicate name", name);
-	}
+	if (find_entry(name, parent->enums))
+		return _log.fail(EINVAL, "Can not create auto-enum {}, duplicate name", name);
 	auto e = Enum::parse(cfg, name);
 	if (!e)
 		return _log.fail(EINVAL, "Failed to parse inline enum {}", name);
@@ -796,6 +914,24 @@ int Field::parse_enum_inline(tll::Config &cfg)
 	parent->enums.push_back(std::move(*e));
 	type_enum = name;
 	sub_type = tll::scheme::Field::Enum;
+	return 0;
+}
+
+int Field::parse_union_inline(tll::Config &cfg)
+{
+	tll::Logger _log = {"tll.scheme.field." + name};
+
+	if (find_entry(name, parent->unions))
+		return _log.fail(EINVAL, "Can not create auto-union {}, duplicate name", name);
+	auto u = Union::parse(*parent, cfg, name);
+
+	if (!u)
+		return _log.fail(EINVAL, "Failed to parse inline union {}", name);
+
+	u->options.clear();
+	u->options["_auto"] = "inline";
+	parent->unions.push_back(std::move(*u));
+	type_union = name;
 	return 0;
 }
 
@@ -897,6 +1033,9 @@ int Field::parse_type(tll::Config &cfg, std::string_view type)
 	} else if (type == "enum1" || type == "enum2" || type == "enum4" || type == "enum8") {
 		_log.warning("Deprected notation: {}, use options.type: enum", type);
 		return parse_enum_inline(cfg);
+	} else if (type == "union") {
+		this->type = tll::scheme::Field::Union;
+		return parse_union_inline(cfg);
 	} else {
 		if (lookup(type))
 			return _log.fail(EINVAL, "Message or enum '{}' not found", type);
@@ -971,11 +1110,10 @@ Enum * copy_enums(const Enum *src)
 	return r;
 }
 
-Field * copy_fields(Scheme *ds, Message *dm, Field **result, const Field *src)
+Field * copy_fields(Scheme *ds, Message *dm, Field **result, const Field *src);
+
+void copy_field_body(Scheme *ds, Message *dm, Field *r, const Field *src)
 {
-	if (!src) return nullptr;
-	auto r = (Field *) malloc(sizeof(Field));
-	*result = r;
 	*r = *src;
 	r->name = strdup(src->name);
 	r->next = nullptr;
@@ -983,36 +1121,16 @@ Field * copy_fields(Scheme *ds, Message *dm, Field **result, const Field *src)
 	r->user_free = nullptr;
 	r->options = copy_options(src->options);
 	if (r->type == Field::Message) {
-		r->type_msg = nullptr;
-		std::string_view name(src->type_msg->name);
-		for (auto & m : list_wrap(ds->messages)) {
-			if (m.name == name) {
-				r->type_msg = &m;
-				break;
-			}
-		}
+		r->type_msg = find_entry(src->type_msg->name, ds->messages);
 	} else if (r->type == Field::Array) {
 		r->count_ptr = copy_fields(ds, dm, &r->count_ptr, src->count_ptr);
 		r->type_array = copy_fields(ds, dm, &r->type_array, src->type_array);
 	} else if (r->type == Field::Pointer) {
 		r->type_ptr = copy_fields(ds, dm, &r->type_ptr, src->type_ptr);
+	} else if (r->type == Field::Union) {
+		r->type_union = find_entry(src->type_union->name, dm->unions, ds->unions);
 	} else if (r->sub_type == Field::Enum) {
-		r->type_enum = nullptr;
-		std::string_view name(src->type_enum->name);
-		for (auto & e : list_wrap(dm->enums)) {
-			if (e.name == name) {
-				r->type_enum = &e;
-				break;
-			}
-		}
-		if (!r->type_enum) {
-			for (auto & e : list_wrap(ds->enums)) {
-				if (e.name == name) {
-					r->type_enum = &e;
-					break;
-				}
-			}
-		}
+		r->type_enum = find_entry(src->type_enum->name, dm->enums, ds->enums);
 	} else if (r->sub_type == Field::Bits) {
 		r->bitfields = nullptr;
 		auto last = &r->bitfields;
@@ -1021,7 +1139,30 @@ Field * copy_fields(Scheme *ds, Message *dm, Field **result, const Field *src)
 			last = &(*last)->next;
 		}
 	}
+}
+
+Field * copy_fields(Scheme *ds, Message *dm, Field **result, const Field *src)
+{
+	if (!src) return nullptr;
+	auto r = (Field *) malloc(sizeof(Field));
+	*result = r;
+	copy_field_body(ds, dm, r, src);
 	copy_fields(ds, dm, &r->next, src->next);
+	return r;
+}
+
+Union * copy_unions(Scheme *ds, Message *dm, const Union *src)
+{
+	if (!src) return nullptr;
+	auto r = (Union *) malloc(sizeof(Union));
+	*r = *src;
+	r->name = strdup(src->name);
+	r->options = copy_options(src->options);
+	r->fields = (tll_scheme_field_t *) malloc(sizeof(tll_scheme_field_t) * r->size);
+	r->type_ptr = copy_fields(ds, dm, &r->type_ptr, src->type_ptr);
+	for (auto i = 0u; i < r->size; i++)
+		copy_field_body(ds, dm, r->fields + i, src->fields + i);
+	r->next = copy_unions(ds, dm, src->next);
 	return r;
 }
 
@@ -1037,6 +1178,7 @@ Message * copy_messages(Scheme *ds, Message ** result, const Message *src)
 	r->user_free = nullptr;
 	r->options = copy_options(src->options);
 	r->enums = copy_enums(src->enums);
+	r->unions = copy_unions(ds, r, src->unions);
 	r->fields = nullptr;
 	copy_fields(ds, r, &r->fields, src->fields);
 	copy_messages(ds, &r->next, src->next);
@@ -1046,6 +1188,8 @@ Message * copy_messages(Scheme *ds, Message ** result, const Message *src)
 
 tll_scheme_t * tll_scheme_copy(const tll_scheme_t *src)
 {
+	tll_scheme_message_t m = {};
+
 	if (!src) return nullptr;
 	auto r = (tll::scheme::Scheme *) malloc(sizeof(tll::scheme::Scheme));
 	*r = *src;
@@ -1054,9 +1198,9 @@ tll_scheme_t * tll_scheme_copy(const tll_scheme_t *src)
 	r->user_free = nullptr;
 	r->options = copy_options(src->options);
 	r->enums = copy_enums(src->enums);
+	r->unions = copy_unions(r, &m, src->unions);
 	r->aliases = nullptr;
 
-	tll_scheme_message_t m = {};
 	copy_fields(r, &m, &r->aliases, src->aliases);
 
 	r->messages = nullptr;
@@ -1124,7 +1268,7 @@ void tll_scheme_bit_field_free(tll_scheme_bit_field_t *f)
 	free(f);
 }
 
-void tll_scheme_field_free(tll_scheme_field_t *f)
+static void tll_scheme_field_free_body(tll_scheme_field_t *f)
 {
 	if (!f) return;
 	if (f->user) {
@@ -1142,7 +1286,26 @@ void tll_scheme_field_free(tll_scheme_field_t *f)
 	} else if (f->sub_type == Field::Bits)
 		tll_scheme_bit_field_free(f->bitfields);
 	if (f->name) free((char *) f->name);
+}
+
+void tll_scheme_field_free(tll_scheme_field_t *f)
+{
+	if (!f) return;
+	tll_scheme_field_free_body(f);
 	free(f);
+}
+
+void tll_scheme_union_free(tll_scheme_union_t *u)
+{
+	if (!u) return;
+	tll_scheme_option_free(u->options);
+	if (u->name) free((char *) u->name);
+	tll_scheme_field_free(u->type_ptr);
+	for (auto f = u->fields; f != u->fields + u->size; f++)
+		tll_scheme_field_free_body(f);
+	free(u->fields);
+	tll_scheme_union_free(u->next);
+	free(u);
 }
 
 void tll_scheme_message_free(tll_scheme_message_t *m)
@@ -1156,6 +1319,7 @@ void tll_scheme_message_free(tll_scheme_message_t *m)
 	}
 	tll_scheme_option_free(m->options);
 	tll_scheme_enum_free(m->enums);
+	tll_scheme_union_free(m->unions);
 	if (m->name) free((char *) m->name);
 	for (auto f = m->fields; f;) {
 		auto tmp = f;
@@ -1176,6 +1340,7 @@ void tll_scheme_free(tll_scheme_t *s)
 	}
 	tll_scheme_option_free(s->options);
 	tll_scheme_enum_free(s->enums);
+	tll_scheme_union_free(s->unions);
 	for (auto f = s->aliases; f;) {
 		auto tmp = f;
 		f = f->next;
@@ -1192,6 +1357,8 @@ void tll_scheme_free(tll_scheme_t *s)
 }
 
 namespace {
+std::string dump(const tll::scheme::Field * f);
+
 std::string dump_type(tll_scheme_field_type_t t, const tll::scheme::Field * f)
 {
 	using tll::scheme::Field;
@@ -1217,6 +1384,7 @@ std::string dump_type(tll_scheme_field_type_t t, const tll::scheme::Field * f)
 		if (f->sub_type == Field::ByteString)
 			return "string";
 		return "*" + dump_type(f->type_ptr->type, f->type_ptr);
+	case Field::Union: return "union";
 	}
 	return "unknown";
 }
@@ -1249,6 +1417,20 @@ std::string dump_body(const tll::scheme::Enum * e)
 		r += fmt::format("'{}': {}", v.name, v.value);
 	}
 	r += "}";
+	return r;
+}
+
+std::string dump_body(const tll::scheme::Union * u)
+{
+	std::string r = "union: [";
+	bool comma = false;
+	for (auto uf = u->fields; uf != u->fields + u->size; uf++) {
+		if (comma)
+			r += ", ";
+		comma = true;
+		r += dump(uf);
+	}
+	r += "]";
 	return r;
 }
 
@@ -1307,6 +1489,8 @@ std::string dump(const tll::scheme::Field * f)
 	r += fmt::format("name: '{}', type: '{}'", f->name, dump_type(f->type, f));
 	r += dump_options(f);
 
+	if (f->type == tll::scheme::Field::Union)
+		r += ", " + dump_body(f->type_union);
 	if (f->sub_type == tll::scheme::Field::Enum) {
 		if (tll::getter::get(f->type_enum->options, "_auto").value_or("") == "inline")
 			r += ", " + dump_body(f->type_enum);
@@ -1429,6 +1613,14 @@ int tll_scheme_field_fix(tll_scheme_field_t * f)
 		}
 		f->size = f->type_msg->size;
 		break;
+	case Field::Union: {
+		size_t size = 0;
+		for (auto uf = f->type_union->fields; uf != f->type_union->fields + f->type_union->size; uf++) {
+			size = std::max(size, uf->size);
+		}
+		f->size = f->type_union->type_ptr->size + size;
+		break;
+	}
 	}
 
 	if (f->sub_type != Field::SubNone && !tll::getter::has(f->options, "type")) {
@@ -1460,6 +1652,17 @@ int tll_scheme_message_fix(tll_scheme_message_t * m)
 	if (!m) return EINVAL;
 	if (m->size) return 0;
 	size_t offset = 0;
+
+	for (auto &u : list_wrap(m->unions)) {
+		if (tll_scheme_field_fix(u.type_ptr))
+			return EINVAL;
+		for (auto uf = u.fields; uf != u.fields + u.size; uf++) {
+			uf->offset = u.type_ptr->size;
+			if (tll_scheme_field_fix(uf))
+				return EINVAL;
+		}
+	}
+
 	for (auto &f : list_wrap(m->fields)) {
 		if (tll_scheme_field_fix(&f))
 			return EINVAL;

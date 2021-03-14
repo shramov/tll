@@ -21,11 +21,11 @@ static const char scheme[] = "yaml://" SCHEME_PATH;
 using namespace tll::scheme;
 
 #define CHECK_FIELD(f, n, t, s, o) do { \
-		ASSERT_NE(f, nullptr); \
-		EXPECT_STREQ(f->name, n); \
-		EXPECT_EQ(f->type, t); \
-		EXPECT_EQ(f->size, s); \
-		EXPECT_EQ(f->offset, o); \
+		ASSERT_NE((f), nullptr); \
+		EXPECT_STREQ((f)->name, n); \
+		EXPECT_EQ((f)->type, t); \
+		EXPECT_EQ((f)->size, s); \
+		EXPECT_EQ((f)->offset, o); \
 	} while (0)
 
 #define CHECK_BIT_FIELD(f, n, s, o) do { \
@@ -135,6 +135,27 @@ void verify_scheme(tll::scheme::Scheme * s)
 	EXPECT_EQ(m->size, 1u + 4u);
 
 	m = m->next;
+
+	ASSERT_NE(m, nullptr);
+	EXPECT_STREQ(m->name, "unions");
+	EXPECT_EQ(m->enums, nullptr);
+	f = m->fields;
+	CHECK_FIELD(f, "u0", Field::Union, 1u + 8u, 0u); EXPECT_EQ(f->sub_type, Field::SubNone);
+	ASSERT_NE(f->type_union, nullptr); ASSERT_STREQ(f->type_union->name, "u0"); ASSERT_EQ(f->type_union->size, 3u);
+	CHECK_FIELD(f->type_union->fields + 0, "i8", Field::Int8, 1u, 1u);
+	CHECK_FIELD(f->type_union->fields + 1, "d", Field::Double, 8u, 1u);
+	CHECK_FIELD(f->type_union->fields + 2, "s", Field::Pointer, 8u, 1u);
+	f = f->next;
+	CHECK_FIELD(f, "u1", Field::Union, 1u + 37u, 9u); EXPECT_EQ(f->sub_type, Field::SubNone);
+	ASSERT_NE(f->type_union, nullptr); ASSERT_STREQ(f->type_union->name, "u1"); ASSERT_EQ(f->type_union->size, 2u);
+	CHECK_FIELD(f->type_union->fields + 0, "b32", Field::Bytes, 32u, 1u);
+	CHECK_FIELD(f->type_union->fields + 1, "m", Field::Message, 37u, 1u);
+	f = f->next;
+	ASSERT_EQ(f, nullptr);
+
+	ASSERT_EQ(m->size, 9u + 38u);
+
+	m = m->next;
 	EXPECT_EQ(m, nullptr);
 }
 
@@ -203,6 +224,15 @@ struct __attribute__((__packed__)) test
     int64_t f8;
 };
 
+struct __attribute__((__packed__)) unions
+{
+    int8_t u0_type;
+    union {
+	    int8_t f0;
+	    sub f1;
+    } u0;
+};
+
 } // namespace generated
 
 TEST(Scheme, Format)
@@ -224,6 +254,9 @@ TEST(Scheme, Format)
     - {name: f6, type: 'sub[4]', list-options.count-type: int16}
     - {name: f7, type: '*string'}
     - {name: f8, type: int64, options.type: fixed3}
+- name: unions
+  fields:
+    - {name: u0, type: union, union: [{name: f0, type: int8}, {name: f1, type: sub}]}
 )"));
 	ASSERT_NE(s.get(), nullptr);
 
@@ -325,6 +358,36 @@ f8: 12.345)");
 	ASSERT_FALSE(r);
 
 	ASSERT_EQ(r.error(), "Failed to format field f7[0]: Offset out of bounds: offset 500 > data size 320");
+
+	for (message = s->messages; message; message = message->next) {
+		if (std::string_view("unions") == message->name)
+			break;
+	}
+
+	ASSERT_NE(message, nullptr);
+
+	generated::unions unions = {};
+	unions.u0.f0 = 123;
+
+	mem = { &unions, sizeof(unions) };
+
+	r = tll::scheme::to_string(message, tll::make_view(mem));
+	ASSERT_TRUE(r);
+	ASSERT_EQ(*r, R"({u0: {f0: 123}})");
+
+	unions.u0_type = 1;
+	unions.u0.f1.s0 = 123456;
+	unions.u0.f1.s1_size = 2;
+	unions.u0.f1.s1[0] = 123.456;
+	unions.u0.f1.s1[1] = 1.5;
+
+	r = tll::scheme::to_string(message, tll::make_view(mem));
+	ASSERT_TRUE(r);
+	ASSERT_EQ(*r, R"(u0:
+  f1:
+    s0: 123456
+    s1: [123.456, 1.5])");
+
 }
 
 TEST(Scheme, Import)

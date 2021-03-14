@@ -49,6 +49,7 @@ typedef enum tll_scheme_field_type_t
 	TLL_SCHEME_FIELD_MESSAGE,
 	TLL_SCHEME_FIELD_ARRAY,
 	TLL_SCHEME_FIELD_POINTER,
+	TLL_SCHEME_FIELD_UNION,
 } tll_scheme_field_type_t;
 
 typedef enum tll_scheme_sub_type_t
@@ -85,6 +86,23 @@ typedef struct tll_scheme_enum_t
 	struct tll_scheme_enum_value_t * values;
 	struct tll_scheme_option_t * options;
 } tll_scheme_enum_t;
+
+/// Union descriptor
+typedef struct tll_scheme_union_t
+{
+	/// Pointer to next element in linked list
+	struct tll_scheme_union_t * next;
+	/// Union type name
+	const char * name;
+	/// Integer union type field
+	struct tll_scheme_field_t * type_ptr;
+	/// Array of union variants
+	struct tll_scheme_field_t * fields;
+	/// Size of union fields
+	size_t size;
+	/// Options
+	struct tll_scheme_option_t * options;
+} tll_scheme_union_t;
 
 struct tll_scheme_message_t;
 
@@ -163,6 +181,9 @@ typedef struct tll_scheme_field_t
 
 		/// List of bit fields with corresponding offsets
 		struct tll_scheme_bit_field_t * bitfields;
+
+		/// Union descriptors
+		struct tll_scheme_union_t * type_union;
 	};
 
 	/// User defined data
@@ -184,6 +205,7 @@ typedef struct tll_scheme_field_t
 	static constexpr auto Message = TLL_SCHEME_FIELD_MESSAGE;
 	static constexpr auto Array = TLL_SCHEME_FIELD_ARRAY;
 	static constexpr auto Pointer = TLL_SCHEME_FIELD_POINTER;
+	static constexpr auto Union = TLL_SCHEME_FIELD_UNION;
 
 	static constexpr auto SubNone = TLL_SCHEME_SUB_NONE;
 	static constexpr auto Enum = TLL_SCHEME_SUB_ENUM;
@@ -206,6 +228,7 @@ typedef struct tll_scheme_message_t
 	size_t size;
 	struct tll_scheme_field_t * fields;
 	struct tll_scheme_enum_t * enums;
+	struct tll_scheme_union_t * unions;
 
 	/// User defined data
 	void * user;
@@ -230,6 +253,7 @@ typedef struct tll_scheme_t
 	struct tll_scheme_message_t * messages;
 	struct tll_scheme_enum_t * enums;
 	struct tll_scheme_field_t * aliases;
+	struct tll_scheme_union_t * unions;
 
 	/// User defined data
 	void * user;
@@ -247,6 +271,7 @@ void tll_scheme_option_free(tll_scheme_option_t *);
 void tll_scheme_enum_free(tll_scheme_enum_t *);
 void tll_scheme_field_free(tll_scheme_field_t *);
 void tll_scheme_message_free(tll_scheme_message_t *);
+void tll_scheme_union_free(tll_scheme_union_t *);
 //void tll_scheme_free(tll_scheme_t *);
 
 char * tll_scheme_dump(const tll_scheme_t *s, const char * format);
@@ -303,6 +328,7 @@ inline PropsView options_map(const tll_scheme_option_t * o)
 using Option = tll_scheme_option_t;
 using EnumValue = tll_scheme_enum_value_t;
 using Enum = tll_scheme_enum_t;
+using Union = tll_scheme_union_t;
 using Field = tll_scheme_field_t;
 using Message = tll_scheme_message_t;
 using Scheme = tll_scheme_t;
@@ -336,6 +362,7 @@ template <> struct default_delete<const tll::scheme::Scheme> { void operator ()(
 template <> struct default_delete<tll::scheme::Message> { void operator ()(tll::scheme::Message *ptr) const { tll_scheme_message_free(ptr); } };
 template <> struct default_delete<tll::scheme::Field> { void operator ()(tll::scheme::Field *ptr) const { tll_scheme_field_free(ptr); } };
 template <> struct default_delete<tll::scheme::Enum> { void operator ()(tll::scheme::Enum *ptr) const { tll_scheme_enum_free(ptr); } };
+template <> struct default_delete<tll::scheme::Union> { void operator ()(tll::scheme::Union *ptr) const { tll_scheme_union_free(ptr); } };
 } // namespace std
 
 #endif //__cplusplus
