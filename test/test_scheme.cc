@@ -148,7 +148,20 @@ TEST(Scheme, Copy)
 	ASSERT_NE(ptr.get(), nullptr);
 
 	SchemePtr copy(ptr->copy());
-	verify_scheme(ptr.get());
+	verify_scheme(copy.get());
+}
+
+TEST(Scheme, Dump)
+{
+	SchemePtr ptr(Scheme::load(scheme));
+	ASSERT_NE(ptr.get(), nullptr);
+
+	auto dump = tll_scheme_dump(ptr.get(), "yamls");
+	ASSERT_NE(dump, nullptr);
+	fmt::print("Scheme:\n{}\n", dump);
+	SchemePtr copy(Scheme::load(dump));
+	free(dump);
+	verify_scheme(copy.get());
 }
 
 TEST(Scheme, OptionGetT)
