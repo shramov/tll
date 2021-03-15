@@ -1279,7 +1279,7 @@ std::string dump(const tll_scheme_bit_field_t * fields)
 {
 	if (!fields) return "";
 	std::string r;
-	r += "bits: {";
+	r += "bits: [";
 	bool comma = false;
 	for (auto &o : list_wrap(fields)) {
 		if (comma)
@@ -1287,7 +1287,7 @@ std::string dump(const tll_scheme_bit_field_t * fields)
 		comma = true;
 		r += fmt::format("'{}'", o.name);
 	}
-	r += "}";
+	r += "]";
 	return r;
 }
 
