@@ -161,7 +161,6 @@ cdef class Channel:
             raise TLLError("Post failed", r)
         return r
 
-
     def post(self, data, type=None, msgid=None, seq=None, name=None, addr=None):
         if isinstance(data, CMessage):
             if type == data.type and msgid is None and seq is None:
@@ -177,14 +176,14 @@ cdef class Channel:
             msg.addr.i64 = data.addr
             data = data.data
         if name is not None:
-            msg.msgid = self.scheme[name].msgid
+            msg.msgid = self._scheme(type)[name].msgid
         if type is not None: msg.type = int(type)
         if msgid is not None: msg.msgid = msgid
         if seq is not None: msg.seq = seq
         if addr is not None: msg.addr.i64 = addr
         mv = None
         if isinstance(data, dict):
-            data = self.scheme[name].object(**data)
+            data = self._scheme(type)[name].object(**data)
         if isinstance(data, scheme.Data):
             if msgid is None:
                 msg.msgid = data.SCHEME.msgid
@@ -275,7 +274,7 @@ cdef class Channel:
         return self._scheme_control_cache
 
     def _scheme(self, t):
-        if t == Type.Data:
+        if t == Type.Data or t == None:
             return self.scheme
         elif t == Type.Control:
             return self.scheme_control
