@@ -83,6 +83,7 @@ cdef class Channel:
     DCaps = _DCaps
     State = common.State
     MsgMask = _MsgMask
+    Type = _Type
 
     def __cinit__(self):
         self._ptr = NULL
