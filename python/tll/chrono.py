@@ -20,6 +20,18 @@ class Resolution(enum.Enum):
     us = microsecond
     ms = millisecond
 
+_str2res = {
+    'ns': (1, 1000000000),
+    'us': (1, 1000000),
+    'ms': (1, 1000),
+    's': (1, 1),
+    'm': (60, 1),
+    'h': (3600, 1),
+    'd': (86400, 1),
+}
+
+_res2str = dict([(v,k) for (k,v) in _str2res.items()])
+
 @functools.total_ordering
 class _Base:
     __slots__ = ['value', 'resolution']
@@ -27,7 +39,7 @@ class _Base:
         if isinstance(resolution, Resolution):
             resolution = resolution.value
         elif isinstance(resolution, str):
-            resolution = Resolution[str].value
+            resolution = Resolution[resolution].value
         self.resolution = resolution
 
         if isinstance(value, _Base):
@@ -44,11 +56,29 @@ class _Base:
     def __repr__(self):
         return "<{} {} {}>".format(self.__class__.__name__, self.value, self.resolution)
 
+    def __str__(self):
+        suffix = _res2str.get(self.resolution, None)
+        if suffix is not None:
+            return '{}{}'.format(self.value, suffix)
+        return '{}*({}/{})'.format(self.value, self.resolution[0], self.resolution[1])
+
+    @classmethod
+    def from_str(cls, s):
+        if '*' in s:
+            raise ValueError("Invalid string")
+        body = s.rstrip('abcdefghijklmnopqrstuvwxyz')
+        suffix = s[len(body):]
+        if '.' in body or 'e' in body or 'E' in body:
+            typ = float
+        else:
+            typ = int
+        return cls(typ(body), _str2res[suffix], type=typ)
+
     def __eq__(self, other):
         if not isinstance(other, self.__class__): return False
         if self.resolution == other.resolution:
             return self.value == other.value
-        return self.seconds == v.seconds
+        return self.seconds == other.seconds
 
     def __lt__(self, other):
         if not isinstance(other, self.__class__): return False
