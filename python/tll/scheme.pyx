@@ -366,10 +366,12 @@ class Field:
                 self.pack_data, self.unpack_data = self.pack_timepoint, self.unpack_timepoint
                 self.convert = self.convert_timepoint
                 self.default = chrono.TimePoint
+                self._from_string = chrono.TimePoint.from_str
             elif self.sub_type == SubType.Duration:
                 self.pack_data, self.unpack_data = self.pack_duration, self.unpack_duration
                 self.convert = self.convert_duration
                 self.default = chrono.Duration
+                self._from_string = chrono.Duration.from_str
             elif self.sub_type == SubType.Bits:
                 self.pack_data, self.unpack_data = self.pack_bits, self.unpack_bits
                 self.convert = self.convert_bits
@@ -397,10 +399,12 @@ class Field:
                 self.pack_data, self.unpack_data = self.pack_timepoint, self.unpack_timepoint
                 self.convert = self.convert_timepoint
                 self.default = chrono.TimePoint
+                self._from_string = chrono.TimePoint.from_str
             elif self.sub_type == SubType.Duration:
                 self.pack_data, self.unpack_data = self.pack_duration, self.unpack_duration
                 self.convert = self.convert_duration
                 self.default = chrono.Duration
+                self._from_string = chrono.Duration.from_str
             elif self.sub_type == SubType.Bits:
                 self.pack_data, self.unpack_data = self.pack_bits, self.unpack_bits
                 self.convert = self.convert_bits
@@ -416,10 +420,12 @@ class Field:
                 self.pack_data, self.unpack_data = self.pack_timepoint, self.unpack_timepoint
                 self.convert = self.convert_timepoint
                 self.default = chrono.TimePoint
+                self._from_string = chrono.TimePoint.from_str
             elif self.sub_type == SubType.Duration:
                 self.pack_data, self.unpack_data = self.pack_duration, self.unpack_duration
                 self.convert = self.convert_duration
                 self.default = chrono.Duration
+                self._from_string = chrono.Duration.from_str
         elif type == Field.Decimal128:
             self.pack_data, self.unpack_data = pack_decimal128, unpack_decimal128
             self.convert = convert_decimal128

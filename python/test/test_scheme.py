@@ -7,6 +7,7 @@ from common import *
 import tll.scheme as S
 from tll.scheme import Field as F
 from tll.s2b import s2b
+from tll.chrono import *
 
 import copy
 import datetime
@@ -209,6 +210,8 @@ def test_from_string():
     - {name: string16, type: byte16, option.type: string}
     - {name: array, type: 'int8[8]'}
     - {name: ptr, type: '*int8'}
+    - {name: duration, type: int32, options.type: duration, options.resolution: ns}
+    - {name: ts, type: int32, options.type: time_point, options.resolution: ns}
 ''')
 
     msg = s['msg']
@@ -219,6 +222,11 @@ def test_from_string():
     assert msg['double'].from_string("123.456") == 123.456
     assert msg['string'].from_string("string") == "string"
     assert msg['byte16'].from_string("string") == b"string"
+
+    assert msg['duration'].from_string("100ns") == Duration(100, 'ns')
+    assert msg['duration'].from_string("10.5us") == Duration(10500, 'ns')
+
+    assert msg['ts'].from_string("100ns") == TimePoint(100, 'ns') # FIXME: Change to normal time format?
 
     with pytest.raises(OverflowError):
         msg['int8'].from_string("1000")
