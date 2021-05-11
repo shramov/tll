@@ -393,6 +393,19 @@ def test_list(version):
     msg = scheme['msg']
 
     m = msg.object(scalar = [1, 2, 3], fixed = [4, 3, 2, 1], msg = [{'f0': 10}, {'f0': 20}])
+
+    with pytest.raises(TypeError): m.msg.append(None)
+    with pytest.raises(TypeError): m.msg.append(10)
+    with pytest.raises(TypeError): m.fixed.append(None)
+    with pytest.raises(TypeError): m.fixed.append({})
+
+    m.msg.append({'f0':30})
+    assert m.msg[2].f0 == 30
+
+    m.msg = m.msg[:1]
+    m.msg += [{'f0': 20}]
+    assert m.msg[-1].f0 == 20
+
     u = msg.unpack(memoryview(m.pack()))
     assert m.as_dict() == u.as_dict()
 

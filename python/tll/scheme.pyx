@@ -451,9 +451,9 @@ class Field:
         elif type == Field.Array:
             self.pack_data, self.unpack_data = self.pack_array, self.unpack_array
             self.unpack_reflection = self.unpack_array_reflection
-            self.convert = self.convert_array
-            self.default = list
-            self.as_dict = lambda v: _as_dict_list(self.type_array, v)
+            self.convert = self.list
+            self.default = self.list
+            self.as_dict = self.list.as_dict
         elif type == Field.Pointer:
             if self.sub_type == SubType.ByteString:
                 self.pack_data, self.unpack_data = self.pack_vstring, lambda v: unpack_vstring(v, self.offset_ptr_version.value)
@@ -463,9 +463,9 @@ class Field:
             else:
                 self.pack_data, self.unpack_data = self.pack_olist, self.unpack_olist
                 self.unpack_reflection = self.unpack_olist_reflection
-                self.convert = self.convert_olist
-                self.default = list
-                self.as_dict = lambda v: _as_dict_list(self.type_ptr, v)
+                self.convert = self.list
+                self.default = self.list
+                self.as_dict = self.list.as_dict
 
     def __repr__(self):
         return "<Field {0.name}, type: {0.type}, size: {0.size}, offset: {0.offset}>".format(self)
@@ -490,12 +490,12 @@ class Field:
             off += self.type_array.size
 
     def _unpack_array_f(self, src, f):
-        r = []
+        r = self.list()
         cdef int i = 0
         off = self.type_array.offset
         cdef int size = self.count_ptr.unpack_data(src)
         while i < size:
-            r.append(f(src[off:]))
+            list.append(r, f(src[off:]))
             off += self.type_array.size
             i += 1
         return r
@@ -539,23 +539,23 @@ class Field:
             raise TypeError("Invalid type for list: {}".format(type(l)))
         if len(l) > self.count:
             raise ValueError("List too large: {} > {}".format(len(l), self.count))
-        return [self.type_array.convert(x) for x in l]
+        return self.type_array.list(l)
 
     def convert_olist(self, l):
         if not isinstance(l, (tuple, list)):
             raise TypeError("Invalid type for list: {}".format(type(l)))
-        return [self.type_ptr.convert(x) for x in l]
+        return self.type_ptr.list(l)
 
     def _unpack_olist_f(self, src, f):
         cdef offset_ptr_t ptr = read_optr(src, self.offset_ptr_version.value, self.type_ptr.size)
         if ptr.size < 0: return None
+        r = self.list()
         if ptr.size == 0:
-            return []
-        r = []
+            return r
         off = ptr.offset
         cdef int i = 0
         while i < ptr.size:
-            r.append(f(src[off:]))
+            list.append(r, f(src[off:]))
             off += ptr.entity
             i += 1
         return r
@@ -662,9 +662,19 @@ cdef object field_wrap(Scheme s, object m, tll_scheme_field_t * ptr):
         r.count = ptr.count
         r.count_ptr = field_wrap(s, m, ptr.count_ptr)
         r.type_array = field_wrap(s, m, ptr.type_array)
+
+        class L(List):
+            SCHEME = r.type_array
+        L.__name__ = r.name
+        r.list = L
     elif r.type == r.Pointer:
         r.offset_ptr_version = OffsetPtrVersion(ptr.offset_ptr_version)
         r.type_ptr = field_wrap(s, m, ptr.type_ptr)
+
+        class L(List):
+            SCHEME = r.type_ptr
+        L.__name__ = r.name
+        r.list = L
     elif r.sub_type == r.Sub.Enum:
         ename = b2s(ptr.type_enum.name)
         r.type_enum = m.enums.get(ename, s.enums.get(ename, None))
@@ -691,6 +701,36 @@ cdef object field_wrap(Scheme s, object m, tll_scheme_field_t * ptr):
     r.offset = ptr.offset
     r.init(r.name, r.type) #b2s(ptr.name), Type(ptr.type))
     return r
+
+class List(list):
+    SCHEME = None
+
+    def __init__(self, v = []):
+        list.__init__(self, [self.convert(x) for x in v])
+
+    def convert(self, v):
+        return self.SCHEME.convert(v)
+
+    def as_dict(self):
+        return [self.SCHEME.as_dict(x) for x in self]
+
+    def __add__(self, v):
+        return list.__add__(self, self.convert(v))
+
+    def __iadd__(self, v):
+        return list.__iadd__(self, [self.convert(x) for x in v])
+
+    def __setitem__(self, i, v):
+        return list.__setitem__(self, i, self.convert(v))
+
+    def append(self, v):
+        return list.append(self, self.convert(v))
+
+    def extend(self, v):
+        return list.extend(self, [self.convert(x) for x in v])
+
+    def insert(self, i, v):
+        return list.insert(self, i, self.convert(v))
 
 class Data(object):
     SCHEME = None
