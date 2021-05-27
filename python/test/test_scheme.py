@@ -376,6 +376,9 @@ def test_fixed():
     u = msg.unpack(data)
     assert m.as_dict() == u.as_dict()
 
+    assert m.SCHEME['i16'].from_string('123.4') == decimal.Decimal('123.4')
+    assert m.SCHEME['u16'].from_string('123.4') == decimal.Decimal('123.4')
+
 @pytest.mark.parametrize("version", ['default', 'legacy-long', 'legacy-short'])
 def test_list(version):
     scheme = S.Scheme("""yamls://

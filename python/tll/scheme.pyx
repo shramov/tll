@@ -362,6 +362,7 @@ class Field:
                 self.pack_data, self.unpack_data = self.pack_fixed, self.unpack_fixed
                 self.convert = self.convert_fixed
                 self.default = Decimal
+                self._from_string = Decimal
             elif self.sub_type == SubType.TimePoint:
                 self.pack_data, self.unpack_data = self.pack_timepoint, self.unpack_timepoint
                 self.convert = self.convert_timepoint
@@ -395,6 +396,7 @@ class Field:
                 self.pack_data, self.unpack_data = self.pack_fixed, self.unpack_fixed
                 self.convert = self.convert_fixed
                 self.default = Decimal
+                self._from_string = Decimal
             elif self.sub_type == SubType.TimePoint:
                 self.pack_data, self.unpack_data = self.pack_timepoint, self.unpack_timepoint
                 self.convert = self.convert_timepoint
