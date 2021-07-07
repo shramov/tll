@@ -2,9 +2,12 @@
 # vim: sts=4 sw=4 et
 
 import enum
+from .chrono import Duration, TimePoint
 
 REGISTRY = {}
 REGISTRY[int] = lambda s: int(s, 0)
+REGISTRY[Duration] = Duration.from_str
+REGISTRY[TimePoint] = TimePoint.from_str
 
 def conv_bool(s):
     l = str(s).lower()
