@@ -40,13 +40,13 @@ class Prefix(Base):
     def _post(self, msg, flags):
         self._child.post(msg, flags)
 
-    def prefix_data(self, msg):
+    def _on_data(self, msg):
         self._callback(msg)
 
-    def prefix_other(self, msg):
+    def _on_other(self, msg):
         self._callback(msg)
 
-    def prefix_state(self, msg):
+    def _on_state(self, msg):
         s = self.State(msg.msgid)
         if s == self.State.Active:
             try:
@@ -82,8 +82,8 @@ class Prefix(Base):
 
     def __call__(self, c, msg):
         if msg.type == msg.Type.Data:
-            self.prefix_data(msg)
+            self._on_data(msg)
         elif msg.type == msg.Type.State:
-            self.prefix_state(msg)
+            self._on_state(msg)
         else:
-            self.prefix_other(msg)
+            self._on_other(msg)
