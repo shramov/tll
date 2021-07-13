@@ -206,6 +206,162 @@ cdef int write_optr(object src, int optr_type,  offset_ptr_t * ptr):
     elif optr_type == TLL_SCHEME_OFFSET_PTR_LEGACY_LONG:
         return write_optr_legacy_long(buf, ptr)
 
+cdef class FBase:
+    cdef pack(FBase self, v, dest, tail, int tail_offset):
+        pass
+    cdef unpack(FBase self, src):
+        pass
+    cdef convert(FBase self, v):
+        return v
+    cdef from_string(FBase self, str s):
+        pass
+
+_TYPES = {}
+cdef class FInt8(FBase):
+    default = int
+    cdef pack(FInt8 self, v, dest, tail, int tail_offset): return pack_fused(<int8_t>v, dest)
+    cdef unpack(FInt8 self, src): return unpack_fused(<int8_t>0, src)
+    cdef convert(FInt8 self, v): return <int8_t>v
+    cdef from_string(FInt8 self, str s): return int(s, 0)
+_TYPES[Type.Int8] = FInt8
+
+cdef class FInt16(FBase):
+    default = int
+    cdef pack(FInt16 self, v, dest, tail, int tail_offset): return pack_fused(<int16_t>v, dest)
+    cdef unpack(FInt16 self, src): return unpack_fused(<int16_t>0, src)
+    cdef convert(FInt16 self, v): return <int16_t>v
+    cdef from_string(FInt16 self, str s): return int(s, 0)
+_TYPES[Type.Int16] = FInt16
+
+cdef class FInt32(FBase):
+    default = int
+    cdef pack(FInt32 self, v, dest, tail, int tail_offset): return pack_fused(<int32_t>v, dest)
+    cdef unpack(FInt32 self, src): return unpack_fused(<int32_t>0, src)
+    cdef convert(FInt32 self, v): return <int32_t>v
+    cdef from_string(FInt32 self, str s): return int(s, 0)
+_TYPES[Type.Int32] = FInt32
+
+cdef class FInt64(FBase):
+    default = int
+    cdef pack(FInt64 self, v, dest, tail, int tail_offset): return pack_fused(<int64_t>v, dest)
+    cdef unpack(FInt64 self, src): return unpack_fused(<int64_t>0, src)
+    cdef convert(FInt64 self, v): return <int64_t>v
+    cdef from_string(FInt64 self, str s): return int(s, 0)
+_TYPES[Type.Int64] = FInt64
+
+cdef class FUInt8(FBase):
+    default = int
+    cdef pack(FUInt8 self, v, dest, tail, int tail_offset): return pack_fused(<uint8_t>v, dest)
+    cdef unpack(FUInt8 self, src): return unpack_fused(<uint8_t>0, src)
+    cdef convert(FUInt8 self, v): return <uint8_t>v
+    cdef from_string(FUInt8 self, str s): return int(s, 0)
+_TYPES[Type.UInt8] = FUInt8
+
+cdef class FUInt16(FBase):
+    default = int
+    cdef pack(FUInt16 self, v, dest, tail, int tail_offset): return pack_fused(<uint16_t>v, dest)
+    cdef unpack(FUInt16 self, src): return unpack_fused(<uint16_t>0, src)
+    cdef convert(FUInt16 self, v): return <uint16_t>v
+    cdef from_string(FUInt16 self, str s): return int(s, 0)
+_TYPES[Type.UInt16] = FUInt16
+
+cdef class FUInt32(FBase):
+    default = int
+    cdef pack(FUInt32 self, v, dest, tail, int tail_offset): return pack_fused(<uint32_t>v, dest)
+    cdef unpack(FUInt32 self, src): return unpack_fused(<uint32_t>0, src)
+    cdef convert(FUInt32 self, v): return <uint32_t>v
+    cdef from_string(FUInt32 self, str s): return int(s, 0)
+_TYPES[Type.UInt32] = FUInt32
+
+cdef class FDouble(FBase):
+    default = float
+    cdef pack(FDouble self, v, dest, tail, int tail_offset): return pack_fused(<double>v, dest)
+    cdef unpack(FDouble self, src): return unpack_fused(<double>0, src)
+    cdef convert(FDouble self, v): return float(v)
+    cdef from_string(FDouble self, str s): return float(s)
+_TYPES[Type.Double] = FDouble
+
+_SUBTYPES = {}
+
+cdef class FFixed(FBase):
+    default = Decimal
+    cdef FBase base
+    cdef int fixed_precision
+
+    def __init__(self, f):
+        self.base = f.impl
+        self.fixed_precision = f.fixed_precision
+
+    cdef pack(FFixed self, v, dest, tail, int tail_offset):
+        return self.base.pack(v.shift(self.fixed_precision).to_integral_value(), dest, tail, tail_offset)
+    cdef unpack(FFixed self, src):
+        return Decimal(self.base.unpack(src)) * Decimal((0, (1,), -self.fixed_precision))
+    cdef convert(FFixed self, v):
+        if isinstance(v, (str, float, int)):
+            v = Decimal(v)
+        elif not isinstance(v, Decimal):
+            raise TypeError("Expected str, float or int, got {}: {}".format(type(v), v))
+        return v
+    cdef from_string(FFixed self, str s): return Decimal(s)
+_SUBTYPES[SubType.FixedPoint] = FFixed
+
+cdef class FTimePoint(FBase):
+    default = chrono.TimePoint
+    cdef FBase base
+    cdef object time_resolution
+
+    def __init__(self, f):
+        self.base = f.impl
+        self.time_resolution = f.time_resolution
+
+    cdef pack(FTimePoint self, v, dest, tail, int tail_offset):
+        return self.base.pack(chrono.TimePoint(v, self.time_resolution, type=self.base.default).value, dest, tail, tail_offset)
+    cdef unpack(FTimePoint self, src):
+        return chrono.TimePoint(self.base.unpack(src), self.time_resolution, type=self.base.default)
+    cdef convert(FTimePoint self, v):
+        return chrono.TimePoint(chrono.TimePoint(v), self.time_resolution, type=self.base.default)
+    cdef from_string(FTimePoint self, str s):
+        return self.convert(chrono.TimePoint.from_str(s))
+_SUBTYPES[SubType.TimePoint] = FTimePoint
+
+cdef class FDuration(FBase):
+    default = chrono.Duration
+    cdef FBase base
+    cdef object time_resolution
+
+    def __init__(self, f):
+        self.base = f.impl
+        self.time_resolution = f.time_resolution
+
+    cdef pack(FDuration self, v, dest, tail, int tail_offset):
+        return self.base.pack(chrono.Duration(v, self.time_resolution, type=self.base.default).value, dest, tail, tail_offset)
+    cdef unpack(FDuration self, src):
+        return chrono.Duration(self.base.unpack(src), self.time_resolution, type=self.base.default)
+    cdef convert(FDuration self, v):
+        return chrono.Duration(chrono.Duration(v), self.time_resolution, type=self.base.default)
+    cdef from_string(FDuration self, str s):
+        return self.convert(chrono.Duration.from_str(s))
+_SUBTYPES[SubType.Duration] = FDuration
+
+cdef class FBits(FBase):
+    cdef FBase base
+    cdef object time_resolution
+
+    def __init__(self, f):
+        self.base = f.impl
+        self.default = f.bitclass
+
+    cdef pack(FBits self, v, dest, tail, int tail_offset):
+        return self.base.pack(v._value, dest, tail, tail_offset)
+    cdef unpack(FBits self, src):
+        return self.default(self.base.unpack(src))
+    cdef convert(FBits self, v):
+        return self.default(v)
+    cdef from_string(FBits self, str s):
+        return self.default.from_str(s)
+_SUBTYPES[SubType.Bits] = FBits
+
+"""
 cdef pack_int8(v, dest, tail, tail_offset): return pack_fused(<int8_t>v, dest)
 cdef pack_int16(v, dest, tail, tail_offset): return pack_fused(<int16_t>v, dest)
 cdef pack_int32(v, dest, tail, tail_offset): return pack_fused(<int32_t>v, dest)
@@ -223,7 +379,7 @@ cdef unpack_uint8(src): return unpack_fused(<uint8_t>0, src)
 cdef unpack_uint16(src): return unpack_fused(<uint16_t>0, src)
 cdef unpack_uint32(src): return unpack_fused(<uint32_t>0, src)
 cdef unpack_double(src): return unpack_fused(<double>0, src)
-
+"""
 
 cdef pack_decimal128(v, dest, tail, tail_offset):
     raise NotImplemented()
@@ -342,43 +498,21 @@ class Field:
     def init(self, name, type):
         #self.name, self.type, self.sub_type = name, type, sub_type
         if type in (Field.Int8, Field.Int16, Field.Int32, Field.Int64):
-            self._from_string = from_string_int
-            self.default = int
-            if type == Field.Int8:
-                self.pack_data, self.unpack_data = pack_int8, unpack_int8
-                self.convert = convert_int8
-            elif type == Field.Int16:
-                self.pack_data, self.unpack_data = pack_int16, unpack_int16
-                self.convert = convert_int16
-            elif type == Field.Int32:
-                self.pack_data, self.unpack_data = pack_int32, unpack_int32
-                self.convert = convert_int32
-            elif type == Field.Int64:
-                self.pack_data, self.unpack_data = pack_int64, unpack_int64
-                self.convert = convert_int64
-            self.pack_raw, self.unpack_raw = self.pack_data, self.unpack_data
-            self.default_raw = self.default
-            if self.sub_type == SubType.FixedPoint:
-                self.pack_data, self.unpack_data = self.pack_fixed, self.unpack_fixed
-                self.convert = self.convert_fixed
-                self.default = Decimal
-                self._from_string = Decimal
-            elif self.sub_type == SubType.TimePoint:
-                self.pack_data, self.unpack_data = self.pack_timepoint, self.unpack_timepoint
-                self.convert = self.convert_timepoint
-                self.default = chrono.TimePoint
-                self._from_string = chrono.TimePoint.from_str
-            elif self.sub_type == SubType.Duration:
-                self.pack_data, self.unpack_data = self.pack_duration, self.unpack_duration
-                self.convert = self.convert_duration
-                self.default = chrono.Duration
-                self._from_string = chrono.Duration.from_str
+            self.impl = _TYPES[type](self)
+            if self.sub_type != SubType.NONE:
+                self.impl = _SUBTYPES[self.sub_type](self)
+            """
             elif self.sub_type == SubType.Bits:
                 self.pack_data, self.unpack_data = self.pack_bits, self.unpack_bits
                 self.convert = self.convert_bits
                 self.default = self.bitclass
                 self.as_dict = self._as_dict_bits
+            """
         elif type in (Field.UInt8, Field.UInt16, Field.UInt32):
+            self.impl = _TYPES[type](self)
+            if self.sub_type != SubType.NONE:
+                self.impl = _SUBTYPES[self.sub_type](self)
+            """
             self._from_string = from_string_int
             self.default = int
             if type == Field.UInt8:
@@ -412,7 +546,12 @@ class Field:
                 self.convert = self.convert_bits
                 self.default = self.bitclass
                 self.as_dict = self._as_dict_bits
+            """
         elif type == Field.Double:
+            self.impl = _TYPES[type](self)
+            if self.sub_type != SubType.NONE:
+                self.impl = _SUBTYPES[self.sub_type](self)
+            """
             self.pack_data, self.unpack_data = pack_double, unpack_double
             self.convert = convert_double
             self.default = self._from_string = float
@@ -428,6 +567,7 @@ class Field:
                 self.convert = self.convert_duration
                 self.default = chrono.Duration
                 self._from_string = chrono.Duration.from_str
+            """
         elif type == Field.Decimal128:
             self.pack_data, self.unpack_data = pack_decimal128, unpack_decimal128
             self.convert = convert_decimal128
