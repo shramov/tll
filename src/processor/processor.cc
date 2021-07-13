@@ -286,7 +286,7 @@ int Processor::object_depth(std::map<std::string, PreObject, std::less<>> &map, 
 	for (auto & d : obj.list) {
 		auto di = map.find(d);
 		if (di == map.end())
-			return _log.fail(-1, "{} dependency for '{}' missing: '{}'", o.name, d);
+			return _log.fail(-1, "{} dependency for '{}' missing: '{}'", stage, o.name, d);
 		auto dd = object_depth(map, di->second, path, init);
 		if (dd == -1)
 			return -1;
