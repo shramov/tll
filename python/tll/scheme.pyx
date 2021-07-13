@@ -82,20 +82,6 @@ cdef enum_wrap(tll_scheme_enum_t * ptr):
         e = e.next
     return r
 
-"""
-    def pack_int16(self, dest, v):
-        cdef char * ptr = dest
-        (<int16_t *>ptr)[0] = v;
-
-    def pack_int32(self, dest, v):
-        cdef char * ptr = dest
-        (<int32_t *>ptr)[0] = v;
-
-    def pack_int64(self, dest, v):
-        cdef char * ptr = dest
-        (<int64_t *>ptr)[0] = v;
-"""
-
 def memoryview_check(o):
     if not PyMemoryView_Check(o):
         raise TLLError("Need memoryview to pack, got {}".format(type(o)))
@@ -207,67 +193,362 @@ cdef int write_optr(object src, int optr_type,  offset_ptr_t * ptr):
     elif optr_type == TLL_SCHEME_OFFSET_PTR_LEGACY_LONG:
         return write_optr_legacy_long(buf, ptr)
 
-cdef pack_int8(v, dest, tail, tail_offset): return pack_fused(<int8_t>v, dest)
-cdef pack_int16(v, dest, tail, tail_offset): return pack_fused(<int16_t>v, dest)
-cdef pack_int32(v, dest, tail, tail_offset): return pack_fused(<int32_t>v, dest)
-cdef pack_int64(v, dest, tail, tail_offset): return pack_fused(<int64_t>v, dest)
-cdef pack_uint8(v, dest, tail, tail_offset): return pack_fused(<uint8_t>v, dest)
-cdef pack_uint16(v, dest, tail, tail_offset): return pack_fused(<uint16_t>v, dest)
-cdef pack_uint32(v, dest, tail, tail_offset): return pack_fused(<uint32_t>v, dest)
-cdef pack_double(v, dest, tail, tail_offset): return pack_fused(<double>v, dest)
+cdef class FBase:
+    def __init__(self, f): pass
 
-cdef unpack_int8(src): return unpack_fused(<int8_t>0, src)
-cdef unpack_int16(src): return unpack_fused(<int16_t>0, src)
-cdef unpack_int32(src): return unpack_fused(<int32_t>0, src)
-cdef unpack_int64(src): return unpack_fused(<int64_t>0, src)
-cdef unpack_uint8(src): return unpack_fused(<uint8_t>0, src)
-cdef unpack_uint16(src): return unpack_fused(<uint16_t>0, src)
-cdef unpack_uint32(src): return unpack_fused(<uint32_t>0, src)
-cdef unpack_double(src): return unpack_fused(<double>0, src)
+    cdef pack(FBase self, v, dest, tail, int tail_offset):
+        pass
+    cdef unpack(FBase self, src):
+        pass
+    cdef convert(FBase self, v):
+        return v
+    cdef from_string(FBase self, str s):
+        raise NotImplementedError("Conversion from string not implemented")
+    cdef reflection(FBase self, src):
+        return self.unpack(src)
+    cdef as_dict(self, v):
+        return v
 
+_TYPES = {}
+cdef class FInt8(FBase):
+    default = int
+    cdef pack(FInt8 self, v, dest, tail, int tail_offset): return pack_fused(<int8_t>v, dest)
+    cdef unpack(FInt8 self, src): return unpack_fused(<int8_t>0, src)
+    cdef convert(FInt8 self, v): return <int8_t>v
+    cdef from_string(FInt8 self, str s): return int(s, 0)
+_TYPES[Type.Int8] = FInt8
 
-cdef pack_decimal128(v, dest, tail, tail_offset):
-    raise NotImplemented()
+cdef class FInt16(FBase):
+    default = int
+    cdef pack(FInt16 self, v, dest, tail, int tail_offset): return pack_fused(<int16_t>v, dest)
+    cdef unpack(FInt16 self, src): return unpack_fused(<int16_t>0, src)
+    cdef convert(FInt16 self, v): return <int16_t>v
+    cdef from_string(FInt16 self, str s): return int(s, 0)
+_TYPES[Type.Int16] = FInt16
 
-cdef unpack_decimal128(src):
-    raise NotImplemented()
+cdef class FInt32(FBase):
+    default = int
+    cdef pack(FInt32 self, v, dest, tail, int tail_offset): return pack_fused(<int32_t>v, dest)
+    cdef unpack(FInt32 self, src): return unpack_fused(<int32_t>0, src)
+    cdef convert(FInt32 self, v): return <int32_t>v
+    cdef from_string(FInt32 self, str s): return int(s, 0)
+_TYPES[Type.Int32] = FInt32
 
-"""
-cdef pack_int8(v, dest):
-    memoryview_check(dest)
-    cdef Py_buffer * buf = PyMemoryView_GET_BUFFER(dest)
-    if buf.len < sizeof(int8_t):
-        raise TLLError("Dest buffer too small: {} < {}".format(buf.len, sizeof(int8_t)))
-    (<int8_t *>buf.buf)[0] = v;
+cdef class FInt64(FBase):
+    default = int
+    cdef pack(FInt64 self, v, dest, tail, int tail_offset): return pack_fused(<int64_t>v, dest)
+    cdef unpack(FInt64 self, src): return unpack_fused(<int64_t>0, src)
+    cdef convert(FInt64 self, v): return <int64_t>v
+    cdef from_string(FInt64 self, str s): return int(s, 0)
+_TYPES[Type.Int64] = FInt64
 
-cdef pack_int16(v, dest):
-    memoryview_check(dest)
-    cdef Py_buffer * buf = PyMemoryView_GET_BUFFER(dest)
-    if buf.len < sizeof(int16_t):
-        raise TLLError("Dest buffer too small: {} < {}".format(buf.len, sizeof(int16_t)))
-    (<int16_t *>buf.buf)[0] = v;
+cdef class FUInt8(FBase):
+    default = int
+    cdef pack(FUInt8 self, v, dest, tail, int tail_offset): return pack_fused(<uint8_t>v, dest)
+    cdef unpack(FUInt8 self, src): return unpack_fused(<uint8_t>0, src)
+    cdef convert(FUInt8 self, v): return <uint8_t>v
+    cdef from_string(FUInt8 self, str s): return int(s, 0)
+_TYPES[Type.UInt8] = FUInt8
 
-cdef pack_int32(v, dest):
-    memoryview_check(dest)
-    cdef Py_buffer * buf = PyMemoryView_GET_BUFFER(dest)
-    if buf.len < sizeof(int32_t):
-        raise TLLError("Dest buffer too small: {} < {}".format(buf.len, sizeof(int32_t)))
-    (<int32_t *>buf.buf)[0] = v;
+cdef class FUInt16(FBase):
+    default = int
+    cdef pack(FUInt16 self, v, dest, tail, int tail_offset): return pack_fused(<uint16_t>v, dest)
+    cdef unpack(FUInt16 self, src): return unpack_fused(<uint16_t>0, src)
+    cdef convert(FUInt16 self, v): return <uint16_t>v
+    cdef from_string(FUInt16 self, str s): return int(s, 0)
+_TYPES[Type.UInt16] = FUInt16
 
-cdef pack_int64(v, dest):
-    memoryview_check(dest)
-    cdef Py_buffer * buf = PyMemoryView_GET_BUFFER(dest)
-    if buf.len < sizeof(int64_t):
-        raise TLLError("Dest buffer too small: {} < {}".format(buf.len, sizeof(int64_t)))
-    (<int64_t *>buf.buf)[0] = v;
+cdef class FUInt32(FBase):
+    default = int
+    cdef pack(FUInt32 self, v, dest, tail, int tail_offset): return pack_fused(<uint32_t>v, dest)
+    cdef unpack(FUInt32 self, src): return unpack_fused(<uint32_t>0, src)
+    cdef convert(FUInt32 self, v): return <uint32_t>v
+    cdef from_string(FUInt32 self, str s): return int(s, 0)
+_TYPES[Type.UInt32] = FUInt32
 
-cdef pack_double(v, dest):
-    memoryview_check(dest)
-    cdef Py_buffer * buf = PyMemoryView_GET_BUFFER(dest)
-    if buf.len < sizeof(double):
-        raise TLLError("Dest buffer too small: {} < {}".format(buf.len, sizeof(double)))
-    (<double *>buf.buf)[0] = v;
-    """
+cdef class FDouble(FBase):
+    default = float
+    cdef pack(FDouble self, v, dest, tail, int tail_offset): return pack_fused(<double>v, dest)
+    cdef unpack(FDouble self, src): return unpack_fused(<double>0, src)
+    cdef convert(FDouble self, v): return float(v)
+    cdef from_string(FDouble self, str s): return float(s)
+_TYPES[Type.Double] = FDouble
+
+cdef class FDecimal128(FBase):
+    default = lambda: b'\x00' * 16
+
+    cdef pack(FDecimal128 self, v, dest, tail, int tail_offset): return pack_bytes(v, dest, tail, tail_offset)
+    cdef unpack(FDecimal128 self, src): return unpack_bytes(src[:16])
+    cdef convert(FDecimal128 self, v): return convert_bytes(v)
+_TYPES[Type.Decimal128] = FDecimal128
+
+cdef class FBytes(FBase):
+    default = bytes
+
+    cdef int size
+
+    def __init__(self, f):
+        self.size = f.size
+
+    cdef pack(FBytes self, v, dest, tail, int tail_offset): return pack_bytes(v, dest, tail, tail_offset)
+    cdef unpack(FBytes self, src): return unpack_bytes(src[:self.size])
+    cdef convert(FBytes self, v): return convert_bytes(v)
+    cdef from_string(FBytes self, str s): return s.encode('utf-8')
+_TYPES[Type.Bytes] = FBytes
+
+cdef class FArray(FBase):
+    cdef int count
+    cdef object type_array
+    cdef object count_ptr
+    cdef object default
+
+    def __init__(self, f):
+        self.count = f.count
+        self.count_ptr = f.count_ptr
+        self.type_array = f.type_array
+        self.default = f.list
+
+    cdef pack(FArray self, v, dest, tail, int tail_offset):
+        self.count_ptr.pack_data(len(v), dest[:self.count_ptr.size], b'', 0)
+        off = self.type_array.offset
+        for e in v[:self.count]:
+            self.type_array.pack_data(e, dest[off:off + self.type_array.size], tail, tail_offset - off)
+            off += self.type_array.size
+
+    cdef _unpack(FArray self, src, f):
+        r = self.default()
+        cdef int i = 0
+        off = self.type_array.offset
+        cdef int size = self.count_ptr.unpack_data(src)
+        while i < size:
+            list.append(r, f(src[off:]))
+            off += self.type_array.size
+            i += 1
+        return r
+
+    cdef unpack(FArray self, src): return self._unpack(src, self.type_array.unpack_data)
+    cdef reflection(FArray self, src): return self._unpack(src, self.type_array.unpack_reflection)
+
+    cdef convert(FArray self, l):
+        if not isinstance(l, (tuple, list)):
+            raise TypeError("Invalid type for list: {}".format(type(l)))
+        if len(l) > self.count:
+            raise ValueError("List too large: {} > {}".format(len(l), self.count))
+        return self.default(l)
+
+    cdef as_dict(self, v):
+        return [self.type_array.as_dict(x) for x in v]
+
+_TYPES[Type.Array] = FArray
+
+cdef class FPointer(FBase):
+    cdef int version
+    cdef int size
+    cdef object type_ptr
+    cdef object default
+
+    def __init__(self, f):
+        self.version = f.offset_ptr_version.value
+        self.size = f.type_ptr.size
+        self.type_ptr = f.type_ptr
+        self.default = f.list
+
+    cdef pack(FPointer self, v, dest, tail, int tail_offset):
+        cdef offset_ptr_t ptr
+        ptr.offset = tail_offset + len(tail)
+        ptr.size = len(v)
+        ptr.entity = self.size
+        if write_optr(dest, self.version, &ptr):
+            return None
+        b = bytearray(len(v) * ptr.entity)
+        view = memoryview(b)
+        tnew = bytearray()
+        off = 0
+        for i in v:
+            self.type_ptr.pack_data(i, view[off:off + ptr.entity], tnew, len(b) - off)
+            off += ptr.entity
+        tail.extend(b)
+        tail.extend(tnew)
+
+    cdef _unpack(FPointer self, src, f):
+        cdef offset_ptr_t ptr = read_optr(src, self.version, self.size)
+        if ptr.size < 0: return None
+        r = self.default()
+        if ptr.size == 0:
+            return r
+        off = ptr.offset
+        cdef int i = 0
+        while i < ptr.size:
+            list.append(r, f(src[off:]))
+            off += ptr.entity
+            i += 1
+        return r
+
+    cdef unpack(FPointer self, src): return self._unpack(src, self.type_ptr.unpack_data)
+    cdef reflection(FPointer self, src): return self._unpack(src, self.type_ptr.unpack_reflection)
+
+    cdef convert(FPointer self, l):
+        if not isinstance(l, (tuple, list)):
+            raise TypeError("Invalid type for list: {}".format(type(l)))
+        return self.default(l)
+
+    cdef as_dict(self, v):
+        return [self.type_ptr.as_dict(x) for x in v]
+_TYPES[Type.Pointer] = FPointer
+
+cdef class FMessage(FBase):
+    cdef object type_msg
+    cdef object default
+
+    def __init__(self, f):
+        self.type_msg = f.type_msg
+        self.default = self.type_msg.object
+
+    cdef pack(FMessage self, v, dest, tail, int tail_offset):
+        return self.type_msg.pack(v, dest, tail, tail_offset)
+
+    cdef unpack(FMessage self, src):
+        return self.type_msg.unpack(src)
+    cdef reflection(FMessage self, src):
+        return self.type_msg.reflection(src)
+
+    cdef convert(FMessage self, v):
+        if isinstance(v, dict):
+            return self.type_msg.object(**v)
+        if isinstance(v, Data):
+            if v.SCHEME != self.type_msg:
+                raise TypeError("Can not convert message {} to {}".format(v.SCHEME.name, self.type_msg.name))
+            return v
+        raise TypeError("Can not convert {} to message".format(type(v)))
+
+    cdef as_dict(self, v):
+        return _as_dict_msg(self.type_msg, v)
+_TYPES[Type.Message] = FMessage
+
+_SUBTYPES = {}
+
+cdef class FFixed(FBase):
+    default = Decimal
+    cdef FBase base
+    cdef int fixed_precision
+
+    def __init__(self, f):
+        self.base = f.impl
+        self.fixed_precision = f.fixed_precision
+
+    cdef pack(FFixed self, v, dest, tail, int tail_offset):
+        return self.base.pack(v.shift(self.fixed_precision).to_integral_value(), dest, tail, tail_offset)
+    cdef unpack(FFixed self, src):
+        return Decimal(self.base.unpack(src)) * Decimal((0, (1,), -self.fixed_precision))
+    cdef convert(FFixed self, v):
+        if isinstance(v, (str, int, float)):
+            v = Decimal(v)
+        elif not isinstance(v, Decimal):
+            raise TypeError("Expected str, float or int, got {}: {}".format(type(v), v))
+        return v
+    cdef from_string(FFixed self, str s): return Decimal(s)
+_SUBTYPES[SubType.FixedPoint] = FFixed
+
+cdef class FTimePoint(FBase):
+    default = chrono.TimePoint
+    cdef FBase base
+    cdef object time_resolution
+
+    def __init__(self, f):
+        self.base = f.impl
+        self.time_resolution = f.time_resolution
+
+    cdef pack(FTimePoint self, v, dest, tail, int tail_offset):
+        return self.base.pack(chrono.TimePoint(v, self.time_resolution, type=self.base.default).value, dest, tail, tail_offset)
+    cdef unpack(FTimePoint self, src):
+        return chrono.TimePoint(self.base.unpack(src), self.time_resolution, type=self.base.default)
+    cdef convert(FTimePoint self, v):
+        return chrono.TimePoint(chrono.TimePoint(v), self.time_resolution, type=self.base.default)
+    cdef from_string(FTimePoint self, str s):
+        return self.convert(chrono.TimePoint.from_str(s))
+_SUBTYPES[SubType.TimePoint] = FTimePoint
+
+cdef class FDuration(FBase):
+    default = chrono.Duration
+    cdef FBase base
+    cdef object time_resolution
+
+    def __init__(self, f):
+        self.base = f.impl
+        self.time_resolution = f.time_resolution
+
+    cdef pack(FDuration self, v, dest, tail, int tail_offset):
+        return self.base.pack(chrono.Duration(v, self.time_resolution, type=self.base.default).value, dest, tail, tail_offset)
+    cdef unpack(FDuration self, src):
+        return chrono.Duration(self.base.unpack(src), self.time_resolution, type=self.base.default)
+    cdef convert(FDuration self, v):
+        return chrono.Duration(chrono.Duration(v), self.time_resolution, type=self.base.default)
+    cdef from_string(FDuration self, str s):
+        return self.convert(chrono.Duration.from_str(s))
+_SUBTYPES[SubType.Duration] = FDuration
+
+cdef class FBits(FBase):
+    cdef FBase base
+    cdef object default
+
+    def __init__(self, f):
+        self.base = f.impl
+        self.default = f.bitclass
+
+    cdef pack(FBits self, v, dest, tail, int tail_offset):
+        return self.base.pack(v._value, dest, tail, tail_offset)
+    cdef unpack(FBits self, src):
+        return self.default(self.base.unpack(src))
+    cdef convert(FBits self, v):
+        return self.default(v)
+    cdef from_string(FBits self, str s):
+        return self.default.from_str(s)
+    cdef as_dict(self, v):
+        return {f.name: getattr(v, f.name) for f in v.BITS.values()}
+
+_SUBTYPES[SubType.Bits] = FBits
+
+cdef class FFixedString(FBase):
+    default = str
+
+    cdef FBase base
+    cdef int size
+
+    def __init__(self, f):
+        self.base = f.impl
+        self.size = f.size
+
+    cdef pack(FFixedString self, v, dest, tail, int tail_offset): return pack_bytes(v, dest, tail, tail_offset)
+    cdef unpack(FFixedString self, src): return unpack_str(src[:self.size])
+    cdef convert(FFixedString self, v): return convert_str(v)
+    cdef from_string(FFixedString self, str s): return s
+_SUBTYPES[(Type.Bytes, SubType.ByteString)] = FFixedString
+
+cdef class FVString(FBase):
+    default = str
+
+    cdef FBase base
+    cdef int version
+
+    def __init__(self, f):
+        self.base = f.impl
+        self.version = f.offset_ptr_version.value
+
+    cdef pack(FVString self, v, dest, tail, int tail_offset):
+        b = s2b(v)
+        cdef offset_ptr_t ptr
+        ptr.offset = tail_offset + len(tail)
+        ptr.size = len(b) + 1
+        ptr.entity = 1
+        if write_optr(dest, self.version, &ptr):
+            return None
+        tail.extend(b + b'\0')
+
+    cdef unpack(FVString self, src):
+        return unpack_vstring(src, self.version)
+    cdef convert(FVString self, v): return convert_str(v)
+    cdef from_string(FVString self, str s): return s
+_SUBTYPES[(Type.Pointer, SubType.ByteString)] = FVString
 
 cdef pack_bytes(v, dest, tail, tail_offset):
     if not PyMemoryView_Check(dest): return EINVAL
@@ -341,311 +622,60 @@ def _as_dict_msg(msg, v):
 class Field:
     Sub = SubType
     def init(self, name, type):
-        #self.name, self.type, self.sub_type = name, type, sub_type
-        if type in (Field.Int8, Field.Int16, Field.Int32, Field.Int64):
-            self._from_string = from_string_int
-            self.default = int
-            if type == Field.Int8:
-                self.pack_data, self.unpack_data = pack_int8, unpack_int8
-                self.convert = convert_int8
-            elif type == Field.Int16:
-                self.pack_data, self.unpack_data = pack_int16, unpack_int16
-                self.convert = convert_int16
-            elif type == Field.Int32:
-                self.pack_data, self.unpack_data = pack_int32, unpack_int32
-                self.convert = convert_int32
-            elif type == Field.Int64:
-                self.pack_data, self.unpack_data = pack_int64, unpack_int64
-                self.convert = convert_int64
-            self.pack_raw, self.unpack_raw = self.pack_data, self.unpack_data
-            self.default_raw = self.default
-            if self.sub_type == SubType.FixedPoint:
-                self.pack_data, self.unpack_data = self.pack_fixed, self.unpack_fixed
-                self.convert = self.convert_fixed
-                self.default = Decimal
-                self._from_string = Decimal
-            elif self.sub_type == SubType.TimePoint:
-                self.pack_data, self.unpack_data = self.pack_timepoint, self.unpack_timepoint
-                self.convert = self.convert_timepoint
-                self.default = chrono.TimePoint
-                self._from_string = chrono.TimePoint.from_str
-            elif self.sub_type == SubType.Duration:
-                self.pack_data, self.unpack_data = self.pack_duration, self.unpack_duration
-                self.convert = self.convert_duration
-                self.default = chrono.Duration
-                self._from_string = chrono.Duration.from_str
-            elif self.sub_type == SubType.Bits:
-                self.pack_data, self.unpack_data = self.pack_bits, self.unpack_bits
-                self.convert = self.convert_bits
-                self.default = self.bitclass
-                self.as_dict = self._as_dict_bits
-        elif type in (Field.UInt8, Field.UInt16, Field.UInt32):
-            self._from_string = from_string_int
-            self.default = int
-            if type == Field.UInt8:
-                self.pack_data, self.unpack_data = pack_uint8, unpack_uint8
-                self.convert = convert_uint8
-            elif type == Field.UInt16:
-                self.pack_data, self.unpack_data = pack_uint16, unpack_uint16
-                self.convert = convert_uint16
-            elif type == Field.UInt32:
-                self.pack_data, self.unpack_data = pack_uint32, unpack_uint32
-                self.convert = convert_uint32
-            self.pack_raw, self.unpack_raw = self.pack_data, self.unpack_data
-            self.default_raw = self.default
-            if self.sub_type == SubType.FixedPoint:
-                self.pack_data, self.unpack_data = self.pack_fixed, self.unpack_fixed
-                self.convert = self.convert_fixed
-                self.default = Decimal
-                self._from_string = Decimal
-            elif self.sub_type == SubType.TimePoint:
-                self.pack_data, self.unpack_data = self.pack_timepoint, self.unpack_timepoint
-                self.convert = self.convert_timepoint
-                self.default = chrono.TimePoint
-                self._from_string = chrono.TimePoint.from_str
-            elif self.sub_type == SubType.Duration:
-                self.pack_data, self.unpack_data = self.pack_duration, self.unpack_duration
-                self.convert = self.convert_duration
-                self.default = chrono.Duration
-                self._from_string = chrono.Duration.from_str
-            elif self.sub_type == SubType.Bits:
-                self.pack_data, self.unpack_data = self.pack_bits, self.unpack_bits
-                self.convert = self.convert_bits
-                self.default = self.bitclass
-                self.as_dict = self._as_dict_bits
-        elif type == Field.Double:
-            self.pack_data, self.unpack_data = pack_double, unpack_double
-            self.convert = convert_double
-            self.default = self._from_string = float
-            self.pack_raw, self.unpack_raw = self.pack_data, self.unpack_data
-            self.default_raw = self.default
-            if self.sub_type == SubType.TimePoint:
-                self.pack_data, self.unpack_data = self.pack_timepoint, self.unpack_timepoint
-                self.convert = self.convert_timepoint
-                self.default = chrono.TimePoint
-                self._from_string = chrono.TimePoint.from_str
-            elif self.sub_type == SubType.Duration:
-                self.pack_data, self.unpack_data = self.pack_duration, self.unpack_duration
-                self.convert = self.convert_duration
-                self.default = chrono.Duration
-                self._from_string = chrono.Duration.from_str
-        elif type == Field.Decimal128:
-            self.pack_data, self.unpack_data = pack_decimal128, unpack_decimal128
-            self.convert = convert_decimal128
-            self.default = self._from_string = Decimal
-        elif type == Field.Bytes:
-            self.pack_data, self.unpack_data = pack_bytes, self.unpack_bytes
-            self.default = bytes
-            if self.sub_type == SubType.ByteString:
-                self.unpack_data = self.unpack_str
-                self.default = self._from_string = str
-                self.convert = convert_str
-            else:
-                self.convert = convert_bytes
-                self._from_string = lambda v: v.encode('utf-8')
-        elif type == Field.Message:
-            self.pack, self.unpack = self.pack_msg, self.unpack_msg
-            #self.pack_data, self.unpack_data = self.pack_data_msg, self.unpack_data_msg
-            self.pack_data, self.unpack_data = self.type_msg.pack, self.type_msg.unpack
-            self.unpack_reflection = self.type_msg.reflection
-            self.convert = self.convert_msg
-            self.default = self.type_msg.klass
-            self.as_dict = lambda v: _as_dict_msg(self.type_msg, v)
-        elif type == Field.Array:
-            self.pack_data, self.unpack_data = self.pack_array, self.unpack_array
-            self.unpack_reflection = self.unpack_array_reflection
-            self.convert = self.list
-            self.default = self.list
-            self.as_dict = self.list.as_dict
-        elif type == Field.Pointer:
-            if self.sub_type == SubType.ByteString:
-                self.pack_data, self.unpack_data = self.pack_vstring, lambda v: unpack_vstring(v, self.offset_ptr_version.value)
-                self.convert = convert_str
-                self._from_string = lambda x: x
-                self.default = str
-            else:
-                self.pack_data, self.unpack_data = self.pack_olist, self.unpack_olist
-                self.unpack_reflection = self.unpack_olist_reflection
-                self.convert = self.list
-                self.default = self.list
-                self.as_dict = self.list.as_dict
+        impl = _TYPES.get(type)
+        if impl is None:
+            raise NotImplementedError(f"Type {type} is not implemented")
+        self.impl = impl(self)
+
+        if self.sub_type != SubType.NONE:
+            impl = _SUBTYPES.get((type, self.sub_type))
+            if impl is None:
+                impl = _SUBTYPES.get(self.sub_type)
+            if impl is not None:
+                #raise NotImplementedError(f"Sub-type {self.sub_type} for type {type} is not implemented")
+                self.impl = impl(self)
 
     def __repr__(self):
         return "<Field {0.name}, type: {0.type}, size: {0.size}, offset: {0.offset}>".format(self)
 
+    def default(self):
+        cdef FBase impl = self.impl
+        return impl.default()
+
+    def convert(self, v):
+        cdef FBase impl = self.impl
+        return impl.convert(v)
+
+    def pack_data(self, v, dest, tail, tail_offset):
+        cdef FBase impl = self.impl
+        return impl.pack(v, dest, tail, tail_offset)
+
+    def unpack_data(self, src):
+        cdef FBase impl = self.impl
+        return impl.unpack(src)
+
+    def unpack_reflection(self, src):
+        cdef FBase impl = self.impl
+        return impl.reflection(src)
+
     def pack(self, v, dest, tail, tail_offset = 0):
         memoryview_check(dest)
-        print("Pack {}".format(self))
         self.pack_data(v, dest[self.offset:self.offset + self.size])
 
     def unpack(self, src):
         memoryview_check(src)
         return self.unpack_data(src[self.offset:self.offset + self.size])
 
-    def unpack_reflection(self, src):
-        return self.unpack_data(src)
-
-    def pack_array(self, v, dest, tail, tail_offset):
-        self.count_ptr.pack_data(len(v), dest[:self.count_ptr.size], None, None)
-        off = self.type_array.offset
-        for e in v[:self.count]:
-            self.type_array.pack_data(e, dest[off:off + self.type_array.size], tail, tail_offset - off)
-            off += self.type_array.size
-
-    def _unpack_array_f(self, src, f):
-        r = self.list()
-        cdef int i = 0
-        off = self.type_array.offset
-        cdef int size = self.count_ptr.unpack_data(src)
-        while i < size:
-            list.append(r, f(src[off:]))
-            off += self.type_array.size
-            i += 1
-        return r
-
-    def unpack_array(self, src): return self._unpack_array_f(src, self.type_array.unpack_data)
-    def unpack_array_reflection(self, src): return self._unpack_array_f(src, self.type_array.unpack_reflection)
-
-    def unpack_bytes(self, src): return unpack_bytes(src[:self.size])
-    def unpack_str(self, src): return unpack_str(src[:self.size])
-
-    def pack_msg(self, v, dest, tail, tail_offset):
-        memoryview_check(dest)
-        cdef int off = self.offset
-        #cdef int end = self.offset + self.size
-        return self.pack_data(v, dest[off:off + self.size], tail, tail_offset - off)
-
-    def unpack_msg(self, src):
-        memoryview_check(src)
-        return self.unpack_data(src[self.offset:self.size])
-
-    """
-    def pack_data_msg(self, v, dest, tail, tail_offset):
-        self.type_msg.pack(v, dest, tail, tail_offset)
-
-    def unpack_data_msg(self, src):
-        return self.unpack_data(src[self.offset:self.size])
-        self.type_msg.pack(v, dest, tail, tail_offset)
-    """
-
-    def convert_msg(self, v):
-        if isinstance(v, dict):
-            return self.type_msg.object(**v)
-        if isinstance(v, Data):
-            if v.SCHEME != self.type_msg:
-                raise TypeError("Can not convert message {} to {}".format(v.SCHEME.name, self.type_msg.name))
-            return v
-        raise TypeError("Can not convert {} to message".format(type(v)))
-
-    def convert_array(self, l):
-        if not isinstance(l, (tuple, list)):
-            raise TypeError("Invalid type for list: {}".format(type(l)))
-        if len(l) > self.count:
-            raise ValueError("List too large: {} > {}".format(len(l), self.count))
-        return self.type_array.list(l)
-
-    def convert_olist(self, l):
-        if not isinstance(l, (tuple, list)):
-            raise TypeError("Invalid type for list: {}".format(type(l)))
-        return self.type_ptr.list(l)
-
-    def _unpack_olist_f(self, src, f):
-        cdef offset_ptr_t ptr = read_optr(src, self.offset_ptr_version.value, self.type_ptr.size)
-        if ptr.size < 0: return None
-        r = self.list()
-        if ptr.size == 0:
-            return r
-        off = ptr.offset
-        cdef int i = 0
-        while i < ptr.size:
-            list.append(r, f(src[off:]))
-            off += ptr.entity
-            i += 1
-        return r
-
-    def unpack_olist(self, src): return self._unpack_olist_f(src, self.type_ptr.unpack_data)
-    def unpack_olist_reflection(self, src): return self._unpack_olist_f(src, self.type_ptr.unpack_reflection)
-
-    def pack_olist(self, v, dest, tail, tail_offset):
-        cdef offset_ptr_t ptr
-        f = self.type_ptr
-        ptr.offset = tail_offset + len(tail)
-        ptr.size = len(v)
-        ptr.entity = f.size
-        if write_optr(dest, self.offset_ptr_version.value, &ptr):
-            return None
-        b = bytearray(len(v) * self.type_ptr.size)
-        view = memoryview(b)
-        tnew = bytearray()
-        off = 0
-        for i in v:
-            f.pack_data(i, view[off:off+f.size], tnew, len(b) - off)
-            off += f.size
-        tail.extend(b)
-        if tnew: tail.extend(tnew)
-
-    def pack_vstring(self, v, dest, tail, tail_offset):
-        b = s2b(v)
-        cdef offset_ptr_t ptr
-        ptr.offset = tail_offset + len(tail)
-        ptr.size = len(b) + 1
-        ptr.entity = 1
-        if write_optr(dest, self.offset_ptr_version.value, &ptr):
-            return None
-        tail.extend(b + b'\0')
-
-    def convert_fixed(self, v):
-        if isinstance(v, (str, float, int)):
-            v = Decimal(v)
-        elif not isinstance(v, Decimal):
-            raise TypeError("Expected str, float or int, got {}: {}".format(type(v), v))
-        return v
-
-    def unpack_fixed(self, src):
-        return Decimal(self.unpack_raw(src)) * Decimal((0, (1,), -self.fixed_precision))
-
-    def pack_fixed(self, v, dest, tail, tail_offset):
-        return self.pack_raw(v.shift(self.fixed_precision).to_integral_value(), dest, tail, tail_offset)
-
-    def convert_timepoint(self, v):
-        return chrono.TimePoint(chrono.TimePoint(v), self.time_resolution, type=self.default_raw)
-
-    def unpack_timepoint(self, src):
-        return chrono.TimePoint(self.unpack_raw(src), self.time_resolution, type=self.default_raw)
-
-    def pack_timepoint(self, v, dest, tail, tail_offset):
-        return self.pack_raw(chrono.TimePoint(v, self.time_resolution, type=self.default_raw).value, dest, tail, tail_offset)
-
-    def convert_duration(self, v):
-        return chrono.Duration(chrono.Duration(v), self.time_resolution, type=self.default_raw)
-
-    def unpack_duration(self, src):
-        return chrono.Duration(self.unpack_raw(src), self.time_resolution, type=self.default_raw)
-
-    def pack_duration(self, v, dest, tail, tail_offset):
-        return self.pack_raw(chrono.Duration(v, self.time_resolution, type=self.default_raw).value, dest, tail, tail_offset)
-
-    def convert_bits(self, v):
-        return self.bitclass(v)
-
-    def unpack_bits(self, src):
-        return self.bitclass(self.unpack_raw(src))
-
-    def pack_bits(self, v, dest, tail, tail_offset):
-        return self.pack_raw(v._value, dest, tail, tail_offset)
-
     def from_string(self, v : str):
-        if not hasattr(self, '_from_string'):
+        cdef FBase impl = self.impl
+        try:
+            return impl.convert(impl.from_string(v))
+        except NotImplementedError:
             raise TypeError("Field {} with type {} can not be constructed from string".format(self.name, self.type))
-        return self.convert(self._from_string(v))
 
-    def _from_string_int(self, v):
-        return self.convert(int(v, 0))
-
-    def _as_dict_bits(self, v):
-        return {f.name: getattr(v, f.name) for f in v.BITS.values()}
-
-    def as_dict(self, v): return v
+    def as_dict(self, v):
+        cdef FBase impl = self.impl
+        return impl.as_dict(v)
 
 for t in Type:
     setattr(Field, t.name, t)
