@@ -223,12 +223,12 @@ int ChTimer::_process(long timeout, int flags)
 
 #ifdef __linux__
 	if (_next < now)
-		_log.debug("Pending notification, not clearing fd");
+		_log.trace("Pending notification, not clearing fd");
 	if (_with_fd && (_next == time_point() || _next > now)) {
 		uint64_t w;
 		if (read(fd(), &w, sizeof(w)) != sizeof(w))
 			return _log.fail(EINVAL, "Failed to read from timerfd: {}", strerror(errno));
-		_log.debug("Clear {} notifications from fd", w);
+		_log.trace("Clear {} notifications from fd", w);
 	}
 #endif
 
