@@ -8,6 +8,8 @@
 #ifndef _TLL_SCHEME_TYPES_H
 #define _TLL_SCHEME_TYPES_H
 
+#include <stdint.h>
+
 typedef struct __attribute__((packed)) tll_scheme_offset_ptr_legacy_short_t
 {
 	uint16_t offset;
@@ -35,6 +37,7 @@ typedef struct __attribute__((packed)) tll_scheme_offset_ptr_t
 #define tll_scheme_bit_field_set(data, offset, width, value) ((data) ^ ((tll_scheme_bit_field_get(data, offset, width) ^ tll_scheme_bit_field_mask(width, (value))) << (offset)))
 
 #ifdef __cplusplus
+#include <array>
 #include <string_view>
 
 namespace tll::scheme {
