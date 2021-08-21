@@ -72,6 +72,7 @@ class Enum(OrderedDict):
 cdef enum_wrap(tll_scheme_enum_t * ptr):
     r = Enum()
     r.options = Options.wrap(ptr.options)
+    r.type = Type(ptr.type)
     r.name = b2s(ptr.name)
     r.name_bytes = ptr.name
     #r.values = {}

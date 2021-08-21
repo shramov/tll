@@ -59,6 +59,7 @@ cdef extern from "tll/scheme.h":
     ctypedef struct tll_scheme_enum_t:
         tll_scheme_enum_t * next
         const char * name
+        tll_scheme_field_type_t type
         tll_scheme_enum_value_t * values
         tll_scheme_option_t * options
 
