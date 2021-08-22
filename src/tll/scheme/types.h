@@ -87,6 +87,23 @@ struct __attribute__((packed)) Bits
 	}
 };
 
+/// Stub declaration for decimal128 type
+struct __attribute__((packed)) Decimal128
+{
+	char bytes[16];
+};
+
+template <typename T, size_t Size, typename CountT>
+struct __attribute__((packed)) Array
+{
+	using count_type = CountT;
+	using value_type = T;
+	static constexpr size_t max_count = Size;
+
+	count_type count;
+	std::array<value_type, Size> array;
+};
+
 } // namespace tll::scheme
 #endif
 
