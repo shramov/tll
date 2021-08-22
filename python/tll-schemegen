@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+# vim: sts=4 sw=4 et
+
+import tll.scheme as S
+
+import argparse
+import os
+import shutil
+import sys
+import tempfile
+import pkg_resources
+
+"""
+def safe_write(filename, data):
+    dest, name = tempfile.mkstemp(dir=os.path.dirname(filename))
+
+    os.write(dest, source)
+    os.close(dest)
+    shutil.move(name, outputpath)
+"""
+
+parser = argparse.ArgumentParser(description='Generate source code from scheme')
+parser.add_argument('scheme', metavar='SCHEME', type=str,
+                    help='scheme file')
+parser.add_argument('-t', '--template', dest='template', type=str,
+                    default='cpp',
+                    help='template to use')
+parser.add_argument('--namespace', dest='namespace', type=str,
+                    help='C++ namespace name for generated source')
+
+args = parser.parse_args()
+
+from mako.lookup import TemplateLookup
+#from mako.template import Template
+#tmpl = Template(filename=f"{args.template}.mako")
+
+lookup = TemplateLookup([pkg_resources.resource_filename('tll', 'templates')], input_encoding='utf-8', output_encoding='utf-8')
+tmpl = lookup.get_template(args.template + '.mako')
+
+class Options(object): pass
+options = Options()
+options.msgid = 'msgid'
+options.namespace = args.namespace
+
+scheme = S.Scheme('yaml://' + args.scheme)
+sys.stdout.buffer.write(tmpl.render(S = S, scheme=scheme, options=options))

@@ -7,7 +7,7 @@ from Cython.Distutils import build_ext
 
 setup( name = 'tll'
      , packages = ['tll', 'tll.channel', 'tll.processor']
-     , scripts = ['tll-pyprocessor']
+     , scripts = ['tll-pyprocessor', 'tll-schemegen']
      , include_dirs = ["../src"]
      , cmdclass = {'build_ext': build_ext}
      , ext_modules =
@@ -23,6 +23,7 @@ setup( name = 'tll'
          , Extension("tll.scheme", ["tll/scheme.pyx"], libraries=["tll"])
          , Extension("tll.stat", ["tll/stat.pyx"], libraries=["tll"])
          ]
+     , package_data = { 'tll': ['templates/*.mako'] }
      , classifiers =
         [ 'Intended Audience :: Developers'
         , 'License :: OSI Approved :: MIT License'

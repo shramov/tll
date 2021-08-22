@@ -40,7 +40,7 @@ Description: Framework for building data processing services.
 Package: python3-tll
 Architecture: any
 Provides: ${python3:Provides}
-Depends: ${python3:Depends}, ${misc:Depends}, ${shlibs:Depends}, libtll0 (= ${binary:Version})
+Depends: ${python3:Depends}, ${misc:Depends}, ${shlibs:Depends}, libtll0 (= ${binary:Version}), python3-mako, python3-pkg-resources
 Description: Framework for building data processing services.
  .
  Package contains python bindings
