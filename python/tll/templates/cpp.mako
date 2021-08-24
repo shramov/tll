@@ -6,6 +6,13 @@
 % if options.namespace:
 namespace ${options.namespace} {
 % endif
+<%!
+def weaktrim(text):
+    text = text.lstrip('\n')
+    r = text.strip()
+    if r == '': return r
+    return text
+%>\
 <%
 NUMERIC = {
     S.Type.Int8: 'int8_t',
@@ -45,47 +52,46 @@ def field2type(f):
     	t = field2type(f.type_ptr)
         return f"tll::scheme::offset_ptr_t<{t}>"
     raise ValueError(f"Unknown type for field {f.name}: {f.type}")
-
-def enum2decl(e):
-    t = numeric(e.type)
-    body = ", ".join([f"{n} = {v}" for n,v in e.items()])
-    return f"enum class {e.name}: {t} {{{body}}}"
-
-def field2decl(f):
-    if f.type == f.Array:
-        return field2decl(f.type_array)
-    elif f.type == f.Pointer:
-        return field2decl(f.type_ptr)
-
-    if f.sub_type == f.Sub.Bits:
-	t = numeric(f.type)
-	body = []
-	for n,b in sorted(f.bitfields.items()):
-	    bt = "unsigned" if b.size > 1 else "bool"
-	    body.append(f"""\t\tauto {b.name}() const {{ return get({b.offset}, {b.size}); }}; void {b.name}({bt} v) {{ return set({b.offset}, {b.size}, v); }};
-""")
-	body = "".join(body)
-	return f"""struct {f.name}: public tll::scheme::Bits<{t}>
-	{{
-{body}	}};"""
-%>
+%>\
+<%def name='enum2code(e)'>\
+	enum class ${e.name}: ${numeric(e.type)}
+	{
+% for n,v in sorted(e.items()):
+		${n} = ${v},
+% endfor
+	};
+</%def>\
+<%def name='field2decl(f)' filter='weaktrim'>
+% if f.type == f.Array:
+<%call expr='field2decl(f.type_array)'></%call>\
+% elif f.type == f.Pointer:
+<%call expr='field2decl(f.type_ptr)'></%call>\
+% elif f.sub_type == f.Sub.Bits:
+	struct ${f.name}: public tll::scheme::Bits<${numeric(f.type)}>
+	{
+% for n,b in sorted(f.bitfields.items()):
+		auto ${b.name}() const { return get(${b.offset}, ${b.size}); }; void ${b.name}(${"unsigned" if b.size > 1 else "bool"} v) { return set(${b.offset}, ${b.size}, v); };
+% endfor
+	};
+% endif
+</%def>\
+<%def name='field2code(f)'>\
+<%call expr='field2decl(f)'></%call>\
+	${field2type(f)} ${f.name};\
+</%def>
 % for e in scheme.enums.values():
-${enum2decl(e)};
-
+<%call expr='enum2code(e)'></%call>
 % endfor
 % for msg in scheme.messages:
-struct ${ msg.name } {
+struct ${msg.name} {
 % if msg.msgid != 0:
 	static constexpr int ${options.msgid} = ${msg.msgid};
 % endif
 % for e in msg.enums.values():
-	${enum2decl(e)};
+<%call expr='enum2code(e)'></%call>
 % endfor
 % for f in msg.fields:
-% if field2decl(f):
-	${field2decl(f)}
-% endif
-	${field2type(f)} ${f.name};
+<%call expr='field2code(f)'></%call>
 % endfor
 };
 
