@@ -56,7 +56,7 @@ def field2type(f):
 <%def name='enum2code(e)'>\
 	enum class ${e.name}: ${numeric(e.type)}
 	{
-% for n,v in sorted(e.items()):
+% for n,v in sorted(e.items(), key=lambda t: (t[1], t[0])):
 		${n} = ${v},
 % endfor
 	};
@@ -69,7 +69,7 @@ def field2type(f):
 % elif f.sub_type == f.Sub.Bits:
 	struct ${f.name}: public tll::scheme::Bits<${numeric(f.type)}>
 	{
-% for n,b in sorted(f.bitfields.items()):
+% for n,b in sorted(f.bitfields.items(), key=lambda t: (t[1].offset, t[1].size, t[0])):
 		auto ${b.name}() const { return get(${b.offset}, ${b.size}); }; void ${b.name}(${"unsigned" if b.size > 1 else "bool"} v) { return set(${b.offset}, ${b.size}, v); };
 % endfor
 	};
