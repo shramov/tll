@@ -34,6 +34,7 @@
 #include "channel/serial.h"
 #include "channel/tcp.h"
 #include "channel/timer.h"
+#include "channel/udp.h"
 #include "channel/zero.h"
 
 using namespace tll;
@@ -47,6 +48,7 @@ TLL_DECLARE_IMPL(ChMem);
 TLL_DECLARE_IMPL(ChSerial);
 TLL_DECLARE_IMPL(ChTcp);
 TLL_DECLARE_IMPL(ChTimer);
+TLL_DECLARE_IMPL(ChUdp);
 TLL_DECLARE_IMPL(ChZero);
 
 struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t>
@@ -74,6 +76,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChSerial::impl);
 		reg(&ChTcp::impl);
 		reg(&ChTimer::impl);
+		reg(&ChUdp::impl);
 		reg(&ChZero::impl);
 	}
 

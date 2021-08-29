@@ -354,3 +354,78 @@ class TestTcpNone(_test_tcp_base):
     PROTO = 'tcp://./test.sock;frame=none'
     CLEANUP = ['./test.sock']
     FRAME = False
+
+class _test_udp_base:
+    PROTO = 'invalid-url'
+    FRAME = True
+    CLEANUP = []
+
+    def setup(self):
+        self.s = Accum(self.PROTO, mode='server', name='server', dump='yes', context=ctx)
+        self.c = Accum(self.PROTO, mode='client', name='client', dump='yes', context=ctx)
+
+    def teardown(self):
+        self.c.close()
+        self.s.close()
+        self.c = None
+        self.s = None
+        for f in self.CLEANUP:
+            if os.path.exists(f):
+                os.unlink(f)
+
+    def test(self):
+        s, c = self.s, self.c
+
+        s.open()
+        assert s.state == s.State.Active
+        assert len(s.children) == 0
+
+        spoll = select.poll()
+        spoll.register(s.fd, select.POLLIN)
+
+        assert s.state == s.State.Active
+        assert s.dcaps == s.DCaps.Process | s.DCaps.PollIn
+
+        c.open()
+
+        cpoll = select.poll()
+        cpoll.register(c.fd, select.POLLIN)
+
+        assert c.state == c.State.Active
+        assert len(c.children) == 0
+
+        assert c.state == c.State.Active
+        assert c.dcaps == c.DCaps.Process | c.DCaps.PollIn
+
+        c.post(b'xxx', seq=0x6ead, msgid=0x6eef)
+        assert spoll.poll(10) != []
+        s.process()
+        assert [m.data.tobytes() for m in s.result] == [b'xxx']
+        assert [(m.seq, m.msgid) for m in s.result] == [(0x6ead, 0x6eef) if self.FRAME else (0, 0)] # No frame
+
+        if self.CLEANUP: return # Unix sockets don't have return address
+        s.post(b'zzzz', seq=0x6eef, msgid=0x6ead, addr=s.result[0].addr)
+
+        assert cpoll.poll(10) != []
+        c.process()
+        assert [m.data.tobytes() for m in c.result] == [b'zzzz']
+        assert [(m.seq, m.msgid) for m in c.result] == [(0x6eef, 0x6ead) if self.FRAME else (0, 0)] # No frame
+
+class TestUdpUnix(_test_udp_base):
+    PROTO = 'udp://./test.sock'
+    CLEANUP = ['test.sock']
+
+class TestUdp4(_test_udp_base):
+    PROTO = 'udp://127.0.0.1:{}'.format(ports.UDP4)
+
+class TestUdp6(_test_udp_base):
+    PROTO = 'udp://::1:5555'.format(ports.UDP6)
+
+class TestUdpShort(_test_udp_base):
+    PROTO = 'udp://./test.sock;frame=short'
+    CLEANUP = ['./test.sock']
+
+class TestUdpNone(_test_udp_base):
+    PROTO = 'udp://./test.sock;frame=none'
+    CLEANUP = ['./test.sock']
+    FRAME = False

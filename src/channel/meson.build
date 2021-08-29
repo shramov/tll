@@ -8,6 +8,7 @@ channel_sources = files(
 	, 'serial.cc'
 	, 'tcp.cc'
 	, 'timer.cc'
+	, 'udp.cc'
 	, 'zero.cc'
 	]
 )
