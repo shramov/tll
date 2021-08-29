@@ -5,7 +5,7 @@ import tll.channel as C
 from tll.config import Config
 from tll.error import TLLError
 from tll.stat import Method, Unit
-from tll.test_util import Accum
+from tll.test_util import Accum, ports
 
 import common
 
@@ -16,26 +16,6 @@ import socket
 import sys
 
 ctx = C.Context()
-
-class Ports:
-    def __init__(self):
-        self.cache = {}
-
-    def cached(self, af = socket.AF_INET, type = socket.SOCK_STREAM):
-        if (af, type) not in self.cache:
-            self.cache[(af, type)] = self.get(af, type)
-        return self.cache[(af, type)]
-
-    tcp4 = property(lambda s: s.cached(socket.AF_INET, socket.SOCK_STREAM))
-    tcp6 = property(lambda s: s.cached(socket.AF_INET6, socket.SOCK_STREAM))
-
-    @staticmethod
-    def get(af = socket.AF_INET, type = socket.SOCK_STREAM):
-        with socket.socket(af, type) as s:
-            s.bind(('::1' if af == socket.AF_INET6 else '127.0.0.1', 0))
-            return s.getsockname()[1]
-
-PORTS = Ports()
 
 def test_defaults():
     defaults = Config()
@@ -355,13 +335,13 @@ class TestTcpUnix(_test_tcp_base):
     CLEANUP = ['test.sock']
 
 class TestTcp4(_test_tcp_base):
-    PROTO = 'tcp://127.0.0.1:{}'.format(PORTS.tcp4)
+    PROTO = 'tcp://127.0.0.1:{}'.format(ports.TCP4)
 
 class TestTcp6(_test_tcp_base):
-    PROTO = 'tcp://::1:5555'.format(PORTS.tcp6)
+    PROTO = 'tcp://::1:5555'.format(ports.TCP6)
 
 class TestTcpAny(_test_tcp_base):
-    PROTO = 'tcp://localhost:5555'.format(PORTS.tcp4)
+    PROTO = 'tcp://localhost:5555'.format(ports.TCP4)
 
     def _children_count(self):
         import socket
