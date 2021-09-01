@@ -17,7 +17,7 @@ class ChUdp : public tll::channel::Base<ChUdp>
 
 	std::optional<const tll_channel_impl_t *> _init_replace(const tll::Channel::Url &url, tll::Channel *master);
 
-	int _init(const tll::Channel::Url &url, tll::Channel * master) { return _log.fail(EINVAL, "Failed to choose proper udp channel"); }
+	int _init(const tll::Channel::Url &url, tll::Channel * master) { return this->_log.fail(EINVAL, "Failed to choose proper udp channel"); }
 };
 
 #endif//_TLL_CHANNEL_UDP_H

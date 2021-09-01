@@ -12,6 +12,7 @@
 #include "tll/util/sockaddr.h"
 
 #include <fcntl.h>
+#include <net/if.h>
 #include <unistd.h>
 
 using namespace tll;
@@ -46,6 +47,21 @@ class UdpSocket : public tll::channel::Base<T>
 	size_t _rcvbuf = 0;
 	unsigned _ttl = 0;
 
+	bool _multi = false;
+	bool _mcast_loop = true;
+	std::optional<std::string> _mcast_interface;
+	int _mcast_ifindex = 0;
+
+	int _nametoindex()
+	{
+		if (!_mcast_interface || _mcast_ifindex)
+			return 0;
+		_mcast_ifindex = if_nametoindex(this->_mcast_interface->c_str());
+		if (_mcast_ifindex == 0)
+			return this->_log.fail(EINVAL, "Interface '{}' not found: {}", *this->_mcast_interface, strerror(errno));
+		return 0;
+	}
+
  public:
 	static constexpr std::string_view channel_protocol() { return "udp"; }
 
@@ -65,11 +81,15 @@ class UdpClient : public UdpSocket<UdpClient<Frame>, Frame>
 	int _af = AF_UNSPEC;
 	std::string _host;
 	unsigned short _port = 0;
+
  public:
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::PropsView &);
 
-	int _post(const tll_msg_t *msg, int flags);
+	int _post(const tll_msg_t *msg, int flags)
+	{
+		return udp_socket_t::_send(msg, this->_addr);
+	}
 };
 
 template <typename Frame>
@@ -81,24 +101,27 @@ class UdpServer : public UdpSocket<UdpServer<Frame>, Frame>
 	std::string _host;
 	unsigned short _port = 0;
 	bool _unlink_socket = false;
+
  public:
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::PropsView &);
 	int _close();
 
-	int _post(const tll_msg_t *msg, int flags);
+	int _post(const tll_msg_t *msg, int flags)
+	{
+		return udp_socket_t::_send(msg, this->_peer);
+	}
 };
 
 TLL_DEFINE_IMPL(ChUdp);
 
-TLL_DEFINE_IMPL(UdpClient<void>);
-TLL_DEFINE_IMPL(UdpServer<void>);
+#define UDP_DEFINE_IMPL(frame) \
+template <> tll::channel_impl<UdpClient<frame>> tll::channel::Base<UdpClient<frame>>::impl = {}; \
+template <> tll::channel_impl<UdpServer<frame>> tll::channel::Base<UdpServer<frame>>::impl = {}; \
 
-TLL_DEFINE_IMPL(UdpClient<tll_frame_t>);
-TLL_DEFINE_IMPL(UdpServer<tll_frame_t>);
-
-TLL_DEFINE_IMPL(UdpClient<tll_frame_short_t>);
-TLL_DEFINE_IMPL(UdpServer<tll_frame_short_t>);
+UDP_DEFINE_IMPL(void);
+UDP_DEFINE_IMPL(tll_frame_t);
+UDP_DEFINE_IMPL(tll_frame_short_t);
 
 std::optional<const tll_channel_impl_t *> ChUdp::_init_replace(const tll::Channel::Url &url, tll::Channel *master)
 {
@@ -141,6 +164,12 @@ int UdpSocket<T, F>::_init(const Channel::Url &url, Channel *master)
 	_sndbuf = reader.getT("sndbuf", util::Size {0});
 	_rcvbuf = reader.getT("rcvbuf", util::Size {0});
 	_ttl = reader.getT("ttl", 0u);
+
+	_multi = reader.getT("multicast", false);
+	if (_multi) {
+		_mcast_loop = reader.getT("loop", true);
+		_mcast_interface = reader.get("interface");
+	}
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 	_buf.resize(size);
@@ -159,8 +188,39 @@ int UdpSocket<T, F>::_open(const PropsView &url)
 	if (_rcvbuf && setsockoptT<int>(this->fd(), SOL_SOCKET, SO_RCVBUF, _rcvbuf))
 		return this->_log.fail(EINVAL, "Failed to set rcvbuf to {}: {}", _rcvbuf, strerror(errno));
 
-	if (_ttl && setsockoptT<int>(this->fd(), IPPROTO_IP, IP_TTL, _ttl))
-		return this->_log.fail(EINVAL, "Failed to set rcvbuf to {}: {}", _rcvbuf, strerror(errno));
+	if (_ttl) {
+		if (_multi && _addr->sa_family == AF_INET6) {
+			if (setsockoptT<int>(this->fd(), IPPROTO_IPV6, IPV6_MULTICAST_HOPS, _ttl))
+				return this->_log.fail(EINVAL, "Failed to set IPv6 multicast ttl to {}: {}", _ttl, strerror(errno));
+		} else if (_multi && _addr->sa_family == AF_INET) {
+			if (setsockoptT<int>(this->fd(), IPPROTO_IP, IP_MULTICAST_TTL, _ttl))
+				return this->_log.fail(EINVAL, "Failed to set IP multicast ttl to {}: {}", _ttl, strerror(errno));
+		} else if (_addr->sa_family == AF_INET6) {
+			if (setsockoptT<int>(this->fd(), IPPROTO_IPV6, IPV6_UNICAST_HOPS, _ttl))
+				return this->_log.fail(EINVAL, "Failed to set IPv6 ttl to {}: {}", _ttl, strerror(errno));
+		} else if (setsockoptT<int>(this->fd(), IPPROTO_IP, IP_TTL, _ttl))
+			return this->_log.fail(EINVAL, "Failed to set IP ttl to {}: {}", _ttl, strerror(errno));
+	}
+	if (_multi && _mcast_loop) {
+		if (_addr->sa_family == AF_INET6) {
+			if (setsockoptT<int>(this->fd(), IPPROTO_IPV6, IPV6_MULTICAST_LOOP, _mcast_loop))
+				return this->_log.fail(EINVAL, "Failed to set IPv6 multicast loop: {}", strerror(errno));
+		} else if (setsockoptT<int>(this->fd(), IPPROTO_IP, IP_MULTICAST_LOOP, _mcast_loop))
+			return this->_log.fail(EINVAL, "Failed to set IP multicast loop: {}", strerror(errno));
+	}
+
+	if (_multi && _mcast_interface) {
+		this->_log.info("Set multicast interface to {}: index {}", *_mcast_interface, _mcast_ifindex);
+		if (_addr->sa_family == AF_INET6) {
+			if (setsockoptT<int>(this->fd(), IPPROTO_IPV6, IPV6_MULTICAST_IF, _mcast_ifindex))
+				return this->_log.fail(EINVAL, "Failed to set IPv6 multicast index to {} ({}): {}", _mcast_ifindex, *_mcast_interface, strerror(errno));
+		} else {
+			ip_mreqn mreq = {};
+			mreq.imr_ifindex = _mcast_ifindex;
+			if (setsockoptT(this->fd(), IPPROTO_IP, IP_MULTICAST_IF, mreq))
+				return this->_log.fail(EINVAL, "Failed to set IP multicast index to {} ({}): {}", _mcast_ifindex, *_mcast_interface, strerror(errno));
+		}
+	}
 
 	this->_dcaps_poll(dcaps::CPOLLIN);
 	return 0;
@@ -172,6 +232,7 @@ int UdpSocket<T, F>::_close()
 	auto fd = this->_update_fd(-1);
 	if (fd != -1)
 		::close(fd);
+	_mcast_ifindex = 0;
 	return 0;
 }
 
@@ -283,12 +344,6 @@ int UdpClient<F>::_open(const PropsView &url)
 }
 
 template <typename F>
-int UdpClient<F>::_post(const tll_msg_t * msg, int flags)
-{
-	return udp_socket_t::_send(msg, this->_addr);
-}
-
-template <typename F>
 int UdpServer<F>::_init(const Channel::Url &url, Channel *master)
 {
 	auto reader = this->channel_props_reader(url);
@@ -332,11 +387,34 @@ int UdpServer<F>::_open(const PropsView &url)
 		return this->_log.fail(errno, "Failed to create socket: {}", strerror(errno));
 	this->_update_fd(fd);
 
+	if (this->_multi) {
+		if (setsockoptT<int>(this->fd(), SOL_SOCKET, SO_REUSEADDR, 1))
+			return this->_log.fail(EINVAL, "Failed to set reuseaddr: {}", strerror(errno));
+	}
+
 	this->_log.info("Listen on {}", this->_addr);
 
 	if (bind(this->fd(), this->_addr, this->_addr.size))
 		return this->_log.fail(errno, "Failed to bind: {}", strerror(errno));
 	_unlink_socket = _af == AF_UNIX;
+
+	if (this->_multi) {
+		this->_nametoindex();
+		this->_log.info("Join multicast group {}", this->_addr);
+		if (this->_addr->sa_family == AF_INET6) {
+			ipv6_mreq mreq = {};
+			mreq.ipv6mr_multiaddr = this->_addr.in6()->sin6_addr;
+			mreq.ipv6mr_interface = this->_mcast_ifindex;
+			if (setsockoptT(this->fd(), IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, mreq))
+				return this->_log.fail(EINVAL, "Failed to add multicast membership: {}", strerror(errno));
+		} else {
+			ip_mreqn mreq = {};
+			mreq.imr_multiaddr = this->_addr.in()->sin_addr;
+			mreq.imr_ifindex = this->_mcast_ifindex;
+			if (setsockoptT(this->fd(), IPPROTO_IP, IP_ADD_MEMBERSHIP, mreq))
+				return this->_log.fail(EINVAL, "Failed to add multicast membership: {}", strerror(errno));
+		}
+	}
 
 	return udp_socket_t::_open(url);
 }
@@ -351,10 +429,4 @@ int UdpServer<F>::_close()
 	}
 	_unlink_socket = false;
 	return udp_socket_t::_close();
-}
-
-template <typename F>
-int UdpServer<F>::_post(const tll_msg_t * msg, int flags)
-{
-	return udp_socket_t::_send(msg, this->_peer);
 }

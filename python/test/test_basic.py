@@ -429,3 +429,12 @@ class TestUdpNone(_test_udp_base):
     PROTO = 'udp://./test.sock;frame=none'
     CLEANUP = ['./test.sock']
     FRAME = False
+
+@pytest.mark.multicast
+class TestMUdp4(_test_udp_base):
+    PROTO = 'mudp://239.255.11.12:{};loop=yes'.format(ports.UDP6)
+
+@pytest.mark.multicast
+class TestMUdp6(_test_udp_base):
+    PROTO = 'mudp://ff13::beef:{};loop=yes'.format(ports.UDP6)
+    #PROTO = 'mudp://ff11::beef%{iface}:{port};udp.interface={iface};udp.loop=yes'.format(port=ports.UDP6, iface='wlp3s0')

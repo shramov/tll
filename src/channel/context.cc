@@ -78,6 +78,9 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChTimer::impl);
 		reg(&ChUdp::impl);
 		reg(&ChZero::impl);
+
+		auto cfg = tll::Channel::Url::parse("udp://;udp.multicast=yes");
+		if (cfg) alias_reg("mudp", *cfg);
 	}
 
 	~tll_channel_context_t()
