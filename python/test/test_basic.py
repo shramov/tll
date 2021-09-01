@@ -338,10 +338,10 @@ class TestTcp4(_test_tcp_base):
     PROTO = 'tcp://127.0.0.1:{}'.format(ports.TCP4)
 
 class TestTcp6(_test_tcp_base):
-    PROTO = 'tcp://::1:5555'.format(ports.TCP6)
+    PROTO = 'tcp://::1:{}'.format(ports.TCP6)
 
 class TestTcpAny(_test_tcp_base):
-    PROTO = 'tcp://localhost:5555'.format(ports.TCP4)
+    PROTO = 'tcp://localhost:{}'.format(ports.TCP4)
 
     def _children_count(self):
         import socket
@@ -419,7 +419,7 @@ class TestUdp4(_test_udp_base):
     PROTO = 'udp://127.0.0.1:{}'.format(ports.UDP4)
 
 class TestUdp6(_test_udp_base):
-    PROTO = 'udp://::1:5555'.format(ports.UDP6)
+    PROTO = 'udp://::1:{};udp.ttl=1'.format(ports.UDP6)
 
 class TestUdpShort(_test_udp_base):
     PROTO = 'udp://./test.sock;frame=short'
