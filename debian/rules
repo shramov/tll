@@ -4,7 +4,7 @@ export TLL_LIBRARY_DIR = $(shell pwd)/obj-$(DEB_BUILD_GNU_TYPE)/src
 
 export PYBUILD_NAME = tll
 export PYBUILD_SYSTEM = distutils
-export PYBUILD_TEST_ARGS = -v --log-level=DEBUG
+export PYBUILD_TEST_ARGS = -v --log-level=DEBUG -c $(shell pwd)/python/pytest.ini
 export PYBUILD_TEST_PYTEST = 1
 
 %:
