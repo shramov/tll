@@ -30,7 +30,7 @@ int nonblock(int fd)
 template <typename T>
 int setsockoptT(int fd, int level, int optname, T v)
 {
-	return setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &v, sizeof(v));
+	return setsockopt(fd, level, optname, &v, sizeof(v));
 }
 } // namespace ''
 
