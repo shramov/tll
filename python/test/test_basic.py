@@ -421,6 +421,12 @@ class _test_udp_base:
 
         c.post(b'xxx', seq=0x6ead, msgid=0x6eef)
         timestamp = time.time()
+        if self.TIMESTAMP:
+            if c.result == []:
+                assert cpoll.poll(10) != []
+                c.process()
+            assert [(m.seq, m.msgid) for m in c.result if m.type == m.Type.Control] == [(0, 10)]
+            assert c.result[-1].timestamp.seconds == pytest.approx(timestamp, 0.001)
 
         assert spoll.poll(10) != []
         s.process()
@@ -436,8 +442,8 @@ class _test_udp_base:
 
         assert cpoll.poll(10) != []
         c.process()
-        assert [m.data.tobytes() for m in c.result] == [b'zzzz']
-        assert [(m.seq, m.msgid) for m in c.result] == [(0x6eef, 0x6ead) if self.FRAME else (0, 0)] # No frame
+        assert [m.data.tobytes() for m in c.result if m.type == m.Type.Data] == [b'zzzz']
+        assert [(m.seq, m.msgid) for m in c.result if m.type == m.Type.Data] == [(0x6eef, 0x6ead) if self.FRAME else (0, 0)] # No frame
 
 class TestUdpUnix(_test_udp_base):
     PROTO = 'udp://./test.sock'
@@ -459,7 +465,7 @@ class TestUdpNone(_test_udp_base):
     FRAME = False
 
 class TestUdpTS(_test_udp_base):
-    PROTO = 'udp://::1:{};timestamping=yes'.format(ports.UDP6)
+    PROTO = 'udp://::1:{};timestamping=yes;timestamping-tx=yes'.format(ports.UDP6)
     TIMESTAMP = True
 
 @pytest.mark.multicast

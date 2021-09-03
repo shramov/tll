@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 #ifdef __linux__
+#include <linux/errqueue.h>
 #include <linux/sockios.h>
 #include <linux/net_tstamp.h>
 #endif
@@ -25,6 +26,12 @@
 #ifndef IPV6_ADD_MEMBERSHIP
 #define IPV6_ADD_MEMBERSHIP IPV6_JOIN_GROUP
 #endif
+
+static constexpr std::string_view control_scheme = R"(yamls://
+- name: time
+  id: 10
+  fields: []
+)";
 
 using namespace tll;
 
@@ -60,6 +67,7 @@ class UdpSocket : public tll::channel::Base<T>
 	unsigned _ttl = 0;
 
 	bool _timestamping = false;
+	bool _timestamping_tx = false;
 
 	bool _multi = false;
 	bool _mcast_loop = true;
@@ -77,6 +85,18 @@ class UdpSocket : public tll::channel::Base<T>
 	}
 
 	std::chrono::nanoseconds _cmsg_timestamp(msghdr *msg);
+	uint32_t _cmsg_seq(msghdr *msg);
+	int _process_errqueue()
+	{
+		iovec iov = {_buf.data(), _buf.size()};
+		msghdr mhdr = {};
+		mhdr.msg_iov = &iov;
+		mhdr.msg_iovlen = 1;
+		mhdr.msg_control = _buf_control.data();
+		mhdr.msg_controllen = _buf_control.size();
+		return _process_errqueue(&mhdr);
+	}
+	int _process_errqueue(msghdr * mhdr);
 
  public:
 	static constexpr std::string_view channel_protocol() { return "udp"; }
@@ -182,6 +202,7 @@ int UdpSocket<T, F>::_init(const Channel::Url &url, Channel *master)
 	_ttl = reader.getT("ttl", 0u);
 
 	_timestamping = reader.getT("timestamping", false);
+	_timestamping_tx = reader.getT("timestamping-tx", false);
 
 	_multi = reader.getT("multicast", false);
 	if (_multi) {
@@ -194,6 +215,11 @@ int UdpSocket<T, F>::_init(const Channel::Url &url, Channel *master)
 	if (_timestamping) {
 #ifdef __linux__
 		_buf_control.resize(256);
+		if (_timestamping_tx) {
+			this->_scheme_control.reset(this->context().scheme_load(control_scheme));
+			if (!this->_scheme_control.get())
+				return this->_log.fail(EINVAL, "Failed to load control scheme");
+		}
 #else
 		this->_log.info("Packet timestamping supported only on linux");
 #endif
@@ -210,6 +236,8 @@ int UdpSocket<T, F>::_open(const PropsView &url)
 	if (_timestamping) {
 #ifdef __linux__
 		int v = SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_RX_HARDWARE | SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_SOFTWARE;
+		if (_timestamping_tx)
+			v |= SOF_TIMESTAMPING_TX_SOFTWARE | SOF_TIMESTAMPING_TX_HARDWARE | SOF_TIMESTAMPING_OPT_TSONLY | SOF_TIMESTAMPING_OPT_ID;
 		if (setsockoptT<int>(this->fd(), SOL_SOCKET, SO_TIMESTAMPING, v))
 			return this->_log.fail(EINVAL, "Failed to set SO_TIMESTAMPING: {}", strerror(errno));
 #endif
@@ -296,7 +324,11 @@ int UdpSocket<T, Frame>::_send(const tll_msg_t * msg, const tll::network::sockad
 		return this->_log.fail(errno, "Failed to post data: {}", strerror(errno));
 	} else if ((size_t) r != size)
 		return this->_log.fail(errno, "Failed to post data (truncated): {}", strerror(errno));
-	return 0;
+	r = _process_errqueue();
+	if (r == EAGAIN)
+		return 0;
+	this->_log.debug("Post done");
+	return r;
 }
 
 template <typename T, typename Frame>
@@ -313,7 +345,7 @@ int UdpSocket<T, Frame>::_process(long timeout, int flags)
 	auto r = recvmsg(this->fd(), &mhdr, MSG_NOSIGNAL);
 	if (r < 0) {
 		if (errno == EAGAIN)
-			return EAGAIN;
+			return _process_errqueue(&mhdr);
 		return this->_log.fail(EINVAL, "Failed to receive data: {}", strerror(errno));
 	}
 	if ((size_t) r < frame_size)
@@ -358,6 +390,45 @@ std::chrono::nanoseconds UdpSocket<T, Frame>::_cmsg_timestamp(msghdr * msg)
 	}
 #endif
 	return r;
+}
+
+template <typename T, typename Frame>
+uint32_t UdpSocket<T, Frame>::_cmsg_seq(msghdr * msg)
+{
+#ifdef __linux__
+	for (auto cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
+		if (!((cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_RECVERR) ||
+			(cmsg->cmsg_level == SOL_IPV6 && cmsg->cmsg_type == IPV6_RECVERR)))
+			continue;
+
+		auto err = (sock_extended_err *) CMSG_DATA(cmsg);
+		if (err->ee_errno == ENOMSG && err->ee_origin == SO_EE_ORIGIN_TIMESTAMPING)
+			return err->ee_data;
+	}
+#endif
+	return 0;
+}
+
+template <typename T, typename Frame>
+int UdpSocket<T, Frame>::_process_errqueue(msghdr * mhdr)
+{
+#ifdef __linux__
+	if (!_timestamping_tx)
+		return 0;
+	auto r = recvmsg(this->fd(), mhdr, MSG_NOSIGNAL | MSG_ERRQUEUE);
+	if (r < 0) {
+		if (errno == EAGAIN)
+			return EAGAIN;
+		return this->_log.fail(EINVAL, "Failed to receive errqueue message: {}", strerror(errno));
+	}
+	tll_msg_t msg = {};
+	msg.type = TLL_MESSAGE_CONTROL;
+	msg.msgid = 10;
+	msg.timestamp = _cmsg_timestamp(mhdr).count();
+	msg.seq = _cmsg_seq(mhdr);
+	this->_callback(&msg);
+#endif
+	return 0;
 }
 
 template <typename F>
