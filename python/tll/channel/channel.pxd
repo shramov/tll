@@ -75,6 +75,7 @@ cdef extern from "tll/channel.h" nogil:
         const void * data
         tll_addr_t addr
         size_t size
+        long long timestamp
 
     ctypedef int (*tll_channel_callback_t)(const tll_channel_t *, const tll_msg_t * msg, void * user);
 

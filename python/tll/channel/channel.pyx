@@ -13,6 +13,7 @@ from cpython cimport Py_buffer
 from cpython.buffer cimport *
 from cpython.ref cimport Py_INCREF, Py_DECREF
 from ..buffer cimport *
+from ..chrono import TimePoint, Resolution
 from os import strerror
 from ..error import TLLError
 from .. import error
@@ -368,10 +369,10 @@ cdef class Context:
 
 class Message:
     Type = _Type
-    __slots__ = ["type", "msgid", "seq", "addr", "data"]
+    __slots__ = ["type", "msgid", "seq", "addr", "data", "timestamp"]
 
-    def __init__(self, msgid, data=b'', type : _Type =_Type.Data, seq : int = 0, addr : int = 0):
-        self.type, self.msgid, self.seq, self.addr, self.data = type, msgid, seq, addr, memoryview(data)
+    def __init__(self, msgid, data=b'', type : _Type =_Type.Data, seq : int = 0, addr : int = 0, timestamp : TimePoint = None):
+        self.type, self.msgid, self.seq, self.addr, self.data, self.timestamp = type, msgid, seq, addr, memoryview(data), timestamp
 
 cdef class CMessage:
     Type = _Type
@@ -406,11 +407,14 @@ cdef class CMessage:
     def addr(self): return self._ptr.addr.i64 if self._ptr else None
 
     @property
+    def timestamp(self): return TimePoint(self._ptr.timestamp, Resolution.ns, type=int) if self._ptr else None
+
+    @property
     def data(self): return memoryview(self) if self._ptr else None
 
     def copy(self):
         if not self._ptr: raise RuntimeError("Message is uninitialized")
-        return Message(type = Type(self._ptr.type), msgid = self._ptr.msgid, seq = self._ptr.seq, addr = self.addr, data = memoryview(memoryview(self).tobytes()))
+        return Message(type = Type(self._ptr.type), msgid = self._ptr.msgid, seq = self._ptr.seq, addr = self.addr, timestamp = self.timestamp, data = memoryview(memoryview(self).tobytes()))
 
     def clone(self): return self.copy()
 
