@@ -48,9 +48,6 @@ class TcpSocket : public Base<T>
 	size_t _roff = 0; ///< Unprocessed data offset
 	size_t _rsize = 0; ///< Received data size
 
-	std::string _host;
-	unsigned short _port;
-
 	tcp_socket_addr_t _msg_addr;
 
 	using tcp_socket_t = TcpSocket<T>;
@@ -117,9 +114,7 @@ template <typename T, typename S = TcpSocket<T>>
 class TcpClient : public S
 {
  protected:
-	int _af = 0;
-	std::string _host;
-	unsigned short _port = 0;
+	std::optional<tll::network::hostport> _peer;
 	bool _timestamping = false;
 
 	using addr_list_t = std::vector<tll::network::sockaddr_any>;

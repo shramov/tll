@@ -204,7 +204,7 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	this->_msg_addr.fd = 0;
 
 	auto reader = this->channel_props_reader(url);
-	_af = reader.getT("af", AF_UNSPEC, {{"unix", AF_UNIX}, {"ipv4", AF_INET}, {"ipv6", AF_INET6}});
+	auto af = reader.getT("af", AF_UNSPEC, {{"unix", AF_UNIX}, {"ipv4", AF_INET}, {"ipv6", AF_INET6}});
 	this->_size = reader.template getT<util::Size>("size", 128 * 1024);
 	_timestamping = reader.getT("timestamping", false);
 	if (!reader)
@@ -213,31 +213,38 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	S::_init(url, master);
 
 	auto host = url.host();
-	if (_af == AF_UNSPEC && host.find('/') != host.npos)
-		_af = AF_UNIX;
+	if (host.size()) {
+		auto r = network::parse_hostport(url.host(), af);
+		if (!r)
+			return this->_log.fail(EINVAL, "Invalid host string '{}': {}", host, r.error());
+		_peer = std::move(*r);
 
-	if (_af != AF_UNIX) {
-		auto sep = host.find_last_of(':');
-		if (sep == host.npos)
-			return this->_log.fail(EINVAL, "Invalid host:port pair: {}", host);
-		auto p = conv::to_any<unsigned short>(host.substr(sep + 1));
-		if (!p)
-			return this->_log.fail(EINVAL, "Invalid port '{}': {}", host.substr(sep + 1), p.error());
-
-		_port = *p;
-		_host = host.substr(0, sep);
+		this->_log.debug("Connection to {}:{}", _peer->host, _peer->port);
 	} else
-		_host = host;
-	this->_log.debug("Connection to {}:{}", _host, _port);
+		this->_log.debug("Connection address will be provided in open parameters");
 	return 0;
 }
 
 template <typename T, typename S>
 int TcpClient<T, S>::_open(const PropsView &url)
 {
-	auto addr = tll::network::resolve(_af, SOCK_STREAM, _host.c_str(), _port);
+	tll::network::hostport peer;
+	if (!_peer) {
+		auto af = url.getT("af", AF_UNSPEC, {{"unix", AF_UNIX}, {"ipv4", AF_INET}, {"ipv6", AF_INET6}});
+		if (!af)
+			return this->_log.fail(EINVAL, "Invalid af parameter: {}", af.error());
+		auto host = url.get("host");
+		if (!host)
+			return this->_log.fail(EINVAL, "Remote address not provided in open parameters: no 'host' keyword");
+		auto r = network::parse_hostport(*host, *af);
+		if (!r)
+			return this->_log.fail(EINVAL, "Invalid host string '{}': {}", *host, r.error());
+		peer = std::move(*r);
+	} else
+		peer = *_peer;
+	auto addr = tll::network::resolve(peer.af, SOCK_STREAM, peer.host, peer.port);
 	if (!addr)
-		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _host, addr.error());
+		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", peer.host, addr.error());
 	std::swap(_addr_list, *addr);
 	_addr = _addr_list.begin();
 
@@ -378,27 +385,19 @@ template <typename T, typename C>
 int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = this->channelT()->channel_props_reader(url);
-	_af = reader.getT("af", AF_UNSPEC, {{"unix", AF_UNIX}, {"ipv4", AF_INET}, {"ipv6", AF_INET6}});
+	auto af = reader.getT("af", AF_UNSPEC, {{"unix", AF_UNIX}, {"ipv4", AF_INET}, {"ipv6", AF_INET6}});
 	_timestamping = reader.getT("timestamping", false);
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
 	auto host = url.host();
-	if (_af == AF_UNSPEC && host.find('/') != host.npos)
-		_af = AF_UNIX;
+	auto r = network::parse_hostport(url.host(), af);
+	if (!r)
+		return this->_log.fail(EINVAL, "Invalid host string '{}': {}", host, r.error());
+	_af = r->af;
+	_host = r->host;
+	_port = r->port;
 
-	if (_af != AF_UNIX) {
-		auto sep = host.find_last_of(':');
-		if (sep == host.npos)
-			return this->_log.fail(EINVAL, "Invalid host:port pair: {}", host);
-		auto p = conv::to_any<unsigned short>(host.substr(sep + 1));
-		if (!p)
-			return this->_log.fail(EINVAL, "Invalid port '{}': {}", host.substr(sep + 1), p.error());
-
-		_port = *p;
-		_host = host.substr(0, sep);
-	} else
-		_host = host;
 	this->_log.debug("Listen on {}:{}", _host, _port);
 	return 0;
 }
