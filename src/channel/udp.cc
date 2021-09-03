@@ -11,9 +11,16 @@
 #include "tll/util/size.h"
 #include "tll/util/sockaddr.h"
 
+#include <chrono>
+
 #include <fcntl.h>
 #include <net/if.h>
 #include <unistd.h>
+
+#ifdef __linux__
+#include <linux/sockios.h>
+#include <linux/net_tstamp.h>
+#endif
 
 #ifndef IPV6_ADD_MEMBERSHIP
 #define IPV6_ADD_MEMBERSHIP IPV6_JOIN_GROUP
@@ -47,9 +54,12 @@ class UdpSocket : public tll::channel::Base<T>
 	tll::network::sockaddr_any _addr;
 	tll::network::sockaddr_any _peer;
 	std::vector<char> _buf;
+	std::vector<char> _buf_control;
 	size_t _sndbuf = 0;
 	size_t _rcvbuf = 0;
 	unsigned _ttl = 0;
+
+	bool _timestamping = false;
 
 	bool _multi = false;
 	bool _mcast_loop = true;
@@ -65,6 +75,8 @@ class UdpSocket : public tll::channel::Base<T>
 			return this->_log.fail(EINVAL, "Interface '{}' not found: {}", *this->_mcast_interface, strerror(errno));
 		return 0;
 	}
+
+	std::chrono::nanoseconds _cmsg_timestamp(msghdr *msg);
 
  public:
 	static constexpr std::string_view channel_protocol() { return "udp"; }
@@ -169,6 +181,8 @@ int UdpSocket<T, F>::_init(const Channel::Url &url, Channel *master)
 	_rcvbuf = reader.getT("rcvbuf", util::Size {0});
 	_ttl = reader.getT("ttl", 0u);
 
+	_timestamping = reader.getT("timestamping", false);
+
 	_multi = reader.getT("multicast", false);
 	if (_multi) {
 		_mcast_loop = reader.getT("loop", true);
@@ -177,6 +191,13 @@ int UdpSocket<T, F>::_init(const Channel::Url &url, Channel *master)
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 	_buf.resize(size);
+	if (_timestamping) {
+#ifdef __linux__
+		_buf_control.resize(256);
+#else
+		this->_log.info("Packet timestamping supported only on linux");
+#endif
+	}
 	return 0;
 }
 
@@ -185,6 +206,14 @@ int UdpSocket<T, F>::_open(const PropsView &url)
 {
 	if (int r = nonblock(this->fd()))
 		return this->_log.fail(EINVAL, "Failed to set nonblock: {}", strerror(r));
+
+	if (_timestamping) {
+#ifdef __linux__
+		int v = SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_RX_HARDWARE | SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_SOFTWARE;
+		if (setsockoptT<int>(this->fd(), SOL_SOCKET, SO_TIMESTAMPING, v))
+			return this->_log.fail(EINVAL, "Failed to set SO_TIMESTAMPING: {}", strerror(errno));
+#endif
+	}
 
 	if (_sndbuf && setsockoptT<int>(this->fd(), SOL_SOCKET, SO_SNDBUF, _sndbuf))
 		return this->_log.fail(EINVAL, "Failed to set sndbuf to {}: {}", _sndbuf, strerror(errno));
@@ -273,8 +302,15 @@ int UdpSocket<T, Frame>::_send(const tll_msg_t * msg, const tll::network::sockad
 template <typename T, typename Frame>
 int UdpSocket<T, Frame>::_process(long timeout, int flags)
 {
-	socklen_t peerlen = sizeof(_peer.buf);
-	auto r = recvfrom(this->fd(), _buf.data(), _buf.size(), MSG_NOSIGNAL, _peer, &peerlen);
+	iovec iov = {_buf.data(), _buf.size()};
+	msghdr mhdr = {};
+	mhdr.msg_name = _peer.buf;
+	mhdr.msg_namelen = sizeof(_peer.buf);
+	mhdr.msg_iov = &iov;
+	mhdr.msg_iovlen = 1;
+	mhdr.msg_control = _buf_control.data();
+	mhdr.msg_controllen = _buf_control.size();
+	auto r = recvmsg(this->fd(), &mhdr, MSG_NOSIGNAL);
 	if (r < 0) {
 		if (errno == EAGAIN)
 			return EAGAIN;
@@ -282,7 +318,7 @@ int UdpSocket<T, Frame>::_process(long timeout, int flags)
 	}
 	if ((size_t) r < frame_size)
 		return this->_log.fail(EMSGSIZE, "Packet size {} < frame size {}", r, frame_size);
-	_peer.size = peerlen;
+	_peer.size = mhdr.msg_namelen;
 	this->_log.debug("Got data from {} {}", _peer, _peer->sa_family);
 
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
@@ -294,8 +330,35 @@ int UdpSocket<T, Frame>::_process(long timeout, int flags)
 	}
 	if (msg.size > r - frame_size)
 		return this->_log.fail(EINVAL, "Data size {} < size in frame {}", r - frame_size, msg.size);
+
+	if (_timestamping)
+		msg.timestamp = _cmsg_timestamp(&mhdr).count();
+
 	this->_callback_data(&msg);
 	return 0;
+}
+
+template <typename T, typename Frame>
+std::chrono::nanoseconds UdpSocket<T, Frame>::_cmsg_timestamp(msghdr * msg)
+{
+	using namespace std::chrono;
+	nanoseconds r = {};
+#ifdef __linux__
+	for (auto cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
+		if(cmsg->cmsg_level != SOL_SOCKET)
+			continue;
+
+		this->_log.debug("cmsg: {}", cmsg->cmsg_type);
+		if (cmsg->cmsg_type == SO_TIMESTAMPING) {
+			auto ts = (struct timespec *) CMSG_DATA(cmsg);
+			if (ts[2].tv_sec || ts[2].tv_nsec) // Get HW timestamp if available
+				r = seconds(ts[2].tv_sec) + nanoseconds(ts[2].tv_nsec);
+			else
+				r = seconds(ts->tv_sec) + nanoseconds(ts->tv_nsec);
+		}
+	}
+#endif
+	return r;
 }
 
 template <typename F>

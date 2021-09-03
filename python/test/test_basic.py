@@ -14,6 +14,7 @@ import pytest
 import select
 import socket
 import sys
+import time
 
 ctx = C.Context()
 
@@ -358,6 +359,7 @@ class TestTcpNone(_test_tcp_base):
 class _test_udp_base:
     PROTO = 'invalid-url'
     FRAME = True
+    TIMESTAMP = False
     CLEANUP = []
 
     def setup(self):
@@ -398,10 +400,16 @@ class _test_udp_base:
         assert c.dcaps == c.DCaps.Process | c.DCaps.PollIn
 
         c.post(b'xxx', seq=0x6ead, msgid=0x6eef)
+        timestamp = time.time()
+
         assert spoll.poll(10) != []
         s.process()
+
         assert [m.data.tobytes() for m in s.result] == [b'xxx']
         assert [(m.seq, m.msgid) for m in s.result] == [(0x6ead, 0x6eef) if self.FRAME else (0, 0)] # No frame
+
+        if self.TIMESTAMP:
+            assert s.result[-1].timestamp.seconds == pytest.approx(timestamp, 0.001)
 
         if self.CLEANUP: return # Unix sockets don't have return address
         s.post(b'zzzz', seq=0x6eef, msgid=0x6ead, addr=s.result[0].addr)
@@ -429,6 +437,10 @@ class TestUdpNone(_test_udp_base):
     PROTO = 'udp://./test.sock;frame=none'
     CLEANUP = ['./test.sock']
     FRAME = False
+
+class TestUdpTS(_test_udp_base):
+    PROTO = 'udp://::1:{};timestamping=yes'.format(ports.UDP6)
+    TIMESTAMP = True
 
 @pytest.mark.multicast
 class TestMUdp4(_test_udp_base):
