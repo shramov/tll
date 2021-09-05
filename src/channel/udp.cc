@@ -15,6 +15,10 @@
 #include <net/if.h>
 #include <unistd.h>
 
+#ifndef IPV6_ADD_MEMBERSHIP
+#define IPV6_ADD_MEMBERSHIP IPV6_JOIN_GROUP
+#endif
+
 using namespace tll;
 
 namespace {
