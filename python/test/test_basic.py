@@ -261,6 +261,7 @@ class _test_tcp_base:
     PROTO = 'invalid-url'
     FRAME = True
     CLEANUP = []
+    TIMESTAMP = False
 
     def setup(self):
         self.s = Accum(self.PROTO, mode='server', name='server', dump='yes', context=ctx)
@@ -306,11 +307,26 @@ class _test_tcp_base:
         cpoll.register(c.fd, select.POLLIN)
 
         c.post(b'xxx', seq=0x6ead, msgid=0x6eef)
+        timestamp = time.time()
         assert spoll.poll(10) != []
         for i in s.children:
             i.process()
+
         assert [m.data.tobytes() for m in s.result] == [b'xxx'] # No frame
         assert [(m.seq, m.msgid) for m in s.result] == [(0x6ead, 0x6eef) if self.FRAME else (0, 0)] # No frame
+        if self.TIMESTAMP:
+            assert s.result[-1].timestamp.seconds == pytest.approx(timestamp, 0.001)
+
+        s.post(b'zzzz', seq=0x6eef, msgid=0x6ead, addr=s.result[-1].addr)
+        timestamp = time.time()
+
+        assert cpoll.poll(10) != []
+        c.process()
+
+        assert [m.data.tobytes() for m in c.result] == [b'zzzz'] # No frame
+        assert [(m.seq, m.msgid) for m in c.result] == [(0x6eef, 0x6ead) if self.FRAME else (0, 0)] # No frame
+        if self.TIMESTAMP:
+            assert s.result[-1].timestamp.seconds == pytest.approx(timestamp, 0.001)
 
     def test_open_fail(self):
         c = self.c
@@ -340,6 +356,10 @@ class TestTcp4(_test_tcp_base):
 
 class TestTcp6(_test_tcp_base):
     PROTO = 'tcp://::1:{}'.format(ports.TCP6)
+
+class TestTcp6TS(_test_tcp_base):
+    PROTO = 'tcp://::1:{};timestamping=yes'.format(ports.TCP6)
+    TIMESTAMP = True
 
 class TestTcpAny(_test_tcp_base):
     PROTO = 'tcp://localhost:{}'.format(ports.TCP4)

@@ -12,6 +12,7 @@
 #include "tll/util/sockaddr.h"
 
 #include <array>
+#include <chrono>
 #include <list>
 #include <vector>
 
@@ -42,6 +43,7 @@ class TcpSocket : public Base<T>
 	size_t _size = 1024;
 	std::vector<char> _rbuf;
 	std::vector<char> _wbuf;
+	std::vector<char> _cbuf;
 
 	size_t _roff = 0; ///< Unprocessed data offset
 	size_t _rsize = 0; ///< Received data size
@@ -66,7 +68,10 @@ class TcpSocket : public Base<T>
 	void bind(int fd, int seq = 0) { this->_update_fd(fd); _msg_addr = { fd, seq }; }
 	const tcp_socket_addr_t & msg_addr() const { return _msg_addr; }
 
+	int timestamping_enable();
+
  protected:
+	std::chrono::nanoseconds _timestamp;
 	size_t rsize() const { return _rsize - _roff; }
 
 	template <typename D>
@@ -104,6 +109,8 @@ class TcpSocket : public Base<T>
 	{
 		return _send({{data, size}});
 	}
+
+	std::chrono::nanoseconds _cmsg_timestamp(msghdr * msg);
 };
 
 template <typename T, typename S = TcpSocket<T>>
@@ -113,6 +120,7 @@ class TcpClient : public S
 	int _af = 0;
 	std::string _host;
 	unsigned short _port = 0;
+	bool _timestamping = false;
 
 	using addr_list_t = std::vector<tll::network::sockaddr_any>;
 	addr_list_t _addr_list;
@@ -172,6 +180,7 @@ class TcpServer : public Base<T>
 	std::list<std::unique_ptr<Channel>> _sockets;
 	std::map<int, tcp_socket_t *> _clients;
 	bool _cleanup_flag = false;
+	bool _timestamping = false;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "tcp"; }

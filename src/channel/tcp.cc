@@ -144,6 +144,7 @@ int FramedSocket<T, Frame>::_pending()
 	tll::frame::FrameT<Frame>::read(&msg, frame);
 	msg.data = (void *) data;
 	msg.addr = this->_msg_addr;
+	msg.timestamp = this->_timestamp.count();
 	this->rdone(sizeof(Frame) + frame->size);
 	this->_dcaps_pending(this->template rdataT<Frame>());
 	this->_callback_data(&msg);

@@ -348,7 +348,6 @@ std::chrono::nanoseconds UdpSocket<T, Frame>::_cmsg_timestamp(msghdr * msg)
 		if(cmsg->cmsg_level != SOL_SOCKET)
 			continue;
 
-		this->_log.debug("cmsg: {}", cmsg->cmsg_type);
 		if (cmsg->cmsg_type == SO_TIMESTAMPING) {
 			auto ts = (struct timespec *) CMSG_DATA(cmsg);
 			if (ts[2].tv_sec || ts[2].tv_nsec) // Get HW timestamp if available

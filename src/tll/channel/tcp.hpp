@@ -20,6 +20,12 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#ifdef __linux__
+#include <linux/sockios.h>
+#include <linux/net_tstamp.h>
+#include <sys/ioctl.h>
+#endif
+
 #ifdef __APPLE__
 #  define MSG_NOSIGNAL 0
 #endif//__APPLE__
@@ -90,7 +96,17 @@ std::optional<size_t> TcpSocket<T>::_recv(size_t size)
 		size = std::min(size, left);
 	else
 		size = left;
-	int r = recv(this->fd(), _rbuf.data() + _rsize, _rbuf.size(), MSG_NOSIGNAL | MSG_DONTWAIT);
+#ifdef __linux__
+	struct iovec iov = {_rbuf.data() + _rsize, _rbuf.size() - _rsize};
+	msghdr mhdr = {};
+	mhdr.msg_iov = &iov;
+	mhdr.msg_iovlen = 1;
+	mhdr.msg_control = _cbuf.data();
+	mhdr.msg_controllen = _cbuf.size();
+	int r = recvmsg(this->fd(), &mhdr, MSG_NOSIGNAL | MSG_DONTWAIT);
+#else
+	int r = recv(this->fd(), _rbuf.data() + _rsize, _rbuf.size() - _rsize, MSG_NOSIGNAL | MSG_DONTWAIT);
+#endif
 	if (r < 0) {
 		if (errno == EAGAIN)
 			return 0;
@@ -100,8 +116,44 @@ std::optional<size_t> TcpSocket<T>::_recv(size_t size)
 		this->close();
 		return 0;
 	}
+#ifdef __linux__
+	if (mhdr.msg_controllen)
+		_timestamp = _cmsg_timestamp(&mhdr);
+#endif
 	_rsize += r;
 	this->_log.trace("Got {} bytes of data", r);
+	return r;
+}
+
+template <typename T>
+int TcpSocket<T>::timestamping_enable()
+{
+	int v = SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_RX_HARDWARE | SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_SOFTWARE;
+	if (setsockopt(this->fd(), SOL_SOCKET, SO_TIMESTAMPING, &v, sizeof(v)))
+		return this->_log.fail(EINVAL, "Failed to enable timestamping: {}", strerror(errno));
+	_cbuf.resize(256);
+	return 0;
+}
+
+template <typename T>
+std::chrono::nanoseconds TcpSocket<T>::_cmsg_timestamp(msghdr * msg)
+{
+	using namespace std::chrono;
+	nanoseconds r = {};
+#ifdef __linux__
+	for (auto cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
+		if(cmsg->cmsg_level != SOL_SOCKET)
+			continue;
+
+		if (cmsg->cmsg_type == SO_TIMESTAMPING) {
+			auto ts = (struct timespec *) CMSG_DATA(cmsg);
+			if (ts[2].tv_sec || ts[2].tv_nsec) // Get HW timestamp if available
+				r = seconds(ts[2].tv_sec) + nanoseconds(ts[2].tv_nsec);
+			else
+				r = seconds(ts->tv_sec) + nanoseconds(ts->tv_nsec);
+		}
+	}
+#endif
 	return r;
 }
 
@@ -137,6 +189,7 @@ int TcpSocket<T>::_process(long timeout, int flags)
 	msg.data = _rbuf.data();
 	msg.size = *r;
 	msg.addr = _msg_addr;
+	msg.timestamp = _timestamp.count();
 	this->_callback_data(&msg);
 	rdone(*r);
 	rshift();
@@ -151,6 +204,7 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	auto reader = this->channel_props_reader(url);
 	_af = reader.getT("af", AF_UNSPEC, {{"unix", AF_UNIX}, {"ipv4", AF_INET}, {"ipv6", AF_INET6}});
 	this->_size = reader.template getT<util::Size>("size", 128 * 1024);
+	_timestamping = reader.getT("timestamping", false);
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -192,6 +246,9 @@ int TcpClient<T, S>::_open(const PropsView &url)
 
 	if (int r = nonblock(this->fd()))
 		return this->_log.fail(EINVAL, "Failed to set nonblock: {}", strerror(r));
+
+	if (_timestamping && this->timestamping_enable())
+		return this->_log.fail(EINVAL, "Failed to enable timestamping: {}", strerror(errno));
 
 #ifdef __APPLE__
 	int flag = 1;
@@ -320,6 +377,7 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = this->channelT()->channel_props_reader(url);
 	_af = reader.getT("af", AF_UNSPEC, {{"unix", AF_UNIX}, {"ipv4", AF_INET}, {"ipv6", AF_INET6}});
+	_timestamping = reader.getT("timestamping", false);
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -522,6 +580,7 @@ int TcpServer<T, C>::_cb_socket(const tll_channel_t *c, const tll_msg_t *msg)
 	auto client = channel_cast<tcp_socket_t>(r.get());
 	//r.release();
 	client->bind(fd);
+	client->timestamping_enable();
 	tll_channel_callback_add(r.get(), _cb_state, this, TLL_MESSAGE_MASK_STATE);
 	tll_channel_callback_add(r.get(), _cb_data, this, TLL_MESSAGE_MASK_DATA);
 	if (this->channelT()->_on_accept(r.get())) {
