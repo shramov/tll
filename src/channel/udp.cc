@@ -27,11 +27,13 @@
 #define IPV6_ADD_MEMBERSHIP IPV6_JOIN_GROUP
 #endif
 
+#ifdef __linux__
 static constexpr std::string_view control_scheme = R"(yamls://
 - name: time
   id: 10
   fields: []
 )";
+#endif
 
 using namespace tll;
 

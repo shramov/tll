@@ -128,10 +128,12 @@ std::optional<size_t> TcpSocket<T>::_recv(size_t size)
 template <typename T>
 int TcpSocket<T>::timestamping_enable()
 {
+#ifdef __linux__
 	int v = SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_RX_HARDWARE | SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_SOFTWARE;
 	if (setsockopt(this->fd(), SOL_SOCKET, SO_TIMESTAMPING, &v, sizeof(v)))
 		return this->_log.fail(EINVAL, "Failed to enable timestamping: {}", strerror(errno));
 	_cbuf.resize(256);
+#endif
 	return 0;
 }
 
