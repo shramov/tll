@@ -23,8 +23,8 @@ int tll_processor_init(tll_channel_context_t * cctx);
 
 tll_channel_list_t * tll_processor_workers(tll_processor_t *p);
 
-tll_processor_loop_t * tll_processor_loop(tll_processor_t *p);
-tll_processor_loop_t * tll_processor_worker_loop(tll_processor_worker_t *w);
+struct tll_processor_loop_t * tll_processor_loop(tll_processor_t *p);
+struct tll_processor_loop_t * tll_processor_worker_loop(tll_processor_worker_t *w);
 
 #ifdef __cplusplus
 } // extern "C"
