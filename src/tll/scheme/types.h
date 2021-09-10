@@ -52,17 +52,18 @@ struct __attribute__((packed)) offset_ptr_t : public Ptr
 template <typename T = void> using offset_ptr_legacy_short_t = offset_ptr_t<T, tll_scheme_offset_ptr_legacy_short_t>;
 template <typename T = void> using offset_ptr_legacy_long_t = offset_ptr_t<T, tll_scheme_offset_ptr_legacy_long_t>;
 
-template <unsigned Size>
+template <size_t Size>
 struct Bytes : public std::array<unsigned char, Size>
 {
 	static_assert(Size > 0, "Empty Bytes are not allowed");
 };
 
-template <unsigned Size>
+template <size_t Size>
 struct ByteString : public std::array<char, Size>
 {
 	static_assert(Size > 0, "Empty Chars are not allowed");
 	operator std::string_view () { return {this->data(), strnlen(this->data(), Size)}; }
+	ByteString operator = (std::string_view s) { memcpy(this->data(), s.data(), std::min(Size, s.size())); return *this; }
 };
 
 template <typename T>
