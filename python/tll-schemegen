@@ -22,9 +22,12 @@ def safe_write(filename, data):
 parser = argparse.ArgumentParser(description='Generate source code from scheme')
 parser.add_argument('scheme', metavar='SCHEME', type=str,
                     help='scheme file')
-parser.add_argument('-t', '--template', dest='template', type=str,
+parser.add_argument('-f', '--format', dest='format', type=str,
                     default='cpp',
                     help='template to use')
+parser.add_argument('-T', '--template-dir', dest='template_dir', action='append',
+                    default=[],
+                    help='additional template directories')
 parser.add_argument('--namespace', dest='namespace', type=str,
                     help='C++ namespace name for generated source')
 
@@ -34,8 +37,8 @@ from mako.lookup import TemplateLookup
 #from mako.template import Template
 #tmpl = Template(filename=f"{args.template}.mako")
 
-lookup = TemplateLookup([pkg_resources.resource_filename('tll', 'templates')], input_encoding='utf-8', output_encoding='utf-8')
-tmpl = lookup.get_template(args.template + '.mako')
+lookup = TemplateLookup(args.template_dir + [pkg_resources.resource_filename('tll', 'templates')], input_encoding='utf-8', output_encoding='utf-8')
+tmpl = lookup.get_template(args.format + '.mako')
 
 class Options(object): pass
 options = Options()
