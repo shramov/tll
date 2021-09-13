@@ -57,7 +57,7 @@ int ChTimer::_init(const tll::Channel::Url &url, tll::Channel *master)
 	struct timespec ts = {};
 	if (clock_gettime(_clock_type, &ts))
 		return _log.fail(EINVAL, "Clock {} is not supported", clock2str(_clock_type));
-	
+
 	_scheme.reset(context().scheme_load(timer_scheme::scheme_absolute));
 	if (!_scheme.get())
 		return _log.fail(EINVAL, "Failed to load timer scheme");
