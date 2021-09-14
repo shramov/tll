@@ -6,6 +6,8 @@
 % if options.namespace:
 namespace ${options.namespace} {
 % endif
+
+static constexpr std::string_view scheme_string = R"(${scheme.dump('yamls+gz')})";
 <%!
 def weaktrim(text):
     text = text.lstrip('\n')
@@ -83,7 +85,8 @@ def field2type(f):
 <%call expr='enum2code(e)'></%call>
 % endfor
 % for msg in scheme.messages:
-struct ${msg.name} {
+struct ${msg.name}
+{
 % if msg.msgid != 0:
 	static constexpr int ${options.msgid} = ${msg.msgid};
 % endif
