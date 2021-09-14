@@ -5,19 +5,22 @@ import tll.scheme as S
 
 import argparse
 import os
+import pathlib
 import shutil
 import sys
 import tempfile
 import pkg_resources
 
-"""
 def safe_write(filename, data):
-    dest, name = tempfile.mkstemp(dir=os.path.dirname(filename))
+    p = pathlib.Path(filename)
+    dest, name = tempfile.mkstemp(dir=p.parent, prefix=p.name)
 
-    os.write(dest, source)
-    os.close(dest)
-    shutil.move(name, outputpath)
-"""
+    try:
+        os.write(dest, data)
+        os.close(dest)
+        shutil.move(name, p)
+    except:
+        os.unlink(name)
 
 parser = argparse.ArgumentParser(description='Generate source code from scheme')
 parser.add_argument('scheme', metavar='SCHEME', type=str,
@@ -25,6 +28,8 @@ parser.add_argument('scheme', metavar='SCHEME', type=str,
 parser.add_argument('-f', '--format', dest='format', type=str,
                     default='cpp',
                     help='template to use')
+parser.add_argument('-o', '--output', dest='output', type=str,
+                    help='output file, defaults to stdout')
 parser.add_argument('-T', '--template-dir', dest='template_dir', action='append',
                     default=[],
                     help='additional template directories')
@@ -46,4 +51,9 @@ options.msgid = 'msgid'
 options.namespace = args.namespace
 
 scheme = S.Scheme('yaml://' + args.scheme)
-sys.stdout.buffer.write(tmpl.render(S = S, scheme=scheme, options=options))
+data = tmpl.render(S = S, scheme=scheme, options=options)
+
+if args.output in (None, '-'):
+    sys.stdout.buffer.write(data)
+else:
+    safe_write(args.output, data)
