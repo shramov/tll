@@ -914,7 +914,7 @@ cdef class Scheme:
         if str == NULL:
             raise TLLError("Failed to dump scheme")
         b = bytes(str[:])
-        return b
+        return b.decode('utf-8')
 
     def find(self, k):
         if isinstance(k, int):

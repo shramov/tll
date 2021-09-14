@@ -92,7 +92,7 @@ def test_copy():
     return _test(S.Scheme(scheme).copy())
 
 def test_dump():
-    print(S.Scheme(scheme).dump().decode('utf-8'))
+    print(S.Scheme(scheme).dump())
     return _test(S.Scheme(S.Scheme(scheme).dump()))
 
 def _test_options(s):
