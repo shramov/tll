@@ -39,7 +39,7 @@ executable('tll-processor'
 	)
 
 pkg = import('pkgconfig')
-pkg.generate(tll_lib) # meson > 0.46
+pkg.generate(tll_lib, requires: 'fmt') # meson > 0.46
 
 install_subdir('tll', install_dir : get_option('includedir'))
 
