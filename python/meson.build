@@ -6,6 +6,11 @@ cython_gen = generator(cython, output: '@BASENAME@.c', arguments: ['@INPUT@', '@
 cython_gen_api = generator(cython, output: '@BASENAME@_api.h', arguments: ['@INPUT@', '@EXTRA_ARGS@', '-o', '@BUILD_DIR@/@BASENAME@.c'])
 
 pyembed = python.dependency(embed: true)
+cython_cflags = []
+
+if python.language_version().version_compare('== 3.8')
+  cython_cflags += ['-Wno-deprecated-declarations']
+endif
 
 shared_library('tll-channel-python'
 	, ['src/channel.c', cython_gen_api.process('tll/channel/context.pyx')]
