@@ -225,6 +225,7 @@ struct logger_context_t
 
 		if (impl && impl->configure)
 			return (impl->configure)(impl, cfg);
+		// TODO: Reconfigure all loggers
 		return 0;
 	}
 
