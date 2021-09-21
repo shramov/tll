@@ -40,6 +40,7 @@ spdlog::level::level_enum tll2spdlog(tll_logger_level_t l)
 struct sink_t
 {
 	tll_logger_level_t level = tll::Logger::Trace;
+	spdlog::level::level_enum flush_level = tll2spdlog(tll::Logger::Info);
 	std::unique_ptr<spdlog::sinks::sink> sink;
 
 	static constexpr std::string_view default_format = "%^%Y-%m-%d %H:%M:%S.%e %l %n%$: %v";
@@ -111,6 +112,8 @@ struct node_t : public tll::util::refbase_t<node_t, 0>
 	{
 		for (auto & s : sinks) {
 			s.sink->log(msg);
+			if (s.flush_level <= msg.level)
+				s.sink->flush();
 		}
 		if (additivity && parent)
 			return parent->log(msg);
@@ -180,6 +183,14 @@ struct spdlog_impl_t : public tll_logger_impl_t
 				if (!level)
 					return log.fail(EINVAL, "Invalid level name for sink {}: {}", *type, *ls);
 				sink.level = *level;
+			}
+
+			auto fs = c.get("flush-level");
+			if (fs && fs->size()) {
+				auto level = level_from_str(*fs);
+				if (!level)
+					return log.fail(EINVAL, "Invalid flush-level level name for sink {}: {}", *type, *ls);
+				sink.flush_level = tll2spdlog(*level);
 			}
 
 			try {
