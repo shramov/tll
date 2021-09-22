@@ -8,6 +8,7 @@
 #include "tll/channel.h"
 #include "tll/logger.h"
 #include "tll/processor.h"
+#include "tll/util/argparse.h"
 
 #include <signal.h>
 #include <stdio.h>
@@ -25,18 +26,36 @@ static void handler(int, siginfo_t *sig, void *)
 
 int main(int argc, char *argv[])
 {
-	if (argc == 1) {
-		printf("Usage %s config\n", argv[0]);
+	tll::util::ArgumentParser parser("config [-Dkey=value]");
+	std::string curl;
+	std::vector<std::string> defs;
+	parser.add_argument({"CONFIG"}, "configuration file", &curl);
+	parser.add_argument({"-D"}, "extra configuration variables", &defs);
+	auto pr = parser.parse(argc, argv);
+	if (!pr) {
+		printf("Invalid arguments: %s\nRun '%s --help' for more information\n", pr.error().c_str(), argv[0]);
+		return 1;
+	} else if (parser.help) {
+		printf("Usage %s %s\n", argv[0], parser.format_help().c_str());
 		return 1;
 	}
 
-	std::string curl(argv[1]);
+	//std::string curl(argv[1]);
 	if (curl.find("://") == curl.npos)
 		curl = "yaml://" + curl;
 	auto cfg = tll::Config::load(curl);
 	if (!cfg) {
 		printf("Failed to load config %s\n", argv[1]);
 		return 1;
+	}
+
+	for (auto &d : defs) {
+		auto sep = d.find('=');
+		if (sep == d.npos) {
+			printf("Invalid -D value: '%s'\n", d.c_str());
+			return 1;
+		}
+		cfg->set(d.substr(0, sep), d.substr(sep + 1));
 	}
 
 	if (cfg->process_imports("processor.include")) {
