@@ -7,6 +7,9 @@
 namespace ${options.namespace} {
 % endif
 
+template <typename T>
+struct tll_message_info {};
+
 static constexpr std::string_view scheme_string = R"(${scheme.dump('yamls+gz')})";
 <%!
 def weaktrim(text):
@@ -87,9 +90,6 @@ def field2type(f):
 % for msg in scheme.messages:
 struct ${msg.name}
 {
-% if msg.msgid != 0:
-	static constexpr int ${options.msgid} = ${msg.msgid};
-% endif
 % for e in msg.enums.values():
 <%call expr='enum2code(e)'></%call>
 % endfor
@@ -98,6 +98,14 @@ struct ${msg.name}
 % endfor
 };
 
+template <>
+struct tll_message_info<${msg.name}>
+{
+% if msg.msgid != 0:
+	static constexpr int id = ${msg.msgid};
+% endif
+	static constexpr std::string_view name = "${msg.name}";
+};
 % endfor
 % if options.namespace:
 } // namespace ${options.namespace}
