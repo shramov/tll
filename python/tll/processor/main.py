@@ -4,6 +4,7 @@
 import argparse
 import logging, logging.config
 import signal
+import sys
 import threading
 
 import tll.logger
@@ -14,6 +15,7 @@ from tll.processor import *
 
 parser = argparse.ArgumentParser(description="Run TLL processor")
 parser.add_argument("config", type=str, help="configuration file")
+parser.add_argument("-D", dest='defs', metavar='KEY=VALUE', action='append', default=[], help='extra config variables')
 
 def main():
     tll.logger.init()
@@ -22,6 +24,12 @@ def main():
     if '://' not in args.config:
         args.config = 'yaml://' + args.config
     cfg = Config.load(args.config)
+    for d in args.defs:
+        kv = d.split('=', 1)
+        if len(kv) != 2:
+            print(f"Invalid KEY=VALUE parameter: '{d}'")
+            sys.exit(1)
+        cfg[kv[0]] = kv[1]
     cfg.process_imports('processor.include')
 
     return run(cfg)
