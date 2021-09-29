@@ -46,6 +46,8 @@ def field2type(f):
 	    return f.name
 	elif f.sub_type == f.Sub.Enum:
 	    return f.type_enum.name
+	elif f.sub_type == f.Sub.FixedPoint:
+	    return f"tll::scheme::FixedPoint<{t}, {f.fixed_precision}>";
         return t
     elif f.type == f.Decimal128:
         return "std::array<char, 16>"

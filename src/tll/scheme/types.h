@@ -37,10 +37,15 @@ typedef struct __attribute__((packed)) tll_scheme_offset_ptr_t
 #define tll_scheme_bit_field_set(data, offset, width, value) ((data) ^ ((tll_scheme_bit_field_get(data, offset, width) ^ tll_scheme_bit_field_mask(width, (value))) << (offset)))
 
 #ifdef __cplusplus
+
+#include "tll/util/fixed_point.h"
+
 #include <array>
 #include <string_view>
 
 namespace tll::scheme {
+
+using tll::util::FixedPoint;
 
 template <typename T = void, typename Ptr = tll_scheme_offset_ptr_t>
 struct __attribute__((packed)) offset_ptr_t : public Ptr
