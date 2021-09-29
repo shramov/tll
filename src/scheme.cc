@@ -19,6 +19,8 @@
 #include "tll/util/url.h"
 #include "tll/util/zlib.h"
 
+#include "scheme-config.h"
+
 #include <errno.h>
 #include <stdlib.h>
 
@@ -91,11 +93,18 @@ int fix_offset_ptr_options(tll_scheme_field_t * f)
 
 std::list<std::filesystem::path> scheme_search_path()
 {
+	std::filesystem::path p(DATADIR);
+	std::list<std::filesystem::path> deflist = {p / "tll" / "scheme"};
+	if (p != "/usr/share")
+		deflist.push_back("/usr/share/tll/scheme");
+
 	auto v = getenv("TLL_SCHEME_PATH");
 	if (!v)
-		return {"/usr/share/tll/scheme"};
+		return deflist;
 	std::list<std::filesystem::path> r;
-	return tll::splitl<':', true>(r, v);
+	tll::splitl<':', true>(r, v);
+	r.insert(r.end(), deflist.begin(), deflist.end());
+	return r;
 }
 }
 

@@ -14,6 +14,11 @@ subdir('processor')
 sources += channel_sources
 sources += processor_sources
 
+sources += configure_file(output : 'scheme-config.h', configuration : configuration_data({
+	'DATADIR': '"@0@"'.format(get_option('prefix') / get_option('datadir'))
+}))
+
+
 if host_machine.system() == 'linux'
   version_script = ['-Wl,--version-script,@0@/@1@'.format(meson.current_source_dir(), 'ld.script')]
 else
