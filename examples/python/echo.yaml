@@ -8,10 +8,11 @@ processor.include:
 
 processor.alias:
   echo: python://;python=./echo:Echo
+  prefix+: python+://;python=./echo:Prefix
 
 processor.objects:
   tcp:
-    url: tcp://*:8080;mode=server;dump=text;frame=none
+    url: prefix+tcp://*:8080;mode=server;dump=text;frame=none
     depends: echo
   echo:
     url: echo://

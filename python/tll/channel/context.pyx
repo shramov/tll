@@ -174,6 +174,7 @@ cdef class Context:
 
     def register_loader(self):
         self.register(PyLoader)
+        self.register(PyPrefixLoader)
 
     def has_impl(self, proto : str):
         p = s2b(proto)
@@ -366,10 +367,12 @@ cdef api:
 
 class PyLoader:
     PROTO = 'python'
-    PREFIX = True
 
     def __init__(self, *a, **kw):
         pass
 
     def init(self, url, master=None):
         return pychannel_lookup(url.get('python', None))
+
+class PyPrefixLoader(PyLoader):
+    PROTO = 'python+'
