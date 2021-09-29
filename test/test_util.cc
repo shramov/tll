@@ -12,6 +12,7 @@
 #include "tll/util/bin2ascii.h"
 #include "tll/util/browse.h"
 #include "tll/util/cppring.h"
+#include "tll/util/fixed_point.h"
 #include "tll/util/string.h"
 #include "tll/util/time.h"
 #include "tll/util/url.h"
@@ -512,4 +513,45 @@ TEST(Util, DataRingVoid)
 	ASSERT_EQ(sum(ring), 64);
 
 	ASSERT_EQ(ring.push_back("z", 1), nullptr);
+}
+
+TEST(Util, FixedPoint)
+{
+	using tll::util::FixedPoint;
+	using F3 = FixedPoint<int32_t, 3>;
+	{ using F = FixedPoint<int64_t, 3>; ASSERT_EQ(F::divisor, 1000u); }
+	{ using F = FixedPoint<int32_t, 3>; ASSERT_EQ(F::divisor, 1000u); }
+	{ using F = FixedPoint<int32_t, 1>; ASSERT_EQ(F::divisor, 10u); }
+	{ using F = FixedPoint<int32_t, 0>; ASSERT_EQ(F::divisor, 1u); }
+
+	F3 f;
+	ASSERT_EQ(f.value(), 0);
+
+	f = F3(1234);
+
+	ASSERT_EQ(f.value(), 1234);
+	ASSERT_EQ((double) f, 1.234);
+
+	f = F3(1.234);
+
+	ASSERT_EQ(f.value(), 1234);
+	ASSERT_EQ((double) f, 1.234);
+
+	ASSERT_EQ(f, F3(1234));
+
+	f *= 2;
+
+	ASSERT_EQ(f.value(), 2468);
+
+	f -= F3(100);
+
+	ASSERT_EQ(f.value(), 2368);
+
+	f += F3(100);
+
+	ASSERT_EQ(f.value(), 2468);
+	ASSERT_TRUE(F3(1234) <= F3(1234)); ASSERT_FALSE(F3(1234) <= F3(1233));
+	ASSERT_TRUE(F3(1234) >= F3(1234)); ASSERT_FALSE(F3(1234) >= F3(1235));
+	ASSERT_TRUE(F3(1234) < F3(1235)); ASSERT_FALSE(F3(1234) < F3(1233));
+	ASSERT_TRUE(F3(1234) > F3(1233)); ASSERT_FALSE(F3(1234) > F3(1235));
 }
