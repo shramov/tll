@@ -13,6 +13,7 @@ from libc.errno cimport EINVAL
 from ..url import *
 from ..s2b import b2s, s2b
 from ..logger import Logger
+from ..logger cimport TLL_LOGGER_INFO
 from .. import error
 #from cpython.ref cimport Py_INCREF
 from cpython cimport Py_buffer
@@ -45,6 +46,25 @@ class ProcessPolicy(enum.Enum):
     Custom = enum.auto()
 _ProcessPolicy = ProcessPolicy
 
+class MessageLogFormat(enum.Enum):
+    Disable = TLL_MESSAGE_LOG_DISABLE
+    Frame = TLL_MESSAGE_LOG_FRAME
+    Text = TLL_MESSAGE_LOG_TEXT
+    TextHex = TLL_MESSAGE_LOG_TEXT_HEX
+    Scheme = TLL_MESSAGE_LOG_SCHEME
+    def __int__(self): return self.value
+_MessageLogFormat = MessageLogFormat
+
+MessageLogFormatMap = {
+    '': MessageLogFormat.Disable,
+    'no': MessageLogFormat.Disable,
+    'yes': MessageLogFormat.Text, # Keep in sync with tll/channel/base.h
+    'frame': MessageLogFormat.Frame,
+    'text': MessageLogFormat.Text,
+    'text+hex': MessageLogFormat.TextHex,
+    'scheme': MessageLogFormat.Scheme,
+}
+
 cdef class Base:
     PROTO = None
 
@@ -52,6 +72,7 @@ cdef class Base:
     ClosePolicy = _ClosePolicy
     ChildPolicy = _ChildPolicy
     ProcessPolicy = _ProcessPolicy
+    MessageLogFormat = _MessageLogFormat
 
     OPEN_POLICY = OpenPolicy.Auto
     CLOSE_POLICY = ClosePolicy.Normal
@@ -113,6 +134,7 @@ cdef class Base:
             cmsg.size = buf.len
             cmsg.data = buf.buf
 
+        self._log_msg("Recv", &cmsg)
         self.internal.callback(&cmsg)
 
     @property
@@ -182,6 +204,11 @@ cdef class Base:
 
         self._scheme_url = url.get('scheme', None)
 
+        dump = url.get('dump', '')
+        self._dump_mode = MessageLogFormatMap.get(dump, None)
+        if self._dump_mode is None:
+            raise ValueError(f"Invalid 'dump' parameter: '{dump}'")
+
         self.log.info("Init channel")
         self._init(url, master)
 
@@ -239,6 +266,8 @@ cdef class Base:
             return EINVAL
 
     def post(self, msg, flags):
+        if self._dump_mode != self.MessageLogFormat.Disable and isinstance(msg, CMessage):
+            self._log_msg("Post", (<CMessage>msg)._ptr)
         self._post(msg, flags)
 
     def _init(self, props, master=None): pass
@@ -313,3 +342,8 @@ cdef class Base:
 
         if c in self._children:
             self._children.remove(c)
+
+    cdef _log_msg(self, text, const tll_msg_t * msg):
+        if self._dump_mode == self.MessageLogFormat.Disable: return
+        ctext = s2b(text)
+        tll_channel_log_msg(self.internal.internal.self, self.log.name_bytes, TLL_LOGGER_INFO, int(self._dump_mode), msg, ctext, len(ctext))

@@ -3,6 +3,7 @@
 
 from .channel cimport *
 from .common cimport tll_state_t
+from ..logger cimport tll_logger_level_t
 
 cdef extern from "tll/channel/impl.h":
     ctypedef struct tll_channel_impl_t:
@@ -49,3 +50,13 @@ cdef extern from "tll/channel/impl.h":
 
     cdef int tll_channel_callback_data(const tll_channel_internal_t *, const tll_msg_t *msg)
     cdef int tll_channel_callback(const tll_channel_internal_t *, const tll_msg_t *msg)
+
+
+    ctypedef enum tll_channel_log_msg_format_t:
+        TLL_MESSAGE_LOG_DISABLE
+        TLL_MESSAGE_LOG_FRAME
+        TLL_MESSAGE_LOG_TEXT
+        TLL_MESSAGE_LOG_TEXT_HEX
+        TLL_MESSAGE_LOG_SCHEME
+
+    cdef int tll_channel_log_msg(const tll_channel_t *, const char *, tll_logger_level_t, tll_channel_log_msg_format_t, const tll_msg_t *, const char *, int)

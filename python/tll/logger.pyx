@@ -84,6 +84,12 @@ cdef class Logger:
     @level.setter
     def level(self, l): self.ptr.level = Level(l).value
 
+    @property
+    def name_bytes(self): return tll_logger_name(self.ptr)
+
+    @property
+    def name(self): return b2s(self.name)
+
 tll2logging = { TLL_LOGGER_TRACE: logging.DEBUG
               , TLL_LOGGER_DEBUG: logging.DEBUG
               , TLL_LOGGER_INFO:  logging.INFO
