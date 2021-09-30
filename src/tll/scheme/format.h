@@ -50,8 +50,49 @@ template <typename View>
 format_result_t to_strings(const tll::scheme::Field * msg, const View &data);
 
 template <typename Int>
+std::string to_string_fixed(unsigned precision, Int v)
+{
+	if (precision == 0)
+		return tll::conv::to_string(v);
+
+	bool minus = v < (Int) 0;
+	if (minus)
+		v = -v;
+	std::string r;
+	r.resize(1 + 1 + std::max<unsigned>(precision, 20u)); // sign, dot, 20 digits for 2^64 or precision
+	auto ptr = r.end();
+
+	unsigned prec = precision;
+	for (; prec > 0; prec--) {
+		if (v == 0) break;
+		auto tmp = v / 10;
+		auto digit = v % 10;
+		v = tmp;
+		*--ptr = '0' + digit;
+	}
+	for (; prec > 0; prec--)
+		*--ptr = '0';
+	if (prec == 0)
+		*--ptr = '.';
+	while (v != 0) {
+		auto tmp = v / 10;
+		auto digit = v % 10;
+		v = tmp;
+		*--ptr = '0' + digit;
+	}
+	if (minus)
+		*--ptr = '-';
+	r.erase(0, ptr - r.begin());
+	return r;
+}
+
+template <typename Int>
 format_result_t to_strings_number(const tll::scheme::Field * field, Int v)
 {
+	if constexpr (!std::is_floating_point_v<Int>) {
+		if (field->sub_type == field->Fixed)
+			return std::list<std::string> { to_string_fixed(field->fixed_precision, v) };
+	}
 	auto r = std::list<std::string> {tll::conv::to_string(v)};
 	if (field->sub_type == field->Duration)
 		r.front() += time_resolution_str(field->time_resolution);

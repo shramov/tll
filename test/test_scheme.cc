@@ -198,6 +198,7 @@ struct __attribute__((__packed__)) test
     int16_t f6_size;
     sub f6[4];
     tll_scheme_offset_ptr_t f7;
+    int64_t f8;
 };
 
 } // namespace generated
@@ -220,6 +221,7 @@ TEST(Scheme, Format)
     - {name: f5, type: '*int16'}
     - {name: f6, type: 'sub[4]', list-options.count-type: int16}
     - {name: f7, type: '*string'}
+    - {name: f8, type: int64, options.type: fixed3}
 )"));
 	ASSERT_NE(s.get(), nullptr);
 
@@ -279,6 +281,7 @@ s1: [123.456, 1.5])");
 	msg.f7_ptr[0].entity = 1;
 	msg.f7_ptr[0].offset = (ptrdiff_t) &msg.f7_ptr_ptr - (ptrdiff_t) &msg.f7_ptr[0];
 	memcpy(msg.f7_ptr_ptr[0], "offset string\0", msg.f7_ptr[0].size);
+	msg.f8 = 12345;
 
 	for (message = s->messages; message; message = message->next) {
 		if (std::string_view("test") == message->name)
@@ -303,14 +306,15 @@ f6:
     s1: [120.1, 120.2]
   - s0: 220
     s1: []
-f7: ["offset string"])");
+f7: ["offset string"]
+f8: 12.345)");
 
 	mem.size = 10;
 	ASSERT_FALSE(tll::scheme::to_string(message, tll::make_view(mem)));
 	mem.size = message->size + 5;
 	r = tll::scheme::to_string(message, tll::make_view(mem));
 	ASSERT_FALSE(r);
-	ASSERT_EQ(r.error(), "Failed to format field f5: Offset data out of bounds: offset 167 + data 3 * entity 2 > data size 171");
+	ASSERT_EQ(r.error(), "Failed to format field f5: Offset data out of bounds: offset 175 + data 3 * entity 2 > data size 179");
 
 	mem.size = sizeof(msg);
 	msg.f7_ptr[0].offset = 500;
