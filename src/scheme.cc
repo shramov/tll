@@ -1436,6 +1436,9 @@ int tll_scheme_field_fix(tll_scheme_field_t * f)
 		case Field::ByteString:
 			f->options = alloc_option("type", "string", f->options);
 			break;
+		case Field::Fixed:
+			f->options = alloc_option("type", fmt::format("fixed{}", f->fixed_precision), f->options);
+			break;
 		case Field::Duration:
 		case Field::TimePoint:
 			if (f->sub_type == Field::Duration)
