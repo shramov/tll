@@ -39,7 +39,7 @@ spdlog::level::level_enum tll2spdlog(tll_logger_level_t l)
 
 struct sink_t
 {
-	tll_logger_level_t level = tll::Logger::Trace;
+	spdlog::level::level_enum level = tll2spdlog(tll::Logger::Trace);
 	spdlog::level::level_enum flush_level = tll2spdlog(tll::Logger::Info);
 	std::unique_ptr<spdlog::sinks::sink> sink;
 
@@ -51,23 +51,6 @@ struct sink_t
 		sink.sink.reset(new spdlog::sinks::ansicolor_stderr_sink_mt);
 		sink.sink->set_pattern(std::string(default_format));
 		return sink;
-	}
-
-	bool match(std::string_view name, tll_logger_level_t l)
-	{
-		if (level > l)
-			return false; 
-		/*
-		if (prefix.size() == 0)
-			return true;
-		if (name.size() < prefix.size())
-			return false;
-		if (name.substr(0, prefix.size()) != prefix)
-			return false;
-		if (name.size() > prefix.size() && name[prefix.size()] != '.')
-			return false;
-		*/
-		return true;
 	}
 };
 
@@ -111,9 +94,11 @@ struct node_t : public tll::util::refbase_t<node_t, 0>
 	void log(spdlog::details::log_msg &msg)
 	{
 		for (auto & s : sinks) {
-			s.sink->log(msg);
-			if (s.flush_level <= msg.level)
-				s.sink->flush();
+			if (s.level <= msg.level) {
+				s.sink->log(msg);
+				if (s.flush_level <= msg.level)
+					s.sink->flush();
+			}
 		}
 		if (additivity && parent)
 			return parent->log(msg);
@@ -182,7 +167,7 @@ struct spdlog_impl_t : public tll_logger_impl_t
 				auto level = level_from_str(*ls);
 				if (!level)
 					return log.fail(EINVAL, "Invalid level name for sink {}: {}", *type, *ls);
-				sink.level = *level;
+				sink.level = tll2spdlog(*level);
 			}
 
 			auto fs = c.get("flush-level");
