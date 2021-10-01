@@ -25,6 +25,9 @@ def safe_write(filename, data):
 parser = argparse.ArgumentParser(description='Generate source code from scheme')
 parser.add_argument('scheme', metavar='SCHEME', type=str,
                     help='scheme file')
+parser.add_argument('--help-template', dest='help_template', action='store_true',
+                    default=False,
+                    help='show template help message')
 parser.add_argument('-f', '--format', dest='format', type=str,
                     default='cpp',
                     help='template to use')
@@ -46,6 +49,11 @@ tmpl = lookup.get_template(args.format + '.mako')
 subparser = argparse.ArgumentParser(description=f'Extra arguments for {args.format} template')
 if tmpl.has_def('setup_options'):
     tmpl.get_def('setup_options').render(subparser)
+
+if args.help_template:
+    subparser.print_help()
+    sys.exit(0)
+
 options = subparser.parse_args(rest)
 
 scheme = S.Scheme('yaml://' + args.scheme)

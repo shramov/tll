@@ -2,7 +2,7 @@
     parser.add_argument('--namespace', dest='namespace', type=str,
                         help='C++ namespace name for generated source')
     parser.add_argument('--info-struct', dest='info_struct', type=str, default='tll_message_info',
-                        help='Name of message info structure')
+                        help='Name of message info structure (default %(default)s)')
 %></%def>\
 #pragma once
 
