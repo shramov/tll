@@ -38,6 +38,21 @@ NUMERIC = {
 def numeric(t):
     return NUMERIC.get(t, None)
 
+RESOLUTION = {
+    S.chrono.Resolution.ns: 'std::nano',
+    S.chrono.Resolution.us: 'std::micro',
+    S.chrono.Resolution.ms: 'std::milli',
+    S.chrono.Resolution.second: 'std::ratio<1>',
+    S.chrono.Resolution.minute: 'std::ratio<60>',
+    S.chrono.Resolution.hour: 'std::ratio<3600>',
+    S.chrono.Resolution.day: 'std::ratio<86400>',
+}
+def time_resolution(f):
+    r = RESOLUTION.get(f.time_resolution, None)
+    if r is None:
+        raise ValueError(f"Unknown time resolution for field {f.name}: {f.time_resolution}")
+    return r
+
 def field2type(f):
     t = numeric(f.type)
     if t is not None:
@@ -48,6 +63,10 @@ def field2type(f):
 	    return f.type_enum.name
 	elif f.sub_type == f.Sub.FixedPoint:
 	    return f"tll::scheme::FixedPoint<{t}, {f.fixed_precision}>";
+	elif f.sub_type == f.Sub.Duration:
+	    return f"std::chrono::duration<{t}, {time_resolution(f)}>";
+	elif f.sub_type == f.Sub.TimePoint:
+	    return f"std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<{t}, {time_resolution(f)}>>";
         return t
     elif f.type == f.Decimal128:
         return "std::array<char, 16>"

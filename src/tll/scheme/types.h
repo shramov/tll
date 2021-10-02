@@ -41,6 +41,7 @@ typedef struct __attribute__((packed)) tll_scheme_offset_ptr_t
 #include "tll/util/fixed_point.h"
 
 #include <array>
+#include <chrono>
 #include <string_view>
 
 namespace tll::scheme {
