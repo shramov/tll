@@ -437,12 +437,14 @@ cdef class FFixed(FBase):
         self.fixed_precision = f.fixed_precision
 
     cdef pack(FFixed self, v, dest, tail, int tail_offset):
-        return self.base.pack(v.shift(self.fixed_precision).to_integral_value(), dest, tail, tail_offset)
+        return self.base.pack(v.scaleb(self.fixed_precision).to_integral_value(), dest, tail, tail_offset)
     cdef unpack(FFixed self, src):
         return Decimal(self.base.unpack(src)) * Decimal((0, (1,), -self.fixed_precision))
     cdef convert(FFixed self, v):
-        if isinstance(v, (str, int, float)):
+        if isinstance(v, (str, int)):
             v = Decimal(v)
+        elif isinstance(v, float):
+            v = Decimal(round(v * (10 ** self.fixed_precision))).scaleb(-self.fixed_precision)
         elif not isinstance(v, Decimal):
             raise TypeError("Expected str, float or int, got {}: {}".format(type(v), v))
         return v

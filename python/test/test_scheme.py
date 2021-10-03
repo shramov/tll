@@ -363,11 +363,11 @@ def test_fixed():
     for (i,f) in enumerate(msg.fields):
         assert f.fixed_precision == i + 1, f"field {f.name}: {f.fixed_precision} != {i + 1}"
 
-    m = msg.object(i8=-1, i16=2, i32=-3, i64=456, u8='0.0007', u16='0.012345', u32='123')
+    m = msg.object(i8=-1, i16=2, i32=-3, i64=41.4, u8='0.0007', u16='0.012345', u32='123')
     assert m.i8 == decimal.Decimal(-1)
     assert m.i16 == 2
     assert m.i32 == decimal.Decimal(-3)
-    assert m.i64 == decimal.Decimal(456)
+    assert m.i64 == decimal.Decimal('41.4')
     assert m.u8 == decimal.Decimal('0.0007')
     assert m.u16 == decimal.Decimal('0.012345')
     assert m.u32 == decimal.Decimal('123')
