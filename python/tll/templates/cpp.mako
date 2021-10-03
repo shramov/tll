@@ -53,6 +53,12 @@ def time_resolution(f):
         raise ValueError(f"Unknown time resolution for field {f.name}: {f.time_resolution}")
     return r
 
+OFFSET_PTR_VERSION = {
+    S.OffsetPtrVersion.Default: 'tll_scheme_offset_ptr_t',
+    S.OffsetPtrVersion.LegacyShort: 'tll_scheme_offset_ptr_legacy_short_t',
+    S.OffsetPtrVersion.LegacyLong: 'tll_scheme_offset_ptr_legacy_long_t',
+}
+
 def field2type(f):
     t = numeric(f.type)
     if t is not None:
@@ -82,7 +88,7 @@ def field2type(f):
         return f"tll::scheme::Array<{t}, {f.count}, {ct}>"
     elif f.type == f.Pointer:
     	t = field2type(f.type_ptr)
-        return f"tll::scheme::offset_ptr_t<{t}>"
+        return f"tll::scheme::offset_ptr_t<{t}, {OFFSET_PTR_VERSION[f.offset_ptr_version]}>"
     raise ValueError(f"Unknown type for field {f.name}: {f.type}")
 %>\
 <%def name='enum2code(e)'>\
