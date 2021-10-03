@@ -518,6 +518,9 @@ def test_duration():
     u = msg.unpack(memoryview(m.pack()))
     assert u.as_dict() == m.as_dict()
 
+    m.us = '123ms'
+    assert m.us == Duration(123000, 'us', int)
+
 def test_bits():
     scheme = S.Scheme("""yamls://
 - name: msg

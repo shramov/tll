@@ -506,7 +506,11 @@ cdef class FDuration(FBase):
     cdef unpack(FDuration self, src):
         return chrono.Duration(self.base.unpack(src), self.time_resolution, type=self.base.default)
     cdef convert(FDuration self, v):
-        return chrono.Duration(chrono.Duration(v), self.time_resolution, type=self.base.default)
+        if isinstance(v, str):
+            v = chrono.Duration.from_str(v)
+        else:
+            v = chrono.Duration(v)
+        return chrono.Duration(v, self.time_resolution, type=self.base.default)
     cdef from_string(FDuration self, str s):
         return self.convert(chrono.Duration.from_str(s))
 _SUBTYPES[SubType.Duration] = FDuration
