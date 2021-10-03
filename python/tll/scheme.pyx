@@ -80,6 +80,7 @@ cdef enum_wrap(tll_scheme_enum_t * ptr):
     while e != NULL:
         r[b2s(e.name)] = e.value
         e = e.next
+    r.klass = enum.Enum(r.name, r)
     return r
 
 def memoryview_check(o):
@@ -426,6 +427,27 @@ cdef class FMessage(FBase):
 _TYPES[Type.Message] = FMessage
 
 _SUBTYPES = {}
+
+cdef class FEnum(FBase):
+    cdef object default
+    cdef FBase base
+    cdef object enum_class
+
+    def __init__(self, f):
+        self.base = f.impl
+        self.enum_class = f.type_enum.klass
+        self.default = lambda: f.type_enum.klass(0) # XXX: What is default value for enum?
+
+    cdef pack(FEnum self, v, dest, tail, int tail_offset):
+        return self.base.pack(v.value, dest, tail, tail_offset)
+    cdef unpack(FEnum self, src):
+        return self.enum_class(self.base.unpack(src))
+    cdef convert(FEnum self, v):
+        if isinstance(v, str):
+            return self.enum_class.__members__[v]
+        return self.enum_class(v)
+    cdef from_string(FEnum self, str s): return self.enum_class(s)
+_SUBTYPES[SubType.Enum] = FEnum
 
 cdef class FFixed(FBase):
     default = Decimal

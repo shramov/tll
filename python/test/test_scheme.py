@@ -551,3 +551,36 @@ def test_bits():
     assert u.u32.c == False
     assert u.u32.d == True
     assert u.u32.e == False
+
+def test_enum():
+    scheme = S.Scheme("""yamls://
+- name: msg
+  enums:
+    e8:
+      type: uint8
+      enum: {A: 1, B: 2, C: 3}
+    e64:
+      type: int64
+      enum: {A: 10000, B: 20000, C: 30000}
+  fields:
+    - {name: e8, type: e8}
+    - {name: e64, type: e64}
+""")
+
+    msg = scheme['msg']
+    m = msg.object(e8 = 1, e64 = 'A')
+
+    assert m.e8.value == 1
+    assert m.e8 == m.e8.A
+
+    assert m.e64.value == 10000
+    assert m.e64 == m.e64.A
+
+    u = msg.unpack(memoryview(m.pack()))
+    assert u.as_dict() == m.as_dict()
+
+    assert u.e8.value == 1
+    assert u.e8 == u.e8.A
+
+    assert u.e64.value == 10000
+    assert u.e64 == u.e64.A
