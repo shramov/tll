@@ -68,7 +68,7 @@ template <size_t Size>
 struct ByteString : public std::array<char, Size>
 {
 	static_assert(Size > 0, "Empty Chars are not allowed");
-	operator std::string_view () { return {this->data(), strnlen(this->data(), Size)}; }
+	operator std::string_view () const { return {this->data(), strnlen(this->data(), Size)}; }
 	ByteString operator = (std::string_view s) { memcpy(this->data(), s.data(), std::min(Size, s.size())); return *this; }
 };
 
