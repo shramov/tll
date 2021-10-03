@@ -555,6 +555,18 @@ def test_bits():
     assert u.u32.d == True
     assert u.u32.e == False
 
+    m.i8 = 0
+
+    assert m.i8.a == False
+    assert m.i8.b == False
+    assert m.i8.c == False
+
+    m.i8 = {'a', 'c'}
+
+    assert m.i8.a == True
+    assert m.i8.b == False
+    assert m.i8.c == True
+
 def test_enum():
     scheme = S.Scheme("""yamls://
 - name: msg

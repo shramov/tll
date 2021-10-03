@@ -21,7 +21,12 @@ class Bits(object):
     BITS = {}
 
     def __init__(self, value = 0):
-        self._value = value
+        if isinstance(value, (set, list, tuple)):
+            self._value = 0
+            for n in value:
+                self.BITS[n].set(self, 1)
+        else:
+            self._value = value
 
 def fill_properties(cls):
     for b in cls.BITS.values():
