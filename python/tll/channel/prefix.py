@@ -81,9 +81,14 @@ class Prefix(Base):
         self.state = self.State.Error
 
     def __call__(self, c, msg):
-        if msg.type == msg.Type.Data:
-            self._on_data(msg)
-        elif msg.type == msg.Type.State:
-            self._on_state(msg)
-        else:
-            self._on_other(msg)
+        try:
+            if msg.type == msg.Type.Data:
+                self._on_data(msg)
+            elif msg.type == msg.Type.State:
+                self._on_state(msg)
+            else:
+                self._on_other(msg)
+        except:
+            self.log.exception("Failed to process message {}:{}", msg.type, msg.msgid)
+            if self.state != self.State.Closed:
+                self.state = self.State.Error
