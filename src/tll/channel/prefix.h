@@ -45,6 +45,11 @@ public:
 		curl.set("name", fmt::format("{}/{}", this->name, pproto));
 		curl.set("tll.internal", "yes");
 
+		for (auto &k : std::vector<std::string_view> { "dump", "stat" }) {
+			if (curl.has(k))
+				curl.unset(k);
+		}
+
 		/*
 		auto sub = curl.sub("sub");
 		if (sub) {
