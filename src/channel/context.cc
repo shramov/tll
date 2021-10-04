@@ -145,7 +145,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		for (auto &k : keys) {
 			auto v = cfg.get(k);
 			if (!v || v->empty()) continue;
-			return _log.fail(EINVAL, "Aliases has non-empty field '{}'");
+			return _log.fail(EINVAL, "Aliases has non-empty field '{}'", *v);
 		}
 		tll::Channel::Url url = cfg.copy();
 		auto r = lookup(cfg);
