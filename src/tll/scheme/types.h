@@ -39,10 +39,12 @@ typedef struct __attribute__((packed)) tll_scheme_offset_ptr_t
 #ifdef __cplusplus
 
 #include "tll/util/fixed_point.h"
+#include "tll/util/offset_iterator.h"
 
 #include <array>
 #include <chrono>
 #include <string_view>
+#include <type_traits>
 
 namespace tll::scheme {
 
@@ -51,8 +53,25 @@ using tll::util::FixedPoint;
 template <typename T = void, typename Ptr = tll_scheme_offset_ptr_t>
 struct __attribute__((packed)) offset_ptr_t : public Ptr
 {
+	using iterator = tll::util::offset_iterator<T>;
+	using const_iterator = tll::util::offset_iterator<const T>;
+
 	T * data() { return (T *) (((char *) this) + this->offset); }
 	const T * data() const { return (const T *) (((const char *) this) + this->offset); }
+
+	size_t entity_size() const
+	{
+		if constexpr (std::is_same_v<Ptr, tll_scheme_offset_ptr_legacy_short_t>) {
+			return sizeof(T);
+		} else {
+			return this->entity;
+		}
+	}
+
+	iterator begin() { return iterator(data(), entity_size()); }
+	const_iterator begin() const { return const_iterator(data(), entity_size()); }
+	iterator end() { return begin() + this->size; }
+	const_iterator end() const { return begin() + this->size; }
 };
 
 template <typename T = void> using offset_ptr_legacy_short_t = offset_ptr_t<T, tll_scheme_offset_ptr_legacy_short_t>;

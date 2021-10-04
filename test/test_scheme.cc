@@ -14,6 +14,8 @@
 
 #include <memory>
 
+#include "test_compat.h"
+
 static const char scheme[] = "yaml://" SCHEME_PATH;
 
 using namespace tll::scheme;
@@ -413,4 +415,39 @@ TEST(Scheme, BitsWrapper)
 	ASSERT_EQ(bits.a(), false);
 	ASSERT_EQ(bits.b(), 3u);
 	ASSERT_EQ(bits.c(), false);
+}
+
+template <typename T>
+class SchemeOffsetPtr : public ::testing::Test {};
+
+using PtrTypes = ::testing::Types<tll_scheme_offset_ptr_t, tll_scheme_offset_ptr_legacy_long_t, tll_scheme_offset_ptr_legacy_short_t>;
+TYPED_TEST_SUITE(SchemeOffsetPtr, PtrTypes);
+
+template <typename T>
+void _test_offset_ptr(T * ptr, size_t entity_size)
+{
+	ASSERT_EQ(ptr->entity_size(), entity_size);
+
+	auto it = ptr->begin();
+	ASSERT_EQ(it, ptr->begin());
+	ASSERT_EQ(it + 2, ptr->end());
+	ASSERT_EQ(&*ptr->begin(), ptr->data());
+	ASSERT_EQ(&*ptr->end(), ptr->data() + 2 * entity_size / 4);
+}
+
+TYPED_TEST(SchemeOffsetPtr, OffsetPtr)
+{
+	using Ptr = TypeParam;
+	using namespace tll::scheme;
+	using ptr_t = offset_ptr_t<int32_t, Ptr>;
+	ptr_t ptr = {};
+	ptr.size = 2;
+	size_t entity_size = 8;
+	if constexpr (!std::is_same_v<Ptr, tll_scheme_offset_ptr_legacy_short_t>)
+		ptr.entity = 8;
+	else
+		entity_size = 4;
+
+	_test_offset_ptr(&ptr, entity_size);
+	_test_offset_ptr((const ptr_t *) &ptr, entity_size); 
 }
