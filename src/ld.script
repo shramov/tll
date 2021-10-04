@@ -67,6 +67,7 @@ TLL_0.0.0 {
 		tll_config_sub;
 		tll_config_sub_const;
 		tll_config_unref;
+		tll_config_unset;
 		tll_config_value;
 		tll_config_value_free;
 		tll_config_value_strdup;
