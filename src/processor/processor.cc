@@ -546,6 +546,8 @@ void Processor::activate(Object &o)
 
 void Processor::_close_workers()
 {
+	if (std::all_of(_workers.begin(), _workers.end(), [](auto & w) { return w.second->proc.state == state::Closed; }))
+		return;
 	if (std::all_of(_objects.begin(), _objects.end(), [](auto & o) { return o.state == state::Closed; })) {
 		_log.info("All objects closed, signal workers");
 		for (auto & w : _workers)
