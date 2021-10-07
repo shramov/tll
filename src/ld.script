@@ -72,6 +72,9 @@ TLL_0.0.0 {
 		tll_config_value_free;
 		tll_config_value_strdup;
 
+		tll_decimal128_pack;
+		tll_decimal128_unpack;
+
 		tll_logger_config;
 		tll_logger_free;
 		tll_logger_log;

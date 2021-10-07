@@ -5,6 +5,7 @@ sources += ['processor/loop.cc']
 sources += ['stat.cc']
 sources += ['time.cc']
 sources += ['ring.c']
+sources += ['decimal128.cc']
 
 
 subdir('logger')

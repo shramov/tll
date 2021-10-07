@@ -1,0 +1,98 @@
+inf:
+  string: Inf
+  sign: 0
+  significand: 0
+  exponent: 10000
+  bin: !!binary |
+    AAAAAAAAAAAAAAAAAAAAeA==
+neginf:
+  string: -Inf
+  sign: 1
+  significand: 0
+  exponent: 10000
+  bin: !!binary |
+    AAAAAAAAAAAAAAAAAAAA+A==
+nan:
+  string: NaN
+  sign: 0
+  significand: 0
+  exponent: 10001
+  bin: !!binary |
+    AAAAAAAAAAAAAAAAAAAAfA==
+snan:
+  string: sNaN
+  sign: 0
+  significand: 0
+  exponent: 10002
+  bin: !!binary |
+    AAAAAAAAAAAAAAAAAAAAfg==
+max:
+  string: 9999999999999999999999999999999999.E6111
+  sign: 0
+  significand: 9999999999999999999999999999999999
+  exponent: 6111
+  bin: !!binary |
+    /////2OOjTfAh62+Ce3/Xw==
+min:
+  string: -9999999999999999999999999999999999.E6111
+  sign: 1
+  significand: 9999999999999999999999999999999999
+  exponent: 6111
+  bin: !!binary |
+    /////2OOjTfAh62+Ce3/3w==
+tiny:
+  string: '1.E-6176'
+  sign: 0
+  significand: 1
+  exponent: -6176
+  bin: !!binary |
+    AQAAAAAAAAAAAAAAAAAAAA==
+max_uint64:
+  string: 18446744073709551616.E0
+  sign: 0
+  significand: 18446744073709551616
+  exponent: 0
+  bin: !!binary |
+    AAAAAAAAAAABAAAAAABAMA==
+max_int64:
+  string: 9223372036854775808.E0
+  sign: 0
+  significand: 9223372036854775808
+  exponent: 0
+  bin: !!binary |
+    AAAAAAAAAIAAAAAAAABAMA==
+min_int64:
+  string: -9223372036854775809.E0
+  sign: 1
+  significand: 9223372036854775809
+  exponent: 0
+  bin: !!binary |
+    AQAAAAAAAIAAAAAAAABAsA==
+normal0:
+  string: 1234567890.E0
+  sign: 0
+  significand: 1234567890
+  exponent: 0
+  bin: !!binary |
+    0gKWSQAAAAAAAAAAAABAMA==
+normal5:
+  string: 1234567890.E5
+  sign: 0
+  significand: 1234567890
+  exponent: 5
+  bin: !!binary |
+    0gKWSQAAAAAAAAAAAABKMA==
+neg0:
+  string: -1234567890.E0
+  sign: 1
+  significand: 1234567890
+  exponent: 0
+  bin: !!binary |
+    0gKWSQAAAAAAAAAAAABAsA==
+neg5:
+  string: -1234567890.E5
+  sign: 1
+  significand: 1234567890
+  exponent: 5
+  bin: !!binary |
+    0gKWSQAAAAAAAAAAAABKsA==
