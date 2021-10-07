@@ -20,6 +20,17 @@
 
 namespace tll::network {
 
+namespace _ { // Hide enum so tll::network is not polluted
+enum AddressFamily {
+	UNSPEC = AF_UNSPEC,
+	INET = AF_INET,
+	INET6 = AF_INET6,
+	UNIX = AF_UNIX,
+};
+}
+
+using AddressFamily = _::AddressFamily;
+
 class scoped_socket
 {
 	int _fd = -1;
@@ -157,6 +168,21 @@ static inline tll::result_t<hostport> parse_hostport(std::string_view host, int 
 } // tll::network
 
 namespace tll::conv {
+
+template <>
+struct parse<tll::network::AddressFamily>
+{
+        static result_t<tll::network::AddressFamily> to_any(std::string_view s)
+        {
+		using tll::network::AddressFamily;
+                return tll::conv::select(s, std::map<std::string_view, AddressFamily> {
+			{"any", AddressFamily::UNSPEC},
+			{"ipv4", AddressFamily::INET},
+			{"ipv6", AddressFamily::INET6},
+			{"unix", AddressFamily::UNIX}
+		});
+        }
+};
 
 template <>
 struct dump<sockaddr_un> : public to_string_from_string_buf<sockaddr_un>

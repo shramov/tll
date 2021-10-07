@@ -36,6 +36,7 @@ static constexpr std::string_view control_scheme = R"(yamls://
 #endif
 
 using namespace tll;
+using tll::network::AddressFamily;
 
 namespace {
 template <typename T> constexpr size_t _sizeof() { return sizeof(T); }
@@ -116,7 +117,7 @@ class UdpClient : public UdpSocket<UdpClient<Frame>, Frame>
 {
 	using udp_socket_t = UdpSocket<UdpClient<Frame>, Frame>;
 
-	int _af = AF_UNSPEC;
+	AddressFamily _af = AddressFamily::UNSPEC;
 	std::string _host;
 	unsigned short _port = 0;
 
@@ -135,7 +136,7 @@ class UdpServer : public UdpSocket<UdpServer<Frame>, Frame>
 {
 	using udp_socket_t = UdpSocket<UdpServer<Frame>, Frame>;
 
-	int _af = AF_UNSPEC;
+	AddressFamily _af = AddressFamily::UNSPEC;
 	std::string _host;
 	unsigned short _port = 0;
 	bool _unlink_socket = false;
@@ -437,7 +438,7 @@ template <typename F>
 int UdpClient<F>::_init(const Channel::Url &url, Channel *master)
 {
 	auto reader = this->channel_props_reader(url);
-	_af = reader.getT("af", AF_UNSPEC, {{"unix", AF_UNIX}, {"ipv4", AF_INET}, {"ipv6", AF_INET6}});
+	_af = reader.getT("af", AddressFamily::UNSPEC);
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -445,10 +446,10 @@ int UdpClient<F>::_init(const Channel::Url &url, Channel *master)
 		return this->_log.fail(EINVAL, "Failed to init Udp socket");
 
 	auto host = url.host();
-	if (_af == AF_UNSPEC && host.find('/') != host.npos)
-		_af = AF_UNIX;
+	if (_af == AddressFamily::UNSPEC && host.find('/') != host.npos)
+		_af = AddressFamily::UNIX;
 
-	if (_af != AF_UNIX) {
+	if (_af != AddressFamily::UNIX) {
 		auto sep = host.find_last_of(':');
 		if (sep == host.npos)
 			return this->_log.fail(EINVAL, "Invalid host:port pair: {}", host);
@@ -486,7 +487,7 @@ template <typename F>
 int UdpServer<F>::_init(const Channel::Url &url, Channel *master)
 {
 	auto reader = this->channel_props_reader(url);
-	_af = reader.getT("af", AF_UNSPEC, {{"unix", AF_UNIX}, {"ipv4", AF_INET}, {"ipv6", AF_INET6}});
+	_af = reader.getT("af", AddressFamily::UNSPEC);
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -494,10 +495,10 @@ int UdpServer<F>::_init(const Channel::Url &url, Channel *master)
 		return this->_log.fail(EINVAL, "Failed to init Udp socket");
 
 	auto host = url.host();
-	if (_af == AF_UNSPEC && host.find('/') != host.npos)
-		_af = AF_UNIX;
+	if (_af == AddressFamily::UNSPEC && host.find('/') != host.npos)
+		_af = AddressFamily::UNIX;
 
-	if (_af != AF_UNIX) {
+	if (_af != AddressFamily::UNIX) {
 		auto sep = host.find_last_of(':');
 		if (sep == host.npos)
 			return this->_log.fail(EINVAL, "Invalid host:port pair: {}", host);
