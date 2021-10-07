@@ -75,7 +75,7 @@ class TcpSocket : public Base<T>
 	const D * rdataT(size_t off = 0, size_t size = sizeof(D)) const
 	{
 		off += _roff;
-		if (_roff + size > _rsize)
+		if (off + size > _rsize)
 			return nullptr;
 		return (const D *) (_rbuf.data() + off);
 	}
