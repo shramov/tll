@@ -12,6 +12,7 @@ setup( name = 'tll'
      , cmdclass = {'build_ext': build_ext}
      , ext_modules =
          [ Extension("tll.s2b", ["tll/s2b.pyx"], libraries=["tll"])
+         , Extension("tll.decimal128", ["tll/decimal128.pyx"], libraries=["tll"])
          , Extension("tll.channel.common", ["tll/channel/common.pyx"], libraries=["tll"])
          , Extension("tll.channel.channel", ["tll/channel/channel.pyx"], libraries=["tll"])
          , Extension("tll.channel.context", ["tll/channel/context.pyx"], libraries=["tll"])

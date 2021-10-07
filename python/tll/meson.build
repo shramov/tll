@@ -1,4 +1,4 @@
-foreach pyx : ['s2b', 'config', 'logger', 'scheme', 'stat']
+foreach pyx : ['s2b', 'config', 'logger', 'scheme', 'stat', 'decimal128']
 	pyx_so = python.extension_module( pyx
 		, cython_gen.process(pyx + '.pyx')
 		, c_args : cython_cflags
