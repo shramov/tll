@@ -31,7 +31,7 @@ long long read_size(const tll::scheme::Field * field, const View &data)
 }
 
 template <typename View>
-int write_size(const tll::scheme::Field * field, View &data, size_t size)
+int write_size(const tll::scheme::Field * field, View data, size_t size)
 {
 	using tll::scheme::Field;
 
