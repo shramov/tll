@@ -35,6 +35,7 @@
 #include "channel/tcp.h"
 #include "channel/timer.h"
 #include "channel/udp.h"
+#include "channel/yaml.h"
 #include "channel/zero.h"
 
 using namespace tll;
@@ -49,6 +50,7 @@ TLL_DECLARE_IMPL(ChSerial);
 TLL_DECLARE_IMPL(ChTcp);
 TLL_DECLARE_IMPL(ChTimer);
 TLL_DECLARE_IMPL(ChUdp);
+TLL_DECLARE_IMPL(ChYaml);
 TLL_DECLARE_IMPL(ChZero);
 
 struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t>
@@ -77,6 +79,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChTcp::impl);
 		reg(&ChTimer::impl);
 		reg(&ChUdp::impl);
+		reg(&ChYaml::impl);
 		reg(&ChZero::impl);
 
 		auto cfg = tll::Channel::Url::parse("udp://;udp.multicast=yes");
