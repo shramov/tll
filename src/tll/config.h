@@ -228,16 +228,7 @@ class ConfigT : public PropsGetter<ConfigT<Const>>
 		_cfg = nullptr;
 	}
 
-	template <bool C>
-	ConfigT & operator = (const ConfigT<C> &rhs)
-	{
-		ConfigT<Const> cfg(rhs);
-		std::swap(_cfg, cfg._cfg);
-		return *this;
-	}
-
-	template <bool C>
-	ConfigT & operator = (ConfigT<C> &&rhs) { std::swap(_cfg, rhs._cfg); return *this; }
+	ConfigT & operator = (ConfigT rhs) { std::swap(_cfg, rhs._cfg); return *this; }
 
 	static std::optional<ConfigT> load(std::string_view path)
 	{
