@@ -204,7 +204,7 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	this->_msg_addr.fd = 0;
 
 	auto reader = this->channel_props_reader(url);
-	auto af = reader.getT("af", AF_UNSPEC, {{"unix", AF_UNIX}, {"ipv4", AF_INET}, {"ipv6", AF_INET6}});
+	auto af = reader.getT("af", network::AddressFamily::UNSPEC);
 	this->_size = reader.template getT<util::Size>("size", 128 * 1024);
 	_timestamping = reader.getT("timestamping", false);
 	if (!reader)
@@ -230,7 +230,7 @@ int TcpClient<T, S>::_open(const PropsView &url)
 {
 	tll::network::hostport peer;
 	if (!_peer) {
-		auto af = url.getT("af", AF_UNSPEC, {{"unix", AF_UNIX}, {"ipv4", AF_INET}, {"ipv6", AF_INET6}});
+		auto af = url.getT("af", network::AddressFamily::UNSPEC);
 		if (!af)
 			return this->_log.fail(EINVAL, "Invalid af parameter: {}", af.error());
 		auto host = url.get("host");
@@ -385,7 +385,7 @@ template <typename T, typename C>
 int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = this->channelT()->channel_props_reader(url);
-	auto af = reader.getT("af", AF_UNSPEC, {{"unix", AF_UNIX}, {"ipv4", AF_INET}, {"ipv6", AF_INET6}});
+	auto af = reader.getT("af", network::AddressFamily::UNSPEC);
 	_timestamping = reader.getT("timestamping", false);
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());

@@ -137,18 +137,18 @@ static inline tll::result_t<std::vector<tll::network::sockaddr_any>> resolve(int
 
 struct hostport
 {
-	int af = AF_UNSPEC;
+	AddressFamily af = AddressFamily::UNSPEC;
 	std::string host;
 	unsigned short port = 0;
 };
 
-static inline tll::result_t<hostport> parse_hostport(std::string_view host, int af = AF_UNSPEC)
+static inline tll::result_t<hostport> parse_hostport(std::string_view host, AddressFamily af = AddressFamily::UNSPEC)
 {
 	hostport r = { af };
-	if (r.af == AF_UNSPEC && host.find('/') != host.npos)
-		r.af = AF_UNIX;
+	if (r.af == AddressFamily::UNSPEC && host.find('/') != host.npos)
+		r.af = AddressFamily::UNIX;
 
-	if (r.af == AF_UNIX) {
+	if (r.af == AddressFamily::UNIX) {
 		r.host = host;
 		return r;
 	}
