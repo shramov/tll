@@ -275,7 +275,7 @@ cdef class Base:
 
     def _open(self, props): pass
     def _close(self, force : bool = False):
-            self._update_dcaps(0, C.DCaps.Process | C.DCaps.PollMask)
+            self._update_dcaps(0, C.DCaps.Pending | C.DCaps.Process | C.DCaps.PollMask)
             self.state = C.State.Closed
             self.scheme = None
 
