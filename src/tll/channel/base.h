@@ -308,7 +308,7 @@ class Base
 	int _close(bool force = false)
 	{
 		_scheme.reset();
-		_update_dcaps(0, dcaps::Process | dcaps::CPOLLMASK);
+		_update_dcaps(0, dcaps::Process | dcaps::Pending | dcaps::CPOLLMASK);
 		state(state::Closed);
 		return 0;
 	}
