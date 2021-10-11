@@ -79,6 +79,106 @@ class DCaps(enum.IntFlag):
     SuspendPermanent = TLL_DCAPS_SUSPEND_PERMANENT
 _DCaps = DCaps
 
+class RunGuard:
+    def __init__(self, active=True):
+        self._active = active
+
+    def disable(self):
+        self._active = False
+
+    def enable(self):
+        self._active = True
+
+    @property
+    def active(self):
+        return self._active
+
+cdef ccallback_finalize(tll_channel_t * channel, void * func, unsigned int mask, object guard):
+    if guard.active:
+        tll_channel_callback_del(channel, msg_cb, func, mask)
+        guard.disable()
+
+cdef int ccallback_destroy_cb(const tll_channel_t * c, const tll_msg_t *msg, void * user) with gil:
+    if msg.type != TLL_MESSAGE_STATE or msg.msgid != TLL_STATE_DESTROY:
+        return 0
+    wr = <object>user
+    try:
+        o = wr()
+        if o is not None:
+            o.reset()
+            Py_INCREF(wr)
+    except:
+        pass
+    return 0
+
+cdef class CCallback:
+    cdef tll_channel_t * _channel
+    cdef void * _func_ptr
+    cdef object _func_ref
+    cdef object _self_ref
+    cdef object _finalize
+    cdef object _run_guard
+    cdef unsigned int _mask
+    cdef object __weakref__
+
+    def __cinit__(self):
+        self._channel = NULL
+        self._func_ptr = NULL
+        self._func_ref = None
+
+    def __init__(self, channel : Channel, func, mask = MsgMask.All):
+        self._channel = (<Channel>channel)._ptr
+        self._mask = mask
+        self._func_ref = None
+        self._self_ref = None
+        self._run_guard = RunGuard(False)
+        ptr = <intptr_t>self._channel
+
+        if isinstance(func, weakref.ref):
+            func = func()
+        if func is None:
+            return
+        self._func_ptr = <void *>func
+        self._func_ref = weakref.ref(func)
+
+        cdef tll_channel_t * c = self._channel
+        cdef void * f = self._func_ptr
+        cdef unsigned int m = self._mask
+        guard = self._run_guard
+
+        self._finalize = lambda _: ccallback_finalize(c, f, m, guard)
+        self._self_ref = weakref.ref(self, self._finalize)
+        self._func_ref = weakref.ref(func, self._finalize)
+
+    def reset(self):
+        self._run_guard.disable()
+        self._func_ref = None
+        self._self_ref = None
+
+    def add(self):
+        cdef int r = tll_channel_callback_add(self._channel, ccallback_destroy_cb, <void *>self._self_ref, self._mask)
+        if r:
+            raise TLLError("Callback add failed", r)
+        Py_INCREF(self._self_ref)
+
+        r = tll_channel_callback_add(self._channel, msg_cb, self._func_ptr, self._mask)
+        if r:
+            raise TLLError("Callback add failed", r)
+        self._run_guard.enable()
+
+    def remove(self):
+        cdef int r = tll_channel_callback_del(self._channel, msg_cb, self._func_ptr, self._mask)
+        if r:
+            raise TLLError("Callback del failed", r)
+        self.reset()
+
+    def __hash__(self):
+        return hash((<intptr_t>self._func_ptr, self._mask))
+
+    @property
+    def finalize(self):
+        return self._finalize
+
 cdef class Channel:
     Caps = _Caps
     DCaps = _DCaps
@@ -127,12 +227,14 @@ cdef class Channel:
         self.free()
 
     def free(self):
+        for o in self._callbacks.keys():
+            o.finalize(None)
+        self._callbacks = {}
+        self._scheme_cache = None
         if self._own and self._ptr is not NULL:
             tll_channel_free(self._ptr)
         self._ptr = NULL
         self._own = False
-        self._callbacks = set()
-        self._scheme_cache = None
 
     @staticmethod
     cdef Channel wrap(tll_channel_t * ptr):
@@ -196,25 +298,22 @@ cdef class Channel:
             msg.size = len(mv)
         return self._post(&msg, 0)
 
-    def callback_add(self, cb, mask = MsgMask.All, skip_ref=False):
-        t = (cb, mask)
-        if t in self._callbacks:
+    def callback_add(self, cb, mask = MsgMask.All, store=True):
+        obj = CCallback(self, cb, mask)
+        if obj in self._callbacks:
             return
-        r = tll_channel_callback_add(self._ptr, msg_cb, <void *>t[0], mask)
-        if r:
-            raise TLLError("Callback add failed", r)
+        obj.add()
         #if not skip_ref:
-        self._callbacks[t] = t
+        if store:
+            self._callbacks[obj] = (obj, cb)
+        return obj
 
-    def callback_del(self, cb, mask = MsgMask.All, skip_ref=False):
-        t = self._callbacks.get((cb, mask), None)
-        if t is None:
+    def callback_del(self, cb, mask = MsgMask.All):
+        obj = CCallback(self, cb, mask)
+        obj, fn = self._callbacks.pop(obj, (None, None))
+        if fn is None:
             return
-        r = tll_channel_callback_del(self._ptr, msg_cb, <void *>t[0], mask)
-        if r:
-            raise TLLError("Callback del failed", r)
-        #if not skip_ref:
-        del self._callbacks[t]
+        obj.remove()
 
     def suspend(self):
         error.wrap(tll_channel_suspend(self._ptr), "Suspend failed")
