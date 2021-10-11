@@ -11,6 +11,7 @@ from tll import asynctll
 import common
 
 import pytest
+import time
 
 def test_asynctll():
     loop = asynctll.Loop()
@@ -98,5 +99,23 @@ def test_sleep():
         print("Sleep next")
         await loop.sleep(0.001)
         print("Sleep done")
+
+    loop.run(main(loop))
+
+def test_direct_recv():
+    loop = asynctll.Loop(context=C.Context())
+    async def main(loop):
+        s = loop.Channel('direct://;name=server;dump=frame')
+        c = loop.Channel('direct://;name=client;dump=frame', master = s)
+
+        s.open()
+        c.open()
+
+        c.post(b'xxx', seq=0)
+
+        start = time.time()
+        m = await s.recv(0.1)
+        dt = time.time() - start
+        assert dt < 0.001
 
     loop.run(main(loop))

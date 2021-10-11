@@ -41,6 +41,8 @@ class AsyncChannel(C.Channel):
         if not l:
             raise RuntimeError("Async TLL loop destroyed, bailing out")
 
+        if not self._result.empty():
+            return self._result.get()
         ts = l._timer_arm(timeout)
         try:
             while True:
@@ -168,6 +170,9 @@ class Loop:
         entry = self.channels.get(c, None)
         if entry is None:
             raise KeyError("Channel {} not processed by loop".format(c.name))
+
+        if not entry.queue.empty():
+            return entry.queue.get()
 
         ts = self._timer_arm(timeout)
         try:
