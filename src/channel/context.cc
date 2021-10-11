@@ -685,6 +685,7 @@ int callback_del(cb_pair_t *c, unsigned &size, cb_pair_t *cb)
 
 int tll_channel_callback_add(tll_channel_t *c, tll_channel_callback_t cb, void *user, unsigned mask)
 {
+	if (!c || !cb) return EINVAL;
 	tll::Logger _log(std::string("tll.channel.") + tll_channel_name(c));
 	auto in = c->internal;
 	tll_channel_callback_pair_t p = { cb, user, mask };
@@ -704,6 +705,7 @@ int tll_channel_callback_add(tll_channel_t *c, tll_channel_callback_t cb, void *
 
 int tll_channel_callback_del(tll_channel_t *c, tll_channel_callback_t cb, void *user, unsigned mask)
 {
+	if (!c || !cb) return EINVAL;
 	tll::Logger _log(std::string("tll.channel.") + tll_channel_name(c));
 	auto in = c->internal;
 	tll_channel_callback_pair_t p = { cb, user, mask };
