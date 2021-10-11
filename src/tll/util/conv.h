@@ -193,6 +193,8 @@ struct Digits<16>
 template <typename I, I Limit = std::numeric_limits<I>::max(), int Base = 10>
 inline result_t<I> to_any_uint_base(std::string_view s)
 {
+	constexpr I Thresold = (Limit / Base > Base) ? Limit / Base - Base : 0;
+
 	if (!s.size()) return error("Empty string");
 	I r = 0;
 	auto ptr = s.begin();
@@ -200,16 +202,13 @@ inline result_t<I> to_any_uint_base(std::string_view s)
 		auto x = Digits<Base>::decode(*ptr);
 		if (x < 0)
 			return error("Invalid digit: " + std::string(ptr, 1));
-		if constexpr (Limit == std::numeric_limits<I>::max()) {
+		if (r > Thresold) {
 			auto old = r;
 			r = Base * r + x;
-			if (old > r)
+			if (old > r || r > Limit)
 				return error("Overflow");
-		} else {
+		} else
 			r = Base * r + x;
-			if (r > Limit)
-				return error("Overflow");
-		}
 	}
 	return r;
 }

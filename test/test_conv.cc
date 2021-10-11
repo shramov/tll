@@ -54,6 +54,7 @@ TEST(Conv, Int)
 	EXPECT_FALSE(to_any<short>("-0x8001"));
 	EXPECT_FALSE(to_any<int>("0x80000000"));
 	EXPECT_FALSE(to_any<int>("-0x80000001"));
+	EXPECT_FALSE(to_any<int>("100000000000"));
 	EXPECT_FALSE(to_any<int64_t>("0x8000000000000000"));
 	EXPECT_FALSE(to_any<int64_t>("-0x8000000000000001"));
 
