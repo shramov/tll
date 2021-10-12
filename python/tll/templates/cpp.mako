@@ -108,7 +108,7 @@ def field2type(f):
 	struct ${f.name}: public tll::scheme::Bits<${numeric(f.type)}>
 	{
 % for n,b in sorted(f.bitfields.items(), key=lambda t: (t[1].offset, t[1].size, t[0])):
-		auto ${b.name}() const { return get(${b.offset}, ${b.size}); }; void ${b.name}(${"unsigned" if b.size > 1 else "bool"} v) { return set(${b.offset}, ${b.size}, v); };
+		constexpr auto ${b.name}() const { return get(${b.offset}, ${b.size}); }; constexpr ${f.name} & ${b.name}(${"unsigned" if b.size > 1 else "bool"} v) { set(${b.offset}, ${b.size}, v); return *this; };
 % endfor
 	};
 % endif
