@@ -107,6 +107,7 @@ def field2type(f):
 % elif f.sub_type == f.Sub.Bits:
 	struct ${f.name}: public tll::scheme::Bits<${numeric(f.type)}>
 	{
+		using tll::scheme::Bits<${numeric(f.type)}>::Bits;
 % for n,b in sorted(f.bitfields.items(), key=lambda t: (t[1].offset, t[1].size, t[0])):
 		constexpr auto ${b.name}() const { return get(${b.offset}, ${b.size}); }; constexpr ${f.name} & ${b.name}(${"unsigned" if b.size > 1 else "bool"} v) { set(${b.offset}, ${b.size}, v); return *this; };
 % endfor
