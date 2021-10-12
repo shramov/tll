@@ -13,11 +13,13 @@
 
 namespace tll {
 
+namespace channel {
+
 template <typename T>
-class LogicBase : public channel::Base<T>
+class Logic : public Base<T>
 {
  protected:
-	std::map<std::string, std::vector<tll::Channel *>> _channels;
+	std::map<std::string, std::vector<tll::Channel *>, std::less<>> _channels;
 
  public:
 	int init(const tll::Channel::Url &url, tll::Channel *master, tll_channel_context_t *ctx)
@@ -41,7 +43,7 @@ class LogicBase : public channel::Base<T>
 			_channels.emplace(std::string(tag), std::move(r));
 		}
 		this->_log.debug("Add callbacks");
-		int r = this->channel::Base<T>::init(url, master, ctx);
+		int r = this->Base<T>::init(url, master, ctx);
 		if (r) return r;
 		for (auto & p : _channels) {
 			for (auto & c : p.second)
@@ -55,9 +57,14 @@ class LogicBase : public channel::Base<T>
  private:
 	static int logic_callback(const tll_channel_t * c, const tll_msg_t *msg, void * user)
 	{
-		return static_cast<T *>(static_cast<LogicBase<T> *>(user))->logic(static_cast<const Channel *>(c), msg);
+		return static_cast<T *>(static_cast<Logic<T> *>(user))->logic(static_cast<const Channel *>(c), msg);
 	}
 };
+
+} // namespace channel
+
+template <typename T>
+using LogicBase = channel::Logic<T>;
 
 } // namespace tll
 
