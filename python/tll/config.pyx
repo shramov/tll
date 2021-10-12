@@ -178,9 +178,11 @@ cdef int browse_cb(const char * key, int klen, const tll_config_t *value, void *
 
 cdef class Url(Config):
     def __init__(self, cfg = None):
-        if not isinstance(cfg, Config):
+        if cfg is None:
             Config.__init__(self)
             return
+        elif not isinstance(cfg, Config):
+            raise ValueError("Url can be constructed from Config, got {}".format(cfg))
         Config.__init__(self, bare=True)
         self._ptr = (<Config>cfg)._ptr
         tll_config_ref(self._ptr)
