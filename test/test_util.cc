@@ -10,6 +10,7 @@
 #include "tll/compat/filesystem.h"
 
 #include "tll/util/bin2ascii.h"
+#include "tll/util/bits.h"
 #include "tll/util/browse.h"
 #include "tll/util/cppring.h"
 #include "tll/util/fixed_point.h"
@@ -554,4 +555,47 @@ TEST(Util, FixedPoint)
 	ASSERT_TRUE(F3(1234) >= F3(1234)); ASSERT_FALSE(F3(1234) >= F3(1235));
 	ASSERT_TRUE(F3(1234) < F3(1235)); ASSERT_FALSE(F3(1234) < F3(1233));
 	ASSERT_TRUE(F3(1234) > F3(1233)); ASSERT_FALSE(F3(1234) > F3(1235));
+}
+
+struct BitsABC : public tll::util::Bits<uint32_t>
+{
+	using tll::util::Bits<uint32_t>::Bits;
+
+	constexpr auto a() const { return get(0); }; constexpr BitsABC & a(bool v) { set(0, v); return *this; };
+	constexpr auto b() const { return get(1, 2); }; constexpr BitsABC & b(unsigned v) { set(1, 2, v); return *this; };
+	constexpr auto c() const { return get(3); }; constexpr BitsABC & c(bool v) { set(3, v); return *this; };
+};
+
+TEST(Scheme, BitsWrapper)
+{
+	BitsABC bits;
+
+	ASSERT_EQ((uint32_t) bits, 0u);
+	ASSERT_EQ(bits.a(), false);
+	ASSERT_EQ(bits.b(), 0u);
+	ASSERT_EQ(bits.c(), false);
+
+	bits.a(true);
+
+	ASSERT_EQ((uint32_t) bits, (1u << 0));
+	ASSERT_EQ(bits.a(), true);
+	ASSERT_EQ(bits.b(), 0u);
+	ASSERT_EQ(bits.c(), false);
+
+	bits.c(true);
+
+	ASSERT_EQ((uint32_t) bits, (1u << 0) | (1u << 3));
+	ASSERT_EQ(bits.a(), true);
+	ASSERT_EQ(bits.b(), 0u);
+	ASSERT_EQ(bits.c(), true);
+
+	bits.clear();
+	ASSERT_EQ((uint32_t) bits, 0u);
+
+	bits.b(0xf);
+
+	ASSERT_EQ((uint32_t) bits, (3u << 1));
+	ASSERT_EQ(bits.a(), false);
+	ASSERT_EQ(bits.b(), 3u);
+	ASSERT_EQ(bits.c(), false);
 }

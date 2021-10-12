@@ -38,6 +38,7 @@ typedef struct __attribute__((packed)) tll_scheme_offset_ptr_t
 
 #ifdef __cplusplus
 
+#include "tll/util/bits.h"
 #include "tll/util/fixed_point.h"
 #include "tll/util/offset_iterator.h"
 
@@ -48,6 +49,7 @@ typedef struct __attribute__((packed)) tll_scheme_offset_ptr_t
 
 namespace tll::scheme {
 
+using tll::util::Bits;
 using tll::util::FixedPoint;
 
 template <typename T = void, typename Ptr = tll_scheme_offset_ptr_t>
@@ -89,28 +91,6 @@ struct ByteString : public std::array<char, Size>
 	static_assert(Size > 0, "Empty Chars are not allowed");
 	operator std::string_view () const { return {this->data(), strnlen(this->data(), Size)}; }
 	ByteString operator = (std::string_view s) { memcpy(this->data(), s.data(), std::min(Size, s.size())); return *this; }
-};
-
-template <typename T>
-struct __attribute__((packed)) Bits
-{
-	T _bits = 0;
-
-	operator T () const { return _bits; }
-	void clear() { _bits = T(); }
-
-	constexpr bool get(size_t offset) const { return get(offset, 1); }
-	constexpr void set(size_t offset, bool v) { set(offset, 1, v); }
-
-	constexpr unsigned get(size_t offset, size_t width) const
-	{
-		return tll_scheme_bit_field_get(_bits, offset, width);
-	}
-
-	constexpr void set(size_t offset, size_t width, unsigned v)
-	{
-		_bits = tll_scheme_bit_field_set(_bits, offset, width, v);
-	}
 };
 
 /// Stub declaration for decimal128 type
