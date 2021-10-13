@@ -19,6 +19,9 @@ struct Bits
 	Bits(const Bits &) = default;
 	Bits(Bits &&) = default;
 
+	Bits & operator = (const Bits &) = default;
+	Bits & operator = (Bits &&) = default;
+
 	constexpr Bits(T value) : _bits(value) {}
 	constexpr Bits(T value, unsigned offset) : _bits(value << offset) {}
 

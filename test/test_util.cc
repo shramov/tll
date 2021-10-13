@@ -572,6 +572,9 @@ TEST(Util, BitsWrapper)
 	const BitsABC A = BitsABC().a(true);
 	const BitsABC C = BitsABC().c(true);
 
+	bits = A;
+	bits = BitsABC();
+
 	ASSERT_EQ((uint32_t) bits, 0u);
 	ASSERT_EQ(bits.a(), false);
 	ASSERT_EQ(bits.b(), 0u);
