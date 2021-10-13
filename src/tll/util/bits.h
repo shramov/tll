@@ -8,12 +8,19 @@
 #ifndef _TLL_UTIL_BITS_H
 #define _TLL_UTIL_BITS_H
 
+#include <map>
+#include <type_traits>
+
 namespace tll::util {
 
 template <typename T>
 struct Bits
 {
 	T _bits = 0;
+
+	using value_type = T;
+
+	static std::map<std::string_view, T> bits_descriptor() { return {}; };
 
 	Bits() = default;
 	Bits(const Bits &) = default;

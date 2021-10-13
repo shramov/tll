@@ -20,6 +20,8 @@
 #include "tll/util/varint.h"
 #include "tll/util/zlib.h"
 
+#include "tll/conv/bits.h"
+
 #include <fmt/format.h>
 #include <list>
 #include <stdio.h>
@@ -564,6 +566,11 @@ struct BitsABC : public tll::util::Bits<uint32_t>
 	constexpr auto a() const { return get(0); }; constexpr BitsABC & a(bool v) { set(0, v); return *this; };
 	constexpr auto b() const { return get(1, 2); }; constexpr BitsABC & b(unsigned v) { set(1, 2, v); return *this; };
 	constexpr auto c() const { return get(3); }; constexpr BitsABC & c(bool v) { set(3, v); return *this; };
+
+	static std::map<std::string_view, uint32_t> bits_descriptor()
+	{
+		return {{"a", 1u << 0}, {"b", (3u << 1)}, {"c", 1u << 3}};
+	}
 };
 
 TEST(Util, BitsWrapper)
@@ -629,4 +636,16 @@ TEST(Util, BitsWrapper)
 
 	bits -= A;
 	ASSERT_EQ((uint32_t) bits, 0u);
+
+	using tll::conv::to_any;
+
+	ASSERT_FALSE(to_any<BitsABC>("z"));
+	ASSERT_FALSE(to_any<BitsABC>("-1"));
+	ASSERT_FALSE(to_any<BitsABC>("0x100000000"));
+
+	ASSERT_TRUE(to_any<BitsABC>("0")); ASSERT_EQ(*to_any<BitsABC>("0"), BitsABC(0));
+	ASSERT_TRUE(to_any<BitsABC>("1 | 0x8")); ASSERT_EQ(*to_any<BitsABC>("1 | 0x8"), BitsABC(1 | (1 << 3)));
+	ASSERT_TRUE(to_any<BitsABC>("a")); ASSERT_EQ(*to_any<BitsABC>("a"), BitsABC().a(true));
+	ASSERT_TRUE(to_any<BitsABC>("a | 0x8")); ASSERT_EQ(*to_any<BitsABC>("a | 0x8"), BitsABC(1 | (1 << 3)));
+	ASSERT_TRUE(to_any<BitsABC>("a|b")); ASSERT_EQ(*to_any<BitsABC>("a|b"), BitsABC(1 | (3 << 1)));
 }
