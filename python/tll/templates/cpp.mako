@@ -111,6 +111,14 @@ def field2type(f):
 % for n,b in sorted(f.bitfields.items(), key=lambda t: (t[1].offset, t[1].size, t[0])):
 		constexpr auto ${b.name}() const { return get(${b.offset}, ${b.size}); }; constexpr ${f.name} & ${b.name}(${"unsigned" if b.size > 1 else "bool"} v) { set(${b.offset}, ${b.size}, v); return *this; };
 % endfor
+		static std::map<std::string_view, value_type> bits_descriptor()
+		{
+			return {
+% for n,b in sorted(f.bitfields.items(), key=lambda t: (t[1].offset, t[1].size, t[0])):
+				{ "${b.name}", static_cast<value_type>(Bits::mask(${b.size})) << ${b.offset} },
+% endfor
+			};
+		}
 	};
 % endif
 </%def>\
