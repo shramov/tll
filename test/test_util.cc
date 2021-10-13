@@ -566,14 +566,18 @@ struct BitsABC : public tll::util::Bits<uint32_t>
 	constexpr auto c() const { return get(3); }; constexpr BitsABC & c(bool v) { set(3, v); return *this; };
 };
 
-TEST(Scheme, BitsWrapper)
+TEST(Util, BitsWrapper)
 {
 	BitsABC bits;
+	const BitsABC A = BitsABC().a(true);
+	const BitsABC C = BitsABC().c(true);
 
 	ASSERT_EQ((uint32_t) bits, 0u);
 	ASSERT_EQ(bits.a(), false);
 	ASSERT_EQ(bits.b(), 0u);
 	ASSERT_EQ(bits.c(), false);
+	ASSERT_EQ(bits, BitsABC());
+	ASSERT_NE(bits, A);
 
 	bits.a(true);
 
@@ -581,6 +585,7 @@ TEST(Scheme, BitsWrapper)
 	ASSERT_EQ(bits.a(), true);
 	ASSERT_EQ(bits.b(), 0u);
 	ASSERT_EQ(bits.c(), false);
+	ASSERT_EQ(bits, A);
 
 	bits.c(true);
 
@@ -588,6 +593,7 @@ TEST(Scheme, BitsWrapper)
 	ASSERT_EQ(bits.a(), true);
 	ASSERT_EQ(bits.b(), 0u);
 	ASSERT_EQ(bits.c(), true);
+	ASSERT_NE(bits, A);
 
 	bits.clear();
 	ASSERT_EQ((uint32_t) bits, 0u);
@@ -598,4 +604,26 @@ TEST(Scheme, BitsWrapper)
 	ASSERT_EQ(bits.a(), false);
 	ASSERT_EQ(bits.b(), 3u);
 	ASSERT_EQ(bits.c(), false);
+	ASSERT_EQ(bits, BitsABC().b(0xf));
+
+	bits -= A;
+	ASSERT_EQ((uint32_t) bits, (3u << 1));
+
+	bits |= A;
+	ASSERT_EQ((uint32_t) bits, (3u << 1) | 1u);
+
+	bits &= BitsABC(0xff);
+	ASSERT_EQ((uint32_t) bits, (3u << 1) | 1u);
+
+	bits ^= C;
+	ASSERT_EQ((uint32_t) bits, (3u << 1) | 1u | (1u << 3));
+
+	bits ^= C;
+	ASSERT_EQ((uint32_t) bits, (3u << 1) | 1u);
+
+	bits &= A;
+	ASSERT_EQ((uint32_t) bits, 1u);
+
+	bits -= A;
+	ASSERT_EQ((uint32_t) bits, 0u);
 }

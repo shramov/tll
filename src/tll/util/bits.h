@@ -46,6 +46,13 @@ struct Bits
 
 	bool operator == (const Bits &rhs) const { return _bits == rhs._bits; }
 	bool operator != (const Bits &rhs) const { return _bits != rhs._bits; }
+
+	Bits & operator |= (const Bits &rhs) { _bits |= rhs._bits; return *this; }
+	Bits & operator &= (const Bits &rhs) { _bits &= rhs._bits; return *this; }
+	Bits & operator ^= (const Bits &rhs) { _bits ^= rhs._bits; return *this; }
+
+	Bits & operator += (const Bits &rhs) { _bits |= rhs._bits; return *this; }
+	Bits & operator -= (const Bits &rhs) { _bits ^= (_bits & rhs._bits); return *this; }
 };
 
 } // namespace tll::util
