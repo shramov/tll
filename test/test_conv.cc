@@ -8,6 +8,7 @@
 #include "gtest/gtest.h"
 
 #include "tll/util/size.h"
+#include "tll/util/time.h"
 
 #define EXPECT_EQ_ANY(l, r) do { \
 	EXPECT_TRUE(l) << "Failed to convert: " << l.error(); \
@@ -139,4 +140,46 @@ TEST(Conv, Size)
 
 	EXPECT_EQ_ANY(to_any<SizeT<int>>("-1kb"), -1024);
 	EXPECT_EQ_ANY(to_any<SizeT<double>>("0.001kb"), 1.024);
+}
+
+TEST(Conv, Duration)
+{
+	using tll::conv::to_any;
+	using namespace std::chrono_literals;
+
+	EXPECT_FALSE(to_any<tll::duration>(""));
+	EXPECT_FALSE(to_any<tll::duration>("10"));
+	EXPECT_FALSE(to_any<tll::duration>("10x"));
+	EXPECT_FALSE(to_any<tll::duration>("10MB"));
+	EXPECT_FALSE(to_any<tll::duration>("1.5ns"));
+
+	EXPECT_EQ_ANY(to_any<tll::duration>("10ns"), 10ns);
+	EXPECT_EQ_ANY(to_any<tll::duration>("10us"), 10us);
+	EXPECT_EQ_ANY(to_any<tll::duration>("10ms"), 10ms);
+	EXPECT_EQ_ANY(to_any<tll::duration>("10s"), 10s);
+	EXPECT_EQ_ANY(to_any<tll::duration>("10m"), 10min);
+	EXPECT_EQ_ANY(to_any<tll::duration>("10h"), 10h);
+	EXPECT_EQ_ANY(to_any<tll::duration>("10d"), 10 * 24h);
+
+	using fms = std::chrono::duration<double, std::milli>;
+	EXPECT_EQ_ANY(to_any<fms>("1.5ms"), 1.5ms);
+	EXPECT_EQ_ANY(to_any<fms>("15e-1ms"), 1.5ms);
+	EXPECT_EQ_ANY(to_any<fms>("1us"), 1us);
+
+	using ms = std::chrono::milliseconds;
+	EXPECT_EQ_ANY(to_any<ms>("1000000ns"), 1ms);
+	EXPECT_EQ_ANY(to_any<ms>("2000us"), 2ms);
+	EXPECT_EQ_ANY(to_any<ms>("1s"), 1s);
+
+	EXPECT_FALSE(to_any<ms>("100ns"));
+	EXPECT_FALSE(to_any<ms>("1500us"));
+
+	using us = std::chrono::microseconds;
+	EXPECT_EQ_ANY(tll::duration_cast_exact<fms>(ms(10)), fms(10));
+	EXPECT_EQ_ANY(tll::duration_cast_exact<fms>(us(10)), fms(0.01));
+
+	EXPECT_EQ_ANY(tll::duration_cast_exact<us>(fms(10)), 10ms);
+	EXPECT_EQ_ANY(tll::duration_cast_exact<us>(fms(0.01)), 10us);
+
+	EXPECT_FALSE(tll::duration_cast_exact<us>(fms(0.0001)));
 }

@@ -55,6 +55,28 @@ static inline void cache_enable(bool enable) { tll_time_cache_enable(enable); }
 
 } // namespace time
 
+template <typename To, typename R, typename P>
+result_t<To> duration_cast_exact(const std::chrono::duration<R, P> &d)
+{
+	using From = std::chrono::duration<R, P>;
+	if constexpr (std::is_convertible_v<From, To>) // Implicitly convertible
+		return To(d);
+	else if constexpr (std::is_floating_point_v<typename From::rep>) {
+		auto r = duration_cast<To>(d);
+		auto dt = d - duration_cast<From>(r);
+		if (dt.count() == 0) // epsilon checks?
+			return r;
+		return error("Inexact conversion");
+	} else {
+		auto r = duration_cast<To>(d);
+		auto dt = d - duration_cast<From>(r);
+		if (dt.count() == 0)
+			return r;
+		return error("Inexact conversion");
+
+	}
+}
+
 template <typename T, typename R>
 struct conv::parse<std::chrono::duration<T, R>>
 {
@@ -72,12 +94,12 @@ struct conv::parse<std::chrono::duration<T, R>>
 		auto v = *ve;
 		auto suffix = s.substr(sep + 1);
 		if (suffix == "s") return duration_cast<value_type>(std::chrono::duration<T, std::ratio<1>>(v));
-		else if (suffix == "ms") return duration_cast<value_type>(std::chrono::duration<T, std::milli>(v));
-		else if (suffix == "us") return duration_cast<value_type>(std::chrono::duration<T, std::micro>(v));
-		else if (suffix == "ns") return duration_cast<value_type>(std::chrono::duration<T, std::nano>(v));
-		else if (suffix == "m") return duration_cast<value_type>(std::chrono::duration<T, std::ratio<60>>(v));
-		else if (suffix == "h") return duration_cast<value_type>(std::chrono::duration<T, std::ratio<3600>>(v));
-		else if (suffix == "d") return duration_cast<value_type>(std::chrono::duration<T, std::ratio<86400>>(v));
+		else if (suffix == "ms") return duration_cast_exact<value_type>(std::chrono::duration<T, std::milli>(v));
+		else if (suffix == "us") return duration_cast_exact<value_type>(std::chrono::duration<T, std::micro>(v));
+		else if (suffix == "ns") return duration_cast_exact<value_type>(std::chrono::duration<T, std::nano>(v));
+		else if (suffix == "m") return duration_cast_exact<value_type>(std::chrono::duration<T, std::ratio<60>>(v));
+		else if (suffix == "h") return duration_cast_exact<value_type>(std::chrono::duration<T, std::ratio<3600>>(v));
+		else if (suffix == "d") return duration_cast_exact<value_type>(std::chrono::duration<T, std::ratio<86400>>(v));
 		else
 			return error("Invalid suffix " + std::string(suffix));
 	}
