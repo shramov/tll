@@ -203,7 +203,7 @@ std::optional<Processor::PreObject> Processor::init_pre(std::string_view extname
 
 	auto disable = cfg.getT("disable", false);
 	if (!disable || *disable) {
-		log.debug("Object is disabled", name);
+		log.debug("Object is disabled");
 		PreObject obj;
 		obj.disabled = true;
 		return obj;
@@ -211,10 +211,10 @@ std::optional<Processor::PreObject> Processor::init_pre(std::string_view extname
 
 	auto url = get_url(cfg, "url");
 	if (!url)
-		return log.fail(std::nullopt, "Failed to load url: {}", name, url.error());
+		return log.fail(std::nullopt, "Failed to load url: {}", url.error());
 
 	if (url->has("name"))
-		return log.fail(std::nullopt, "Duplicate name parameter", name);
+		return log.fail(std::nullopt, "Duplicate name parameter");
 	url->set("name", name);
 
 	for (auto & [k, c] : cfg.browse("channels.**")) {
