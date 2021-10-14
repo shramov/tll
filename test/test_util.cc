@@ -157,7 +157,7 @@ TEST(Util, PropsChain)
 	ASSERT_TRUE(p0);
 	ASSERT_TRUE(p1);
 
-	auto chain = tll::make_props_chain(*p0, std::string_view("p"), *p0, *p1);
+	auto chain = tll::make_props_chain(tll::make_props_prefix(*p0, "p"), &*p0, *p1);
 	auto reader = tll::make_props_reader(chain);
 
 	EXPECT_TRUE(chain.has("a"));

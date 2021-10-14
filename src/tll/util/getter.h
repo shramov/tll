@@ -42,6 +42,46 @@ struct getter_api
 };
 
 template <typename T>
+struct getter_api<std::optional<T>>
+{
+	using string_type = typename getter_api<T>::string_type;
+
+	static decltype(auto) get(const std::optional<T> &obj, std::string_view key)
+	{
+		if (!obj)
+			return decltype(getter_api<T>::get(*obj, key)) {};
+		return getter_api<T>::get(*obj, key);
+	}
+
+	static bool has(const std::optional<T> &obj, std::string_view key)
+	{
+		if (!obj)
+			return false;
+		return getter_api<T>::has(*obj, key);
+	}
+};
+
+template <typename T>
+struct getter_api<T *>
+{
+	using string_type = typename getter_api<T>::string_type;
+
+	static decltype(auto) get(const T * obj, std::string_view key)
+	{
+		if (!obj)
+			return decltype(getter_api<T>::get(*obj, key)) {};
+		return getter_api<T>::get(*obj, key);
+	}
+
+	static bool has(const T * obj, std::string_view key)
+	{
+		if (!obj)
+			return false;
+		return getter_api<T>::has(*obj, key);
+	}
+};
+
+template <typename T>
 bool has(const T &obj, std::string_view key)
 {
 	return getter_api<T>::has(obj, key);

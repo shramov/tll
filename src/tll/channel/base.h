@@ -152,10 +152,10 @@ class Base
 	}
 
 	template <typename Props>
-	PropsReaderT<PropsChainT<Props, std::string_view, Props, Config, std::string_view>> channel_props_reader(const Props &props)
+	PropsReaderT<PropsChainT<PropsPrefix<Props>, Props, std::optional<Config>>> channel_props_reader(const Props &props)
 	{
-		auto chain = make_props_chain(props, T::param_prefix(), props, _config_defaults, T::param_prefix());
-		return PropsReaderT<decltype(chain)>(chain); //, T::param_prefix());
+		auto chain = make_props_chain(make_props_prefix(props, T::param_prefix()), props, _config_defaults.sub(T::param_prefix()));
+		return PropsReaderT<decltype(chain)>(chain);
 	}
 
 	int init(const Channel::Url &url, tll::Channel *master, tll_channel_context_t *ctx)
