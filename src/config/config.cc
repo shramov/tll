@@ -333,7 +333,7 @@ int tll_config_list(const tll_config_t * c, tll_config_callback_t cb, void *data
 int tll_config_browse(const tll_config_t * c, const char * mask, int mlen, tll_config_callback_t cb, void *data)
 {
 	if (!c) return EINVAL;
-	if (c->value()) return 0;
+	//if (c->value()) return 0;
 	return c->browse(string_view_from_c(mask, mlen), cb, data);
 }
 

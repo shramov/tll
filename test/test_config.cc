@@ -68,6 +68,16 @@ TEST(Config, Browse)
 
 	compare_keys<tll::ConstConfig>(s->browse("**"), {"y.z"});
 	compare_keys<tll::ConstConfig>(s->list(), {"y"});
+
+	c = tll::Config::load("yamls://{a: 1, a: {b: 2, c: 3}}");
+	ASSERT_TRUE(c);
+
+	compare_keys<tll::Config>(c->browse("**"), {"a", "a.b", "a.c"});
+
+	auto s1 = c->sub("a");
+	ASSERT_TRUE(s1);
+	ASSERT_TRUE(s1->has("b"));
+	compare_keys<tll::Config>(s1->browse("**"), {"b", "c"});
 }
 
 TEST(Config, Copy)

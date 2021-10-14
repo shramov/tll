@@ -213,7 +213,7 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 		auto i = mv.begin();
 		refptr_t<const tll_config_t> ptr = this;
 		for (; i != mv.end(); i++) {
-			if (ptr->value()) return 0;
+			//if (ptr->value()) return 0;
 			if (*i == "*" || *i == "**") break;
 			auto lock = ptr->rlock();
 			auto di = ptr->kids.find(*i);
