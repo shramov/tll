@@ -195,9 +195,10 @@ class optional_config_string
 };
 
 class Config;
+class ConfigUrl;
 
 template <bool Const>
-class ConfigT : public PropsGetter<ConfigT<Const>>
+class ConfigT
 {
  protected:
 	friend class ConfigT<!Const>;
@@ -318,6 +319,18 @@ class ConfigT : public PropsGetter<ConfigT<Const>>
 	std::map<std::string, ConfigT> browse(std::string_view mask, bool dir = false) const
 	{
 		return browseT<ConfigT>(mask, dir);
+	}
+
+	template <typename T>
+	result_t<T> getT(std::string_view key) const;
+
+	template <typename T>
+	result_t<T> getT(std::string_view key, const T& def) const;
+
+	template <typename T>
+	result_t<T> getT(std::string_view key, const T& def, const std::map<std::string_view, T> m) const
+	{
+		return tll::getter::getT<ConfigT, T>(*this, key, def, m);
 	}
 };
 
@@ -461,6 +474,59 @@ public:
 		return r;
 	}
 };
+
+namespace _config {
+template <bool Const>
+result_t<ConfigUrl> _get_url(const ConfigT<Const> &cfg, std::string_view key)
+{
+	auto sub = cfg.sub(key);
+	if (!sub)
+		return tll::error("Url not found at '" + std::string(key) + "'");
+
+	auto str = sub->get();
+	ConfigUrl result;
+	if (str) {
+		auto r = ConfigUrl::parse(*str);
+		if (!r)
+			return tll::error(r.error());
+		result.merge(*r);
+	}
+
+	for (auto & [k,_] : sub->browse("**")) {
+		if (result.has(k))
+			return tll::error("Duplicate key " + std::string(k));
+	}
+
+	auto copy = sub->copy();
+	result.merge(copy, true);
+	result.unset();
+	return result;
+}
+}
+
+template <bool Const>
+template <typename T>
+result_t<T> ConfigT<Const>::getT(std::string_view key) const
+{
+	if constexpr (std::is_same_v<T, ConfigUrl>)
+		return _config::_get_url(*this, key);
+	else
+		return tll::getter::getT<ConfigT<Const>, T>(*this, key);
+}
+
+template <bool Const>
+template <typename T>
+result_t<T> ConfigT<Const>::getT(std::string_view key, const T& def) const
+{
+	if constexpr (std::is_same_v<T, ConfigUrl>) {
+		auto c = sub(key);
+		if (!c || !c->get())
+			return def;
+		return _config::_get_url(*this, key);
+	} else
+		return tll::getter::getT<ConfigT<Const>, T>(*this, key, def);
+}
+
 
 template <>
 struct conv::dump<ConfigUrl> : public conv::to_string_buf_from_string<ConfigUrl>

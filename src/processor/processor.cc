@@ -26,33 +26,12 @@ struct CallbackT<tll::processor::_::Processor>
 };
 }
 
-namespace {
-tll::result_t<tll::Channel::Url> get_url(const tll::Config &cfg, std::string_view name)
-{
-	auto sub = cfg.sub(name);
-	if (!sub)
-		return tll::error(fmt::format("Url not found at '{}'", name));
-	auto str = sub->get();
-	tll::Channel::Url result;
-	if (str) {
-		auto r = tll::Channel::Url::parse(*str);
-		if (!r)
-			return tll::error(r.error());
-		result.merge(*r);
-	}
-	auto copy = sub->copy();
-	result.merge(copy, true);
-	result.unset();
-	return result;
-}
-}
-
 using namespace tll::processor::_;
 
 std::optional<tll::Channel::Url> Processor::parse_common(std::string_view type, std::string_view name, const Config &cfg)
 {
 	auto n = std::string(cfg.get("name").value_or(name));
-	auto url = get_url(cfg, "url");
+	auto url = cfg.getT<tll::Channel::Url>("url");
 	if (!url)
 		return _log.fail(std::nullopt, "Failed to load url for {}: {}", name, url.error());
 	_log.debug("Create {} {}: {}", type, name, *url);
@@ -209,7 +188,7 @@ std::optional<Processor::PreObject> Processor::init_pre(std::string_view extname
 		return obj;
 	}
 
-	auto url = get_url(cfg, "url");
+	auto url = cfg.getT<tll::Channel::Url>("url");
 	if (!url)
 		return log.fail(std::nullopt, "Failed to load url: {}", url.error());
 

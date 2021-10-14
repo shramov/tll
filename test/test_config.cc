@@ -129,3 +129,27 @@ b.c: 10
 	ASSERT_EQ(*c->get("b.c"), "10");
 	ASSERT_EQ(*c->get("b.d"), "3");
 }
+
+TEST(Config, GetUrl)
+{
+
+	auto c = tll::Config::load(R"(yamls://
+tcp:
+  url: tcp://*:8080;dump=yes
+  url:
+    stat: yes
+)");
+	ASSERT_TRUE(c);
+
+	auto r = c->getT<tll::ConfigUrl>("tcp.url");
+	ASSERT_TRUE(r);
+	ASSERT_EQ(std::string("tcp://*:8080;dump=yes;stat=yes"), tll::conv::to_string(*r));
+
+	r = c->getT<tll::ConfigUrl>("tcp.url", tll::ConfigUrl());
+	ASSERT_TRUE(r);
+	ASSERT_EQ(std::string("tcp://*:8080;dump=yes;stat=yes"), tll::conv::to_string(*r));
+
+	c->set("tcp.url.dump", "no");
+
+	ASSERT_FALSE(c->getT<tll::ConfigUrl>("tcp.url"));
+}
