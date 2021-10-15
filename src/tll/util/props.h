@@ -206,7 +206,7 @@ class PropsReaderT
 };
 
 template <typename T>
-PropsReaderT<const T &> make_props_reader(const T &p) { return { p }; }
+PropsReaderT<T> make_props_reader(const T &p) { return { p }; }
 
 } // namespace tll
 
