@@ -12,6 +12,16 @@
 
 namespace tll::channel {
 
+/** Base class for prefix channels
+ *
+ * Provides common code for creation and lifecycle management of child channel.
+ *
+ * Derived class in addition to _init/_open/_close and _free functions can override _on_* group of functions:
+ *  - @ref _on_init: change Url of child channel.
+ *  - @ref _on_active, @ref _on_error, @ref _on_closing, @ref _on_closed: handle state changes.
+ *  - @ref _on_data, @ref _on_state, @ref _on_other: handle Data, State or any other messages.
+ *    In most cases instead of overriding _on_state it's better to use _on_active/... functions described above.
+ */
 template <typename T>
 class Prefix : public Base<T>
 {
@@ -50,13 +60,8 @@ public:
 				curl.unset(k);
 		}
 
-		/*
-		auto sub = curl.sub("sub");
-		if (sub) {
-			curl.detach(sub);
-			curl.merge(sub, true);
-		}
-		*/
+		if (_on_init(curl, url, master))
+			return this->_log.fail(EINVAL, "Init hook returned error");
 
 		_child = this->context().channel(curl, master);
 		if (!_child)
@@ -91,18 +96,29 @@ public:
 	int callback(const Channel * c, const tll_msg_t *msg)
 	{
 		if (msg->type == TLL_MESSAGE_DATA)
-			return this->channelT()->prefix_data(msg);
+			return this->channelT()->_on_data(msg);
 		else if (msg->type == TLL_MESSAGE_STATE)
-			return this->channelT()->prefix_state(msg);
-		return this->channelT()->prefix_other(msg);
+			return this->channelT()->_on_state(msg);
+		return this->channelT()->_on_other(msg);
 	}
 
-	int prefix_data(const tll_msg_t *msg)
+	/// Modify Url of child channel
+	int _on_init(tll::Channel::Url &curl, const tll::Channel::Url &url, const tll::Channel * master)
+	{
+		return 0;
+	}
+
+	/// Handle data messages
+	int _on_data(const tll_msg_t *msg)
 	{
 		return this->_callback_data(msg);
 	}
 
-	int prefix_state(const tll_msg_t *msg)
+	/** Handle state messages
+	 *
+	 * In most cases override of this function is not needed. See @ref _on_active, @ref _on_error and @ref _on_closed.
+	 */
+	int _on_state(const tll_msg_t *msg)
 	{
 		auto s = (tll_state_t) msg->msgid;
 		switch (s) {
@@ -125,13 +141,17 @@ public:
 		return 0;
 	}
 
-	int prefix_other(const tll_msg_t *msg)
+	/// Handle non-state and non-data messages
+	int _on_other(const tll_msg_t *msg)
 	{
 		return this->_callback(msg);
 	}
 
+	/// Channel is ready to enter Active state
 	int _on_active() { this->state(tll::state::Active); return 0; }
+	/// Channel is broken and needs to enter Error state
 	int _on_error() { this->state(tll::state::Error); return 0; }
+	/// Channel starts closing
 	int _on_closing()
 	{
 		auto s = this->state();
@@ -140,6 +160,7 @@ public:
 		return 0;
 	}
 
+	/// Channel close is finished
 	int _on_closed()
 	{
 		if (this->state() == tll::state::Closing)
