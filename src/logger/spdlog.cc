@@ -160,7 +160,7 @@ struct spdlog_impl_t : public tll_logger_impl_t
 			auto type = c.get("type");
 			if (!type) continue;
 
-			auto reader = tll::PropsReaderT(c);
+			auto reader = tll::make_props_reader(tll::make_props_chain(c, cfg.sub("spdlog.defaults." + std::string(*type))));
 
 			auto ls = c.get("level");
 			if (ls && ls->size()) {

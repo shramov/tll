@@ -9,3 +9,7 @@ logger:
       - {type: syslog, level: critical}
 
       - {prefix: tll.channel.stat, type: daily-file, level: debug, filename: stat.log, max-files: 10}
+
+    defaults:
+      rotating-file: {max-size: 10mb, max-files: 10}
+      daily-file: {rotate-hour: 2, rotate-minute: 30, max-files: 10}
