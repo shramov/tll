@@ -11,6 +11,7 @@
 
 #include "tll/channel/base.h"
 #include "tll/channel/prefix.h"
+#include "tll/channel/reopen.h"
 #include "tll/processor/loop.h"
 #include "tll/util/ownedmsg.h"
 
@@ -68,6 +69,34 @@ class Prefix : public tll::channel::Prefix<Prefix>
 };
 
 TLL_DEFINE_IMPL(Prefix);
+
+class Reopen : public tll::channel::Reopen<Reopen>
+{
+	std::unique_ptr<tll::Channel> _child;
+
+ public:
+	using Base = tll::channel::Reopen<Reopen>;
+
+	static constexpr std::string_view channel_protocol() { return "reopen"; }
+	static constexpr auto process_policy() { return ProcessPolicy::Never; }
+
+	int _init(const tll::Channel::Url &url, tll::Channel *master)
+	{
+		_child = context().channel(fmt::format("tcp://*:9;mode=client;name={}/child;tll.internal=yes", name));
+		if (_child)
+			_reopen_reset(_child.get());
+		_child_add(_child.get(), "tcp");
+		return Base::_init(url, master);
+	}
+
+	int _close()
+	{
+		_child->close();
+		return Base::_close();
+	}
+};
+
+TLL_DEFINE_IMPL(Reopen);
 
 TEST(Channel, Register)
 {
@@ -372,4 +401,20 @@ TEST(Channel, Tcp)
 	c1->process();
 
 	ASSERT_EQ(c1.result.size(), 0u);
+}
+
+TEST(Channel, Reopen)
+{
+	auto ctx = tll::channel::Context(tll::Config());
+	ASSERT_EQ(ctx.reg(&Reopen::impl), 0);
+	Accum s = ctx.channel("reopen://;reopen-timeout-min=100ms;reopen-timeout-max=3s;name=reopen");
+	ASSERT_NE(s.get(), nullptr);
+
+	s->open();
+
+	ASSERT_EQ(s->state(), tll::state::Active);
+
+	ASSERT_NE(s->children(), nullptr);
+	ASSERT_NE(s->children()->next, nullptr);
+	ASSERT_EQ(s->children()->next->next, nullptr);
 }

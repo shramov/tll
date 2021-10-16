@@ -10,6 +10,7 @@
 
 #include "tll/logger.h"
 #include "tll/channel.h"
+#include "tll/channel/reopen.h"
 #include "tll/util/url.h"
 #include "tll/util/time.h"
 
@@ -32,20 +33,7 @@ struct Object
 	bool opening = false;
 	bool verbose = false;
 
-	tll::time_point reopen_next = {};
-
-	unsigned reopen_count = 0;
-
-	tll::duration reopen_timeout_min = std::chrono::seconds(1);
-	tll::duration reopen_timeout_max = std::chrono::seconds(30);
-
-	tll::duration reopen_timeout()
-	{
-		if (reopen_count == 0)
-			return {};
-		auto r = reopen_timeout_min * (1ll << (reopen_count - 1));
-		return std::min(reopen_timeout_max, r);
-	}
+	tll::channel::ReopenData reopen;
 
 	Shutdown shutdown = Shutdown::None;
 	Worker * worker = nullptr;
@@ -55,37 +43,16 @@ struct Object
 
 	std::list<std::string> depends_names; //< Temporary storage used during initialization
 
-	tll::ConstConfig open_parameters;
-
-	tll::time_point open_ts = {};
-	tll::duration reopen_delay = {};
-
 	Object(std::unique_ptr<Channel> && ptr)
 		: channel(std::move(ptr))
 	{
+		reopen.channel = channel.get();
 		channel->callback_add(this, TLL_MESSAGE_MASK_STATE);
 	}
 
 	int init(const tll::Channel::Url &url);
 
-	int open()
-	{
-		if (!channel) return EINVAL;
-		tll::Props props;
-		auto v = open_parameters.get();
-		if (v) {
-			auto r = Props::parse(*v);
-			if (!r)
-				return EINVAL;
-			props = *r;
-		}
-		for (auto &[k, c] : open_parameters.browse("**")) {
-			auto v = c.get();
-			if (v)
-				props[k] = *v;
-		}
-		return channel->open(conv::to_string(props));
-	}
+	int open() { return reopen.open(); }
 
 	std::string_view name() const { return channel->name(); }
 
@@ -116,28 +83,16 @@ struct Object
 		return std::all_of(rdepends.begin(), rdepends.end(), [](auto & o) { return o->state == state::Closed; });
 	}
 
-	void on_opening()
+	void on_state(tll_state_t s)
 	{
-		opening = false;
-		if (reopen_timeout() < reopen_timeout_max)
-			reopen_count++;
-	}
-
-	void on_active()
-	{
-		reopen_count = 0;
-		reopen_next = {};
-	}
-
-	void on_error()
-	{
-		if (state_prev == tll::state::Opening) {
-			reopen_next = tll::time::now() + reopen_timeout();
+		reopen.on_state(s);
+		switch (s) {
+		case state::Opening:
+			opening = false;
+			break;
+		default:
+			break;
 		}
-	}
-
-	void on_closed()
-	{
 	}
 };
 

@@ -48,10 +48,10 @@ void Processor::decay(Object * obj, bool root)
 	if (!root)
 		obj->decay = true;
 
-	if (obj->reopen_next != tll::time::epoch) {
+	if (obj->reopen.next != tll::time::epoch) {
 		_log.debug("Disable pending reopen of object {}", obj->name());
-		pending_del(obj->reopen_next, obj);
-		obj->reopen_next = {};
+		pending_del(obj->reopen.next, obj);
+		obj->reopen.next = {};
 	}
 
 	if (obj->state == state::Closed && !obj->opening && obj->ready_close()) {
@@ -166,7 +166,7 @@ int Processor::init_one(const PreObject &obj)
 
 	auto open = obj.config.sub("open");
 	if (open)
-		o->open_parameters = ConstConfig(*open);
+		o->reopen.open_params = ConstConfig(*open);
 
 	o->depends_names = {obj.depends_open.list.begin(), obj.depends_open.list.end()};
 	if (o->init(obj.url))
@@ -450,12 +450,11 @@ void Processor::update(const Channel *c, tll_state_t s)
 
 	if (o->verbose)
 		_log.info("Object {} state {}", c->name(), tll_state_str(s));
+	o->on_state(s);
 	switch (s) {
 	case state::Opening:
-		o->on_opening();
 		break;
 	case state::Active:
-		o->on_active();
 		for (auto & d : o->rdepends) {
 			if (d->ready_open()) {
 				activate(*d);
@@ -463,12 +462,10 @@ void Processor::update(const Channel *c, tll_state_t s)
 		}
 		return;
 	case state::Error:
-		o->on_error();
 		_log.debug("Deactivate failed object {}", o->name());
 		post<scheme::Deactivate>( o, { o });
 		break;
 	case state::Closed:
-		o->on_closed();
 		if (o->decay) {
 			_log.debug("Clear decay of {}", o->name());
 			o->decay = false;
@@ -490,9 +487,9 @@ void Processor::update(const Channel *c, tll_state_t s)
 
 		if (o->ready_open()) {
 			using namespace std::chrono;
-			if (o->reopen_next > tll::time::now()) {
-				_log.info("Next open in {}", duration_cast<std::chrono::duration<double, std::ratio<1>>>(o->reopen_timeout()));
-				pending_add(o->reopen_next, o);
+			if (o->reopen.next > tll::time::now()) {
+				_log.info("Next open in {}", duration_cast<std::chrono::duration<double, std::ratio<1>>>(o->reopen.timeout()));
+				pending_add(o->reopen.next, o);
 			} else
 				activate(*o);
 		}
@@ -519,7 +516,7 @@ void Processor::activate(Object &o)
 {
 	_log.debug("Activate object {}", o->name());
 	o.opening = true;
-	o.reopen_next = {};
+	o.reopen.next = {};
 	post(&o, scheme::Activate { &o });
 }
 
