@@ -7,7 +7,7 @@ TLL
 TLL is a framework for building data processing services. It's main goal is to provide
 abstractions with minimal overhead for network (or IPC) connections.
 
-Library has pure C ABI and both C and C++ API. C++ API is implemented as header-only wrappers
+Library has pure C API and both C and C++ API. C++ API is implemented as header-only wrappers
 around C functions for those reasons:
 
 - C API is needed for language bindings
