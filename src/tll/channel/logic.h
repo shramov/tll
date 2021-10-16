@@ -22,6 +22,8 @@ class Logic : public Base<T>
 	std::map<std::string, std::vector<tll::Channel *>, std::less<>> _channels;
 
  public:
+	static constexpr auto process_policy() { return Base<T>::ProcessPolicy::Never; }
+
 	int init(const tll::Channel::Url &url, tll::Channel *master, tll_channel_context_t *ctx)
 	{
 		for (auto & p : url.browse("tll.channel.**")) {
