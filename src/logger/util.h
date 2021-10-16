@@ -7,7 +7,7 @@ inline bool icmp(char a, char b)
 {
 	constexpr char shift = 'a' - 'A';
 	if ('a' <= a && a <= 'z') a -= shift;
-	if ('a' <= b && a <= 'z') b -= shift;
+	if ('a' <= b && b <= 'z') b -= shift;
 	return a == b;
 }
 
