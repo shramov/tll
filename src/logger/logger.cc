@@ -209,7 +209,7 @@ struct logger_context_t
 		if (levels) {
 			for (auto & [k, v] : levels->browse("**")) {
 				if (!v.value()) continue;
-				auto level = level_from_str(*v.get());
+				auto level = tll::conv::to_any<tll_logger_level_t>(*v.get());
 				if (level)
 					set(k, *level, true);
 			}

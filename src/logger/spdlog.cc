@@ -162,21 +162,8 @@ struct spdlog_impl_t : public tll_logger_impl_t
 
 			auto reader = tll::make_props_reader(tll::make_props_chain(c, cfg.sub("spdlog.defaults." + std::string(*type))));
 
-			auto ls = c.get("level");
-			if (ls && ls->size()) {
-				auto level = level_from_str(*ls);
-				if (!level)
-					return log.fail(EINVAL, "Invalid level name for sink {}: {}", *type, *ls);
-				sink.level = tll2spdlog(*level);
-			}
-
-			auto fs = c.get("flush-level");
-			if (fs && fs->size()) {
-				auto level = level_from_str(*fs);
-				if (!level)
-					return log.fail(EINVAL, "Invalid flush-level level name for sink {}: {}", *type, *ls);
-				sink.flush_level = tll2spdlog(*level);
-			}
+			sink.level = tll2spdlog(reader.getT("level", tll::Logger::Trace));
+			sink.flush_level = tll2spdlog(reader.getT("flush-level", tll::Logger::Info));
 
 			try {
 				if (*type == "console") {
@@ -237,7 +224,7 @@ struct spdlog_impl_t : public tll_logger_impl_t
 			auto additivity = reader.getT("additivity", false);
 
 			if (!reader)
-				return log.fail(EINVAL, "Invalid parameters for spdlog: {}", reader.error());
+				return log.fail(EINVAL, "Invalid parameters for spdlog sink {}: {}", *type, reader.error());
 
 			auto node = result->find(prefix);
 			if (node->prefix != prefix) {

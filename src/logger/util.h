@@ -2,16 +2,17 @@
 #define _LOGGER_UTIL_H
 
 #include "tll/logger.h"
+#include "tll/util/conv.h"
 
-inline bool icmp(char a, char b)
+constexpr bool icmp(char a, char b)
 {
 	constexpr char shift = 'a' - 'A';
 	if ('a' <= a && a <= 'z') a -= shift;
-	if ('a' <= b && a <= 'z') b -= shift;
+	if ('a' <= b && b <= 'z') b -= shift;
 	return a == b;
 }
 
-inline bool stricmp(std::string_view a, std::string_view b)
+constexpr bool stricmp(std::string_view a, std::string_view b)
 {
 	if (a.size() != b.size())
 		return false;
@@ -21,17 +22,21 @@ inline bool stricmp(std::string_view a, std::string_view b)
 	return true;
 }
 
-inline std::optional<tll::Logger::level_t> level_from_str(std::string_view level)
+template <>
+struct tll::conv::parse<tll_logger_level_t>
 {
-	if (stricmp(level, "trace")) return tll::Logger::Trace;
-	else if (stricmp(level, "debug")) return tll::Logger::Debug;
-	else if (stricmp(level, "info")) return tll::Logger::Info;
-	else if (stricmp(level, "warning")) return tll::Logger::Warning;
-	else if (stricmp(level, "warn")) return tll::Logger::Warning;
-	else if (stricmp(level, "error")) return tll::Logger::Error;
-	else if (stricmp(level, "critical")) return tll::Logger::Critical;
-	else if (stricmp(level, "crit")) return tll::Logger::Critical;
-	return std::nullopt;
-}
+        static result_t<tll_logger_level_t> to_any(std::string_view level)
+	{
+		if (stricmp(level, "trace")) return tll::Logger::Trace;
+		else if (stricmp(level, "debug")) return tll::Logger::Debug;
+		else if (stricmp(level, "info")) return tll::Logger::Info;
+		else if (stricmp(level, "warning")) return tll::Logger::Warning;
+		else if (stricmp(level, "warn")) return tll::Logger::Warning;
+		else if (stricmp(level, "error")) return tll::Logger::Error;
+		else if (stricmp(level, "critical")) return tll::Logger::Critical;
+		else if (stricmp(level, "crit")) return tll::Logger::Critical;
+		return tll::error("Invalid level name: " + std::string(level));
+	}
+};
 
 #endif//_LOGGER_UTIL_H
