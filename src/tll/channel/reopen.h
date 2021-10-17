@@ -63,6 +63,10 @@ struct ReopenData
 				next = tll::time::now() + timeout();
 			}
 			break;
+		case state::Destroy:
+			channel = nullptr;
+			reset();
+			break;
 		default:
 			break;
 		}
