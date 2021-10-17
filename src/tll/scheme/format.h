@@ -13,6 +13,7 @@
 #include "tll/scheme/util.h"
 #include "tll/util/result.h"
 #include "tll/util/string.h"
+#include "tll/util/time.h"
 
 #include <list>
 #include <string>
@@ -86,6 +87,14 @@ std::string to_string_fixed(unsigned precision, Int v)
 	return r;
 }
 
+template <typename Int, typename Period>
+format_result_t to_strings_time_point(Int v)
+{
+	using duration = std::chrono::duration<Int, Period>;
+	using time_point = std::chrono::time_point<std::chrono::system_clock, duration>;
+	return std::list<std::string> { tll::conv::to_string(time_point(duration(v))) };
+}
+
 template <typename Int>
 format_result_t to_strings_number(const tll::scheme::Field * field, Int v)
 {
@@ -93,10 +102,21 @@ format_result_t to_strings_number(const tll::scheme::Field * field, Int v)
 		if (field->sub_type == field->Fixed)
 			return std::list<std::string> { to_string_fixed(field->fixed_precision, v) };
 	}
+	if (field->sub_type == field->TimePoint) {
+		switch (field->time_resolution) {
+		case TLL_SCHEME_TIME_NS: return to_strings_time_point<Int, std::nano>(v); break;
+		case TLL_SCHEME_TIME_US: return to_strings_time_point<Int, std::micro>(v); break;
+		case TLL_SCHEME_TIME_MS: return to_strings_time_point<Int, std::milli>(v); break;
+		case TLL_SCHEME_TIME_SECOND: return to_strings_time_point<Int, std::ratio<1, 1>>(v); break;
+		case TLL_SCHEME_TIME_MINUTE: return to_strings_time_point<Int, std::ratio<60, 1>>(v); break;
+		case TLL_SCHEME_TIME_HOUR: return to_strings_time_point<Int, std::ratio<3600, 1>>(v); break;
+		case TLL_SCHEME_TIME_DAY: return to_strings_time_point<Int, std::ratio<86400, 1>>(v); break;
+		}
+		return std::list<std::string> { "Unknown resolution" };
+	}
+
 	auto r = std::list<std::string> {tll::conv::to_string(v)};
 	if (field->sub_type == field->Duration)
-		r.front() += time_resolution_str(field->time_resolution);
-	else if (field->sub_type == field->TimePoint)
 		r.front() += time_resolution_str(field->time_resolution);
 	return r;
 }
