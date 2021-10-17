@@ -150,6 +150,13 @@ struct conv::dump<std::chrono::time_point<std::chrono::system_clock, D>> :
 		if (!gmtime_r(&csec, &parts))
 			return conv::to_string_buf(std::string_view("Overflow"), buf);
 
+		if constexpr (std::is_same_v<typename value_type::period, std::ratio<86400, 1>> &&
+				!std::is_floating_point_v<typename value_type::rep>) {
+			buf.resize(11);
+			auto r = strftime((char *) buf.data(), buf.size(), "%Y-%m-%d", &parts);
+			return std::string_view { buf.data(), r };
+		}
+
 		buf.resize(10 + 1 + 8 + 1 + 9 + 1); // 2000-01-02T03:04:05.0123456789Z
 		strftime((char *) buf.data(), buf.size(), "%Y-%m-%dT%H:%M:%S", &parts);
 		std::string_view r(buf.data(), 10 + 1 + 8);

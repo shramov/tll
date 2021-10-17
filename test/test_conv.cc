@@ -197,7 +197,7 @@ TEST(Conv, TimePoint)
 	EXPECT_EQ(to_string(tp + 123us), "2021-01-02T03:04:05.000123");
 	EXPECT_EQ(to_string(tp + 123ns), "2021-01-02T03:04:05.000000123");
 
-	//EXPECT_EQ(to_string(time_point_cast<days>(tp)), "2021-01-02");
+	EXPECT_EQ(to_string(time_point_cast<days>(tp)), "2021-01-02");
 
 	EXPECT_FALSE(to_any<tll::time_point>("2021"));
 	EXPECT_FALSE(to_any<tll::time_point>("2021-01-02X"));
