@@ -183,3 +183,46 @@ TEST(Conv, Duration)
 
 	EXPECT_FALSE(tll::duration_cast_exact<us>(fms(0.0001)));
 }
+
+TEST(Conv, TimePoint)
+{
+	using tll::conv::to_any;
+	using namespace std::chrono;
+
+	tll::time_point tp(1609556645s);
+	using days = duration<int, std::ratio<86400>>;
+
+	EXPECT_EQ(to_string(tp), "2021-01-02T03:04:05");
+	EXPECT_EQ(to_string(tp + 123ms), "2021-01-02T03:04:05.123");
+	EXPECT_EQ(to_string(tp + 123us), "2021-01-02T03:04:05.000123");
+	EXPECT_EQ(to_string(tp + 123ns), "2021-01-02T03:04:05.000000123");
+
+	//EXPECT_EQ(to_string(time_point_cast<days>(tp)), "2021-01-02");
+
+	EXPECT_FALSE(to_any<tll::time_point>("2021"));
+	EXPECT_FALSE(to_any<tll::time_point>("2021-01-02X"));
+	EXPECT_FALSE(to_any<tll::time_point>("2021-01-02X03:04:05"));
+	EXPECT_FALSE(to_any<tll::time_point>("2021-01-02 03:04:05X"));
+	EXPECT_FALSE(to_any<tll::time_point>("2021-01-02T03"));
+	EXPECT_FALSE(to_any<tll::time_point>("2021-01-02T03:04:05a"));
+	EXPECT_FALSE(to_any<tll::time_point>("2021-01-02T03:04:05.a"));
+	EXPECT_FALSE(to_any<tll::time_point>("2021-01-02T03:04:05.1234567891"));
+
+	using seconds_point = time_point<system_clock, seconds>;
+	using ms_point = time_point<system_clock, milliseconds>;
+	EXPECT_FALSE(to_any<seconds_point>("2021-01-02T03:04:05.123"));
+	EXPECT_FALSE(to_any<ms_point>("2021-01-02T03:04:05.123123"));
+
+	EXPECT_EQ_ANY(to_any<tll::time_point>("2021-01-02"), time_point_cast<days>(tp));
+	EXPECT_EQ_ANY(to_any<tll::time_point>("2021-01-02T03:04:05"), tp);
+	EXPECT_EQ_ANY(to_any<tll::time_point>("2021-01-02 03:04:05"), tp);
+	EXPECT_EQ_ANY(to_any<tll::time_point>("2021-01-02T03:04:05Z"), tp);
+	EXPECT_EQ_ANY(to_any<tll::time_point>("2021-01-02T03:04:05.123"), tp + 123ms);
+	EXPECT_EQ_ANY(to_any<tll::time_point>("2021-01-02T03:04:05.123Z"), tp + 123ms);
+	EXPECT_EQ_ANY(to_any<tll::time_point>("2021-01-02T03:04:05.000123"), tp + 123us);
+	EXPECT_EQ_ANY(to_any<tll::time_point>("2021-01-02T03:04:05.000000123"), tp + 123ns);
+	EXPECT_EQ(to_string(*to_any<tll::time_point>("2021-01-02T03:04:05.123456789")), "2021-01-02T03:04:05.123456789");
+
+	EXPECT_EQ_ANY(to_any<seconds_point>("2021-01-02T03:04:05"), tp);
+	EXPECT_EQ_ANY(to_any<ms_point>("2021-01-02T03:04:05.123"), tp + 123ms);
+}

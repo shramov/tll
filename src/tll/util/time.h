@@ -129,6 +129,120 @@ struct conv::dump<std::chrono::duration<T, R>> : public conv::to_string_from_str
 	}
 };
 
+template <typename D>
+struct conv::dump<std::chrono::time_point<std::chrono::system_clock, D>> :
+		public to_string_from_string_buf<std::chrono::time_point<std::chrono::system_clock, D>>
+{
+	using value_type = typename std::chrono::time_point<std::chrono::system_clock, D>;
+
+	template <typename Buf>
+	static std::string_view to_string_buf(const value_type &v, Buf &buf)
+	{
+		using namespace std::chrono;
+
+		auto ts = v.time_since_epoch();
+		auto sec = duration_cast<seconds>(ts);
+		auto ns = duration_cast<nanoseconds>(ts - sec);
+
+		time_t csec = sec.count();
+		struct tm parts = {};
+
+		if (!gmtime_r(&csec, &parts))
+			return conv::to_string_buf(std::string_view("Overflow"), buf);
+
+		buf.resize(10 + 1 + 8 + 1 + 9 + 1); // 2000-01-02T03:04:05.0123456789Z
+		strftime((char *) buf.data(), buf.size(), "%Y-%m-%dT%H:%M:%S", &parts);
+		std::string_view r(buf.data(), 10 + 1 + 8);
+		if (ns.count() == 0)
+			return r;
+
+		auto d = ns.count();
+		auto end = const_cast<char *>(r.end() + 9);
+		while (end != r.end()) {
+			auto digit = d % 10;
+			d = d / 10;
+			*(end--) = '0' + digit;
+		}
+		*end = '.';
+		end += 9;
+		while (*end == '0')
+			end--;
+
+		return std::string_view(r.data(), end - r.data() + 1);
+	}
+};
+
+template <typename D>
+struct conv::parse<std::chrono::time_point<std::chrono::system_clock, D>> :
+		public to_string_from_string_buf<std::chrono::time_point<std::chrono::system_clock, D>>
+{
+	using value_type = typename std::chrono::time_point<std::chrono::system_clock, D>;
+
+	static result_t<value_type> to_any(std::string_view str)
+	{
+		using namespace std::chrono;
+
+		if (str.size() < 10)
+			return error("Time string too short");
+		if (str.back() == 'Z')
+			str = str.substr(0, str.size() - 1);
+
+		auto tail = str;
+		struct tm date = {};
+
+		{
+			auto r = strptime(str.data(), "%Y-%m-%d", &date);
+			if (r == nullptr)
+				return error("Failed to parse date part");
+			tail = str.substr(r - str.begin());
+		}
+
+		if (tail.size() >= 1) {
+			if (tail[0] != 'T' && str[10] != ' ')
+				return error("Invalid date-time separator: '" + std::string(tail.substr(0, 1)) + "'");
+			tail = tail.substr(1);
+		}
+
+		if (tail.size() >= 8) {
+			struct tm time = {};
+			auto r = strptime(tail.data(), "%H:%M:%S", &time);
+			if (r == nullptr)
+				return error("Failed to parse time part");
+			tail = tail.substr(r - tail.data());
+
+			date.tm_hour = time.tm_hour;
+			date.tm_min = time.tm_min;
+			date.tm_sec = time.tm_sec;
+		} else if (tail.size())
+			return error("Time part of string too short: '" + std::string(tail) + "'");
+
+		typename value_type::duration subsecond = {};
+		if (tail.size() && tail[0] == '.') {
+			tail = tail.substr(1);
+
+			auto r = conv::to_any_uint_base<unsigned, 999999999, 10>(tail);
+			if (!r)
+				return error("Invalid subsecond part: " + std::string(r.error()));
+			auto sub = *r;
+			for (int i = tail.size(); i < 9; i++)
+				sub *= 10;
+			auto rs = duration_cast_exact<typename value_type::duration>(nanoseconds(sub));
+			if (!rs)
+				return error("Inexact conversion from subsecond part ." + std::string(tail));
+			subsecond = *rs;
+		} else if (tail.size())
+			return error("Trailing data: '" + std::string(tail) + "'");
+
+		auto ts = timegm(&date);
+
+		value_type r;
+		r += seconds(ts);
+		r += subsecond;
+		return r;
+	}
+};
+
+
 } // namespace tll
 
 #endif//__cplusplus
