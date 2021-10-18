@@ -152,8 +152,11 @@ struct tll_processor_loop_t
 		int r = epoll_wait(fd, &ev, 1, std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count());
 		if (!r)
 			return 0;
-		if (r < 0)
+		if (r < 0) {
+			if (errno == EINTR)
+				return 0;
 			return _log.fail(nullptr, "epoll failed: {}", strerror(errno));
+		}
 
 		if (ev.data.ptr == this) {
 			_log.debug("Poll on pending list");
