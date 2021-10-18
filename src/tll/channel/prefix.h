@@ -60,7 +60,7 @@ public:
 				curl.unset(k);
 		}
 
-		if (_on_init(curl, url, master))
+		if (this->channelT()->_on_init(curl, url, master))
 			return this->_log.fail(EINVAL, "Init hook returned error");
 
 		_child = this->context().channel(curl, master);
