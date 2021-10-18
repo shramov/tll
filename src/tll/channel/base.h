@@ -314,6 +314,14 @@ class Base
 	{
 		_scheme.reset();
 		_update_dcaps(0, dcaps::Process | dcaps::Pending | dcaps::CPOLLMASK);
+
+		for (auto i = self()->children(); i; ) {
+			auto c = static_cast<tll::Channel *>(i->channel);
+			i = i->next;
+			if (c && c->state() != state::Closed)
+				c->close(true);
+		}
+
 		state(state::Closed);
 		return 0;
 	}
