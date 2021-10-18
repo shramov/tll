@@ -8,9 +8,11 @@
 #ifndef _TLL_SCHEME_FORMAT_H
 #define _TLL_SCHEME_FORMAT_H
 
+#include "tll/conv/decimal128.h"
 #include "tll/scheme.h"
 #include "tll/scheme/types.h"
 #include "tll/scheme/util.h"
+#include "tll/util/decimal128.h"
 #include "tll/util/result.h"
 #include "tll/util/string.h"
 #include "tll/util/time.h"
@@ -173,7 +175,7 @@ format_result_t to_strings(const tll::scheme::Field * field, const View &data)
 	case Field::UInt32: return to_strings_number(field, *data.template dataT<uint32_t>());
 	case Field::Double: return to_strings_number(field, *data.template dataT<double>());
 	case Field::Decimal128:
-		return std::list<std::string> {fmt::format("0x{:016x}{:016x}", *data.template dataT<uint64_t>(), *data.view(8).template dataT<uint64_t>())};
+		return std::list<std::string> { tll::conv::to_string(*data.template dataT<tll::util::Decimal128>()) };
 	case Field::Bytes: {
 		auto ptr = data.template dataT<const char>();
 		if (field->sub_type == Field::ByteString) {
