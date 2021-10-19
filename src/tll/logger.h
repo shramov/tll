@@ -52,7 +52,7 @@ tll_logger_t * tll_logger_new(const char * name, int len);
 //< Free logger object
 void tll_logger_free(tll_logger_t * log);
 
-int tll_logger_config(struct tll_config_t * cfg);
+int tll_logger_config(const struct tll_config_t * cfg);
 
 /**
  * Set logging level for specified path

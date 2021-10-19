@@ -203,7 +203,7 @@ struct logger_context_t
 		return 0;
 	}
 
-	int configure(const tll::Config &cfg)
+	int configure(const tll::ConstConfig &cfg)
 	{
 		auto levels = cfg.sub("levels");
 		if (levels) {
@@ -256,11 +256,11 @@ void tll_logger_free(tll_logger_t * log)
 	static_cast<tll::logger::Logger *>(log)->unref();
 }
 
-int tll_logger_config(struct tll_config_t * _cfg)
+int tll_logger_config(const struct tll_config_t * _cfg)
 {
 	if (!_cfg)
 		return 0;
-	return tll::logger::context.configure(tll::Config(_cfg));
+	return tll::logger::context.configure(tll::ConstConfig(_cfg));
 }
 
 int tll_logger_set(const char * name, int len, tll_logger_level_t level, int subtree)

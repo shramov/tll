@@ -22,7 +22,7 @@ cdef extern from "tll/logger.h":
     cdef const char * tll_logger_name(const tll_logger_t * log)
     cdef int tll_logger_log(tll_logger_t * log, tll_logger_level_t lvl, const char * buf, size_t size)
 
-    cdef int tll_logger_config(tll_config_t *)
+    cdef int tll_logger_config(const tll_config_t *)
 
 cdef extern from "tll/logger/impl.h":
     ctypedef struct tll_logger_impl_t:
