@@ -176,7 +176,7 @@ int tll_config_value(const tll_config_t *c)
 int tll_config_has(const tll_config_t *cfg, const char *path, int plen)
 {
 	if (!cfg) return EINVAL;
-	auto v = cfg->find(path);
+	auto v = cfg->find(string_view_from_c(path, plen));
 	if (!v) return false;
 	auto lock = v->rlock();
 	return v->value();
