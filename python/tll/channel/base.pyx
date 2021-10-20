@@ -15,6 +15,7 @@ from ..s2b import b2s, s2b
 from ..logger import Logger
 from ..logger cimport TLL_LOGGER_INFO
 from .. import error
+from .. import scheme
 #from cpython.ref cimport Py_INCREF
 from cpython cimport Py_buffer
 from ..buffer cimport PyMemoryView_GET_BUFFER
@@ -114,19 +115,27 @@ cdef class Base:
     def _callback(self, msg):
         if isinstance(msg, C.CMessage):
             return self.internal.callback((<C.CMessage>msg)._ptr)
+
         cdef tll_msg_t cmsg
         memset(&cmsg, 0, sizeof(tll_msg_t))
 
-        cmsg.type = int(msg.type)
-        cmsg.msgid = int(msg.msgid)
+        if isinstance(msg, scheme.Data):
+            cmsg.type = TLL_MESSAGE_DATA
+            cmsg.msgid = msg.SCHEME.msgid
 
-        addr = getattr(msg, 'addr', None)
-        if addr: cmsg.addr.i64 = addr
+            data = msg.pack()
+        else:
+            cmsg.type = int(msg.type)
+            cmsg.msgid = int(msg.msgid)
 
-        seq = getattr(msg, 'seq', None)
-        if seq: cmsg.seq = int(seq)
+            addr = getattr(msg, 'addr', None)
+            if addr: cmsg.addr.i64 = addr
 
-        data = getattr(msg, 'data', None)
+            seq = getattr(msg, 'seq', None)
+            if seq: cmsg.seq = int(seq)
+
+            data = getattr(msg, 'data', None)
+
         cdef Py_buffer * buf = NULL
         if data is not None:
             data = memoryview(data)
