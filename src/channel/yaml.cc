@@ -199,6 +199,7 @@ int ChYaml::_fill(tll_msg_t * msg, tll::ConstConfig &cfg)
 	}
 	if (!m)
 		return _log.fail(EINVAL, "Message '{}' not found in scheme for {}", *name, _idx);
+	_buf.clear();
 	_buf.resize(m->size);
 	auto view = tll::make_view(_buf);
 	msg->msgid = m->msgid;
