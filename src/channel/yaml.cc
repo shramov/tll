@@ -7,6 +7,7 @@
 
 #include "channel/yaml.h"
 
+#include "tll/conv/decimal128.h"
 #include "tll/util/memoryview.h"
 #include "tll/scheme/util.h"
 
@@ -148,8 +149,13 @@ int ChYaml::_fill(View view, const tll::scheme::Field * field, tll::ConstConfig 
 	case Field::UInt32: return _fill_numeric(view.template dataT<uint32_t>(), field, *v);
 	case Field::Double: return _fill_numeric(view.template dataT<double>(), field, *v);
 
-	case Field::Decimal128:
-		return _log.fail(EINVAL, "Decimal128 not supported");
+	case Field::Decimal128: {
+		auto r = tll::conv::to_any<tll::util::Decimal128>(*v);
+		if (!r)
+			return _log.fail(EINVAL, "Invalid decimal128 string '{}': {}", *v, r.error());
+		*view.template dataT<tll::util::Decimal128>() = *r;
+		return 0;
+	}
 
 	case Field::Bytes: {
 		if (v->size() > field->size)

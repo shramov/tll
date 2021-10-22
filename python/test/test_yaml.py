@@ -9,6 +9,7 @@ from tll.test_util import Accum
 import common
 
 import pytest
+import decimal
 
 def test_binary():
     url = Config.load(br'''yamls://
@@ -40,6 +41,7 @@ config:
     ('byte8', (b'abcd\0\0\0\0', 'abcd')),
     ('byte8, options.type: string', 'abcd'),
     ('string', 'abcd'),
+    ('decimal128', (decimal.Decimal('1234567890.e-5'), '1234567890.e-5')),
 ])
 def test_simple(t, v):
     if isinstance(v, tuple):
