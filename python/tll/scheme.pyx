@@ -17,6 +17,7 @@ from .error import TLLError
 from .buffer cimport *
 from . import chrono
 from .bits import Bits, BitField, fill_properties
+from . import decimal128
 
 class Type(enum.Enum):
     Int8 = TLL_SCHEME_FIELD_INT8
@@ -276,11 +277,17 @@ cdef class FDouble(FBase):
 _TYPES[Type.Double] = FDouble
 
 cdef class FDecimal128(FBase):
-    default = lambda: b'\x00' * 16
+    default = lambda: decimal128.context.create_decimal(0)
 
-    cdef pack(FDecimal128 self, v, dest, tail, int tail_offset): return pack_bytes(v, dest, tail, tail_offset)
-    cdef unpack(FDecimal128 self, src): return unpack_bytes(src[:16])
-    cdef convert(FDecimal128 self, v): return convert_bytes(v)
+    cdef pack(FDecimal128 self, v, dest, tail, int tail_offset):
+        b = decimal128.pack(v)
+        return pack_bytes(b, dest, tail, tail_offset)
+    cdef unpack(FDecimal128 self, src):
+        return decimal128.unpack(src[:16])
+    cdef convert(FDecimal128 self, v):
+        return decimal128.context.create_decimal(v)
+    cdef from_string(FDecimal128 self, str s):
+        return decimal128.context.create_decimal(s)
 _TYPES[Type.Decimal128] = FDecimal128
 
 cdef class FBytes(FBase):

@@ -599,3 +599,34 @@ def test_enum():
 
     assert u.e64.value == 10000
     assert u.e64 == u.e64.A
+
+def test_decimal128():
+    scheme = S.Scheme("""yamls://
+- name: msg
+  fields:
+    - {name: dec, type: decimal128}
+    - {name: inf, type: decimal128}
+    - {name: ninf, type: decimal128}
+    - {name: nan, type: decimal128}
+    - {name: snan, type: decimal128}
+""")
+
+    msg = scheme['msg']
+    m = msg.object(dec=decimal.Decimal('1234567890.e-5'), inf='Inf', ninf='-Inf', nan='NaN', snan='sNaN')
+
+    assert m.dec == decimal.Decimal('1234567890.e-5')
+    assert m.inf == decimal.Decimal('Inf')
+    assert m.ninf == decimal.Decimal('-Inf')
+    assert m.nan.is_qnan()
+    assert m.snan.is_snan()
+
+    data = memoryview(m.pack())
+    u = msg.unpack(data)
+
+    assert u.dec == decimal.Decimal('1234567890.e-5')
+    assert u.inf == decimal.Decimal('Inf')
+    assert u.ninf == decimal.Decimal('-Inf')
+    assert u.nan.is_qnan()
+    assert u.snan.is_snan()
+
+    assert m.SCHEME['dec'].from_string('123.4') == decimal.Decimal('123.4')
