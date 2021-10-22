@@ -12,6 +12,7 @@
 
 #include "tll/util/decimal128.h"
 #include "tll/util/conv.h"
+#include "tll/conv/float.h"
 
 namespace tll::conv {
 template <>
@@ -34,48 +35,9 @@ struct dump<tll::util::Decimal128> : public to_string_from_string_buf<tll::util:
 			return "sNaN";
 		}
 
-		buf.resize(1 + 34 + 3 + 4); //[-]digits.E[-]exp
-		constexpr unsigned long long div = 1000ull * 1000 * 1000 * 1000 * 1000 * 1000; //10 ^ 18
-		unsigned long long hi = u.mantissa.value / div;
-		unsigned long long lo = u.mantissa.value % div;
+		unpacked_float<__uint128_t> fu {u.sign != 0, u.mantissa.value, u.exponent};
 
-		auto end = ((char *) buf.data()) + 1 + 34 + 3 + 4;
-		auto ptr = end;
-
-		auto exp = u.exponent;
-		bool expsign = exp < 0;
-		if (expsign)
-			exp = -exp;
-		do {
-			unsigned digit = exp % 10;
-			exp = exp / 10;
-			*--ptr = '0' + digit;
-		} while (exp);
-		if (expsign)
-			*--ptr = '-';
-		*--ptr = 'E';
-		*--ptr = '.';
-
-		const auto dot = ptr;
-
-		do {
-			unsigned digit = lo % 10;
-			lo = lo / 10;
-			*--ptr = '0' + digit;
-		} while (lo);
-		if (hi) {
-			while (ptr != dot - 18)
-				*--ptr = '0';
-			while (hi) {
-				unsigned digit = hi % 10;
-				hi = hi / 10;
-				*--ptr = '0' + digit;
-			}
-		}
-		if (u.sign)
-			*--ptr = '-';
-
-		return std::string_view(ptr, end - ptr);
+		return tll::conv::to_string_buf(fu, buf);
 	}
 };
 
@@ -86,6 +48,45 @@ struct dump<tll_decimal128_t> : public to_string_from_string_buf<tll_decimal128_
 	static inline std::string_view to_string_buf(const tll_decimal128_t &v, Buf &buf)
 	{
 		return tll::conv::to_string_buf<tll_decimal128_t, Buf>(v, buf);
+	}
+};
+
+template <>
+struct parse<tll::util::Decimal128>
+{
+	using value_type = tll::util::Decimal128;
+	static result_t<value_type> to_any(std::string_view s)
+	{
+		if (s == "Inf")
+			return value_type(false, 0, value_type::Unpacked::exp_inf);
+		else if (s == "-Inf")
+			return value_type(true, 0, value_type::Unpacked::exp_inf);
+		else if (s == "NaN")
+			return value_type(value_type::Unpacked::nan());
+		else if (s == "sNaN")
+			return value_type(value_type::Unpacked::snan());
+
+		auto u = conv::to_any<unpacked_float<__uint128_t>>(s);
+		if (!u)
+			return error(u.error());
+
+		value_type r;
+		if (r.pack(u->sign, u->mantissa, u->exponent))
+			return error("Failed to pack value");
+		return r;
+	}
+};
+
+template <>
+struct parse<tll_decimal128_t>
+{
+	using value_type = tll_decimal128_t;
+	static result_t<value_type> to_any(std::string_view s)
+	{
+		auto r = conv::to_any<tll::util::Decimal128>(s);
+		if (r)
+			return static_cast<tll_decimal128_t>(*r);
+		return error(r.error());
 	}
 };
 

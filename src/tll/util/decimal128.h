@@ -110,6 +110,18 @@ struct Decimal128 : public tll_decimal128_t
 
 	Decimal128() {};
 
+	explicit Decimal128(const Unpacked &u)
+	{
+		if (pack(u))
+			pack(Unpacked::nan());
+	}
+
+	Decimal128(bool s, __uint128_t m, short exponent)
+	{
+		if (pack(s, m, exponent))
+			pack(Unpacked::nan());
+	}
+
 #ifdef __GLIBCXX__
 	Decimal128(const std::decimal::decimal128 &v) { stddecimal = v; }
 #endif
@@ -152,8 +164,14 @@ struct Decimal128 : public tll_decimal128_t
 		u.mantissa.lo = lo;
 	}
 
-	int pack(const tll_decimal128_unpacked_t &u) { return pack(u.sign, u.exponent, u.mantissa); }
-	int pack(int sign, short exponent, const tll_uint128_t &mantissa)
+	int pack(const tll_decimal128_unpacked_t &u) { return pack(u.sign, u.mantissa, u.exponent); }
+	int pack(int sign, const __uint128_t &mantissa, short exponent)
+	{
+		tll_uint128_t m;
+		m.value = mantissa;
+		return pack(sign, m, exponent);
+	}
+	int pack(int sign, const tll_uint128_t &mantissa, short exponent)
 	{
 		if (exponent > exp_max) {
 			hi = lo = 0;

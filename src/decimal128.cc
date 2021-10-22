@@ -2,7 +2,7 @@
 
 int tll_decimal128_pack(tll_decimal128_t * d, const tll_decimal128_unpacked_t * u)
 {
-	return static_cast<tll::util::Decimal128 *>(d)->pack(u->sign, u->exponent, u->mantissa);
+	return static_cast<tll::util::Decimal128 *>(d)->pack(*u);
 }
 
 int tll_decimal128_unpack(tll_decimal128_unpacked_t * u, const tll_decimal128_t * d)

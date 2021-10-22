@@ -35,8 +35,11 @@ using tll::util::Decimal128;
 		dec.unpack(u); \
 		ASSERT_EQ(u.sign, sig); \
 		ASSERT_EQ(u.mantissa.value, (m)); \
-		EXPECT_EQ(u.exponent, e); \
+		ASSERT_EQ(u.exponent, e); \
 		ASSERT_EQ(tll::conv::to_string(dec), str); \
+		auto r = tll::conv::to_any<Decimal128>(str); \
+		ASSERT_TRUE(r) << "Failed to convert " << str << ": " << r.error(); \
+		ASSERT_EQ(tll::conv::to_string(*r), str); \
 	} while (0)
 
 constexpr __uint128_t u128_build_18(uint64_t large, uint64_t small)
