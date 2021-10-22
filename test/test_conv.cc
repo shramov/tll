@@ -9,6 +9,7 @@
 
 #include "tll/util/size.h"
 #include "tll/util/time.h"
+#include "tll/conv/fixed_point.h"
 
 #define EXPECT_EQ_ANY(l, r) do { \
 	EXPECT_TRUE(l) << "Failed to convert: " << l.error(); \
@@ -225,4 +226,44 @@ TEST(Conv, TimePoint)
 
 	EXPECT_EQ_ANY(to_any<seconds_point>("2021-01-02T03:04:05"), tp);
 	EXPECT_EQ_ANY(to_any<ms_point>("2021-01-02T03:04:05.123"), tp + 123ms);
+}
+
+TEST(Conv, FixedPoint)
+{
+	using tll::util::FixedPoint;
+	using S3 = FixedPoint<short, 3>;
+	using I3 = FixedPoint<int, 3>;
+	using U3 = FixedPoint<unsigned, 3>;
+
+	EXPECT_FALSE(to_any<I3>("x"));
+	EXPECT_FALSE(to_any<I3>("10x"));
+	EXPECT_FALSE(to_any<I3>("10.x"));
+	EXPECT_FALSE(to_any<I3>("10.1x"));
+	EXPECT_FALSE(to_any<I3>("10.1ex"));
+	EXPECT_FALSE(to_any<I3>("10.1e1x"));
+	EXPECT_FALSE(to_any<I3>("."));
+	EXPECT_FALSE(to_any<I3>("10.1."));
+
+	EXPECT_EQ_ANY(to_any<I3>("10"), I3(10000));
+	EXPECT_EQ_ANY(to_any<I3>("10."), I3(10000));
+	EXPECT_EQ_ANY(to_any<I3>("10.0"), I3(10000));
+	EXPECT_EQ_ANY(to_any<I3>("10.123"), I3(10123));
+	EXPECT_EQ_ANY(to_any<I3>("1.0123E1"), I3(10123));
+	EXPECT_EQ_ANY(to_any<I3>("1.0123E+1"), I3(10123));
+	EXPECT_EQ_ANY(to_any<I3>("101.23E-1"), I3(10123));
+	EXPECT_EQ_ANY(to_any<I3>("10123E-3"), I3(10123));
+	EXPECT_EQ_ANY(to_any<I3>("10123.E-3"), I3(10123));
+	EXPECT_EQ_ANY(to_any<I3>("+10"), I3(10000));
+	EXPECT_EQ_ANY(to_any<I3>("-10"), I3(-10000));
+
+	EXPECT_EQ_ANY(to_any<S3>("1e1"), S3((short) 10000));
+	EXPECT_EQ_ANY(to_any<S3>("1000e-6"), S3((short) 1));
+
+	EXPECT_FALSE(to_any<S3>("100000")); // Large mantissa
+	EXPECT_FALSE(to_any<S3>("1e3")); // Large divisor
+	EXPECT_FALSE(to_any<S3>("1000e-9")); // Large multiplicator
+
+	EXPECT_FALSE(to_any<I3>("10.1234")); // Rounding
+
+	EXPECT_FALSE(to_any<U3>("-10")); // Negative
 }
