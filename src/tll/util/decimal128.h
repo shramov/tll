@@ -13,7 +13,7 @@
 
 #ifdef __cplusplus
 
-#ifdef __GLIBCXX__
+#if defined(__GLIBCXX__) && !defined(__clang__)
 #include <decimal/decimal>
 #endif
 
@@ -36,7 +36,7 @@ typedef struct
 				};
 			};
 		};
-#if defined(__cplusplus) && defined(__GLIBCXX__)
+#if defined(__cplusplus) && defined(__GLIBCXX__) && !defined(__clang__)
 		std::decimal::decimal128 stddecimal = {};
 #endif
 	};
@@ -122,7 +122,7 @@ struct Decimal128 : public tll_decimal128_t
 			pack(Unpacked::nan());
 	}
 
-#ifdef __GLIBCXX__
+#if defined(__GLIBCXX__) && !defined(__clang__)
 	Decimal128(const std::decimal::decimal128 &v) { stddecimal = v; }
 #endif
 
@@ -132,7 +132,7 @@ struct Decimal128 : public tll_decimal128_t
 	Decimal128 & operator = (const Decimal128 &) = default;
 	Decimal128 & operator = (Decimal128 &&) = default;
 
-#ifdef __GLIBCXX__
+#if defined(__GLIBCXX__) && !defined(__clang__)
 	operator std::decimal::decimal128 () const { return stddecimal; }
 #endif
 
