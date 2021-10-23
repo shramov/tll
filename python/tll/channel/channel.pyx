@@ -95,7 +95,7 @@ class RunGuard:
 
 cdef ccallback_finalize(tll_channel_t * channel, void * func, unsigned int mask, object guard):
     if guard.active:
-        tll_channel_callback_del(channel, msg_cb, func, mask)
+        tll_channel_callback_del(channel, ccallback_cb, func, mask)
         guard.disable()
 
 cdef int ccallback_destroy_cb(const tll_channel_t * c, const tll_msg_t *msg, void * user) with gil:
@@ -111,11 +111,30 @@ cdef int ccallback_destroy_cb(const tll_channel_t * c, const tll_msg_t *msg, voi
         pass
     return 0
 
+cdef int ccallback_cb(const tll_channel_t * c, const tll_msg_t *msg, void * user) with gil:
+    cb = <CCallback>user
+    try:
+        func = cb._func_ref()
+        if func is None:
+            return 0
+        chan = cb._chan_ref()
+        if chan is None:
+            chan = Channel.wrap(<tll_channel_t *>c)
+        r = func(chan, CMessage.wrap(msg))
+        if r is not None:
+            return r
+    except:
+        import traceback
+        traceback.print_exc()
+        return EINVAL
+    return 0
+
 cdef class CCallback:
     cdef tll_channel_t * _channel
     cdef void * _func_ptr
     cdef object _func_ref
     cdef object _self_ref
+    cdef object _chan_ref
     cdef object _finalize
     cdef object _run_guard
     cdef unsigned int _mask
@@ -131,6 +150,7 @@ cdef class CCallback:
         self._mask = mask
         self._func_ref = None
         self._self_ref = None
+        self._chan_ref = weakref.ref(channel)
         self._run_guard = RunGuard(False)
         ptr = <intptr_t>self._channel
 
@@ -142,7 +162,7 @@ cdef class CCallback:
         self._func_ref = weakref.ref(func)
 
         cdef tll_channel_t * c = self._channel
-        cdef void * f = self._func_ptr
+        cdef void * f = <void *>self
         cdef unsigned int m = self._mask
         guard = self._run_guard
 
@@ -161,13 +181,13 @@ cdef class CCallback:
             raise TLLError("Callback add failed", r)
         Py_INCREF(self._self_ref)
 
-        r = tll_channel_callback_add(self._channel, msg_cb, self._func_ptr, self._mask)
+        r = tll_channel_callback_add(self._channel, ccallback_cb, <void *>self, self._mask)
         if r:
             raise TLLError("Callback add failed", r)
         self._run_guard.enable()
 
     def remove(self):
-        cdef int r = tll_channel_callback_del(self._channel, msg_cb, self._func_ptr, self._mask)
+        cdef int r = tll_channel_callback_del(self._channel, ccallback_cb, <void *>self, self._mask)
         if r:
             raise TLLError("Callback del failed", r)
         self.reset()
@@ -516,18 +536,3 @@ cdef class CMessage:
         return Message(type = Type(self._ptr.type), msgid = self._ptr.msgid, seq = self._ptr.seq, addr = self.addr, timestamp = self.timestamp, data = memoryview(memoryview(self).tobytes()))
 
     def clone(self): return self.copy()
-
-cdef int msg_cb(const tll_channel_t * c, const tll_msg_t *msg, void * user) with gil:
-    o = <object>user
-    try:
-        if isinstance(o, weakref.ref):
-            o = o()
-        if o is None: return 0
-        r = o(Channel.wrap(<tll_channel_t *>c), CMessage.wrap(msg))
-        if r is not None:
-            return r
-        return 0
-    except:
-        import traceback
-        traceback.print_exc()
-        return EINVAL
