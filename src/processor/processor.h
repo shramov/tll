@@ -10,7 +10,6 @@
 
 #include "tll/channel/base.h"
 #include "tll/channel/impl.h"
-#include "tll/channel/logic.h"
 
 #include "tll/processor.h"
 #include "tll/processor/loop.h"

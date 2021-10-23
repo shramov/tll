@@ -9,7 +9,6 @@
 #define _TLL_CHANNEL_LOGIC_H
 
 #include "tll/channel/base.h"
-#include "tll/processor.h"
 
 namespace tll {
 
