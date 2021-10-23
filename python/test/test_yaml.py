@@ -42,6 +42,7 @@ config:
     ('byte8, options.type: string', 'abcd'),
     ('string', 'abcd'),
     ('decimal128', (decimal.Decimal('1234567890.e-5'), '1234567890.e-5')),
+    ('int32, options.type: fixed3', (decimal.Decimal('123.456'), '123456.e-3')),
 ])
 def test_simple(t, v):
     if isinstance(v, tuple):

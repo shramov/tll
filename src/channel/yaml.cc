@@ -68,6 +68,25 @@ int ChYaml::_fill_numeric(T * ptr, const tll::scheme::Field * field, std::string
 			}
 		}
 		return _log.fail(EINVAL, "String '{}' does not match any enum {} values", s, field->type_enum->name);
+	} else if (field->sub_type == field->Fixed) {
+		if constexpr (!std::is_floating_point_v<T>) {
+			int prec = -(int) field->fixed_precision;
+
+			auto u = conv::to_any<tll::conv::unpacked_float<T>>(s);
+			if (!u)
+				return _log.fail(EINVAL, "Invalid number '{}': {}", s, u.error());
+			auto m = u->mantissa;
+			if (u->sign) {
+				if constexpr (std::is_unsigned_v<T>)
+					return _log.fail(EINVAL, "Invalid number '{}': negative value", s);
+				m = -m;
+			}
+			auto r = tll::util::FixedPoint<T, 0>::normalize_mantissa(m, u->exponent, prec);
+			if (!std::holds_alternative<T>(r))
+				return _log.fail(EINVAL, "Invalid number '{}': {}", s, std::get<1>(r));
+			*ptr = std::get<0>(r);
+			return 0;
+		}
 	}
 	auto v = tll::conv::to_any<T>(s);
 	if (v) {

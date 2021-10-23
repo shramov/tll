@@ -49,40 +49,19 @@ struct parse<tll::util::FixedPoint<T, P>>
 	{
 		constexpr int prec = -(int) P;
 
-		auto u = conv::to_any<unpacked_float<std::make_unsigned_t<T>>>(s);
+		auto u = conv::to_any<unpacked_float<T>>(s);
 		if (!u)
 			return error(u.error());
 		auto m = u->mantissa;
 		if (u->sign) {
 			if constexpr (std::is_unsigned_v<T>)
 				return error("Negative value");
+			m = -m;
 		}
-		if (u->exponent < prec) {
-			if (prec - u->exponent > std::numeric_limits<std::make_unsigned_t<T>>::digits10 + 1)
-				return error("Exponent too large");
-			std::make_unsigned_t<T> div = 1;
-			for (int i = prec; i != u->exponent; i--)
-				div *= 10;
-			auto r = m % div;
-			m = m / div;
-			if (r != 0)
-				return error("Inexact rounding to " + conv::to_string(P) + " digits");
-			if (m > std::numeric_limits<T>::max())
-				return error("Value too large");
-		} else {
-			if (u->exponent - prec > std::numeric_limits<std::make_unsigned_t<T>>::digits10 + 1)
-				return error("Exponent too large");
-			std::make_unsigned_t<T> mul = 1;
-			for (int i = prec; i != u->exponent; i++)
-				mul *= 10;
-			if (std::numeric_limits<T>::max() / mul < m)
-				return error("Value too large");
-			m *= mul;
-		}
-		T v = m;
-		if (u->sign)
-			v = -v;
-		return value_type(v);
+		auto r = tll::util::FixedPoint<T, 0>::normalize_mantissa(m, u->exponent, prec);
+		if (!std::holds_alternative<T>(r))
+			return error(std::get<1>(r));
+		return value_type(std::get<0>(r));
 	}
 };
 
