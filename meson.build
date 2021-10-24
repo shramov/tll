@@ -32,3 +32,4 @@ if not get_option('with_gtest').disabled() and gtest.found()
 endif
 
 subdir('doc')
+subdir('bench')
