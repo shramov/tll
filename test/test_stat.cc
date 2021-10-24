@@ -28,8 +28,8 @@ TYPED_TEST(StatT, Field)
 	FieldT<T, Last, Bytes, 'r', 'x'> rlst;
 
 	tll_stat_type_t type = std::is_same_v<T, tll_stat_int_t> ? TLL_STAT_INT : TLL_STAT_FLOAT;
-	ASSERT_EQ((tll_stat_type_t) rsum.type, type);
-	ASSERT_STREQ((const char *) rsum.name, "rx");
+	ASSERT_EQ(rsum.type(), type);
+	ASSERT_EQ(rsum.name(), "rx");
 	ASSERT_EQ(rsum.value(), 0);
 	ASSERT_EQ(rmin.value(), std::numeric_limits<T>::max());
 	ASSERT_EQ(rmax.value(), std::numeric_limits<T>::min());

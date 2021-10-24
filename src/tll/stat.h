@@ -168,7 +168,7 @@ constexpr T default_value(Method t)
 	case Max: return std::numeric_limits<T>::min();
 	case Last: return std::numeric_limits<T>::min();
 	}
-	return std::numeric_limits<T>::min();;
+	return std::numeric_limits<T>::min();
 }
 
 template <typename T>
@@ -182,19 +182,27 @@ constexpr void update(Method m, T& v0, T v1)
 	}
 }
 
+struct Field : public tll_stat_field_t
+{
+	std::string_view name() const { return { tll_stat_field_t::name, strnlen(tll_stat_field_t::name, 7) }; }
+	tll_stat_type_t type() const { return (tll_stat_type_t) tll_stat_field_t::type; }
+	tll_stat_unit_t unit() const { return (tll_stat_unit_t) tll_stat_field_t::unit; }
+	tll_stat_method_t method() const { return (tll_stat_method_t) tll_stat_field_t::method; }
+};
+
 template <typename T, Method M, Unit U = Unknown, char C0 = 0, char C1 = 0, char C2 = 0, char C3 = 0, char C4 = 0, char C5 = 0, char C6 = 0>
-struct FieldT : public tll_stat_field_t
+struct FieldT : public Field
 {
 	FieldT()
 	{
 		static_assert(M == Sum || M == Min || M == Max || M == Last, "Unknown stat method");
 		static_assert(std::is_same_v<T, tll_stat_int_t> || std::is_same_v<T, tll_stat_float_t>, "Invalid value type");
 
-		type = std::is_same_v<T, tll_stat_int_t> ? TLL_STAT_INT : TLL_STAT_FLOAT;
-		method = M;
-		unit = U;
+		tll_stat_field_t::type = std::is_same_v<T, tll_stat_int_t> ? TLL_STAT_INT : TLL_STAT_FLOAT;
+		tll_stat_field_t::method = M;
+		tll_stat_field_t::unit = U;
 		const char tmp[] = {C0, C1, C2, C3, C4, C5, C6};
-		memcpy(name, tmp, 7);
+		memcpy(tll_stat_field_t::name, tmp, 7);
 		reset();
 	}
 
