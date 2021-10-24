@@ -359,7 +359,7 @@ cdef Impl pychannel_lookup(object module):
             sys.path.remove(path)
 
 cdef api:
-    cdef tll_channel_impl_t * tll_pychannel_lookup(const char *s):
+    cdef tll_channel_impl_t * tll_pychannel_lookup(const char *s) with gil:
         cdef Impl impl = pychannel_lookup(b2s(s))
         if impl is None:
             return NULL
