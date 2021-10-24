@@ -249,8 +249,9 @@ struct PageT : public Page
 	PageT() : Page((tll_stat_field_t *) &data, sizeof(T) / sizeof(tll_stat_field_t)) {}
 
 	// offsetof is not permitted for non standard layout types
-	constexpr ptrdiff_t offset() { return ((const char *) &data) - ((const char *) this); }
-	constexpr PageT * page_cast(T * ptr)
+	constexpr ptrdiff_t _offset() const { return ((const char *) &data) - ((const char *) this); }
+	static constexpr ptrdiff_t offset() { return static_cast<const PageT<T> *>(nullptr)->_offset(); }
+	static constexpr PageT * page_cast(T * ptr)
 	{
 		return (PageT *) (((char *) ptr) - offset());
 	}
@@ -296,23 +297,22 @@ inline tll_stat_page_t * swap(tll_stat_block_t * b)
 }
 
 template <typename T>
-class Block : public tll_stat_block_t
+class BlockT : public tll_stat_block_t
 {
+ protected:
 	static constexpr bool derived = std::is_base_of_v<tll_stat_page_t, T>;
 	using page_t = std::conditional_t<derived, T, PageT<T>>;
 
 	std::string _name;
-	page_t _pages[2];
  public:
-	Block(const Block &) = delete;
+	BlockT(const BlockT &) = delete;
 
-	Block(std::string_view name) : _name(name)
+	BlockT(std::string_view name) : _name(name)
 	{
 		static_assert(std::atomic<void *>::is_always_lock_free, "Need lock free atomic<void *>");
 		static_assert(sizeof(std::atomic<void *>) == sizeof(void *), "Need castable atomic");
+		*(tll_stat_block_t *)this = {};
 		this->name = _name.c_str();
-		lock = active = &_pages[0];
-		inactive = &_pages[1];
 	}
 
 	T * acquire()
@@ -329,7 +329,19 @@ class Block : public tll_stat_block_t
 		if constexpr (derived)
 			tll::stat::release(this, p);
 		else
-			tll::stat::release(this, _pages[0].page_cast(p));
+			tll::stat::release(this, page_t::page_cast(p));
+	}
+};
+
+template <typename T>
+class Block : public BlockT<T>
+{
+	typename BlockT<T>::page_t _pages[2];
+ public:
+	Block(std::string_view name) : BlockT<T>(name)
+	{
+		this->lock = this->active = &_pages[0];
+		this->inactive = &_pages[1];
 	}
 };
 
