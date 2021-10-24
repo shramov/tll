@@ -564,7 +564,7 @@ int tll_channel_post(tll_channel_t *c, const tll_msg_t *msg, int flags)
 	if (!r && msg->type == TLL_MESSAGE_DATA && c->internal->stat) {
 		auto p = tll::stat::acquire(c->internal->stat);
 		if (p) {
-			auto f = (tll::channel::Stat *) p->fields;
+			auto f = (tll_channel_stat_t *) p->fields;
 			f->tx.update(1);
 			f->txb.update(msg->size);
 			tll::stat::release(c->internal->stat, p);

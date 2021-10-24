@@ -52,11 +52,6 @@ T * channel_cast(tll_channel_t * c)
 
 namespace channel {
 
-using Stat = tll_channel_stat_t;
-
-template <typename T>
-struct StatType { using type = Stat; };
-
 template <typename T>
 class Base
 {
@@ -108,7 +103,9 @@ class Base
 
 	tll_channel_internal_t internal = {};
 
-	stat::Block<typename StatType<T>::type> _stat_block = { "" };
+	using StatType = tll_channel_stat_t;
+
+	stat::BlockT<StatType> * stat() { return static_cast<stat::BlockT<StatType> *>(internal.stat); }
 	bool _stat_enable = false;
 
 	scheme::ConstSchemePtr _scheme;
@@ -219,10 +216,8 @@ class Base
 
 		if (r) return r;
 
-		if (_stat_enable) {
-			_stat_block.name = name.c_str();
-			internal.stat = &_stat_block;
-		}
+		if (_stat_enable)
+			internal.stat = new stat::Block<typename T::StatType>(name);
 
 		return 0;
 	}
@@ -237,6 +232,8 @@ class Base
 			close(true);
 		state(state::Destroy);
 		static_cast<ChannelT *>(this)->_free();
+		if (internal.stat)
+			delete static_cast<stat::Block<typename T::StatType> *>(internal.stat);
 		tll_channel_internal_clear(&internal);
 	}
 

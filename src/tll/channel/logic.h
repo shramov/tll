@@ -9,6 +9,7 @@
 #define _TLL_CHANNEL_LOGIC_H
 
 #include "tll/channel/base.h"
+#include "tll/util/time.h"
 
 namespace tll {
 
@@ -21,6 +22,14 @@ class Logic : public Base<T>
 	std::map<std::string, std::vector<tll::Channel *>, std::less<>> _channels;
 
  public:
+
+	struct StatType : public Base<T>::StatType
+	{
+		tll::stat::IntegerGroup<tll::stat::Ns, 't', 'i', 'm', 'e'> time;
+	};
+
+	stat::BlockT<StatType> * stat() { return static_cast<stat::BlockT<StatType> *>(this->internal.stat); }
+
 	static constexpr auto process_policy() { return Base<T>::ProcessPolicy::Never; }
 
 	int init(const tll::Channel::Url &url, tll::Channel *master, tll_channel_context_t *ctx)
@@ -65,9 +74,29 @@ class Logic : public Base<T>
 	int logic(const Channel * c, const tll_msg_t *msg) { return 0; }
 
  private:
+	int _logic(const Channel * c, const tll_msg_t *msg)
+	{
+		if (!this->_stat_enable)
+			return this->channelT()->logic(c, msg);
+
+		auto start = tll::time::now();
+		auto r = this->channelT()->logic(c, msg);
+		auto dt = tll::time::now() - start;
+		auto page = this->channelT()->stat()->acquire();
+		if (page) {
+			page->time = dt.count();
+			if (msg->type == TLL_MESSAGE_DATA) {
+				page->rx = 1;
+				page->rxb = msg->size;
+			}
+			this->channelT()->stat()->release(page);
+		}
+		return r;
+	}
+
 	static int logic_callback(const tll_channel_t * c, const tll_msg_t *msg, void * user)
 	{
-		return static_cast<T *>(static_cast<Logic<T> *>(user))->logic(static_cast<const Channel *>(c), msg);
+		return static_cast<Logic<T> *>(user)->_logic(static_cast<const Channel *>(c), msg);
 	}
 };
 
