@@ -8,17 +8,25 @@
 #include "context_api.h"
 
 static int pyref = 0;
+static PyThreadState * pystate = NULL;
 
 static int pyinit(struct tll_channel_module_t * m, tll_channel_context_t * ctx)
 {
-	tll_logger_t * log = tll_logger_new("tll.channel.python", -1);
+	tll_logger_t * log = tll_logger_new("tll.python", -1);
 
 	if (!Py_IsInitialized()) {
 		tll_logger_printf(log, TLL_LOGGER_INFO, "Initialize embedded Python interpreter");
 		Py_InitializeEx(0);
+
 #if PY_VERSION_HEX < 0x03070000
 		PyEval_InitThreads();
 #endif
+
+		/*
+		 * After initialization GIL is locked by current thread.
+		 * Without releasing current state this leads to deadlock when other thread tries to take GIL
+		 */
+		pystate = PyEval_SaveThread();
 	} else if (!pyref) {
 		tll_logger_printf(log, TLL_LOGGER_INFO, "Loaded with external interpreter, disable finalization");
 		pyref++;
@@ -37,6 +45,7 @@ static int pyinit(struct tll_channel_module_t * m, tll_channel_context_t * ctx)
 		}
 		PyGILState_Release(state);
 	}
+
 	pyref++;
 
 	tll_logger_free(log);
@@ -45,9 +54,11 @@ static int pyinit(struct tll_channel_module_t * m, tll_channel_context_t * ctx)
 
 static int pyfree(struct tll_channel_module_t * m, tll_channel_context_t * ctx)
 {
-	tll_logger_t * log = tll_logger_new("tll.channel.python", -1);
+	tll_logger_t * log = tll_logger_new("tll.python", -1);
 	if (--pyref == 0) {
 		tll_logger_printf(log, TLL_LOGGER_INFO, "Finalize embedded Python interpreter");
+		PyEval_RestoreThread(pystate);
+		pystate = NULL;
 		Py_FinalizeEx();
 	}
 
@@ -57,7 +68,7 @@ static int pyfree(struct tll_channel_module_t * m, tll_channel_context_t * ctx)
 
 static int pychannel_init(tll_channel_t * c, const tll_config_t * url, tll_channel_t * parent, tll_channel_context_t * ctx)
 {
-	tll_logger_t * log = tll_logger_new("tll.channel.python", -1);
+	tll_logger_t * log = tll_logger_new("tll.python", -1);
 
 	const char * module = tll_config_get_copy(url, "python", -1, NULL);
 	if (!module) {
