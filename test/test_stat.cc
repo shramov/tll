@@ -79,6 +79,42 @@ TYPED_TEST(StatT, Field)
 	ASSERT_EQ(rlst.value(), std::numeric_limits<T>::min());
 }
 
+TYPED_TEST(StatT, Group)
+{
+	using T = TypeParam;
+	using namespace tll::stat;
+	GroupT<T, Bytes, 'r', 'x'> bytes;
+
+	tll_stat_type_t type = std::is_same_v<T, tll_stat_int_t> ? TLL_STAT_INT : TLL_STAT_FLOAT;
+	ASSERT_EQ(bytes.count.type(), TLL_STAT_INT);
+	ASSERT_EQ(bytes.sum.type(), type);
+	ASSERT_EQ(bytes.min.type(), type);
+	ASSERT_EQ(bytes.max.type(), type);
+
+	ASSERT_EQ(bytes.count.name(), "_tllgrp");
+	ASSERT_EQ(bytes.sum.name(), "rx");
+	ASSERT_EQ(bytes.min.name(), "rx");
+	ASSERT_EQ(bytes.max.name(), "rx");
+	ASSERT_EQ(bytes.count.value(), 0);
+	ASSERT_EQ(bytes.sum.value(), 0);
+	ASSERT_EQ(bytes.min.value(), std::numeric_limits<T>::max());
+	ASSERT_EQ(bytes.max.value(), std::numeric_limits<T>::min());
+
+	bytes = 10;
+
+	ASSERT_EQ(bytes.count.value(), 1);
+	ASSERT_EQ(bytes.sum.value(), 10);
+	ASSERT_EQ(bytes.min.value(), 10);
+	ASSERT_EQ(bytes.max.value(), 10);
+
+	bytes.update(20);
+
+	ASSERT_EQ(bytes.count.value(), 2);
+	ASSERT_EQ(bytes.sum.value(), 10 + 20);
+	ASSERT_EQ(bytes.min.value(), 10);
+	ASSERT_EQ(bytes.max.value(), 20);
+}
+
 struct Data
 {
 	tll::stat::Integer<tll::stat::Sum, tll::stat::Bytes, 'r', 'x'> rsum;

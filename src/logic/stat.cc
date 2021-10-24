@@ -7,6 +7,8 @@
 
 #include "tll/channel/logic.h"
 #include "tll/stat.h"
+#include "tll/util/conv.h"
+#include "tll/util/conv-fmt.h"
 
 #include <regex>
 
@@ -32,7 +34,10 @@ class Stat : public tll::LogicBase<Stat>
 
 	int logic(const tll::Channel * c, const tll_msg_t *msg);
 	int _dump(tll_stat_iter_t * i);
-	std::string _dump(tll_stat_field_t & v);
+	std::string _dump(const tll::stat::Field & v);
+
+	template <typename T>
+	std::string _group(std::string_view name, tll_stat_unit_t unit, int64_t count, T sum, T min, T max);
 };
 
 int Stat::_init(const tll::Channel::Url &url, tll::Channel *)
@@ -121,14 +126,42 @@ int Stat::_dump(tll_stat_iter_t * iter)
 	}
 
 	std::string r = "";
-	for (auto i = 0u; i < page->size; i++) {
+	auto ptr = static_cast<const tll::stat::Field *>(page->fields);
+	auto end = ptr + page->size;
+	for (; ptr != end; ptr++) {
 		if (r.size())
 			r += ", ";
-		r += _dump(page->fields[i]);
+		if (ptr + 3 < end && ptr->name() == "_tllgrp") {
+			auto count = ptr;
+			auto sum = ++ptr;
+			auto min = ++ptr;
+			auto max = ++ptr;
+			if (sum->type() == TLL_STAT_FLOAT)
+				r += _group(sum->name(), sum->unit(), count->value, sum->fvalue, min->fvalue, max->fvalue);
+			else
+				r += _group(sum->name(), sum->unit(), count->value, sum->value, min->value, max->value);
+			continue;
+		}
+		r += _dump(*ptr);
 	}
 
 	log->info("Page {}: {}", name, r);
 	return 0;
+}
+
+namespace tll::conv {
+template <typename T>
+struct dump<std::pair<T, std::string_view>> : public to_string_from_string_buf<std::pair<T, std::string_view>>
+{
+	using value_type = std::pair<T, std::string_view>;
+
+	template <typename Buf>
+	static inline std::string_view to_string_buf(const value_type &v, Buf &buf)
+	{
+		auto r = tll::conv::to_string_buf(v.first, buf);
+		return tll::conv::append(buf, r, v.second);
+	}
+};
 }
 
 namespace {
@@ -150,7 +183,7 @@ std::pair<T, std::string_view> shorten_time(T v)
 	if (v > 1000ll * 1000 * 1000 * 100)
 		return {v / (1000ll * 1000 * 1000) , "s"};
 	else if (v > 1000 * 1000 * 1000)
-		return {v / (1000 * 1000), "mb"};
+		return {v / (1000 * 1000), "ms"};
 	else if (v > 1000 * 1000)
 		return {v / (1000), "us"};
 	return {v, "ns"};
@@ -163,30 +196,47 @@ std::string format_field(std::string_view name, std::string_view suffix, std::pa
 }
 }
 
-std::string Stat::_dump(tll_stat_field_t & v)
+std::string Stat::_dump(const tll::stat::Field & v)
 {
-	std::string_view name = {v.name, strnlen(v.name, 7)};
+	std::string_view name = v.name();
 
 	std::string_view suffix = "";
-	switch (v.unit) {
+	switch (v.unit()) {
 	case tll::stat::Bytes:
-		if (v.type == TLL_STAT_INT)
+		if (v.type() == TLL_STAT_INT)
 			return format_field(name, "b", shorten_bytes(v.value));
 		else
 			return format_field(name, "b", shorten_bytes(v.fvalue));
 	case tll::stat::Ns:
-		if (v.type == TLL_STAT_INT)
+		if (v.type() == TLL_STAT_INT)
 			return format_field(name, "ns", shorten_time(v.value));
 		else
 			return format_field(name, "ns", shorten_time(v.fvalue));
 	default: break;
 	}
 
-	switch (v.type) {
+	switch (v.type()) {
 	case TLL_STAT_INT: return fmt::format("{}: {}{}", name, v.value, suffix);
 	case TLL_STAT_FLOAT: return fmt::format("{}: {}{}", name, v.fvalue, suffix);
 	}
-	return fmt::format("{}: unknown type {}", name, (unsigned char) v.type);
+	return fmt::format("{}: unknown type {}", name, v.type());
+}
+
+template <typename T>
+std::string Stat::_group(std::string_view name, tll_stat_unit_t unit, int64_t count, T sum, T min, T max)
+{
+	if (count == 0)
+		return fmt::format("{}: -/-/-", name);
+	double avg = ((double) sum) / count;
+
+	switch (unit) {
+	case tll::stat::Bytes:
+		return fmt::format("{}: {}/{}/{}", name, shorten_bytes(min), shorten_bytes(avg), shorten_bytes(max));
+	case tll::stat::Ns:
+		return fmt::format("{}: {:.3f}us/{:.3f}us/{}us", name, min / 1000., avg /1000., max /1000.);
+	default:
+		return fmt::format("{}: {}/{:.3f}/{}", name, min, avg, max);
+	}
 }
 
 TLL_DEFINE_IMPL(Stat);

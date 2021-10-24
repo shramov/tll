@@ -231,6 +231,31 @@ using Integer = FieldT<tll_stat_int_t, M, U, C0, C1, C2, C3, C4, C5, C6>;
 template <Method M, Unit U = Unknown, char C0 = 0, char C1 = 0, char C2 = 0, char C3 = 0, char C4 = 0, char C5 = 0, char C6 = 0>
 using Float = FieldT<tll_stat_float_t, M, U, C0, C1, C2, C3, C4, C5, C6>;
 
+template <typename T, Unit U = Unknown, char C0 = 0, char C1 = 0, char C2 = 0, char C3 = 0, char C4 = 0, char C5 = 0, char C6 = 0>
+struct GroupT {
+	FieldT<tll_stat_int_t, Sum, Unknown, '_', 't', 'l', 'l', 'g', 'r', 'p'> count;
+	FieldT<T, Sum, U, C0, C1, C2, C3, C4, C5, C6> sum;
+	FieldT<T, Min, U, C0, C1, C2, C3, C4, C5, C6> min;
+	FieldT<T, Max, U, C0, C1, C2, C3, C4, C5, C6> max;
+
+	GroupT & operator = (T v) { update(v); return *this; }
+
+	void update(T v)
+	{
+		count = 1;
+		sum = v;
+		min = v;
+		max = v;
+	}
+};
+
+template <Unit U = Unknown, char C0 = 0, char C1 = 0, char C2 = 0, char C3 = 0, char C4 = 0, char C5 = 0, char C6 = 0>
+using IntegerGroup = GroupT<tll_stat_int_t, U, C0, C1, C2, C3, C4, C5, C6>;
+
+template <Unit U = Unknown, char C0 = 0, char C1 = 0, char C2 = 0, char C3 = 0, char C4 = 0, char C5 = 0, char C6 = 0>
+using FloatGroup = GroupT<tll_stat_float_t, U, C0, C1, C2, C3, C4, C5, C6>;
+
+
 struct Page : public tll_stat_page_t
 {
 	Page(tll_stat_field_t * start, size_t size)
