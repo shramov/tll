@@ -53,6 +53,15 @@ class Logic : public Base<T>
 		return 0;
 	}
 
+	void _free()
+	{
+		for (auto & p : _channels) {
+			for (auto & c : p.second)
+				c->callback_del(logic_callback, this, TLL_MESSAGE_MASK_ALL);
+		}
+		Base<T>::_free();
+	}
+
 	int logic(const Channel * c, const tll_msg_t *msg) { return 0; }
 
  private:
