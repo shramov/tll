@@ -194,6 +194,7 @@ cdef class Base:
         self.scheme = v
 
     def init(self, url, master=None):
+        Logger('tll.python').info('Init channel {}', url)
         self.internal.state = C.State.Closed
         self.config["state"] = "Closed"
         self.config['url'] = url.copy()
