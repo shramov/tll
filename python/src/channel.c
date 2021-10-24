@@ -78,8 +78,9 @@ static int pychannel_init(tll_channel_t * c, const tll_config_t * url, tll_chann
 }
 
 static tll_channel_impl_t python_impl = {.init = pychannel_init, .name = "python" };
+static tll_channel_impl_t prefix_impl = {.init = pychannel_init, .name = "python+" };
 
-static tll_channel_impl_t *channels[] = { &python_impl, NULL };
+static tll_channel_impl_t *channels[] = { &python_impl, &prefix_impl, NULL };
 
 struct tll_channel_module_t channel_module = {
 	.impl = channels,
