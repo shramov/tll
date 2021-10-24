@@ -282,8 +282,7 @@ struct PageT : public Page
 	PageT() : Page((tll_stat_field_t *) &data, sizeof(T) / sizeof(tll_stat_field_t)) {}
 
 	// offsetof is not permitted for non standard layout types
-	constexpr ptrdiff_t _offset() const { return ((const char *) &data) - ((const char *) this); }
-	static constexpr ptrdiff_t offset() { return static_cast<const PageT<T> *>(nullptr)->_offset(); }
+	static constexpr ptrdiff_t offset() { auto page = static_cast<const PageT<T> *>(nullptr); return (ptrdiff_t) &page->data; }
 	static constexpr PageT * page_cast(T * ptr)
 	{
 		return (PageT *) (((char *) ptr) - offset());
