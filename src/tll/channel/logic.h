@@ -76,6 +76,13 @@ class Logic : public Base<T>
  private:
 	int _logic(const Channel * c, const tll_msg_t *msg)
 	{
+		if (msg->type == TLL_MESSAGE_STATE && msg->msgid == tll::state::Destroy) {
+			for (auto & p : _channels) {
+				auto & v = p.second;
+				v.erase(std::remove(v.begin(), v.end(), c), v.end());
+			}
+		}
+
 		if (!this->_stat_enable)
 			return this->channelT()->logic(c, msg);
 
