@@ -242,8 +242,10 @@ struct conv::parse<std::chrono::time_point<std::chrono::system_clock, D>> :
 
 		auto ts = timegm(&date);
 
-		value_type r;
-		r += seconds(ts);
+		auto dt = duration_cast_exact<typename value_type::duration>(seconds(ts));
+		if (!dt)
+			return error("Inexact conversion from seconds");
+		value_type r(*dt);
 		r += subsecond;
 		return r;
 	}

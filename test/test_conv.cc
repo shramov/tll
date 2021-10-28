@@ -209,8 +209,12 @@ TEST(Conv, TimePoint)
 	EXPECT_FALSE(to_any<tll::time_point>("2021-01-02T03:04:05.a"));
 	EXPECT_FALSE(to_any<tll::time_point>("2021-01-02T03:04:05.1234567891"));
 
+	using hour_point = time_point<system_clock, duration<int, std::ratio<3600>>>;
+	using minute_point = time_point<system_clock, duration<int, std::ratio<60>>>;
 	using seconds_point = time_point<system_clock, seconds>;
 	using ms_point = time_point<system_clock, milliseconds>;
+	EXPECT_FALSE(to_any<hour_point>("2021-01-02T03:04:00"));
+	EXPECT_FALSE(to_any<minute_point>("2021-01-02T03:04:05"));
 	EXPECT_FALSE(to_any<seconds_point>("2021-01-02T03:04:05.123"));
 	EXPECT_FALSE(to_any<ms_point>("2021-01-02T03:04:05.123123"));
 
@@ -224,6 +228,8 @@ TEST(Conv, TimePoint)
 	EXPECT_EQ_ANY(to_any<tll::time_point>("2021-01-02T03:04:05.000000123"), tp + 123ns);
 	EXPECT_EQ(to_string(*to_any<tll::time_point>("2021-01-02T03:04:05.123456789")), "2021-01-02T03:04:05.123456789");
 
+	EXPECT_EQ_ANY(to_any<hour_point>("2021-01-02T03:00:00"), tp - 240s - 5s);
+	EXPECT_EQ_ANY(to_any<minute_point>("2021-01-02T03:04:00"), tp - 5s);
 	EXPECT_EQ_ANY(to_any<seconds_point>("2021-01-02T03:04:05"), tp);
 	EXPECT_EQ_ANY(to_any<ms_point>("2021-01-02T03:04:05.123"), tp + 123ms);
 }
