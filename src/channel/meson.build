@@ -7,6 +7,7 @@ channel_sources = files(
 	, 'mem.cc'
 	, 'serial.cc'
 	, 'tcp.cc'
+	, 'timeit.cc'
 	, 'timer.cc'
 	, 'udp.cc'
 	, 'yaml.cc'
