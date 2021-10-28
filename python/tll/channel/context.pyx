@@ -80,6 +80,9 @@ cdef class Context:
                 raise RuntimeError("cfg must be None or Config object, got {}".format(type(cfg)))
             cptr = (<Config>(cfg))._ptr
         self._ptr = tll_channel_context_new(cptr)
+        if self._ptr == NULL:
+            raise RuntimeError("Failed to create context")
+        self.register_loader()
 
     def __richcmp__(Context self, Context other, int op):
         return bool(richcmp(<intptr_t>self._ptr, <intptr_t>other._ptr, op))
