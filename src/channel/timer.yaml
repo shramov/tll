@@ -1,6 +1,6 @@
 - name: relative
-  msgid: 1
+  id: 1
   fields: [{name: ts, type: int64, options.type: duration, options.resolution: ns}]
 - name: absolute
-  msgid: 2
+  id: 2
   fields: [{name: ts, type: int64, options.type: time_point, options.resolution: ns}]
