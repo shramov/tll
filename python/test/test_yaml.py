@@ -5,6 +5,7 @@ import tll.channel as C
 from tll.config import Config
 from tll import asynctll
 from tll.test_util import Accum
+from tll.chrono import *
 
 import common
 
@@ -43,6 +44,8 @@ config:
     ('string', 'abcd'),
     ('decimal128', (decimal.Decimal('1234567890.e-5'), '1234567890.e-5')),
     ('int32, options.type: fixed3', (decimal.Decimal('123.456'), '123456.e-3')),
+    ('int32, options.type: duration, options.resolution: us', (Duration(123000, Resolution.us), '123ms')),
+    ('int64, options.type: time_point, options.resolution: s', (TimePoint(1609556645, Resolution.second), '2021-01-02T03:04:05')),
 ])
 def test_simple(t, v):
     if isinstance(v, tuple):

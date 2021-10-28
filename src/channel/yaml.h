@@ -39,6 +39,9 @@ class ChYaml : public tll::channel::Base<ChYaml>
 
 	template <typename T>
 	int _fill_numeric(T * ptr, const tll::scheme::Field * msg, std::string_view s);
+
+	template <typename T>
+	int _fill_conv(void * ptr, std::string_view s);
 };
 
 #endif//_TLL_CHANNEL_YAML_H

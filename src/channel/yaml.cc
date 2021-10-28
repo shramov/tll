@@ -9,6 +9,7 @@
 
 #include "tll/conv/decimal128.h"
 #include "tll/util/memoryview.h"
+#include "tll/util/time.h"
 #include "tll/scheme/util.h"
 
 using namespace tll;
@@ -87,10 +88,42 @@ int ChYaml::_fill_numeric(T * ptr, const tll::scheme::Field * field, std::string
 			*ptr = std::get<0>(r);
 			return 0;
 		}
+	} else if (field->sub_type == field->TimePoint) {
+		using std::chrono::duration;
+		using std::chrono::time_point;
+		using std::chrono::system_clock;
+		switch (field->time_resolution) {
+		case TLL_SCHEME_TIME_NS: return _fill_conv<time_point<system_clock, duration<T, std::nano>>>(ptr, s);
+		case TLL_SCHEME_TIME_US: return _fill_conv<time_point<system_clock, duration<T, std::micro>>>(ptr, s);
+		case TLL_SCHEME_TIME_MS: return _fill_conv<time_point<system_clock, duration<T, std::milli>>>(ptr, s);
+		case TLL_SCHEME_TIME_SECOND: return _fill_conv<time_point<system_clock, duration<T, std::ratio<1, 1>>>>(ptr, s);
+		case TLL_SCHEME_TIME_MINUTE: return _fill_conv<time_point<system_clock, duration<T, std::ratio<60, 1>>>>(ptr, s);
+		case TLL_SCHEME_TIME_HOUR: return _fill_conv<time_point<system_clock, duration<T, std::ratio<3600, 1>>>>(ptr, s);
+		case TLL_SCHEME_TIME_DAY: return _fill_conv<time_point<system_clock, duration<T, std::ratio<86400, 1>>>>(ptr, s);
+		}
+		return _log.fail(EINVAL, "Unknown resolution: {}", field->time_resolution);
+	} else if (field->sub_type == field->Duration) {
+		using std::chrono::duration;
+		switch (field->time_resolution) {
+		case TLL_SCHEME_TIME_NS: return _fill_conv<duration<T, std::nano>>(ptr, s);
+		case TLL_SCHEME_TIME_US: return _fill_conv<duration<T, std::micro>>(ptr, s);
+		case TLL_SCHEME_TIME_MS: return _fill_conv<duration<T, std::milli>>(ptr, s);
+		case TLL_SCHEME_TIME_SECOND: return _fill_conv<duration<T, std::ratio<1, 1>>>(ptr, s);
+		case TLL_SCHEME_TIME_MINUTE: return _fill_conv<duration<T, std::ratio<60, 1>>>(ptr, s);
+		case TLL_SCHEME_TIME_HOUR: return _fill_conv<duration<T, std::ratio<3600, 1>>>(ptr, s);
+		case TLL_SCHEME_TIME_DAY: return _fill_conv<duration<T, std::ratio<86400, 1>>>(ptr, s);
+		}
+		return _log.fail(EINVAL, "Unknown resolution: {}", field->time_resolution);
 	}
+	return _fill_conv<T>(ptr, s);
+}
+
+template <typename T>
+int ChYaml::_fill_conv(void * ptr, std::string_view s)
+{
 	auto v = tll::conv::to_any<T>(s);
 	if (v) {
-		*ptr = *v;
+		*static_cast<T *>(ptr) = *v;
 		return 0;
 	}
 	return _log.fail(EINVAL, "Invalid string '{}': {}", s, v.error());
