@@ -250,6 +250,12 @@ tll_logger_t * tll_logger_new(const char * name, int len)
 	return tll::logger::context.init(tll::string_view_from_c(name, len));
 }
 
+tll_logger_t * tll_logger_copy(const tll_logger_t * log)
+{
+	if (!log) return nullptr;
+	return const_cast<tll::logger::Logger *>(static_cast<const tll::logger::Logger *>(log))->ref();
+}
+
 void tll_logger_free(tll_logger_t * log)
 {
 	if (!log) return;
