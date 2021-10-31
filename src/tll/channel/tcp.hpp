@@ -39,6 +39,12 @@ int nonblock(int fd)
 	if (f == -1) return errno;
 	return fcntl(fd, F_SETFL, f | O_NONBLOCK);
 }
+
+template <typename T>
+int setsockoptT(int fd, int level, int optname, T v)
+{
+	return setsockopt(fd, level, optname, &v, sizeof(v));
+}
 } // namespace ''
 
 template <typename T>
@@ -126,14 +132,31 @@ std::optional<size_t> TcpSocket<T>::_recv(size_t size)
 }
 
 template <typename T>
-int TcpSocket<T>::timestamping_enable()
+int TcpSocket<T>::setup(const tcp_settings_t &settings)
 {
-#ifdef __linux__
-	int v = SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_RX_HARDWARE | SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_SOFTWARE;
-	if (setsockopt(this->fd(), SOL_SOCKET, SO_TIMESTAMPING, &v, sizeof(v)))
-		return this->_log.fail(EINVAL, "Failed to enable timestamping: {}", strerror(errno));
-	_cbuf.resize(256);
+	if (int r = nonblock(this->fd()))
+		return this->_log.fail(EINVAL, "Failed to set nonblock: {}", strerror(r));
+
+#ifdef __APPLE__
+	if (setsockoptT<int>(this->fd(), SOL_SOCKET, SO_NOSIGPIPE, 1))
+		return this->_log.fail(EINVAL, "Failed to set SO_NOSIGPIPE: {}", strerror(errno));
 #endif
+
+#ifdef __linux__
+	if (settings.timestamping) {
+		int v = SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_RX_HARDWARE | SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_SOFTWARE;
+		if (setsockopt(this->fd(), SOL_SOCKET, SO_TIMESTAMPING, &v, sizeof(v)))
+			return this->_log.fail(EINVAL, "Failed to enable timestamping: {}", strerror(errno));
+		_cbuf.resize(256);
+	}
+#endif
+
+	if (settings.sndbuf && setsockoptT<int>(this->fd(), SOL_SOCKET, SO_SNDBUF, settings.sndbuf))
+		return this->_log.fail(EINVAL, "Failed to set sndbuf to {}: {}", settings.sndbuf, strerror(errno));
+
+	if (settings.rcvbuf && setsockoptT<int>(this->fd(), SOL_SOCKET, SO_RCVBUF, settings.rcvbuf))
+		return this->_log.fail(EINVAL, "Failed to set rcvbuf to {}: {}", settings.rcvbuf, strerror(errno));
+
 	return 0;
 }
 
@@ -206,7 +229,9 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	auto reader = this->channel_props_reader(url);
 	auto af = reader.getT("af", network::AddressFamily::UNSPEC);
 	this->_size = reader.template getT<util::Size>("size", 128 * 1024);
-	_timestamping = reader.getT("timestamping", false);
+	_settings.timestamping = reader.getT("timestamping", false);
+	_settings.sndbuf = reader.getT("sndbuf", util::Size { 0 });
+	_settings.rcvbuf = reader.getT("rcvbuf", util::Size { 0 });
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -253,17 +278,8 @@ int TcpClient<T, S>::_open(const PropsView &url)
 		return this->_log.fail(errno, "Failed to create socket: {}", strerror(errno));
 	this->_update_fd(fd);
 
-	if (int r = nonblock(this->fd()))
-		return this->_log.fail(EINVAL, "Failed to set nonblock: {}", strerror(r));
-
-	if (_timestamping && this->timestamping_enable())
-		return this->_log.fail(EINVAL, "Failed to enable timestamping: {}", strerror(errno));
-
-#ifdef __APPLE__
-	int flag = 1;
-	if (setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &flag, sizeof(flag)))
-		return this->_log.fail(EINVAL, "Failed to set SO_NOSIGPIPE: {}", strerror(errno));
-#endif
+	if (this->setup(_settings))
+		return this->_log.fail(EINVAL, "Failed to setup socket");
 
 	if (S::_open(url))
 		return this->_log.fail(EINVAL, "Parent open failed");
@@ -383,7 +399,9 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = this->channelT()->channel_props_reader(url);
 	auto af = reader.getT("af", network::AddressFamily::UNSPEC);
-	_timestamping = reader.getT("timestamping", false);
+	_settings.timestamping = reader.getT("timestamping", false);
+	_settings.sndbuf = reader.getT("sndbuf", util::Size { 0 });
+	_settings.rcvbuf = reader.getT("rcvbuf", util::Size { 0 });
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -578,7 +596,7 @@ int TcpServer<T, C>::_cb_socket(const tll_channel_t *c, const tll_msg_t *msg)
 	auto client = channel_cast<tcp_socket_t>(r.get());
 	//r.release();
 	client->bind(fd);
-	client->timestamping_enable();
+	client->setup(_settings);
 	tll_channel_callback_add(r.get(), _cb_state, this, TLL_MESSAGE_MASK_STATE);
 	tll_channel_callback_add(r.get(), _cb_data, this, TLL_MESSAGE_MASK_DATA);
 	if (this->channelT()->_on_accept(r.get())) {

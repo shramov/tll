@@ -36,6 +36,12 @@ struct tcp_socket_addr_t
 	}
 };
 
+struct tcp_settings_t {
+	size_t sndbuf = 0;
+	size_t rcvbuf = 0;
+	bool timestamping = false;
+};
+
 template <typename T>
 class TcpSocket : public Base<T>
 {
@@ -51,6 +57,7 @@ class TcpSocket : public Base<T>
 	tcp_socket_addr_t _msg_addr;
 
 	using tcp_socket_t = TcpSocket<T>;
+
  public:
 	using iov_t = std::pair<const void *, size_t>;
 	static constexpr std::string_view channel_protocol() { return "tcp"; }
@@ -65,7 +72,7 @@ class TcpSocket : public Base<T>
 	void bind(int fd, int seq = 0) { this->_update_fd(fd); _msg_addr = { fd, seq }; }
 	const tcp_socket_addr_t & msg_addr() const { return _msg_addr; }
 
-	int timestamping_enable();
+	int setup(const tcp_settings_t &settings);
 
  protected:
 	std::chrono::nanoseconds _timestamp;
@@ -121,6 +128,8 @@ class TcpClient : public S
 	addr_list_t _addr_list;
 	addr_list_t::iterator _addr = _addr_list.end();
 
+	tcp_settings_t _settings = {};
+
 	using tcp_client_t = TcpClient<T>;
  public:
 	static constexpr auto open_policy() { return Base<T>::OpenPolicy::Manual; }
@@ -175,7 +184,7 @@ class TcpServer : public Base<T>
 	std::list<std::unique_ptr<Channel>> _sockets;
 	std::map<int, tcp_socket_t *> _clients;
 	bool _cleanup_flag = false;
-	bool _timestamping = false;
+	tcp_settings_t _settings = {};
 
  public:
 	static constexpr std::string_view channel_protocol() { return "tcp"; }
