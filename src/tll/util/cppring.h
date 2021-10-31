@@ -1,16 +1,18 @@
 #ifndef _TLL_UTIL_CPPRING_H
 #define _TLL_UTIL_CPPRING_H
 
+#include <type_traits>
 #include <vector>
 #include <cerrno>
 #include <fmt/format.h>
 
 namespace tll::util {
 
-template <typename T>
+template <typename T, bool Const = false>
 class circular_iterator
 {
-	std::vector<T> * _data = nullptr;
+	using container_type = std::conditional_t<Const, const std::vector<T>, std::vector<T>>;
+	container_type * _data = nullptr;
 	unsigned _idx = 0;
 
 	void shift()
@@ -22,20 +24,20 @@ class circular_iterator
 public:
 	using iterator_category = std::forward_iterator_tag;
 
-	using value_type = typename std::vector<T>::value_type;
-	using reference = typename std::vector<T>::reference;
-	using pointer = typename std::vector<T>::pointer;
-	using const_reference = typename std::vector<T>::const_reference;
-	using const_pointer = typename std::vector<T>::const_pointer;
+	using value_type = typename container_type::value_type;
+	using reference = std::conditional_t<Const, typename container_type::const_reference, typename container_type::reference>;
+	using pointer = std::conditional_t<Const, typename container_type::const_pointer, typename container_type::pointer>;
+	using const_reference = typename container_type::const_reference;
+	using const_pointer = typename container_type::const_pointer;
 
 	circular_iterator() = default;
-	circular_iterator(typename std::vector<T> &data, unsigned idx) : _data(&data), _idx(idx) {}
+	circular_iterator(container_type &data, unsigned idx) : _data(&data), _idx(idx) {}
 
 	circular_iterator operator ++ () { shift(); return *this; }
 	circular_iterator operator ++ (int) { circular_iterator tmp = *this; shift(); return tmp; }
 
 	pointer ptr() { return &(*_data)[_idx]; }
-	const pointer ptr() const { return &(*_data)[_idx]; }
+	const_pointer ptr() const { return &(*_data)[_idx]; }
 
 	reference operator * () { return *ptr(); }
 	const_reference operator * () const { return *ptr(); }
@@ -71,6 +73,7 @@ class Ring
 
 public:
 	using iterator = circular_iterator<T>;
+	using const_iterator = circular_iterator<T, true>;
 
 	using value_type = typename std::vector<T>::value_type;
 	using reference = typename std::vector<T>::reference;
@@ -85,7 +88,9 @@ public:
 	void clear() { _head = _tail = 0; }
 
 	iterator begin() { return iterator(_data, _head); }
+	const_iterator begin() const { return const_iterator(_data, _head); }
 	iterator end() { return iterator(_data, _tail); }
+	const_iterator end() const { return const_iterator(_data, _tail); }
 
 	reference front() { return _data[_head]; }
 	const_reference front() const { return _data[_head]; }
@@ -128,7 +133,9 @@ struct framed_data_t
 	size_t size = 0;
 
 	void * data() { return (void *) (frame + 1); }
+	const void * data() const { return (const void *) (frame + 1); }
 	void * end() { return ((char *) data()) + size; }
+	const void * end() const { return ((const char *) data()) + size; }
 };
 
 template <>
@@ -139,7 +146,9 @@ struct framed_data_t<void>
 	size_t size = 0;
 
 	void * data() { return frame; }
+	const void * data() const { return frame; }
 	void * end() { return ((char *) data()) + size; }
+	const void * end() const { return ((const char *) data()) + size; }
 };
 
 template <typename T>
