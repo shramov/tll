@@ -5,6 +5,8 @@ channel_sources = files(
 	, 'ipc.cc'
 	, 'log.cc'
 	, 'mem.cc'
+	, 'pub.cc'
+	, 'pub-client.cc'
 	, 'serial.cc'
 	, 'tcp.cc'
 	, 'timeit.cc'

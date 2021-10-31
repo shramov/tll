@@ -16,7 +16,7 @@
 namespace tll::util {
 
 template <typename T, bool Const = false>
-class circular_iterator
+struct circular_iterator
 {
 	using container_type = std::conditional_t<Const, const std::vector<T>, std::vector<T>>;
 	container_type * _data = nullptr;

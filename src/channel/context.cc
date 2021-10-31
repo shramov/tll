@@ -31,6 +31,7 @@
 #include "channel/loader.h"
 #include "channel/mem.h"
 #include "channel/null.h"
+#include "channel/pub.h"
 #include "channel/serial.h"
 #include "channel/tcp.h"
 #include "channel/timeit.h"
@@ -47,6 +48,7 @@ TLL_DEFINE_IMPL(ChNull);
 
 TLL_DECLARE_IMPL(ChIpc);
 TLL_DECLARE_IMPL(ChMem);
+TLL_DECLARE_IMPL(ChPubServer);
 TLL_DECLARE_IMPL(ChSerial);
 TLL_DECLARE_IMPL(ChTcp);
 TLL_DECLARE_IMPL(ChTimer);
@@ -77,6 +79,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChMem::impl);
 		reg(&ChLoader::impl);
 		reg(&ChNull::impl);
+		reg(&ChPubServer::impl);
 		reg(&ChSerial::impl);
 		reg(&ChTcp::impl);
 		reg(&ChTimeIt::impl);

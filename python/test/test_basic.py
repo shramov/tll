@@ -6,6 +6,7 @@ from tll.config import Config
 from tll.error import TLLError
 from tll.stat import Method, Unit
 from tll.test_util import Accum, ports
+from tll.processor import Loop
 
 import common
 
@@ -476,3 +477,168 @@ class TestMUdp4(_test_udp_base):
 class TestMUdp6(_test_udp_base):
     PROTO = 'mudp://ff13::beef:{};loop=yes'.format(ports.UDP6)
     #PROTO = 'mudp://ff11::beef%{iface}:{port};udp.interface={iface};udp.loop=yes'.format(port=ports.UDP6, iface='wlp3s0')
+
+class TestPub:
+    URL = 'pub+tcp://./pub.sock'
+    CLEANUP = ['./pub.sock']
+
+    def server(self, size='1kb', **kw):
+        return Accum(self.URL, mode='server', name='server', dump='frame', size=size, context=ctx, **kw)
+
+    def setup(self):
+        self.s = self.server()
+        self.c = Accum(self.URL, mode='client', name='client', dump='frame', context=ctx)
+
+    def teardown(self):
+        self.c.close()
+        self.s.close()
+        self.c = None
+        self.s = None
+        for f in self.CLEANUP:
+            if os.path.exists(f):
+                os.unlink(f)
+
+    def test(self):
+        s, c = self.s, self.c
+
+        s.open()
+        assert s.state == s.State.Active
+        assert len(s.children) == 1
+        assert s.dcaps == s.DCaps.Zero
+
+        ss = s.children[0]
+        assert ss.dcaps == ss.DCaps.Process | ss.DCaps.PollIn
+
+        c.open()
+
+        assert c.state == c.State.Opening
+        assert len(c.children) == 0
+
+        ss.process()
+        assert len(s.children) == 2
+
+        sc = s.children[1]
+        assert sc.dcaps == sc.DCaps.Process | sc.DCaps.PollIn
+
+        assert sc.state == c.State.Opening
+
+        sc.process()
+
+        assert sc.state == c.State.Active
+
+        c.process()
+        assert c.state == c.State.Active
+        assert c.dcaps == c.DCaps.Process | c.DCaps.PollIn
+
+        with pytest.raises(TLLError): s.post(b'x' * (512 - 16 + 1), seq=1) # Message larger then half of buffer
+
+        s.post(b'xxx', seq=1, msgid=10)
+        c.process()
+
+        assert [(m.seq, m.msgid, m.data.tobytes()) for m in c.result] == [(1, 10, b'xxx')]
+        c.result = []
+
+        for i in range(2, 5):
+            s.post(b'x' * i, seq=i, msgid=10)
+
+        for i in range(2, 5):
+            c.process()
+            assert [(m.seq, m.msgid, m.data.tobytes()) for m in c.result[-1:]] == [(i, 10, b'x' * i)]
+
+    def loop_open(self, s, c):
+        loop = Loop()
+
+        loop.add(s)
+
+        s.open()
+        assert s.state == s.State.Active
+
+        c.open()
+
+        loop.step(0) # Accept
+        loop.step(0) # Handshake
+
+        c.process()
+        assert c.state == c.State.Active
+
+        return loop
+
+    def test_more(self):
+        s, c = self.s, self.c
+        loop = self.loop_open(s, c)
+
+        s.post(b'xxx', seq=1, msgid=10, flags=s.PostFlags.More)
+        c.process()
+
+        assert c.result == []
+
+        s.post(b'zzz', seq=2, msgid=10)
+
+        c.process()
+        assert [(m.seq, m.msgid, m.data.tobytes()) for m in c.result] == [(1, 10, b'xxx')]
+        c.process()
+        assert [(m.seq, m.msgid, m.data.tobytes()) for m in c.result] == [(1, 10, b'xxx'), (2, 10, b'zzz')]
+
+    def test_eagain(self):
+        self.s = None
+        self.s = self.server(size='64kb', sndbuf='1kb')
+
+        s, c = self.s, self.c
+        loop = self.loop_open(s, c)
+
+        s.post(b'xxx', seq=1, msgid=10)
+        c.process()
+
+        assert [(m.seq, m.msgid, m.data.tobytes()) for m in c.result] == [(1, 10, b'xxx')]
+        c.result = []
+
+        for i in range(2, 10):
+            s.post(b'x' * 256 + b'x' * i, seq=i, msgid=10)
+
+        for i in range(2, 5):
+            c.process()
+            assert [(m.seq, m.msgid, m.data.tobytes()) for m in c.result[-1:]] == [(i, 10, b'x' * 256 + b'x' * i)]
+
+        for i in range(5, 10):
+            loop.step(0)
+            c.process()
+            assert [(m.seq, m.msgid, m.data.tobytes()) for m in c.result[-1:]] == [(i, 10, b'x' * 256 + b'x' * i)]
+
+    def test_overflow(self):
+        self.s = None
+        self.s = self.server(size='1kb', sndbuf='1kb')
+
+        s, c = self.s, self.c
+        loop = self.loop_open(s, c)
+
+        s.post(b'xxx', seq=1, msgid=10)
+        c.process()
+
+        assert [(m.seq, m.msgid, m.data.tobytes()) for m in c.result] == [(1, 10, b'xxx')]
+        c.result = []
+
+        for i in range(2, 10):
+            s.post(b'x' * 256 + b'x' * i, seq=i, msgid=10)
+        loop.step(0)
+
+        for i in range(2, 6):
+            c.process()
+            assert [(m.seq, m.msgid, m.data.tobytes()) for m in c.result[-1:]] == [(i, 10, b'x' * 256 + b'x' * i)]
+
+        assert c.state == c.State.Active
+
+        c.process()
+
+        assert c.state == c.State.Error
+
+    def test_many(self):
+        s, c = self.s, self.c
+        loop = self.loop_open(s, c)
+        loop.add(c)
+
+        for i in range(0, 1000):
+            s.post(b'z' * 16 + b'x' * (i % 100), seq=i, msgid=10)
+            loop.step(0)
+            loop.step(0)
+
+        assert [m.seq for m in c.result] == list(range(0, 1000))
