@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2021 Pavel Shramov <shramov@mexmat.net>
+ *
+ * tll is free software; you can redistribute it and/or modify
+ * it under the terms of the MIT license. See LICENSE for details.
+ */
+
 #ifndef _TLL_UTIL_CPPRING_H
 #define _TLL_UTIL_CPPRING_H
 
