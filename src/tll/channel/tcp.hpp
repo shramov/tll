@@ -277,10 +277,7 @@ int TcpClient<T, S>::_open(const PropsView &url)
 		return this->_log.fail(errno, "Failed to connect: {}", strerror(errno));
 	}
 
-	this->_dcaps_poll(dcaps::CPOLLIN);
-
-	this->state(state::Active);
-	return 0;
+	return this->channelT()->_on_connect();
 }
 
 template <typename T, typename S>
