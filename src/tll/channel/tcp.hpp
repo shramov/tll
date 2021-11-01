@@ -14,7 +14,6 @@
 #include "tll/util/size.h"
 #include "tll/util/sockaddr.h"
 
-#include <fcntl.h>
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -31,21 +30,6 @@
 #endif//__APPLE__
 
 namespace tll::channel {
-
-namespace {
-int nonblock(int fd)
-{
-	auto f = fcntl(fd, F_GETFL);
-	if (f == -1) return errno;
-	return fcntl(fd, F_SETFL, f | O_NONBLOCK);
-}
-
-template <typename T>
-int setsockoptT(int fd, int level, int optname, T v)
-{
-	return setsockopt(fd, level, optname, &v, sizeof(v));
-}
-} // namespace ''
 
 template <typename T>
 int TcpSocket<T>::_init(const tll::Channel::Url &url, tll::Channel *master)
@@ -134,6 +118,8 @@ std::optional<size_t> TcpSocket<T>::_recv(size_t size)
 template <typename T>
 int TcpSocket<T>::setup(const tcp_settings_t &settings)
 {
+	using namespace tll::network;
+
 	if (int r = nonblock(this->fd()))
 		return this->_log.fail(EINVAL, "Failed to set nonblock: {}", strerror(r));
 
@@ -361,7 +347,7 @@ int TcpServerSocket<T>::_process(long timeout, int flags)
 	tll::network::sockaddr_any addr = {};
 	addr.size = sizeof(addr.buf);
 
-	int fd = accept(this->fd(), addr, &addr.size); //XXX: accept4
+	tll::network::scoped_socket fd(accept(this->fd(), addr, &addr.size)); //XXX: accept4
 	if (fd == -1) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return EAGAIN;
@@ -373,17 +359,12 @@ int TcpServerSocket<T>::_process(long timeout, int flags)
 	else
 		this->_log.info("Connection {} from {}", fd, "unix socket");
 
-	if (int e = nonblock(fd)) {
-		::close(fd);
+	if (int e = tll::network::nonblock(fd))
 		return this->_log.fail(e, "Failed to set nonblock: {}", strerror(e));
-	}
 
 #ifdef __APPLE__
-	int flag = 1;
-	if (setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &flag, sizeof(flag))) {
-		::close(fd);
+	if (tll::network::setsockoptT<T>(fd, SOL_SOCKET, SO_NOSIGPIPE, 1))
 		return this->_log.fail(EINVAL, "Failed to set SO_NOSIGPIPE: {}", strerror(errno));
-	}
 #endif
 
 	tll_msg_t msg = {};
@@ -391,6 +372,7 @@ int TcpServerSocket<T>::_process(long timeout, int flags)
 	msg.size = sizeof(fd);
 	msg.data = &fd;
 	this->_callback_data(&msg);
+	fd.release();
 	return 0;
 }
 

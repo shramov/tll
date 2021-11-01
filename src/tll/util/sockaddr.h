@@ -11,6 +11,7 @@
 #include "tll/util/conv.h"
 #include "tll/util/result.h"
 
+#include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -19,6 +20,19 @@
 #include <unistd.h>
 
 namespace tll::network {
+
+static inline int nonblock(int fd)
+{
+	auto f = fcntl(fd, F_GETFL);
+	if (f == -1) return errno;
+	return fcntl(fd, F_SETFL, f | O_NONBLOCK);
+}
+
+template <typename T>
+static inline int setsockoptT(int fd, int level, int optname, T v)
+{
+	return setsockopt(fd, level, optname, &v, sizeof(v));
+}
 
 namespace _ { // Hide enum so tll::network is not polluted
 enum AddressFamily {

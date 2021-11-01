@@ -13,7 +13,6 @@
 
 #include <chrono>
 
-#include <fcntl.h>
 #include <net/if.h>
 #include <unistd.h>
 
@@ -41,19 +40,6 @@ using tll::network::AddressFamily;
 namespace {
 template <typename T> constexpr size_t _sizeof() { return sizeof(T); }
 template <> constexpr size_t _sizeof<void>() { return 0; }
-
-int nonblock(int fd)
-{
-	auto f = fcntl(fd, F_GETFL);
-	if (f == -1) return errno;
-	return fcntl(fd, F_SETFL, f | O_NONBLOCK);
-}
-
-template <typename T>
-int setsockoptT(int fd, int level, int optname, T v)
-{
-	return setsockopt(fd, level, optname, &v, sizeof(v));
-}
 } // namespace ''
 
 template <typename T, typename Frame>
@@ -233,6 +219,7 @@ int UdpSocket<T, F>::_init(const Channel::Url &url, Channel *master)
 template <typename T, typename F>
 int UdpSocket<T, F>::_open(const PropsView &url)
 {
+	using namespace tll::network;
 	if (int r = nonblock(this->fd()))
 		return this->_log.fail(EINVAL, "Failed to set nonblock: {}", strerror(r));
 
@@ -517,6 +504,7 @@ int UdpServer<F>::_init(const Channel::Url &url, Channel *master)
 template <typename F>
 int UdpServer<F>::_open(const PropsView &url)
 {
+	using namespace tll::network;
 	auto addr = tll::network::resolve(_af, SOCK_DGRAM, _host.c_str(), _port);
 	if (!addr)
 		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _host, addr.error());
