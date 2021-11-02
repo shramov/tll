@@ -427,11 +427,22 @@ TEST(Util, Ring)
 TEST(Util, DataRing)
 {
 	tll::util::DataRing<unsigned> ring(8, 64);
+	ASSERT_EQ(ring.data_capacity(), 64u);
+
+	ASSERT_EQ(ring.data_size(), 0u);
+	ASSERT_EQ(ring.data_free(), 64u);
 
 	std::string data(64 - 4, 'a');
 	ASSERT_NE(ring.push_back(1, data.data(), 28), nullptr);
+
+	ASSERT_EQ(ring.data_size(), 32u);
+	ASSERT_EQ(ring.data_free(), 32u);
+
 	data = std::string(64 - 4, 'b');
 	ASSERT_NE(ring.push_back(2, data.data(), 28), nullptr);
+
+	ASSERT_EQ(ring.data_size(), 64u);
+	ASSERT_EQ(ring.data_free(), 0u);
 
 	ASSERT_EQ(*ring.front().frame, 1u);
 	ASSERT_EQ(ring.front().size, 28u);
@@ -443,10 +454,15 @@ TEST(Util, DataRing)
 
 	ring.pop_front();
 
+	ASSERT_EQ(ring.data_size(), 32u);
+	ASSERT_EQ(ring.data_free(), 32u);
+
 	for (auto i = 0u; i < 4; i++) {
 		std::string data(4, 'a' + 2 + i);
 		fmt::print("Push {}: {}\n", i, data);
 		ASSERT_NE(ring.push_back(3 + i, data.data(), data.size()), nullptr);
+		ASSERT_EQ(ring.data_size(), 32u + 8u * (i + 1));
+		ASSERT_EQ(ring.data_free(), 32u - 8u * (i + 1));
 	}
 
 	auto sum = 0;
@@ -455,10 +471,15 @@ TEST(Util, DataRing)
 
 	ring.pop_front();
 
+	ASSERT_EQ(ring.data_size(), 32u);
+	ASSERT_EQ(ring.data_free(), 32u);
+
 	for (auto i = 0u; i < 2; i++) {
 		std::string data(12, 'a' + 6 + i);
 		fmt::print("Push {}: {}\n", i, data);
 		ASSERT_NE(ring.push_back(7 + i, data.data(), data.size()), nullptr);
+		ASSERT_EQ(ring.data_size(), 32u + 16u * (i + 1));
+		ASSERT_EQ(ring.data_free(), 32u - 16u * (i + 1));
 	}
 
 	sum = 0;

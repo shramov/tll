@@ -64,14 +64,14 @@ class Ring
 	unsigned _head = 0;
 	unsigned _tail = 0;
 
-	unsigned shift(unsigned v)
+	unsigned shift(unsigned v) const
 	{
 		if (++v == _data.size())
 			return 0;
 		return v;
 	}
 
-	unsigned prev(unsigned v)
+	unsigned prev(unsigned v) const
 	{
 		if (v == 0)
 			return _data.size() - 1;
@@ -141,6 +141,9 @@ struct framed_data_t
 
 	void * data() { return (void *) (frame + 1); }
 	const void * data() const { return (const void *) (frame + 1); }
+
+	void * begin() { return (void *) frame; }
+	const void * begin() const { return (const void *) frame; }
 	void * end() { return ((char *) data()) + size; }
 	const void * end() const { return ((const char *) data()) + size; }
 };
@@ -154,6 +157,9 @@ struct framed_data_t<void>
 
 	void * data() { return frame; }
 	const void * data() const { return frame; }
+
+	void * begin() { return frame; }
+	const void * begin() const { return frame; }
 	void * end() { return ((char *) data()) + size; }
 	const void * end() const { return ((const char *) data()) + size; }
 };
@@ -179,15 +185,11 @@ class DataRing : public Ring<framed_data_t<T>>
 		return (uint8_t *) this->back().end();
 	}
 
-	uint8_t * data_begin()
-	{
-		return _data.data();
-	}
+	uint8_t * data_begin() { return _data.data(); }
+	const uint8_t * data_begin() const { return _data.data(); }
 
-	uint8_t * data_end()
-	{
-		return _data.data() + _data.size();
-	}
+	uint8_t * data_end() { return _data.data() + _data.size(); }
+	const uint8_t * data_end() const { return _data.data() + _data.size(); }
 
 public:
 	using value_type = typename Ring<framed_data_t<T>>::value_type;
@@ -197,6 +199,23 @@ public:
 
 	void data_resize(size_t size) { this->clear(); _data.resize(size); }
 	size_t data_capacity() const { return _data.size(); }
+	size_t data_size() const {
+		if (this->empty()) return 0;
+		auto begin = static_cast<const uint8_t *>(this->front().begin());
+		auto end = static_cast<const uint8_t *>(this->back().end());
+		if (begin < end)
+			return end - begin;
+		return end + _data.size() - begin;
+	}
+
+	size_t data_free() const {
+		if (this->empty()) return _data.size();
+		auto begin = static_cast<const uint8_t *>(this->front().begin());
+		auto end = static_cast<const uint8_t *>(this->back().end());
+		if (begin < end)
+			return std::max(data_end() - end, begin - data_begin());
+		return begin - end;
+	}
 
 	value_type * push_back(const void * data, size_t size)
 	{
