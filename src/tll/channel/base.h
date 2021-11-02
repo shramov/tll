@@ -421,6 +421,15 @@ class Base
 		return old;
 	}
 
+	template <typename R, typename Fmt, typename... Args>
+	[[nodiscard]]
+	R state_fail(R err, Fmt format, Args && ... args)
+	{
+		_log.error(format, std::forward<Args>(args)...);
+		state(tll::state::Error);
+		return err;
+	}
+
 	int _child_add(tll::Channel *c, std::string_view tag = "")
 	{
 		_log.info("Add custom channel {}", tll_channel_name(c));
