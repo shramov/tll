@@ -244,12 +244,15 @@ cdef class Channel:
             raise TLLError("Init channel with url {} failed".format(url))
 
     def __dealloc__(self):
-        self.free()
+        Channel.free(self)
 
     def free(self):
-        for o in self._callbacks.keys():
-            o.finalize(None)
-        self._callbacks = {}
+        if self._ptr is NULL:
+            return
+        if self._callbacks != None:
+            for o in self._callbacks.keys():
+                o.finalize(None)
+            self._callbacks = {}
         self._scheme_cache = None
         if self._own and self._ptr is not NULL:
             tll_channel_free(self._ptr)
