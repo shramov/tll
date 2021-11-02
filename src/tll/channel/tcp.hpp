@@ -103,7 +103,7 @@ std::optional<size_t> TcpSocket<T>::_recv(size_t size)
 		return this->_log.fail(std::nullopt, "Failed to receive data: {}", strerror(errno));
 	} else if (r == 0) {
 		this->_log.debug("Connection closed");
-		this->close();
+		this->channelT()->_on_close();
 		return 0;
 	}
 #ifdef __linux__
@@ -530,10 +530,14 @@ void TcpServer<T, C>::_cleanup(tcp_socket_t * c)
 template <typename T, typename C>
 int TcpServer<T, C>::_cb_state(const tll_channel_t *c, const tll_msg_t *msg)
 {
-	if (msg->msgid == state::Error)
+	auto socket = tll::channel_cast<tcp_socket_t>(const_cast<tll_channel_t *>(c))->channelT();
+	if (msg->msgid == state::Error) {
+		this->channelT()->_on_child_error(socket);
 		_cleanup_flag = true;
-	else if (msg->msgid == state::Closing)
+	} else if (msg->msgid == state::Closing) {
+		this->channelT()->_on_child_closing(socket);
 		_cleanup_flag = true;
+	}
 	return 0;
 }
 

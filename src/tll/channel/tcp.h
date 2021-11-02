@@ -74,6 +74,11 @@ class TcpSocket : public Base<T>
 
 	int setup(const tcp_settings_t &settings);
 
+	void _on_close()
+	{
+		this->close();
+	}
+
  protected:
 	std::chrono::nanoseconds _timestamp;
 	size_t rsize() const { return _rsize - _roff; }
@@ -198,6 +203,9 @@ class TcpServer : public Base<T>
 	int _close();
 
 	int _post(const tll_msg_t *msg, int flags);
+
+	void _on_child_error(tcp_socket_t *) {}
+	void _on_child_closing(tcp_socket_t *) {}
 
  protected:
 	// Hooks
