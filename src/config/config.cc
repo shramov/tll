@@ -250,7 +250,7 @@ inline int _get_sv(std::string_view v, char * value, int * vlen)
 	}
 	memcpy(value, v.data(), v.size());
 	value[v.size()] = '\0';
-	*vlen = v.size();
+	*vlen = v.size() + 1;
 	return 0;
 }
 }
