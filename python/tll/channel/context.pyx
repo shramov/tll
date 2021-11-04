@@ -176,6 +176,7 @@ cdef class Context:
             raise TLLError("Unregister {} failed".format(obj), r)
 
     def register_loader(self):
+        if self.has_impl('python'): return
         self.register(PyLoader)
         self.register(PyPrefixLoader)
 
