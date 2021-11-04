@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
 			lurl.set("alias", acfg->copy());
 		loader = context.channel(lurl);
 		if (!loader) {
-			printf("Failed to load channel modules");
+			printf("Failed to load channel modules\n");
 			return 1;
 		}
 	}
