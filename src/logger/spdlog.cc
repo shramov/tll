@@ -119,6 +119,7 @@ struct spdlog_impl_t : public tll_logger_impl_t
 		impl->configure = [](tll_logger_impl_t * impl, const tll_config_t * cfg) { return static_cast<spdlog_impl_t *>(impl)->configure(cfg); };
 		//impl->init = [](tll_logger_impl_t * impl) { return static_cast<spdlog_impl_t *>(impl)->init(); };
 		impl->release = [](tll_logger_impl_t * impl) { return static_cast<spdlog_impl_t *>(impl)->release(); };
+		init();
 	}
 
 	static int _log(long long ns, const char * category, tll_logger_level_t level, const char * data, size_t size, void * obj)
