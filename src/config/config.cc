@@ -176,6 +176,8 @@ int tll_config_value(const tll_config_t *c)
 int tll_config_has(const tll_config_t *cfg, const char *path, int plen)
 {
 	if (!cfg) return EINVAL;
+	if (path == nullptr)
+		return cfg->value();
 	auto v = cfg->find(string_view_from_c(path, plen));
 	if (!v) return false;
 	auto lock = v->rlock();
@@ -192,14 +194,19 @@ int tll_config_del(tll_config_t *cfg, const char *path, int plen, int recursive)
 int tll_config_set(tll_config_t *cfg, const char * path, int plen, const char * value, int vlen)
 {
 	if (!cfg) return EINVAL;
+	auto v = string_view_from_c(value, vlen);
+	if (path == nullptr)
+		return cfg->set(v);
 	auto sub = cfg->find(string_view_from_c(path, plen), 1);
 	if (!sub) return EINVAL;
-	return sub->set(string_view_from_c(value, vlen));
+	return sub->set(v);
 }
 
 int tll_config_set_callback(tll_config_t *cfg, const char * path, int plen, tll_config_value_callback_t cb, void * user)
 {
 	if (!cfg) return EINVAL;
+	if (path == nullptr)
+		return cfg->set(cb, user);
 	auto sub = cfg->find(string_view_from_c(path, plen), 1);
 	if (!sub) return EINVAL;
 	return sub->set(cb, user);

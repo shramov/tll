@@ -45,6 +45,13 @@ TEST(Config, Get)
 	ASSERT_EQ(*sub->get("d"), "10");
 	v = 20;
 	ASSERT_EQ(*sub->get("d"), "20");
+
+	sub = cfg.sub("a.b.c");
+	ASSERT_TRUE(sub);
+	tll_config_set(*sub, nullptr, -1, "3", -1);
+	ASSERT_TRUE(sub->value());
+	ASSERT_TRUE(tll_config_has(*sub, nullptr, -1));
+	ASSERT_EQ(*sub->get(), "3");
 }
 
 template <typename T>
