@@ -65,6 +65,9 @@ cdef extern from "tll/channel.h" nogil:
         TLL_DCAPS_SUSPEND
         TLL_DCAPS_SUSPEND_PERMANENT
 
+    ctypedef enum tll_channel_post_flag_t:
+        TLL_POST_MORE
+
     ctypedef struct tll_addr_t:
         int64_t i64
 

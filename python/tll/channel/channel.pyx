@@ -79,6 +79,11 @@ class DCaps(enum.IntFlag):
     SuspendPermanent = TLL_DCAPS_SUSPEND_PERMANENT
 _DCaps = DCaps
 
+class PostFlags(enum.IntFlag):
+    Zero = 0
+    More = TLL_POST_MORE
+_PostFlags = PostFlags
+
 class RunGuard:
     def __init__(self, active=True):
         self._active = active
@@ -205,6 +210,7 @@ cdef class Channel:
     State = common.State
     MsgMask = _MsgMask
     Type = _Type
+    PostFlags = _PostFlags
 
     def __cinit__(self):
         self._ptr = NULL
@@ -288,7 +294,7 @@ cdef class Channel:
             raise TLLError("Post failed", r)
         return r
 
-    def post(self, data, type=None, msgid=None, seq=None, name=None, addr=None):
+    def post(self, data, type=None, msgid=None, seq=None, name=None, addr=None, flags=None):
         if isinstance(data, CMessage):
             if type == data.type and msgid is None and seq is None:
                 return self._post((<CMessage>data)._ptr, 0)
@@ -319,7 +325,7 @@ cdef class Channel:
             mv = memoryview(data)
             msg.data = PyMemoryView_GET_BUFFER(mv).buf
             msg.size = len(mv)
-        return self._post(&msg, 0)
+        return self._post(&msg, flags or 0)
 
     def callback_add(self, cb, mask = MsgMask.All, store=True):
         obj = CCallback(self, cb, mask)

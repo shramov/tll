@@ -243,11 +243,13 @@ int tll_channel_open(tll_channel_t *, const char * str, size_t len);
 /// Close channel
 int tll_channel_close(tll_channel_t *, int force);
 
-typedef enum {
-	TLL_PROCESS_ONE_LEVEL = 1,
-} tll_process_flags_t;
-
 int tll_channel_process(tll_channel_t *c, long timeout, int flags);
+
+/// Flags for tll_channel_post call
+typedef enum {
+	TLL_POST_MORE = 1, ///< More messages will be sent, equivalent of MSG_MORE flag for send(2)
+} tll_channel_post_flag_t;
+
 int tll_channel_post(tll_channel_t *c, const tll_msg_t *msg, int flags);
 
 /// Suspend channel and all children
