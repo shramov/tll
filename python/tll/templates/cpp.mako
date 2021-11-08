@@ -75,7 +75,7 @@ def field2type(f):
 	    return f"std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<{t}, {time_resolution(f)}>>";
         return t
     elif f.type == f.Decimal128:
-        return "std::array<char, 16>"
+        return "tll::util::Decimal128"
     elif f.type == f.Bytes:
 	if f.sub_type == f.Sub.ByteString:
 	    return f"tll::scheme::ByteString<{f.size}>"
