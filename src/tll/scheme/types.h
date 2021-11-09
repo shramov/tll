@@ -39,6 +39,7 @@ typedef struct __attribute__((packed)) tll_scheme_offset_ptr_t
 #ifdef __cplusplus
 
 #include "tll/util/bits.h"
+#include "tll/util/decimal128.h"
 #include "tll/util/fixed_point.h"
 #include "tll/util/offset_iterator.h"
 
@@ -50,6 +51,7 @@ typedef struct __attribute__((packed)) tll_scheme_offset_ptr_t
 namespace tll::scheme {
 
 using tll::util::Bits;
+using tll::util::Decimal128;
 using tll::util::FixedPoint;
 
 template <typename T = void, typename Ptr = tll_scheme_offset_ptr_t>
@@ -91,12 +93,6 @@ struct ByteString : public std::array<char, Size>
 	static_assert(Size > 0, "Empty Chars are not allowed");
 	operator std::string_view () const { return {this->data(), strnlen(this->data(), Size)}; }
 	ByteString operator = (std::string_view s) { memcpy(this->data(), s.data(), std::min(Size, s.size())); return *this; }
-};
-
-/// Stub declaration for decimal128 type
-struct __attribute__((packed)) Decimal128
-{
-	char bytes[16];
 };
 
 template <typename T, size_t Size, typename CountT>
