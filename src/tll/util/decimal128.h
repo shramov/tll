@@ -13,6 +13,8 @@
 
 #ifdef __cplusplus
 
+#include "tll/util/fixed_point.h"
+
 #if defined(__GLIBCXX__) && !defined(__clang__)
 #include <decimal/decimal>
 #endif
@@ -120,6 +122,19 @@ struct Decimal128 : public tll_decimal128_t
 	{
 		if (pack(s, m, exponent))
 			pack(Unpacked::nan());
+	}
+
+	template <typename T, unsigned Prec>
+	Decimal128(const FixedPoint<T, Prec> &f)
+	{
+		if constexpr (std::is_unsigned_v<T>) {
+			pack(false, f.value(), -(short) f.precision);
+		} else {
+			if (f.value() < 0) {
+				pack(true, -f.value(), -(short) f.precision);
+			} else
+				pack(false, f.value(), -(short) f.precision);
+		}
 	}
 
 #if defined(__GLIBCXX__) && !defined(__clang__)

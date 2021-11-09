@@ -4,6 +4,7 @@
 
 #include "tll/conv/decimal128.h"
 #include "tll/util/decimal128.h"
+#include "tll/util/fixed_point.h"
 
 using tll::util::Decimal128;
 
@@ -52,4 +53,8 @@ constexpr __uint128_t u128_build_18(uint64_t large, uint64_t small)
 TEST(Util, Decimal128)
 {
 #include "test_generated128.h"
+
+	using tll::util::FixedPoint;
+	ASSERT_EQ(tll::conv::to_string(Decimal128(FixedPoint<unsigned, 3>(1234u))), "1234.E-3");
+	ASSERT_EQ(tll::conv::to_string(Decimal128(FixedPoint<long long, 3>(-1234ll))), "-1234.E-3");
 }
