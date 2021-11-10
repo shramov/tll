@@ -56,7 +56,7 @@ class FixedPoint
 	bool operator >  (const FixedPoint &r) const { return _value >  r._value; }
 
 	friend FixedPoint operator + (FixedPoint l, const FixedPoint &r) { return l += r; }
-	friend FixedPoint operator - (FixedPoint l, const FixedPoint &r) { return l += r; }
+	friend FixedPoint operator - (FixedPoint l, const FixedPoint &r) { return l -= r; }
 	friend FixedPoint operator * (FixedPoint l, long long r) { return l *= r; }
 
 	static constexpr std::variant<T, std::string_view> normalize_mantissa(T m, int expfrom, int expto)
