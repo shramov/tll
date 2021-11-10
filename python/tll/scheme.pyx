@@ -382,8 +382,12 @@ cdef class FPointer(FBase):
         cdef offset_ptr_t ptr = read_optr(src, self.version, self.size)
         if ptr.size < 0: return None
         r = self.default()
+        if ptr.size == -1:
+            raise ValueError("Truncated offset ptr")
         if ptr.size == 0:
             return r
+        if ptr.offset + ptr.entity * ptr.size > len(src):
+            raise ValueError("Truncated list (size {}): end {} out of buffer size {}".format(ptr.size, ptr.offset + ptr.entity * ptr.size, len(src)))
         off = ptr.offset
         cdef int i = 0
         while i < ptr.size:
@@ -892,6 +896,8 @@ class Message(OrderedDict):
 
     def unpack(self, src, v=None):
         memoryview_check(src)
+        if len(src) < self.size:
+            raise ValueError("Buffer size {} less then message size {}".format(len(src), self.size))
         v = self.object() if v is None else v
         for f in self.fields:
             r = f.unpack_data(src[f.offset:])

@@ -422,6 +422,9 @@ def test_list(version):
     u = msg.unpack(memoryview(c.pack()))
     assert c.as_dict() == u.as_dict()
 
+    data = m.pack()
+    with pytest.raises(ValueError): msg.unpack(memoryview(data[:-10]))
+
     m = msg.object(scalar = [], fixed = [], msg = [])
     u = msg.unpack(memoryview(m.pack()))
     assert m.as_dict() == u.as_dict()
