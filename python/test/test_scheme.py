@@ -294,35 +294,44 @@ def test_import():
     assert [(f.name, f.type, f.sub_type) for f in s.aliases.values()] == [("license", F.Bytes, F.Sub.ByteString)]
     assert [m.name for m in s.messages] == ['sub', 'msg']
 
-def test_unsigned():
+@pytest.mark.parametrize("t", ['int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32'])
+def test_scalar(t):
     scheme = S.Scheme("""yamls://
 - name: msg
   fields:
-    - {name: u8, type: uint8}
-    - {name: u16, type: uint16}
-    - {name: u32, type: uint32}
-""")
+    - {name: f, type: %s}
+""" % t)
+
+    if t[0] == 'u':
+        size = int(t[4:])
+        imin = 0
+        imax = 2 ** size - 1
+    else:
+        size = int(t[3:])
+        imin = -1 * 2 ** (size - 1)
+        imax = 2 ** (size - 1) - 1
 
     msg = scheme['msg']
-    m = msg.object(u8 = 200, u16 = 50000, u32 = 0xf0000000)
-    assert m.u8 == 200
-    assert m.u16 == 50000
-    assert m.u32 == 0xf0000000
-    with pytest.raises(OverflowError): msg['u8'].from_string("0x100")
-    with pytest.raises(OverflowError): msg['u16'].from_string("0x10000")
-    with pytest.raises(OverflowError): msg['u32'].from_string("0x100000000")
-    for f in msg.fields:
-        with pytest.raises(OverflowError): f.from_string("-1")
-        with pytest.raises(OverflowError): setattr(m, f.name, -1)
-    data = memoryview(m.pack())
-    u = msg.unpack(data)
-    r = msg.reflection(data)
-    assert u.u8 == m.u8
-    assert u.u16 == m.u16
-    assert u.u32 == m.u32
-    assert r.u8 == m.u8
-    assert r.u16 == m.u16
-    assert r.u32 == m.u32
+
+    m = msg.object()
+
+    for v in [imin, imax // 2, imax]:
+        m.f = v
+        assert m.f == v
+
+        u = msg.unpack(memoryview(m.pack()))
+        assert m.as_dict() == u.as_dict()
+
+        r = msg.reflection(memoryview(m.pack()))
+        assert m.f == r.f
+
+        assert msg['f'].from_string(str(v)) == v
+        assert msg['f'].from_string(hex(v)) == v
+
+    with pytest.raises(OverflowError): msg['f'].from_string(str(imax + 1))
+    with pytest.raises(OverflowError): msg['f'].from_string(str(imin - 1))
+    with pytest.raises(OverflowError): setattr(m, 'f', imax + 1)
+    with pytest.raises(OverflowError): setattr(m, 'f', imin - 1)
 
 def test_pointer_type():
     scheme = S.Scheme("""yamls://
