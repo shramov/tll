@@ -86,3 +86,5 @@ cdef class Base:
     cdef array fields0
     cdef array fields1
     cdef object offsets
+    cdef object groups
+    cdef object normalized

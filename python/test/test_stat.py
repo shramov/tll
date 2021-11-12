@@ -56,3 +56,22 @@ def test_list_iter():
     s1.update(sum=11)
 
     assert [x.swap()[0].value for x in l] == [10, 11]
+
+class Group(S.Base):
+    FIELDS = [S.Group('int', unit=S.Unit.NS)
+             ,S.Group('float', type=float)
+             ]
+
+def test_group():
+    s = Group('test')
+    l = S.List(new=True)
+    l.add(s)
+    assert len(list(l)) == 1
+
+    s.update(int=10)
+    s.update(int=20, float=0.5)
+    s.update(int=30, float=0.1)
+
+    fields = iter(l).swap()
+    assert fields != None
+    assert [(f.name, f.count, f.sum, f.min, f.max) for f in fields] == [('int', 3, 60, 10, 30), ('float', 2, 0.6, 0.1, 0.5)]
