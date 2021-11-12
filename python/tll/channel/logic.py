@@ -2,9 +2,15 @@
 # vim: sts=4 sw=4 et
 
 from .base import Base
+from .. import stat
+
+import time
 
 class Logic(Base):
     PROCESS_POLICY = Base.ProcessPolicy.Never
+
+    class Stat(stat.Base):
+        FIELDS = Base.Stat.FIELDS + [stat.Group('time', stat.Unit.NS)]
 
     def _init(self, url, master=None):
         super()._init(url, master)
@@ -34,7 +40,15 @@ class Logic(Base):
 
     def logic(self, channel, msg):
         try:
+            stat = self.stat
+            if stat is None:
+                self._logic(channel, msg)
+                return
+            start = time.time()
             self._logic(channel, msg)
+            dt = time.time() - start
+            if msg.type == msg.Type.Data:
+                stat.update(time=1000000000 * dt)
         except Exception as e:
             self.log.exception("Logic callback failed")
             self.state = self.State.Error

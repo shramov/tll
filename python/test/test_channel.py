@@ -198,6 +198,7 @@ def test_alias():
 
 def test_logic():
     ctx = C.Context()
+    sl = ctx.stat_list
 
     with pytest.raises(TLLError): ctx.Channel("logic://;name=logic")
     ctx.register(TestLogic)
@@ -206,7 +207,13 @@ def test_logic():
 
     i = ctx.Channel('mem://;name=input;dump=yes')
     o = Accum('mem://;name=output;dump=yes', master=i, context=ctx)
-    l = ctx.Channel("logic://;name=logic;tll.channel.input=input;tll.channel.output=input")
+    l = ctx.Channel("logic://;name=logic;tll.channel.input=input;tll.channel.output=input;stat=yes")
+
+    assert len(list(sl)) == 1
+    assert [x.name for x in sl] == ['logic']
+    fields = iter(sl).swap()
+    assert [(f.name, f.value) for f in fields[:-1]] == [('rx', 0), ('rx', 0), ('tx', 0), ('tx', 0)]
+    assert (fields[-1].name, fields[-1].count) == ('time', 0)
 
     l.open()
 
@@ -224,6 +231,11 @@ def test_logic():
     o.process()
 
     assert [m.data.tobytes() for m in o.result] == [b'xxx']
+
+    fields = iter(sl).swap()
+    assert [(f.name, f.value) for f in fields[:-1]] == [('rx', 0), ('rx', 0), ('tx', 0), ('tx', 0)]
+    assert (fields[-1].name, fields[-1].count) == ('time', 1)
+    assert fields[-1].sum > 1000
 
 class _test_base_logic:
     CHANNELS = {}
