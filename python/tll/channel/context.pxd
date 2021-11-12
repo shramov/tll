@@ -4,6 +4,7 @@
 from .channel cimport tll_channel_context_t, tll_msg_t
 from .impl cimport tll_channel_internal_t, tll_channel_impl_t
 from ..config cimport Config
+from .. cimport stat
 
 cdef class Context:
     cdef tll_channel_context_t * _ptr
@@ -16,6 +17,7 @@ cdef class Internal:
     cdef object name_bytes
     cdef object name_str
     cdef Config config
+    cdef stat.Base stat_obj
 
     cdef callback(self, const tll_msg_t * msg)
 

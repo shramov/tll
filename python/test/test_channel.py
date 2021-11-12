@@ -326,3 +326,28 @@ def test_logic_async_func():
         assert m.seq == 20
 
     loop.run(main(loop))
+
+def test_stat():
+    ctx = C.Context()
+    ctx.register(Echo)
+
+    l = ctx.stat_list
+    assert len(list(l)) == 0
+
+    c = ctx.Channel("echo://;name=echo", stat='yes')
+
+    assert len(list(l)) == 1
+
+    assert [x.name for x in l] == ['echo']
+
+    c.open()
+    assert c.state == c.State.Opening
+    c.process()
+    assert c.state == c.State.Active
+
+    #assert [x.swap() for x in l] == []
+    assert [(f.name, f.value) for f in list(l)[0].swap()] == [('rx', 0), ('rx', 0), ('tx', 0), ('tx', 0)]
+
+    c.post(b'xxx', seq=100)
+
+    assert [(f.name, f.value) for f in list(l)[0].swap()] == [('rx', 1), ('rx', 3), ('tx', 1), ('tx', 3)]

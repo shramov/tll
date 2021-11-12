@@ -16,6 +16,8 @@ from ..logger import Logger
 from ..logger cimport TLL_LOGGER_INFO
 from .. import error
 from .. import scheme
+from .. import stat
+from .. cimport stat
 #from cpython.ref cimport Py_INCREF
 from cpython cimport Py_buffer
 from ..buffer cimport PyMemoryView_GET_BUFFER
@@ -66,6 +68,14 @@ MessageLogFormatMap = {
     'scheme': MessageLogFormat.Scheme,
 }
 
+class Stat(stat.Base):
+    FIELDS = [stat.Integer('rx', stat.Method.Sum)
+             ,stat.Integer('rx', stat.Method.Sum, stat.Unit.Bytes)
+             ,stat.Integer('tx', stat.Method.Sum)
+             ,stat.Integer('tx', stat.Method.Sum, stat.Unit.Bytes)
+             ]
+_Stat = Stat
+
 cdef class Base:
     PROTO = None
 
@@ -84,11 +94,14 @@ cdef class Base:
     DCaps = C.DCaps
     State = C.State
 
+    Stat = _Stat
+
     cdef Internal internal
     cdef Context context
     cdef Scheme scheme
     cdef object _children
     cdef object log
+    cdef object _dump_mode
 
     def __init__(self, context, internal):
         self.context = context
@@ -193,6 +206,9 @@ cdef class Base:
     def scheme(self, v):
         self.scheme = v
 
+    @property
+    def stat(self): return self.internal.stat
+
     def init(self, url, master=None):
         Logger('tll.python').info('Init channel {}', url)
         self.internal.state = C.State.Closed
@@ -218,6 +234,11 @@ cdef class Base:
         self._dump_mode = MessageLogFormatMap.get(dump, None)
         if self._dump_mode is None:
             raise ValueError(f"Invalid 'dump' parameter: '{dump}'")
+
+        stat = url.getT('stat', False)
+        if stat:
+            self.log.debug("Initialize stat with {}", self.Stat)
+            self.internal.stat = self.Stat(self.name)
 
         self.log.info("Init channel")
         self._init(url, master)

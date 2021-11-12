@@ -1,6 +1,7 @@
 # vim: sts=4 sw=4 et
 # cython: language_level=3
 
+from cpython.array cimport array
 from libc.stdint cimport int64_t
 
 cdef extern from "tll/stat.h" nogil:
@@ -76,3 +77,12 @@ cdef class List:
 
     @staticmethod
     cdef tll_stat_block_t * unwrap(object obj)
+
+cdef class Base:
+    cdef object name
+    cdef tll_stat_block_t block
+    cdef tll_stat_page_t page0
+    cdef tll_stat_page_t page1
+    cdef array fields0
+    cdef array fields1
+    cdef object offsets

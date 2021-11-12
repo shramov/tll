@@ -147,6 +147,7 @@ cdef class PyLog:
         try:
             lcfg = config.sub('python').as_dict()
             lcfg['version'] = int(lcfg.get('version', '1'))
+            print(lcfg)
             logging.config.dictConfig(lcfg)
         except Exception as e:
             Logger("tll.logger.python").exception("Failed to configure python logging")

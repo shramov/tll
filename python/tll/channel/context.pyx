@@ -61,6 +61,16 @@ cdef class Internal:
     @property
     def config(self): return self.config
 
+    @property
+    def stat(self): return self.stat_obj
+
+    @stat.setter
+    def stat(self, stat):
+        if self.stat_obj != None:
+            raise RuntimeError("Can not change stat block")
+        self.stat_obj = stat
+        self.internal.stat = &self.stat_obj.block
+
     cdef callback(self, const tll_msg_t * msg):
         return tll_channel_callback(&self.internal, msg)
 

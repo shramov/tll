@@ -12,7 +12,6 @@ import enum
 import time
 from collections import namedtuple
 
-#from libc.string cimport strnlen
 cdef extern from "string.h":
     cdef size_t strnlen(const char *s, size_t maxlen)
 
@@ -111,14 +110,6 @@ def Float(name, method=Method.Sum, unit=Unit.Unknown):
 
 cdef class Base:
     FIELDS = []
-
-    cdef object name
-    cdef tll_stat_block_t block
-    cdef tll_stat_page_t page0
-    cdef tll_stat_page_t page1
-    cdef array fields0
-    cdef array fields1
-    cdef object offsets
 
     def __cinit__(self, name):
         self.name = s2b(name)
