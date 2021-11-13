@@ -147,11 +147,11 @@ cdef class Block:
     def release(self):
         tll_stat_page_release(self.ptr, NULL)
 
-def Integer(name, method=Method.Sum, unit=Unit.Unknown):
-    return {'name':name, 'method':method, 'unit':unit, 'type':int}
+def Integer(name, method=Method.Sum, unit=Unit.Unknown, alias=None):
+    return {'name':name, 'method':method, 'unit':unit, 'type':int, 'alias': alias or name}
 
-def Float(name, method=Method.Sum, unit=Unit.Unknown):
-    return {'name':name, 'method':method, 'unit':unit, 'type':float}
+def Float(name, method=Method.Sum, unit=Unit.Unknown, alias=None):
+    return {'name':name, 'method':method, 'unit':unit, 'type':float, 'alias': alias or name}
 
 class Group:
     def __init__(self, name, unit=Unit.Unknown, type=int):
@@ -203,7 +203,7 @@ cdef class Base:
             self.page1.fields[i].unit = f.get('unit', Unit.Unknown).value
             tll_stat_field_reset(&self.page0.fields[i])
             tll_stat_field_reset(&self.page1.fields[i])
-            self.offsets[f['name']] = i
+            self.offsets[f.get('alias', f['name'])] = i
             if f['name'] == '_tllgrp':
                 self.groups[self.normalized[i+1]['name']] = i
 

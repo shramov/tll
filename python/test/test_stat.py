@@ -75,3 +75,22 @@ def test_group():
     fields = iter(l).swap()
     assert fields != None
     assert [(f.name, f.count, f.sum, f.min, f.max) for f in fields] == [('int', 3, 60, 10, 30), ('float', 2, 0.6, 0.1, 0.5)]
+
+class Alias(S.Base):
+    FIELDS = [S.Integer('rx', S.Method.Sum)
+             ,S.Integer('rx', S.Method.Sum, unit=S.Unit.Bytes, alias='rxb')
+             ]
+
+def test_alias():
+    s = Alias('test')
+    l = S.List(new=True)
+    assert len(list(l)) == 0
+    l.add(s)
+    assert len(list(l)) == 1
+
+    s.update(rx=1, rxb=100)
+    s.update(rx=1)
+
+    fields = iter(l).swap()
+    assert fields != None
+    assert [(f.name, f.value) for f in fields] == [('rx', 2), ('rx', 100)]
