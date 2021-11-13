@@ -70,9 +70,9 @@ MessageLogFormatMap = {
 
 class Stat(stat.Base):
     FIELDS = [stat.Integer('rx', stat.Method.Sum)
-             ,stat.Integer('rx', stat.Method.Sum, stat.Unit.Bytes)
+             ,stat.Integer('rx', stat.Method.Sum, stat.Unit.Bytes, alias='rxb')
              ,stat.Integer('tx', stat.Method.Sum)
-             ,stat.Integer('tx', stat.Method.Sum, stat.Unit.Bytes)
+             ,stat.Integer('tx', stat.Method.Sum, stat.Unit.Bytes, alias='txb')
              ]
 _Stat = Stat
 

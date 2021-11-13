@@ -48,7 +48,7 @@ class Logic(Base):
             self._logic(channel, msg)
             dt = time.time() - start
             if msg.type == msg.Type.Data:
-                stat.update(time=1000000000 * dt)
+                stat.update(time=1000000000 * dt, rx=1, rxb=len(msg.data))
         except Exception as e:
             self.log.exception("Logic callback failed")
             self.state = self.State.Error

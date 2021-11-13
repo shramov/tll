@@ -233,7 +233,7 @@ def test_logic():
     assert [m.data.tobytes() for m in o.result] == [b'xxx']
 
     fields = iter(sl).swap()
-    assert [(f.name, f.value) for f in fields[:-1]] == [('rx', 0), ('rx', 0), ('tx', 0), ('tx', 0)]
+    assert [(f.name, f.value) for f in fields[:-1]] == [('rx', 1), ('rx', 3), ('tx', 0), ('tx', 0)]
     assert (fields[-1].name, fields[-1].count) == ('time', 1)
     assert fields[-1].sum > 1000
 
