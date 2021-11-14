@@ -81,6 +81,19 @@ struct __attribute__((packed)) offset_ptr_t : public Ptr
 template <typename T = void> using offset_ptr_legacy_short_t = offset_ptr_t<T, tll_scheme_offset_ptr_legacy_short_t>;
 template <typename T = void> using offset_ptr_legacy_long_t = offset_ptr_t<T, tll_scheme_offset_ptr_legacy_long_t>;
 
+template <typename Ptr = tll_scheme_offset_ptr_t>
+struct __attribute__((packed)) String : public offset_ptr_t<char, Ptr>
+{
+	operator std::string_view () const
+	{
+		if (this->size == 0)
+			return std::string_view("");
+		return std::string_view(this->data(), this->size - 1);
+	}
+
+	std::string_view operator * () const { return static_cast<std::string_view>(*this); }
+};
+
 template <size_t Size>
 struct Bytes : public std::array<unsigned char, Size>
 {
