@@ -20,6 +20,7 @@ from .. import error
 from collections import namedtuple
 import weakref
 from .. import scheme
+from ..logger import Logger
 from .context cimport Context
 from .context import Context
 from .common cimport *
@@ -118,6 +119,7 @@ cdef int ccallback_destroy_cb(const tll_channel_t * c, const tll_msg_t *msg, voi
 
 cdef int ccallback_cb(const tll_channel_t * c, const tll_msg_t *msg, void * user) with gil:
     cb = <CCallback>user
+    func = None
     try:
         func = cb._func_ref()
         if func is None:
@@ -129,8 +131,8 @@ cdef int ccallback_cb(const tll_channel_t * c, const tll_msg_t *msg, void * user
         if r is not None:
             return r
     except:
-        import traceback
-        traceback.print_exc()
+        log = Logger('tll.python')
+        log.exception("Exception in callback {}", func)
         return EINVAL
     return 0
 
