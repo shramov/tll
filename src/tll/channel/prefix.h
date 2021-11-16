@@ -95,11 +95,18 @@ public:
 
 	int callback(const Channel * c, const tll_msg_t *msg)
 	{
-		if (msg->type == TLL_MESSAGE_DATA)
-			return this->channelT()->_on_data(msg);
-		else if (msg->type == TLL_MESSAGE_STATE)
-			return this->channelT()->_on_state(msg);
-		return this->channelT()->_on_other(msg);
+		if (msg->type == TLL_MESSAGE_DATA) {
+			if (auto r = this->channelT()->_on_data(msg); r)
+				return this->state_fail(r, "Data hook failed");
+			return 0;
+		} else if (msg->type == TLL_MESSAGE_STATE) {
+			if (auto r = this->channelT()->_on_state(msg); r)
+				return this->state_fail(r, "State hook failed");
+			return 0;
+		}
+		if (auto r = this->channelT()->_on_other(msg); r)
+			return this->state_fail(r, "Other hook failed");
+		return 0;
 	}
 
 	/// Modify Url of child channel
