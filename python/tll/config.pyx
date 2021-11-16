@@ -101,26 +101,29 @@ cdef class Config:
     def set_callback(self, key, value):
         raise NotImplemented()
 
-    def _get(self):
+    def _get(self, decode=True):
         if tll_config_value(self._ptr) == 0: return None
         cdef int len = 0;
         cdef char * buf = tll_config_get_copy(self._ptr, NULL, 0, &len)
         if buf == NULL:
             return None
         try:
-            return b2s(buf[:len])
+            if decode:
+                return b2s(buf[:len])
+            else:
+                return buf[:len]
         finally:
             tll_config_value_free(buf)
 
-    def get(self, key=None, default=__default_tag):
-        if key is None: return self._get()
+    def get(self, key=None, default=__default_tag, decode=True):
+        if key is None: return self._get(decode=decode)
         k = s2b(key)
         cdef tll_config_t * cfg = tll_config_sub(self._ptr, k, len(k), 0)
         if cfg == NULL:
             if default == __default_tag:
                 raise KeyError("Key {} not found".format(key))
             return default
-        return Config.wrap(cfg).get()
+        return Config.wrap(cfg).get(decode=decode)
 
     def getT(self, key, default):
         return getT(self, key, default)
