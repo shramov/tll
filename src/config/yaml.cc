@@ -8,6 +8,7 @@
 #include "tll/config.h"
 
 #include "tll/logger.h"
+#include "tll/util/bin2ascii.h"
 #include "tll/util/conv.h"
 #include "tll/util/result.h"
 
@@ -122,7 +123,16 @@ int state_t::parse(const yaml_event_t &event)
 			auto k = key_string();
 			if (cfg.has(k))
 				return _log.fail(EINVAL, "Failed to set value {}: duplicate entry", k);
-			if (cfg.set(k, value))
+			if (event.data.scalar.tag) {
+				std::string_view tag((const char *) event.data.scalar.tag);
+				if (tag != "tag:yaml.org,2002:binary")
+					return _log.fail(EINVAL, "Unknown tag {}: '{}'", k, tag);
+				auto r = tll::util::b64_decode(value);
+				if (!r)
+					return _log.fail(EINVAL, "Invalid binary data for {}: {}", k, r.error());
+				if (cfg.set(k, {r->data(), r->size()}))
+					return _log.fail(EINVAL, "Failed to set value {}: {}", k, value);
+			} else if (cfg.set(k, value))
 				return _log.fail(EINVAL, "Failed to set value {}: {}", k, value);
 			anchor(event.data.scalar.anchor, *cfg.sub(k), "scalar");
 		} else

@@ -147,3 +147,10 @@ c: *map
 ''')
 
     assert c.as_dict() == {'a': ['100', '200'], 'b': {'a': '100', 'b': ['100', '200']}, 'c': {'a': '100', 'b': ['100', '200']}}
+
+def test_yaml_binary():
+    with pytest.raises(TLLError): Config.load('''yamls://{a: !!binary ___}''')
+
+    c = Config.load('''yamls://{a: !!binary AAECAw== }''')
+
+    assert c.get('a', decode=False) == b'\x00\x01\x02\x03'
