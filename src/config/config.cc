@@ -260,6 +260,14 @@ inline int _get_sv(std::string_view v, char * value, int * vlen)
 	*vlen = v.size();
 	return 0;
 }
+
+void * memdup(const void * ptr, size_t size)
+{
+	auto r = malloc(size);
+	if (r)
+		memcpy(r, ptr, size);
+	return r;
+}
 }
 
 int tll_config_get(const tll_config_t *c, const char *path, int plen, char *value, int * vlen)
@@ -302,7 +310,7 @@ char * tll_config_get_copy(const tll_config_t *c, const char *path, int plen, in
 	if (std::holds_alternative<std::string>(c->data)) {
 		auto & v = std::get<std::string>(c->data);
 		if (vlen) *vlen = v.size();
-		return strdup(v.data());
+		return (char *) memdup(v.data(), v.size() + 1);
 	} else if (std::holds_alternative<tll_config_t::cb_pair_t>(c->data)) {
 		auto v = std::get<tll_config_t::cb_pair_t>(c->data);
 		lock.unlock();
