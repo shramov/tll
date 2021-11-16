@@ -128,12 +128,12 @@ def test_direct():
     assert c.dcaps == 0
 
     s.post(b'yyy', seq=20)
-    assert [(m.data.tobytes(), m.seq) for m in c.result], [(b'yyy' == 20)]
+    assert [(m.data.tobytes(), m.seq) for m in c.result] == [(b'yyy', 20)]
     assert s.result == []
 
     c.post(b'yyy', seq=21)
-    assert [(m.data.tobytes(), m.seq) for m in c.result], [(b'yyy' == 20)]
-    assert [(m.data.tobytes(), m.seq) for m in s.result], [(b'yyy' == 21)]
+    assert [(m.data.tobytes(), m.seq) for m in c.result] == [(b'yyy', 20)]
+    assert [(m.data.tobytes(), m.seq) for m in s.result] == [(b'yyy', 21)]
 
     c.close()
     c.result = []
@@ -171,7 +171,7 @@ def test_mem(fd=True, **kw):
     s.post(b'yyy', seq=20)
     c.process()
     assert s.result == []
-    assert [(m.data.tobytes(), m.seq) for m in c.result], [(b'xxx' == 10)]
+    assert [(m.data.tobytes(), m.seq) for m in c.result] == [(b'xxx', 10)]
     if c.fd is not None:
         assert poll.poll(0), [(c.fd == select.POLLIN)]
     assert c.dcaps & c.DCaps.Pending == c.DCaps.Pending
@@ -179,7 +179,7 @@ def test_mem(fd=True, **kw):
 
     c.process()
     assert s.result == []
-    assert [(m.data.tobytes(), m.seq) for m in c.result], [(b'yyy' == 20)]
+    assert [(m.data.tobytes(), m.seq) for m in c.result] == [(b'yyy', 20)]
     c.result = []
     if c.fd is not None:
         assert poll.poll(0) == []
@@ -191,9 +191,9 @@ def test_mem(fd=True, **kw):
 
     c.post(b'yyy', seq=21)
     if c.fd is not None:
-        assert poll.poll(0), [(s.fd == select.POLLIN)]
+        assert poll.poll(0) == [(s.fd, select.POLLIN)]
     s.process()
-    assert [(m.data.tobytes(), m.seq) for m in s.result], [(b'yyy' == 21)]
+    assert [(m.data.tobytes(), m.seq) for m in s.result] == [(b'yyy', 21)]
 
 def test_mem_nofd():
     test_mem(fd=False)
@@ -249,11 +249,11 @@ class TestSerial:
         assert poll.poll(0) == []
 
         c.post(b'xxx');
-        assert poll.poll(0), [(self.m == select.POLLIN)]
+        assert poll.poll(0) == [(self.m, select.POLLIN)]
         assert os.read(self.m, 100) == b'xxx'
 
         os.write(self.m, b'data')
-        assert poll.poll(0), [(c.fd == select.POLLIN)]
+        assert poll.poll(0) == [(c.fd, select.POLLIN)]
 
         c.process()
         assert [x.data.tobytes() for x in c.result] == [b'data']
