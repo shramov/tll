@@ -29,8 +29,14 @@ class offset_iterator
 	offset_iterator & operator ++ () { _raw += _step; return *this; }
 	offset_iterator operator ++ (int) { auto tmp = *this; ++*this; return tmp; }
 
+	offset_iterator & operator -- () { _raw -= _step; return *this; }
+	offset_iterator operator -- (int) { auto tmp = *this; --*this; return tmp; }
+
 	offset_iterator & operator += (size_t i) { _raw += i * _step; return *this; }
-	offset_iterator operator + (size_t i) const { auto tmp = *this;tmp += i; return tmp; }
+	offset_iterator operator + (size_t i) const { auto tmp = *this; tmp += i; return tmp; }
+
+	offset_iterator & operator -= (size_t i) { _raw -= i * _step; return *this; }
+	offset_iterator operator - (size_t i) const { auto tmp = *this; tmp -= i; return tmp; }
 
 	bool operator == (const offset_iterator &rhs) const { return _data == rhs._data; }
 	bool operator != (const offset_iterator &rhs) const { return _data != rhs._data; }
