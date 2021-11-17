@@ -185,6 +185,25 @@ int ChYaml::_fill(View view, const tll::scheme::Field * field, tll::ConstConfig 
 				return _log.fail(EINVAL, "Failed to fill offset list element {}", i - 1);
 		}
 		return 0;
+	} else if (field->type == Field::Union) {
+		auto l = cfg.browse("*", true);
+		if (l.size() == 0)
+			return 0;
+		if (l.size() > 1)
+			return _log.fail(EINVAL, "Failed to fill union: too many keys");
+		auto key = l.begin()->first;
+		for (auto i = 0u; i < field->type_union->size; i++) {
+			auto uf = field->type_union->fields + i;
+			_log.trace("Check union type {}", uf->name);
+			if (key == uf->name) {
+				_log.trace("Write union type {}: {}", key, i);
+				tll::scheme::write_size(field->type_union->type_ptr, view, i);
+				if (_fill(view.view(uf->offset), uf, l.begin()->second))
+					return _log.fail(EINVAL, "Failed to fill union body type {}", key);
+				return 0;
+			}
+		}
+		return _log.fail(EINVAL, "Unknown union type: {}", key);
 	}
 
 	auto v = cfg.get();
@@ -220,6 +239,7 @@ int ChYaml::_fill(View view, const tll::scheme::Field * field, tll::ConstConfig 
 	case Field::Message:
 	case Field::Array:
 	case Field::Pointer:
+	case Field::Union:
 		// Already handled, allows compiler to check completeness
 		break;
 	}

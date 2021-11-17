@@ -6,6 +6,7 @@ from tll.config import Config
 from tll import asynctll
 from tll.test_util import Accum
 from tll.chrono import *
+from tll.error import TLLError
 
 import common
 
@@ -185,3 +186,41 @@ config:
     assert [(m.msgid, m.seq) for m in c.result] == [(10, j) for j in range(4)]
     for i in range(4):
         assert c.unpack(c.result[i]).as_dict() == {'f0': i}
+
+@pytest.mark.parametrize("data,r", [
+    ('{xxx: 10}', None),
+    ('{i8: xxx}', None),
+    ('{i8: 10}', ('i8', 10)),
+    ('{string: string}', ('string', 'string')),
+    ('{sub: {s0: 10}}', ('sub', {'s0': 10})),
+    ('{array: [1, 2, 3]}', ('array', [1, 2, 3]))
+])
+def test_union(data, r):
+    scheme = '''yamls://
+- name: sub
+  fields:
+    - {name: s0, type: int8}
+- name: msg
+  id: 10
+  fields:
+    - {name: f0, type: union, union: [{name: i8, type: int8}, {name: string, type: string}, {name: sub, type: sub}, {name: array, type: 'int8[4]'}]}
+'''
+    url = Config.load(f'''yamls://
+tll.proto: yaml
+name: yaml
+dump: scheme
+config.0:
+  name: msg
+  data.f0: %s
+''' % data)
+    url['scheme'] = scheme
+    c = Accum(url)
+    c.open()
+    if r is None:
+        with pytest.raises(TLLError): c.process()
+        assert c.state == c.State.Error
+        return
+    c.process()
+    assert [(m.msgid, m.seq) for m in c.result] == [(10, 0)]
+    m = c.unpack(c.result[0])
+    assert m.as_dict() == {'f0': r}
