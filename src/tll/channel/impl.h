@@ -266,6 +266,9 @@ constexpr channel_module_t<sizeof...(Args)> make_channel_module()
 	return channel_module_t<sizeof...(Args)>(&Args::impl...);
 }
 
+#define TLL_DEFINE_MODULE(...) \
+auto channel_module = tll::make_channel_module<__VA_ARGS__>()
+
 namespace channel::log_msg_format {
 
 static constexpr auto Disable = TLL_MESSAGE_LOG_DISABLE;

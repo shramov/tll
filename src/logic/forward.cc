@@ -43,4 +43,4 @@ int Forward::logic(const tll::Channel * c, const tll_msg_t *msg)
 
 TLL_DEFINE_IMPL(Forward);
 
-auto channel_module = tll::make_channel_module<Forward>();
+TLL_DEFINE_MODULE(Forward);
