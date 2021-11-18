@@ -98,14 +98,13 @@ public:
 		if (msg->type == TLL_MESSAGE_DATA) {
 			if (auto r = this->channelT()->_on_data(msg); r)
 				return this->state_fail(r, "Data hook failed");
-			return 0;
 		} else if (msg->type == TLL_MESSAGE_STATE) {
 			if (auto r = this->channelT()->_on_state(msg); r)
 				return this->state_fail(r, "State hook failed");
-			return 0;
+		} else {
+			if (auto r = this->channelT()->_on_other(msg); r)
+				return this->state_fail(r, "Other hook failed");
 		}
-		if (auto r = this->channelT()->_on_other(msg); r)
-			return this->state_fail(r, "Other hook failed");
 		return 0;
 	}
 
@@ -130,11 +129,7 @@ public:
 		auto s = (tll_state_t) msg->msgid;
 		switch (s) {
 		case tll::state::Active:
-			if (this->channelT()->_on_active()) {
-				this->state(tll::state::Error);
-				return 0;
-			}
-			break;
+			return this->channelT()->_on_active();
 		case tll::state::Error:
 			return this->channelT()->_on_error();
 		case tll::state::Closing:
@@ -144,7 +139,6 @@ public:
 		default:
 			break;
 		}
-		this->state(s);
 		return 0;
 	}
 
