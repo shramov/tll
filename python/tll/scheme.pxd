@@ -16,6 +16,7 @@ cdef extern from "tll/scheme.h":
         TLL_SCHEME_FIELD_MESSAGE
         TLL_SCHEME_FIELD_ARRAY
         TLL_SCHEME_FIELD_POINTER
+        TLL_SCHEME_FIELD_UNION
 
     ctypedef enum tll_scheme_sub_type_t:
         TLL_SCHEME_SUB_NONE
@@ -63,6 +64,14 @@ cdef extern from "tll/scheme.h":
         tll_scheme_enum_value_t * values
         tll_scheme_option_t * options
 
+    ctypedef struct tll_scheme_union_t:
+        #tll_scheme_union_t * next
+        const char * name
+        tll_scheme_field_t * type_ptr
+        tll_scheme_field_t * fields
+        size_t size
+        tll_scheme_option_t * options
+
     ctypedef struct tll_scheme_field_t:
         tll_scheme_field_t * next
         tll_scheme_option_t * options
@@ -88,6 +97,7 @@ cdef extern from "tll/scheme.h":
 
         tll_scheme_bit_field_t * bitfields
 
+        tll_scheme_union_t * type_union
 
     ctypedef struct tll_scheme_message_t:
         tll_scheme_message_t * next

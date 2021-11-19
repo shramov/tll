@@ -9,7 +9,7 @@ from libc.errno cimport EINVAL, EMSGSIZE
 from cython cimport typeof
 from cpython.version cimport PY_MAJOR_VERSION
 
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 import copy
 from decimal import Decimal
 import enum
@@ -33,6 +33,7 @@ class Type(enum.Enum):
     Message = TLL_SCHEME_FIELD_MESSAGE
     Array = TLL_SCHEME_FIELD_ARRAY
     Pointer = TLL_SCHEME_FIELD_POINTER
+    Union = TLL_SCHEME_FIELD_UNION
 
 class SubType(enum.Enum):
     NONE = TLL_SCHEME_SUB_NONE
@@ -82,6 +83,24 @@ cdef enum_wrap(tll_scheme_enum_t * ptr):
         r[b2s(e.name)] = e.value
         e = e.next
     r.klass = enum.Enum(r.name, r)
+    return r
+
+class Union(OrderedDict):
+    pass
+
+cdef union_wrap(Scheme s, object m, tll_scheme_union_t * ptr):
+    r = Union()
+    r.options = Options.wrap(ptr.options)
+    r.name = b2s(ptr.name)
+    r.name_bytes = ptr.name
+    r.type_ptr = field_wrap(s, m, ptr.type_ptr)
+    r.fields = []
+    for i in range(ptr.size):
+        f = field_wrap(s, m, &ptr.fields[i])
+        r[f.name] = f
+        f.union_index = i
+        r.fields.append(f)
+    r.klass = namedtuple('Union', ['type', 'value'])
     return r
 
 def memoryview_check(o):
@@ -437,6 +456,54 @@ cdef class FMessage(FBase):
         return _as_dict_msg(self.type_msg, v)
 _TYPES[Type.Message] = FMessage
 
+cdef class FUnion(FBase):
+    cdef object type_union
+    cdef object type_ptr
+    cdef object default
+
+    def __init__(self, f):
+        self.type_union = f.type_union
+        self.type_ptr = f.type_union.type_ptr
+        self.default = lambda: None
+
+    cdef pack(FUnion self, v, dest, tail, int tail_offset):
+        f = self.type_union[v[0]]
+        self.type_ptr.pack_data(f.union_index, dest[:self.type_ptr.size], b'', 0)
+        return f.pack_data(v[1], dest[f.offset:f.offset + f.size], tail, tail_offset - f.offset)
+
+    cdef unpack(FUnion self, src):
+        idx = self.type_ptr.unpack_data(src)
+        if idx < 0 or idx > len(self.type_union.fields):
+            raise ValueError(f"Invalid union index: {idx}")
+        f = self.type_union.fields[idx]
+        return self.type_union.klass(f.name, f.unpack_data(src[f.offset:]))
+    """
+    cdef reflection(FUnion self, src):
+        return self.type_msg.reflection(src)
+    """
+
+    cdef convert(FUnion self, v):
+        if isinstance(v, dict):
+            items = v.items()
+            if len(items) != 1:
+                raise TypeError(f"Invalid union dict: {v}")
+            k, v = items[0]
+        elif isinstance(v, tuple):
+            if len(v) != 2:
+                raise TypeError(f"Invalid union tuple: {v}")
+            k, v = v
+        else:
+            raise TypeError(f"Can not convert {type(v)} to union")
+        f = self.type_union.get(k, None)
+        if f is None:
+            raise TypeError(f"Invalid union type value: {k}")
+        return self.type_union.klass(k, f.convert(v))
+
+    cdef as_dict(self, v):
+        f = self.type_union[v[0]]
+        return self.type_union.klass(v[0], f.as_dict(v[1]))
+_TYPES[Type.Union] = FUnion
+
 _SUBTYPES = {}
 
 cdef class FEnum(FBase):
@@ -747,6 +814,8 @@ cdef object field_wrap(Scheme s, object m, tll_scheme_field_t * ptr):
             SCHEME = r.type_ptr
         L.__name__ = r.name
         r.list = L
+    elif r.type == r.Union:
+        r.type_union = union_wrap(s, m, ptr.type_union)
     elif r.sub_type == r.Sub.Enum:
         ename = b2s(ptr.type_enum.name)
         r.type_enum = m.enums.get(ename, s.enums.get(ename, None))
