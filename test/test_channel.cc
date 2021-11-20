@@ -82,21 +82,37 @@ class Reopen : public tll::channel::Reopen<Reopen>
 
 	int _init(const tll::Channel::Url &url, tll::Channel *master)
 	{
-		_child = context().channel(fmt::format("tcp://*:9;mode=client;name={}/child;tll.internal=yes", name));
+		auto curl = url.getT<tll::Channel::Url>("child");
+		if (!curl)
+			return _log.fail(EINVAL, "Invalid child url: {}", curl.error());
+		curl->set("name", fmt::format("{}/child", name));
+		curl->set("tll.internal", "yes");
+		_child = context().channel(*curl);
 		if (_child)
 			_reopen_reset(_child.get());
 		_child_add(_child.get(), "tcp");
 		return Base::_init(url, master);
 	}
-
-	int _close()
-	{
-		_child->close();
-		return Base::_close();
-	}
 };
 
 TLL_DEFINE_IMPL(Reopen);
+
+class ReopenChild : public tll::channel::Base<ReopenChild>
+{
+ public:
+	static constexpr std::string_view channel_protocol() { return "reopen-child"; }
+	static constexpr auto open_policy() { return OpenPolicy::Manual; }
+	static constexpr auto process_policy() { return ProcessPolicy::Never; }
+
+	int post(const tll_msg_t *msg, int flags) // Override Base::post
+	{
+		if (msg->type == TLL_MESSAGE_CONTROL)
+			state((tll_state_t) msg->msgid);
+		return 0;
+	}
+};
+
+TLL_DEFINE_IMPL(ReopenChild);
 
 TEST(Channel, Register)
 {
@@ -290,8 +306,7 @@ public:
 
 	~Accum() { reset(); }
 
-
-	void reset() { _ptr.reset(); }
+	void reset(){ _ptr.reset(); }
 
 	tll::Channel * operator -> () { return get(); }
 	const tll::Channel * operator -> () const { return get(); }
@@ -407,7 +422,8 @@ TEST(Channel, Reopen)
 {
 	auto ctx = tll::channel::Context(tll::Config());
 	ASSERT_EQ(ctx.reg(&Reopen::impl), 0);
-	Accum s = ctx.channel("reopen://;reopen-timeout-min=100ms;reopen-timeout-max=3s;name=reopen");
+	ASSERT_EQ(ctx.reg(&ReopenChild::impl), 0);
+	Accum s = ctx.channel("reopen://;child=reopen-child://;reopen-timeout-min=100us;reopen-timeout-max=3s;name=reopen");
 	ASSERT_NE(s.get(), nullptr);
 
 	s->open();
@@ -417,4 +433,36 @@ TEST(Channel, Reopen)
 	ASSERT_NE(s->children(), nullptr);
 	ASSERT_NE(s->children()->next, nullptr);
 	ASSERT_EQ(s->children()->next->next, nullptr);
+
+	auto c = static_cast<tll::Channel *>(s->children()->channel);
+	auto timer = static_cast<tll::Channel *>(s->children()->next->channel);
+
+	tll_msg_t msg = {};
+	msg.type = TLL_MESSAGE_CONTROL;
+	msg.msgid = tll::state::Error;
+
+	ASSERT_NE(c, nullptr);
+	ASSERT_NE(timer, nullptr);
+
+	ASSERT_STREQ(c->name(), "reopen/child");
+	ASSERT_EQ(c->state(), tll::state::Opening);
+
+	ASSERT_STREQ(timer->name(), "reopen/reopen-timer");
+	ASSERT_EQ(timer->state(), tll::state::Active);
+	ASSERT_EQ(timer->dcaps(), 0u);
+
+	c->post(&msg);
+	ASSERT_EQ(c->state(), tll::state::Error);
+	ASSERT_NE(timer->dcaps() & tll::dcaps::Process, 0u);
+
+	timer->process();
+	ASSERT_EQ(c->state(), tll::state::Closed);
+	ASSERT_NE(timer->dcaps() & tll::dcaps::Process, 0u);
+
+	usleep(100);
+	timer->process();
+	ASSERT_EQ(c->state(), tll::state::Opening);
+
+	s->close();
+	ASSERT_EQ(c->state(), tll::state::Closed);
 }
