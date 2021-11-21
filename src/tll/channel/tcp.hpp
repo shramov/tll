@@ -200,7 +200,7 @@ int TcpSocket<T>::_process(long timeout, int flags)
 	msg.data = _rbuf.data();
 	msg.size = *r;
 	msg.addr = _msg_addr;
-	msg.timestamp = _timestamp.count();
+	msg.time = _timestamp.count();
 	this->_callback_data(&msg);
 	rdone(*r);
 	rshift();

@@ -72,7 +72,7 @@ typedef struct {
 	const void * data; 	///< Data pointer
 	size_t size;		///< Data size
 	tll_addr_t addr;	///< Peer address
-	long long timestamp;	///< Timestamp in nanoseconds
+	long long time;	        ///< Timestamp in nanoseconds
 } tll_msg_t;
 
 /// Copy meta info from one message to another

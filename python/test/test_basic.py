@@ -316,7 +316,7 @@ class _test_tcp_base:
         assert [m.data.tobytes() for m in s.result] == [b'xxx'] # No frame
         assert [(m.seq, m.msgid) for m in s.result] == [(0x6ead, 0x6eef) if self.FRAME else (0, 0)] # No frame
         if self.TIMESTAMP:
-            assert s.result[-1].timestamp.seconds == pytest.approx(timestamp, 0.001)
+            assert s.result[-1].time.seconds == pytest.approx(timestamp, 0.001)
 
         s.post(b'zzzz', seq=0x6eef, msgid=0x6ead, addr=s.result[-1].addr)
         timestamp = time.time()
@@ -327,7 +327,7 @@ class _test_tcp_base:
         assert [m.data.tobytes() for m in c.result] == [b'zzzz'] # No frame
         assert [(m.seq, m.msgid) for m in c.result] == [(0x6eef, 0x6ead) if self.FRAME else (0, 0)] # No frame
         if self.TIMESTAMP:
-            assert s.result[-1].timestamp.seconds == pytest.approx(timestamp, 0.001)
+            assert s.result[-1].time.seconds == pytest.approx(timestamp, 0.001)
 
     def test_open_fail(self):
         c = self.c
@@ -428,7 +428,7 @@ class _test_udp_base:
                 assert cpoll.poll(10) != []
                 c.process()
             assert [(m.seq, m.msgid) for m in c.result if m.type == m.Type.Control] == [(0, 10)]
-            assert c.result[-1].timestamp.seconds == pytest.approx(timestamp, 0.001)
+            assert c.result[-1].time.seconds == pytest.approx(timestamp, 0.001)
 
         assert spoll.poll(10) != []
         s.process()
@@ -437,7 +437,7 @@ class _test_udp_base:
         assert [(m.seq, m.msgid) for m in s.result] == [(0x6ead, 0x6eef) if self.FRAME else (0, 0)] # No frame
 
         if self.TIMESTAMP:
-            assert s.result[-1].timestamp.seconds == pytest.approx(timestamp, 0.001)
+            assert s.result[-1].time.seconds == pytest.approx(timestamp, 0.001)
 
         if self.CLEANUP: return # Unix sockets don't have return address
         s.post(b'zzzz', seq=0x6eef, msgid=0x6ead, addr=s.result[0].addr)

@@ -354,7 +354,7 @@ int UdpSocket<T, Frame>::_process(long timeout, int flags)
 		return this->_log.fail(EINVAL, "Data size {} < size in frame {}", r - frame_size, msg.size);
 
 	if (_timestamping)
-		msg.timestamp = _cmsg_timestamp(&mhdr).count();
+		msg.time = _cmsg_timestamp(&mhdr).count();
 
 	this->_callback_data(&msg);
 	return 0;
@@ -414,7 +414,7 @@ int UdpSocket<T, Frame>::_process_errqueue(msghdr * mhdr)
 	tll_msg_t msg = {};
 	msg.type = TLL_MESSAGE_CONTROL;
 	msg.msgid = 10;
-	msg.timestamp = _cmsg_timestamp(mhdr).count();
+	msg.time = _cmsg_timestamp(mhdr).count();
 	msg.seq = _cmsg_seq(mhdr);
 	this->_callback(&msg);
 #endif
