@@ -33,7 +33,7 @@ class Event : public Base<T>
 
  public:
 	int _init(const tll::Channel::Url &, tll::Channel *master);
-	int _open(const tll::PropsView &);
+	int _open(const tll::ConstConfig &);
 	int _close();
 
 	EventNotify event_detached();

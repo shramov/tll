@@ -59,7 +59,7 @@ class ChIpc : public tll::channel::Event<ChIpc>
 
 	std::optional<const tll_channel_impl_t *> _init_replace(const tll::Channel::Url &url, tll::Channel *master);
 	int _init(const tll::Channel::Url &, tll::Channel *master);
-	int _open(const tll::PropsView &);
+	int _open(const tll::ConstConfig &);
 	int _close();
 
 	int _process(long timeout, int flags);
@@ -81,7 +81,7 @@ class ChIpcServer : public tll::channel::Event<ChIpcServer>
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 
-	int _open(const tll::PropsView &);
+	int _open(const tll::ConstConfig &);
 	int _close();
 
 	int _process(long timeout, int flags);

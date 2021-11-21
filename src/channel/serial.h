@@ -28,7 +28,7 @@ class ChSerial : public tll::channel::Base<ChSerial>
 	static constexpr std::string_view channel_protocol() { return "serial"; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
-	int _open(const tll::PropsView &);
+	int _open(const tll::ConstConfig &);
 	int _close();
 
 	int _process(long timeout, int flags);

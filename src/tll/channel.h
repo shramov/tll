@@ -232,7 +232,7 @@ void tll_channel_free(tll_channel_t *);
 
 /**
  * Open channel.
- * Starts transition from ``Closed`` state to ``Opening``.
+ * Same as @ref tll_channel_open_cfg but all parameters are in string format
  *
  * @param str Parameter string in format ``param-a=value=a;param-b=value-b;...``.
  *            May be without trailing zero byte.
@@ -240,6 +240,16 @@ void tll_channel_free(tll_channel_t *);
  * @return 0 on success, non-zero value on error.
  */
 int tll_channel_open(tll_channel_t *, const char * str, size_t len);
+
+/**
+ * Open channel.
+ * Starts transition from ``Closed`` state to ``Opening``.
+ *
+ * @param cfg Open parameters. May be NULL
+ * @return 0 on success, non-zero value on error.
+ */
+int tll_channel_open_cfg(tll_channel_t *, const tll_config_t * cfg);
+
 /// Close channel
 int tll_channel_close(tll_channel_t *, int force);
 
@@ -436,7 +446,11 @@ public:
 	static void operator delete (void *ptr) { tll_channel_free((Channel *) ptr); }
 
 	/// Open channel. See @ref tll_channel_open
-	int open(std::string_view params = "") { return tll_channel_open(this, params.data(), params.size()); }
+	int open(std::string_view params) { return tll_channel_open(this, params.data(), params.size()); }
+	/// Open channel. See @ref tll_channel_open_cfg
+	int open(const Config &cfg) { return tll_channel_open_cfg(this, cfg); }
+	int open(const ConstConfig &cfg) { return tll_channel_open_cfg(this, cfg); }
+	int open() { return tll_channel_open_cfg(this, nullptr); }
 	/// Close channel. See @ref tll_channel_close
 	int close(bool force = false) { return tll_channel_close(this, force); }
 

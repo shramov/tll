@@ -36,7 +36,7 @@ int Worker::_init(const tll::Channel::Url &url, tll::Channel *master)
 	return 0;
 }
 
-int Worker::_open(const PropsView &)
+int Worker::_open(const ConstConfig &)
 {
 	loop.stop = false;
 	loop.time_cache_enable = true;

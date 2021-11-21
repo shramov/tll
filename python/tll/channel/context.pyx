@@ -272,11 +272,11 @@ cdef void _py_free(tll_channel_t * channel) with gil:
         except:
             pass
 
-cdef int _py_open(tll_channel_t * channel, const char *str, size_t len) with gil:
+cdef int _py_open(tll_channel_t * channel, const tll_config_t *cfg) with gil:
     if _py_bad_channel(channel): return EINVAL
     pyc = <object>(channel.data)
     try:
-        return _py_check_return(pyc.open(str[:len]))
+        return _py_check_return(pyc.open(Config.wrap(<tll_config_t *>cfg, ref=True)))
     except:
         try:
             log = Logger("tll.channel.python")

@@ -43,7 +43,7 @@ class Echo : public tll::channel::Base<Echo>
 		return nullptr;
 	}
 
-	int _open(const tll::PropsView &) { return 0; }
+	int _open(const tll::ConstConfig &) { return 0; }
 	int _close(bool force) { return 0; }
 
 	int _post(const tll_msg_t *msg, int flags) { return _callback(msg); }

@@ -33,7 +33,7 @@ int Event<T>::_init(const tll::Channel::Url &url, tll::Channel *master)
 }
 
 template <typename T>
-int Event<T>::_open(const PropsView &url)
+int Event<T>::_open(const ConstConfig &url)
 {
 	if (!_with_fd) return 0;
 #ifdef __linux__

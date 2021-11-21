@@ -40,7 +40,7 @@ int TcpSocket<T>::_init(const tll::Channel::Url &url, tll::Channel *master)
 }
 
 template <typename T>
-int TcpSocket<T>::_open(const PropsView &url)
+int TcpSocket<T>::_open(const ConstConfig &url)
 {
 	if (this->fd() == -1) {
 		auto fd = url.getT<int>("fd");
@@ -237,7 +237,7 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 }
 
 template <typename T, typename S>
-int TcpClient<T, S>::_open(const PropsView &url)
+int TcpClient<T, S>::_open(const ConstConfig &url)
 {
 	tll::network::hostport peer;
 	if (!_peer) {
@@ -319,7 +319,7 @@ int TcpServerSocket<T>::_init(const tll::Channel::Url &url, tll::Channel *master
 }
 
 template <typename T>
-int TcpServerSocket<T>::_open(const PropsView &url)
+int TcpServerSocket<T>::_open(const ConstConfig &url)
 {
 	if (this->fd() == -1) {
 		auto fd = url.getT<int>("fd");
@@ -400,7 +400,7 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 }
 
 template <typename T, typename C>
-int TcpServer<T, C>::_open(const PropsView &url)
+int TcpServer<T, C>::_open(const ConstConfig &url)
 {
 	_cleanup_flag = false;
 	_addr_seq = 0;
@@ -462,7 +462,7 @@ int TcpServer<T, C>::_bind(const tll::network::sockaddr_any &addr)
 	this->_child_add(r.get());
 	_sockets.emplace_back((tll::Channel *) r.release());
 
-	if (c->open(""))
+	if (c->open(tll::ConstConfig()))
 		return this->_log.fail(EINVAL, "Failed to open server socket channel");
 
 	return 0;
@@ -597,7 +597,7 @@ int TcpServer<T, C>::_cb_socket(const tll_channel_t *c, const tll_msg_t *msg)
 	} else
 		_clients.emplace(fd, client);
 	this->_child_add(r.release());
-	client->open("");
+	client->open(tll::ConstConfig());
 	return 0;
 }
 

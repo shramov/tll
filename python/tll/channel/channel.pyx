@@ -274,11 +274,21 @@ cdef class Channel:
         return r
 
     def open(self, params='', **kw):
-        for k,v in sorted(kw.items()):
-            sep = ';' if params else ''
-            params += sep + '{}={}'.format(k,v)
-        p = s2b(params)
-        r = tll_channel_open(self._ptr, p, len(p))
+        cfg = None
+        if isinstance(params, Config):
+            if len(kw):
+                cfg = params.copy()
+            else:
+                cfg = params
+        else:
+            cfg = Config()
+            if params:
+                for s in params.split(';'):
+                    k,v = s.split('=', 1)
+                cfg[k] = v
+        for k,v in kw.items():
+            cfg[k] = v
+        r = tll_channel_open_cfg(self._ptr, (<Config>cfg)._ptr)
         if r:
             raise TLLError("Open failed", r)
 

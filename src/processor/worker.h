@@ -37,7 +37,7 @@ struct Worker : public tll::channel::Base<Worker>
 	std::unique_ptr<tll::Channel> _ipc;
 
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
-	int _open(const tll::PropsView &);
+	int _open(const tll::ConstConfig &);
 	int _close();
 
 	void _free()

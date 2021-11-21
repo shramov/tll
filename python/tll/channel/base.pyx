@@ -252,7 +252,7 @@ cdef class Base:
             pass
         self.dealloc()
 
-    def open(self, props):
+    def open(self, props : Config):
         self.log.info("Open channel")
         self.state = C.State.Opening
 

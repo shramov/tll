@@ -33,7 +33,7 @@ class ChPubSocket : public tll::channel::TcpSocket<ChPubSocket>
 	static constexpr std::string_view impl_protocol() { return "pub-socket"; } // Only visible in logs
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
-	int _open(const tll::PropsView &);
+	int _open(const tll::ConstConfig &);
 	int _close();
 
 	int _process(long timeout, int flags);

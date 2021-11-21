@@ -35,7 +35,7 @@ int ChYaml::_init(const tll::Channel::Url &url, tll::Channel *master)
 	return 0;
 }
 
-int ChYaml::_open(const PropsView &url)
+int ChYaml::_open(const ConstConfig &url)
 {
 	if (!_url_config) {
 		auto cfg = tll::Config::load(std::string("yaml://") + _filename);

@@ -63,7 +63,7 @@ class TcpSocket : public Base<T>
 	static constexpr std::string_view channel_protocol() { return "tcp"; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
-	int _open(const tll::PropsView &);
+	int _open(const tll::ConstConfig &);
 	int _close();
 
 	int _post(const tll_msg_t *msg, int flags);
@@ -140,7 +140,7 @@ class TcpClient : public S
 	static constexpr auto open_policy() { return Base<T>::OpenPolicy::Manual; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
-	int _open(const tll::PropsView &);
+	int _open(const tll::ConstConfig &);
 
 	int _process(long timeout, int flags);
 
@@ -166,7 +166,7 @@ class TcpServerSocket : public tll::channel::Base<TcpServerSocket<T>>
 
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
 
-	int _open(const tll::PropsView &props);
+	int _open(const tll::ConstConfig &props);
 	int _close();
 
 	int _process(long timeout, int flags);
@@ -199,7 +199,7 @@ class TcpServer : public Base<T>
 
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
 
-	int _open(const tll::PropsView &props);
+	int _open(const tll::ConstConfig &props);
 	int _close();
 
 	int _post(const tll_msg_t *msg, int flags);

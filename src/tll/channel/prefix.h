@@ -78,9 +78,9 @@ public:
 		return Base<T>::_free();
 	}
 
-	int _open(const tll::PropsView &params)
+	int _open(const tll::ConstConfig &params)
 	{
-		return _child->open(conv::to_string(params));
+		return _child->open(params);
 	}
 
 	int _close(bool force)

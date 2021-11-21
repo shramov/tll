@@ -121,7 +121,7 @@ int ChPubSocket::_init(const Channel::Url &url, tll::Channel *master)
 	return 0;
 }
 
-int ChPubSocket::_open(const PropsView &url)
+int ChPubSocket::_open(const ConstConfig &url)
 {
 	if (_hello) {
 		_rbuf.resize(1024);

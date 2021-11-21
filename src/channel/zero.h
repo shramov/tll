@@ -21,7 +21,7 @@ class ChZero : public tll::channel::Event<ChZero>
 	static constexpr std::string_view channel_protocol() { return "zero"; }
 
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
-	int _open(const tll::PropsView &url);
+	int _open(const tll::ConstConfig &url);
 
 	int _process(long timeout, int flags)
 	{

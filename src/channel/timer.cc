@@ -67,7 +67,7 @@ int ChTimer::_init(const tll::Channel::Url &url, tll::Channel *master)
 	return 0;
 }
 
-int ChTimer::_open(const PropsView &url)
+int ChTimer::_open(const ConstConfig &url)
 {
 	_next = {};
 	auto reader = channel_props_reader(url);

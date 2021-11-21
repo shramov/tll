@@ -10,7 +10,7 @@ cdef extern from "tll/channel/impl.h":
     ctypedef struct tll_channel_impl_t:
         int (*init)(tll_channel_t *, const tll_config_t * url, tll_channel_t * parent, tll_channel_context_t * ctx)
         void (*free)(tll_channel_t *)
-        int (*open)(tll_channel_t *, const char * str, size_t len)
+        int (*open)(tll_channel_t *, const tll_config_t *)
         int (*close)(tll_channel_t *, int)
 
         int (*process)(tll_channel_t *, long timeout, int flags)

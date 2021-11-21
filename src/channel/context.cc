@@ -624,7 +624,20 @@ int tll_channel_resume(tll_channel_t *c)
 #define FORWARD_SAFE(func, c, ...) FORWARD_SAFE_ERR(func, EINVAL, c, ##__VA_ARGS__)
 
 int tll_channel_open(tll_channel_t *c, const char *str, size_t len)
-	FORWARD_SAFE(open, c, str, len);
+{
+	if (!c || !c->impl || !c->impl->open) return EINVAL;
+	if (!str || !len)
+		return (*c->impl->open)(c, nullptr);
+	auto r = tll::ConfigUrl::parse_props(string_view_from_c(str, len));
+	if (!r) {
+		tll::Logger log(fmt::format("tll.channel.{}", tll_channel_name(c)));
+		return log.fail(EINVAL, "Invalid property string: {}", r.error());
+	}
+	return (*c->impl->open)(c, *r);
+}
+
+int tll_channel_open_cfg(tll_channel_t *c, const tll_config_t *cfg)
+	FORWARD_SAFE(open, c, cfg);
 
 int tll_channel_close(tll_channel_t *c, int force)
 	FORWARD_SAFE(close, c, force);

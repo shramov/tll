@@ -21,7 +21,7 @@ struct tll_channel_impl_t
 {
 	int (*init)(tll_channel_t *, const tll_config_t * url, tll_channel_t * parent, tll_channel_context_t * ctx);
 	void (*free)(tll_channel_t *);
-	int (*open)(tll_channel_t *, const char * str, size_t len);
+	int (*open)(tll_channel_t *, const tll_config_t *);
 	int (*close)(tll_channel_t *, int);
 
 	int (*process)(tll_channel_t *, long timeout, int flags);
@@ -236,7 +236,10 @@ public:
 		delete static_cast<T *>(_dataT(c));
 	}
 
-	static int _open(tll_channel_t * c, const char *str, size_t len) { return _dataT(c)->open(std::string_view(str, len)); }
+	static int _open(tll_channel_t * c, const tll_config_t *cfg)
+	{
+		return _dataT(c)->open(cfg ? tll::ConstConfig(cfg) : tll::ConstConfig());
+	}
 	static int _close(tll_channel_t * c, int force) { return _dataT(c)->close(force); }
 
 	static int _process(tll_channel_t *c, long timeout, int flags) { return _dataT(c)->process(timeout, flags); }

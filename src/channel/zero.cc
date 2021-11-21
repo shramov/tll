@@ -31,7 +31,7 @@ int ChZero::_init(const tll::Channel::Url &url, tll::Channel *master)
 	return Event<ChZero>::_init(url, master);
 }
 
-int ChZero::_open(const PropsView &url)
+int ChZero::_open(const ConstConfig &url)
 {
 	int r = Event<ChZero>::_open(url);
 	if (r)

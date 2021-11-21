@@ -37,7 +37,7 @@ int ChIpc::_init(const tll::Channel::Url &url, tll::Channel *master)
 	return Event<ChIpc>::_init(url, master);
 }
 
-int ChIpc::_open(const PropsView &url)
+int ChIpc::_open(const ConstConfig &url)
 {
 	if (master->state() != TLL_STATE_ACTIVE)
 		return _log.fail(EINVAL, "Parent is not active: {}", tll_state_str(master->state()));
@@ -108,7 +108,7 @@ int ChIpcServer::_init(const tll::Channel::Url &url, tll::Channel *master)
 	return Event<ChIpcServer>::_init(url, master);
 }
 
-int ChIpcServer::_open(const PropsView &url)
+int ChIpcServer::_open(const ConstConfig &url)
 {
 	_addr = {};
 	_clients.clear();

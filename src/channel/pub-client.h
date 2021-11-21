@@ -24,7 +24,7 @@ class ChPubClient : public tll::channel::TcpClient<ChPubClient>
 
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
 
-	int _open(const tll::PropsView &url);
+	int _open(const tll::ConstConfig &url);
 
 	int _post(const tll_msg_t *msg, int flags) { return ENOTSUP; }
 	int _process(long timeout, int flags);

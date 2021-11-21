@@ -111,7 +111,7 @@ int Processor::_init(const tll::Channel::Url &url, Channel * master)
 	return 0;
 }
 
-int Processor::_open(const tll::PropsView &)
+int Processor::_open(const tll::ConstConfig &)
 {
 	loop.stop = false;
 	if (_ipc->open())

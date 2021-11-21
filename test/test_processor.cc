@@ -134,7 +134,7 @@ class Long : public tll::channel::Base<Long>
 	static constexpr auto open_policy() { return OpenPolicy::Manual; }
 	static constexpr auto close_policy() { return ClosePolicy::Long; }
 
-	int _open(const tll::PropsView &)
+	int _open(const tll::ConstConfig &)
 	{
 		_dcaps_pending(true);
 		return 0;

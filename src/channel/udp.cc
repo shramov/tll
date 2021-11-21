@@ -91,7 +91,7 @@ class UdpSocket : public tll::channel::Base<T>
 	static constexpr std::string_view channel_protocol() { return "udp"; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
-	int _open(const tll::PropsView &);
+	int _open(const tll::ConstConfig &);
 	int _close();
 
 	int _process(long timeout, int flags);
@@ -109,7 +109,7 @@ class UdpClient : public UdpSocket<UdpClient<Frame>, Frame>
 
  public:
 	int _init(const tll::Channel::Url &, tll::Channel *master);
-	int _open(const tll::PropsView &);
+	int _open(const tll::ConstConfig &);
 
 	int _post(const tll_msg_t *msg, int flags)
 	{
@@ -129,7 +129,7 @@ class UdpServer : public UdpSocket<UdpServer<Frame>, Frame>
 
  public:
 	int _init(const tll::Channel::Url &, tll::Channel *master);
-	int _open(const tll::PropsView &);
+	int _open(const tll::ConstConfig &);
 	int _close();
 
 	int _post(const tll_msg_t *msg, int flags)
@@ -217,7 +217,7 @@ int UdpSocket<T, F>::_init(const Channel::Url &url, Channel *master)
 }
 
 template <typename T, typename F>
-int UdpSocket<T, F>::_open(const PropsView &url)
+int UdpSocket<T, F>::_open(const ConstConfig &url)
 {
 	using namespace tll::network;
 	if (int r = nonblock(this->fd()))
@@ -453,7 +453,7 @@ int UdpClient<F>::_init(const Channel::Url &url, Channel *master)
 }
 
 template <typename F>
-int UdpClient<F>::_open(const PropsView &url)
+int UdpClient<F>::_open(const ConstConfig &url)
 {
 	auto addr = tll::network::resolve(_af, SOCK_DGRAM, _host.c_str(), _port);
 	if (!addr)
@@ -502,7 +502,7 @@ int UdpServer<F>::_init(const Channel::Url &url, Channel *master)
 }
 
 template <typename F>
-int UdpServer<F>::_open(const PropsView &url)
+int UdpServer<F>::_open(const ConstConfig &url)
 {
 	using namespace tll::network;
 	auto addr = tll::network::resolve(_af, SOCK_DGRAM, _host.c_str(), _port);

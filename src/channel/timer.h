@@ -45,7 +45,7 @@ class ChTimer : public tll::channel::Base<ChTimer>
 	static constexpr auto process_policy() { return ProcessPolicy::Custom; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
-	int _open(const tll::PropsView &);
+	int _open(const tll::ConstConfig &);
 	int _close();
 
 	int _process(long timeout, int flags);

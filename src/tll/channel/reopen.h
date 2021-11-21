@@ -97,20 +97,7 @@ struct ReopenData
 	int open()
 	{
 		if (!channel) return EINVAL;
-		tll::Props props;
-		auto v = open_params.get();
-		if (v) {
-			auto r = Props::parse(*v);
-			if (!r)
-				return EINVAL;
-			props = *r;
-		}
-		for (auto &[k, c] : open_params.browse("**")) {
-			auto v = c.get();
-			if (v)
-				props[k] = *v;
-		}
-		return channel->open(conv::to_string(props));
+		return channel->open(open_params);
 	}
 };
 
@@ -169,14 +156,11 @@ public:
 		return Base::_free();
 	}
 
-	int _open(const tll::PropsView &params)
+	int _open(const tll::ConstConfig &params)
 	{
 		_reopen_timer->open();
 		if (T::reopen_open_policy() && _reopen_data.channel) {
-			Config cfg;
-			for (auto & [k, v]: params)
-				cfg.set(k, v);
-			_reopen_data.open_params = cfg;
+			_reopen_data.open_params = params.copy();
 			if (_reopen_data.open())
 				return this->_log.fail(EINVAL, "Failed to open channel");
 		}

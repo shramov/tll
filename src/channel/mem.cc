@@ -65,7 +65,7 @@ bool ChMem::_empty() const
 	return ring_read(&_rin->ring, &data, &size) == EAGAIN;
 }
 
-int ChMem::_open(const PropsView &url)
+int ChMem::_open(const tll::ConstConfig &url)
 {
 	if (Event<ChMem>::_open(url))
 		return _log.fail(EINVAL, "Failed to open event");

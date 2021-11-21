@@ -57,7 +57,7 @@ int ChSerial::_init(const tll::Channel::Url &url, tll::Channel *master)
 	return channel::Base<ChSerial>::_init(url, master);
 }
 
-int ChSerial::_open(const PropsView &url)
+int ChSerial::_open(const ConstConfig &url)
 {
 	auto fd = ::open(_filename.c_str(), O_RDWR | O_NONBLOCK);
 	if (fd == -1)

@@ -32,7 +32,7 @@ int ChPubClient::_init(const Channel::Url &url, tll::Channel *master)
 	return 0;
 }
 
-int ChPubClient::_open(const PropsView &url)
+int ChPubClient::_open(const ConstConfig &url)
 {
 	_state = Closed;
 	return tcp_client_t::_open(url);

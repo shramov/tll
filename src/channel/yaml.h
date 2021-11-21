@@ -25,7 +25,7 @@ class ChYaml : public tll::channel::Base<ChYaml>
 	static constexpr std::string_view channel_protocol() { return "yaml"; }
 
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
-	int _open(const tll::PropsView &url);
+	int _open(const tll::ConstConfig &url);
 
 	int _process(long timeout, int flags);
 

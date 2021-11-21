@@ -83,7 +83,7 @@ struct Processor : public tll::channel::Base<Processor>
 	int build_rdepends();
 
 	int _init(const tll::Channel::Url &, tll::Channel *);
-	int _open(const tll::PropsView &);
+	int _open(const tll::ConstConfig &);
 	int _close(bool force);
 	void _close_workers();
 	void _free();

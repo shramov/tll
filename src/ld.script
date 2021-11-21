@@ -39,6 +39,7 @@ TLL_0.0.0 {
 		tll_channel_new;
 		tll_channel_new_url;
 		tll_channel_open;
+		tll_channel_open_cfg;
 		tll_channel_post;
 		tll_channel_process;
 		tll_channel_resume;

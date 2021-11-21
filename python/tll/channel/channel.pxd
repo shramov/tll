@@ -87,6 +87,7 @@ cdef extern from "tll/channel.h" nogil:
     cdef void tll_channel_free(tll_channel_t * cfg)
 
     cdef int tll_channel_open(tll_channel_t *, const char * props, int len)
+    cdef int tll_channel_open_cfg(tll_channel_t *, const tll_config_t *)
     cdef int tll_channel_close(tll_channel_t *, int force)
 
     cdef int tll_channel_callback_add(tll_channel_t *, tll_channel_callback_t cb, void * user, unsigned mask)

@@ -239,11 +239,20 @@ class Base
 
 	void _free() {}
 
-	int open(std::string_view params)
+	int open(const tll::ConstConfig &cfg)
 	{
 		if (state() != state::Closed)
 			return _log.fail(EINVAL, "Open failed: invalid state {}", tll_state_str(state()));
-		_log.info("Open channel: {}", params);
+		{
+			std::string r;
+			for (auto &[k, c] : cfg.browse("**")) {
+				auto v = cfg.get();
+				if (r.size())
+					r += ";";
+				r += fmt::format("{}={}", k, v.value_or(""));
+			}
+			_log.info("Open channel: {}", r);
+		}
 		state(state::Opening);
 		switch (T::process_policy()) {
 		case ProcessPolicy::Normal:
@@ -263,10 +272,7 @@ class Base
 				return _log.fail(EINVAL, "Failed to load scheme from {}...", _scheme_url->substr(0, 64));
 			}
 		}
-		auto props = tll::PropsView::parse(params);
-		if (!props)
-			return _log.fail(EINVAL, "Invalid props: {}", props.error());
-		auto r = static_cast<ChannelT *>(this)->_open(*props);
+		auto r = static_cast<ChannelT *>(this)->_open(cfg);
 		if (r)
 			state(state::Error);
 		else if (T::open_policy() == OpenPolicy::Auto)
@@ -274,7 +280,7 @@ class Base
 		return r;
 	}
 
-	int _open(const tll::PropsView &params)
+	int _open(const tll::ConstConfig &cfg)
 	{
 		return 0;
 	}

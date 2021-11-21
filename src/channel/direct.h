@@ -44,7 +44,7 @@ class ChDirect : public tll::channel::Base<ChDirect>
 		return 0;
 	}
 
-	int _open(const tll::PropsView &)
+	int _open(const tll::ConstConfig &)
 	{
 		if (_sub)
 			_sibling->_sibling = this;
