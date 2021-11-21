@@ -64,7 +64,7 @@ def test(init, open, wait):
         dt = time.time()
         assert poll.poll(2 * ts), [(c.fd == select.POLLIN)]
         dt = 1000 * (time.time() - dt)
-        assert ts / 2 < dt < 1.5 * ts, "Sleep time {:.3f}ms not in range {:.3f}ms < {:.3f}ms)".format(dt, ts / 2, 1.5 * ts)
+        assert ts / 2 < dt < 2 * ts, "Sleep time {:.3f}ms not in range {:.3f}ms < {:.3f}ms)".format(dt, ts / 2, 2 * ts)
         c.process()
         assert [m.msgid for m in c.result] == [MSGID]
         c.result = []
@@ -120,7 +120,7 @@ def test_post(clock, msg, wait):
     dt = time.time()
     assert poll.poll(2 * ms) == [(c.fd, select.POLLIN)]
     dt = 1000 * (time.time() - dt)
-    assert not (ts / 2 < dt < 1.5 * ts), "Sleep time {:.3f}ms not in range {:.3f}ms < {:.3f}ms)".format(dt, ts / 2, 1.5 * ts)
+    assert not (ts / 2 < dt < 2 * ts), "Sleep time {:.3f}ms not in range {:.3f}ms < {:.3f}ms)".format(dt, ts / 2, 2 * ts)
 
     c.process()
     assert [m.msgid for m in c.result] == [2]
