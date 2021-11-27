@@ -11,7 +11,9 @@
 
 #define SPDLOG_HEADER_ONLY
 #undef SPDLOG_COMPILED_LIB
-#define SPDLOG_FMT_EXTERNAL
+#ifndef SPDLOG_FMT_EXTERNAL
+# define SPDLOG_FMT_EXTERNAL
+#endif
 
 #include <spdlog/sinks/sink.h>
 #include <spdlog/spdlog.h>
