@@ -358,6 +358,7 @@ class TestTcp4(_test_tcp_base):
 class TestTcp6(_test_tcp_base):
     PROTO = 'tcp://::1:{}'.format(ports.TCP6)
 
+@pytest.mark.skipif(sys.platform != 'linux', reason='Network timestamping not supported')
 class TestTcp6TS(_test_tcp_base):
     PROTO = 'tcp://::1:{};timestamping=yes'.format(ports.TCP6)
     TIMESTAMP = True
@@ -465,6 +466,7 @@ class TestUdpNone(_test_udp_base):
     CLEANUP = ['./test.sock']
     FRAME = False
 
+@pytest.mark.skipif(sys.platform != 'linux', reason='Network timestamping not supported')
 class TestUdpTS(_test_udp_base):
     PROTO = 'udp://::1:{};timestamping=yes;timestamping-tx=yes'.format(ports.UDP6)
     TIMESTAMP = True
