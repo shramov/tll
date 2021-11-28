@@ -25,7 +25,7 @@
 #include <sys/ioctl.h>
 #endif
 
-#ifdef __APPLE__
+#if defined(__APPLE__) && !defined(MSG_NOSIGNAL)
 #  define MSG_NOSIGNAL 0
 #endif//__APPLE__
 
@@ -363,7 +363,7 @@ int TcpServerSocket<T>::_process(long timeout, int flags)
 		return this->_log.fail(e, "Failed to set nonblock: {}", strerror(e));
 
 #ifdef __APPLE__
-	if (tll::network::setsockoptT<T>(fd, SOL_SOCKET, SO_NOSIGPIPE, 1))
+	if (tll::network::setsockoptT<int>(fd, SOL_SOCKET, SO_NOSIGPIPE, 1))
 		return this->_log.fail(EINVAL, "Failed to set SO_NOSIGPIPE: {}", strerror(errno));
 #endif
 
