@@ -50,8 +50,8 @@ TEST(Conv, Int)
 	EXPECT_FALSE(to_any<int>("10.1"));
 	EXPECT_FALSE(to_any<unsigned>("-10"));
 
-	EXPECT_FALSE(to_any<char>("0x80"));
-	EXPECT_FALSE(to_any<char>("-0x81"));
+	EXPECT_FALSE(to_any<signed char>("0x80"));
+	EXPECT_FALSE(to_any<signed char>("-0x81"));
 	EXPECT_FALSE(to_any<short>("0x8000"));
 	EXPECT_FALSE(to_any<short>("-0x8001"));
 	EXPECT_FALSE(to_any<int>("0x80000000"));
@@ -79,7 +79,7 @@ TEST(Conv, Int)
 	EXPECT_EQ(to_string<int64_t>(1234567890), "1234567890");
 	EXPECT_EQ(to_string<uint64_t>(1234567890), "1234567890");
 
-	EXPECT_EQ(to_string<char>(-128), "-128");
+	EXPECT_EQ(to_string<signed char>(-128), "-128");
 	EXPECT_EQ(to_string<short>(-0x8000), "-32768");
 	EXPECT_EQ(to_string<int>(-1234567890), "-1234567890");
 }
