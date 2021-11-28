@@ -332,6 +332,7 @@ TEST(Util, Time)
 	ASSERT_EQ(tnow1, tll::time::now_cached());
 
 	tll::time::cache_enable(false);
+	std::this_thread::sleep_for(1us);
 	ASSERT_LT(tnow1, tll::time::now_cached());
 }
 
