@@ -60,7 +60,7 @@ TLL_DECLARE_IMPL(ChZero);
 struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t>
 {
 	Logger _log = {"tll.context"};
-	stat::OwnedList stat_list;
+	tll::stat::OwnedList stat_list;
 
 	using impl_t = std::variant<const tll_channel_impl_t *, tll::Channel::Url>;
 	std::map<std::string, impl_t, std::less<>> registry;
