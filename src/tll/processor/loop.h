@@ -18,6 +18,12 @@
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <unistd.h>
+#elif defined(__FreeBSD__)
+#define WITH_KQUEUE
+#include <sys/types.h>
+#include <sys/event.h>
+#include <sys/time.h>
+#include <unistd.h>
 #endif
 
 #ifdef __cplusplus
@@ -95,6 +101,10 @@ struct tll_processor_loop_t
 #ifdef __linux__
 	int fd = { epoll_create1(0) };
 	int fd_pending = { eventfd(1, EFD_NONBLOCK) };
+#elif defined(WITH_KQUEUE)
+	int kq = { kqueue() };
+	struct kevent kev_pending = {};
+	static constexpr int pending_ident = 0x746c6c; // 'tll'
 #endif
 	std::list<tll::Channel *> list; // All registered channels
 	tll::processor::List<tll::Channel> list_process; // List of channels to process
@@ -111,6 +121,9 @@ struct tll_processor_loop_t
 		epoll_event ev = {};
 		ev.data.ptr = (void *) this;
 		epoll_ctl(fd, EPOLL_CTL_ADD, fd_pending, &ev);
+#elif defined(WITH_KQUEUE)
+		EV_SET(&kev_pending, pending_ident, EVFILT_USER, EV_ADD, NOTE_FFNOP, 0, this);
+		kevent(kq, &kev_pending, 1, nullptr, 0, nullptr);
 #endif
 	}
 
@@ -119,6 +132,8 @@ struct tll_processor_loop_t
 #ifdef __linux__
 		if (fd_pending != -1) ::close(fd_pending);
 		if (fd != -1) ::close(fd);
+#elif defined(WITH_KQUEUE)
+		if (kq != -1) ::close(kq);
 #endif
 		for (auto c : list) {
 			if (c) c->callback_del(this, TLL_MESSAGE_MASK_CHANNEL | TLL_MESSAGE_MASK_STATE);
@@ -172,6 +187,37 @@ struct tll_processor_loop_t
 		if (time_cache_enable)
 			tll::time::now();
 		return c;
+#elif defined(WITH_KQUEUE)
+		struct timespec ts;
+		{
+			using namespace std::chrono;
+			auto s = duration_cast<seconds>(timeout);
+			ts = { (time_t) s.count(), (long) nanoseconds(timeout - s).count() };
+		}
+		struct kevent kev = {};
+		int r = kevent(kq, nullptr, 0, &kev, 1, &ts);
+		if (!r)
+			return 0;
+		if (r < 0) {
+			if (errno == EINTR)
+				return 0;
+			return _log.fail(nullptr, "kevent failed: {}", strerror(errno));
+		}
+
+		if (kev.filter == EVFILT_USER && kev.udata == this) {
+			_log.debug("Poll on pending list");
+			if (time_cache_enable)
+				tll::time::now();
+			for (auto & c: list_pending)
+				c->process();
+			return nullptr;
+		}
+
+		auto c = (tll::Channel *) kev.udata;
+		_log.debug("Poll on {}", c->name());
+		if (time_cache_enable)
+			tll::time::now();
+		return c;
 #endif
 		return nullptr;
 	}
@@ -218,6 +264,9 @@ struct tll_processor_loop_t
 		ev.events = EPOLLIN;
 		ev.data.ptr = this;
 		epoll_ctl(fd, EPOLL_CTL_MOD, fd_pending, &ev);
+#elif defined(WITH_KQUEUE)
+		EV_SET(&kev_pending, pending_ident, EVFILT_USER, EV_ENABLE, NOTE_FFNOP | NOTE_TRIGGER, 0, this);
+		kevent(kq, &kev_pending, 1, nullptr, 0, nullptr);
 #endif
 	}
 
@@ -229,6 +278,9 @@ struct tll_processor_loop_t
 		epoll_event ev = {};
 		ev.data.ptr = this;
 		epoll_ctl(fd, EPOLL_CTL_MOD, fd_pending, &ev);
+#elif defined(WITH_KQUEUE)
+		EV_SET(&kev_pending, pending_ident, EVFILT_USER, EV_DISABLE, NOTE_FFNOP, 0, this);
+		kevent(kq, &kev_pending, 1, nullptr, 0, nullptr);
 #endif
 	}
 
@@ -258,6 +310,11 @@ struct tll_processor_loop_t
 #ifdef __linux__
 		epoll_event ev = {};
 		epoll_ctl(this->fd, EPOLL_CTL_DEL, fd, &ev);
+#elif defined(WITH_KQUEUE)
+		struct kevent kev[2];
+		EV_SET(kev + 0, fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
+		EV_SET(kev + 1, fd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
+		kevent(kq, kev, 2, nullptr, 0, nullptr);
 #endif
 		return 0;
 	}
@@ -353,6 +410,16 @@ struct tll_processor_loop_t
 		}
 		ev.data.ptr = (void *) c;
 		epoll_ctl(fd, add?EPOLL_CTL_ADD:EPOLL_CTL_MOD, c->fd(), &ev);
+#elif defined(WITH_KQUEUE)
+		auto fd = c->fd();
+		struct kevent kev[2];
+		EV_SET(kev + 0, fd, EVFILT_READ, EV_ADD | EV_DISABLE, 0, 0, (void *) c);
+		EV_SET(kev + 1, fd, EVFILT_WRITE, EV_ADD | EV_DISABLE, 0, 0, (void *) c);
+		if (!(caps & tll::dcaps::Suspend)) {
+			if (caps & tll::dcaps::CPOLLIN) kev[0].flags = EV_ADD | EV_ENABLE;
+			if (caps & tll::dcaps::CPOLLOUT) kev[1].flags = EV_ADD | EV_ENABLE;
+		}
+		kevent(kq, kev, 2, nullptr, 0, nullptr);
 #endif
 		return 0;
 	}
