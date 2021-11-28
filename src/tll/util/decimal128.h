@@ -15,7 +15,8 @@
 
 #include "tll/util/fixed_point.h"
 
-#if defined(__GLIBCXX__) && !defined(__clang__)
+#if defined(__GLIBCXX__) && !defined(__clang__) && defined(__x86_64__)
+#define TLL_DECIMAL128_GLIBCXX 1
 #include <decimal/decimal>
 #endif
 
@@ -38,7 +39,7 @@ typedef struct
 				};
 			};
 		};
-#if defined(__cplusplus) && defined(__GLIBCXX__) && !defined(__clang__)
+#if defined(__cplusplus) && defined(TLL_DECIMAL128_GLIBCXX)
 		std::decimal::decimal128 stddecimal = {};
 #endif
 	};
@@ -137,7 +138,7 @@ struct Decimal128 : public tll_decimal128_t
 		}
 	}
 
-#if defined(__GLIBCXX__) && !defined(__clang__)
+#ifdef TLL_DECIMAL128_GLIBCXX
 	Decimal128(const std::decimal::decimal128 &v) { stddecimal = v; }
 #endif
 
@@ -147,7 +148,7 @@ struct Decimal128 : public tll_decimal128_t
 	Decimal128 & operator = (const Decimal128 &) = default;
 	Decimal128 & operator = (Decimal128 &&) = default;
 
-#if defined(__GLIBCXX__) && !defined(__clang__)
+#ifdef TLL_DECIMAL128_GLIBCXX
 	operator std::decimal::decimal128 () const { return stddecimal; }
 #endif
 

@@ -8,9 +8,7 @@
 
 using tll::util::Decimal128;
 
-#if defined(__GLIBCXX__) && !defined(__clang__)
-#include <decimal/decimal>
-
+#ifdef TLL_DECIMAL128_GLIBCXX
 #define CHECK_STD128(str, dec, bin) do { \
 		std::decimal::decimal128 std(dec); \
 		ASSERT_EQ(std, static_cast<std::decimal::decimal128>(bin)) << "Invalid decimal value for " << str; \
