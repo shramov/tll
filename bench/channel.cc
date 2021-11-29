@@ -2,7 +2,26 @@
 #include <tll/logger.h>
 #include <tll/util/argparse.h>
 
+#include <tll/channel/prefix.h>
+
 #include "timeit.h"
+
+class Echo : public tll::channel::Base<Echo>
+{
+ public:
+	static constexpr std::string_view channel_protocol() { return "echo"; }
+	static constexpr auto process_policy() { return tll::channel::Base<Echo>::ProcessPolicy::Never; }
+
+	int _post(const tll_msg_t *msg, int flags) { return _callback_data(msg); }
+};
+
+TLL_DEFINE_IMPL(Echo);
+class Prefix : public tll::channel::Prefix<Prefix>
+{
+ public:
+	static constexpr std::string_view channel_protocol() { return "prefix+"; }
+};
+TLL_DEFINE_IMPL(Prefix);
 
 using namespace std::chrono;
 int post(tll::Channel * c, tll_msg_t * msg)
@@ -10,14 +29,45 @@ int post(tll::Channel * c, tll_msg_t * msg)
 	return c->post(msg);
 }
 
+int timeit(tll::channel::Context &ctx, std::string_view url, bool callback)
+{
+	constexpr size_t count = 10000000;
+	auto c = ctx.channel(url);
+	if (!c)
+		return -1;
+	size_t counter = 0;
+	if (callback) {
+		//fmt::print("Add callback\n");
+		c->callback_add([](auto *c, auto *m, void *user) { ++*(size_t *)user; return 0; }, &counter);
+	}
+
+	if (c->open())
+		return -1;
+
+	for (auto i = 0; i < 10; i++) {
+		if (c->state() != tll::state::Opening)
+			break;
+		c->process();
+	}
+
+	char data[1024] = {};
+	tll_msg_t msg = {};
+	msg.data = data;
+	msg.size = 128;
+
+	timeit(count, url, post, c.get(), &msg);
+	if (callback && !counter)
+		fmt::print("Callback was added but not called\n");
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
-	constexpr size_t count = 100000;
 	tll::Logger::set("tll", tll::Logger::Warning, true);
 
 	tll::util::ArgumentParser parser("url [--module=module]");
 
-	std::string url = "null://;name=null";
+	std::vector<std::string> url;
 	std::vector<std::string> modules;
 	bool callback = false;
 
@@ -41,33 +91,15 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 	}
+	ctx.reg(&Echo::impl);
+	ctx.reg(&Prefix::impl);
 
-	auto c = ctx.channel(url);
-	if (!c)
-		return -1;
-	size_t counter = 0;
-	if (callback) {
-		fmt::print("Add callback\n");
-		c->callback_add([](auto *c, auto *m, void *user) { ++*(size_t *)user; return 0; }, &counter);
-	}
+	if (url.empty())
+		url = {"null://", "prefix+null://", "echo://", "prefix+echo://"};
+	url.insert(url.begin(), "null://;name=prewarm");
 
-	if (c->open())
-		return -1;
-
-	for (auto i = 0; i < 10; i++) {
-		if (c->state() != tll::state::Opening)
-			break;
-		c->process();
-	}
-
-	char data[1024] = {};
-	tll_msg_t msg = {};
-	msg.data = data;
-	msg.size = 128;
-
-	timeit(count, "post", post, c.get(), &msg);
-	if (callback && !counter)
-		fmt::print("Callback was added but not called\n");
+	for (auto & u : url)
+		timeit(ctx, u, callback);
 
 	return 0;
 }
