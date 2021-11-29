@@ -152,7 +152,9 @@ inline expected<int, std::string> ArgumentParser::parse(int argc, char *argv[]) 
 		} else { // Positional argument
 			if (posit == positional.end())
 				return error("No positional arguments defined for '" + std::string(flag) + "'");
-			arg = *posit++;
+			arg = *posit;
+			if (!std::holds_alternative<std::vector<std::string> *>(arg->value))
+				posit++;
 			value = flag;
 		}
 
