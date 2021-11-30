@@ -21,7 +21,7 @@ inline result_t<bool> hex2bin(std::string_view s, T & buf)
 {
 	if (s.size() % 2)
 		return error("Odd hex data size");
-	static const char lookup[] = ""
+	static const unsigned char lookup[] = ""
 		"\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80" // 0x00
 		"\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80" // 0x10
 		"\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80" // 0x20
@@ -41,8 +41,8 @@ inline result_t<bool> hex2bin(std::string_view s, T & buf)
 		"";
 	buf.resize(s.size() / 2);
 	for (size_t i = 0; i < s.size(); i += 2) {
-		char hi = lookup[(unsigned char) s[i]];
-		char lo = lookup[(unsigned char) s[i+1]];
+		auto hi = lookup[(unsigned char) s[i]];
+		auto lo = lookup[(unsigned char) s[i+1]];
 		if (0x80 & (hi | lo))
 			return error("Invalid hex data: " + std::string(s.substr(i, 6)));
 		buf[i/2] = (hi << 4) | lo;
@@ -131,7 +131,7 @@ inline result_t<bool> b64_decode(std::string_view s, T & buf)
 	}
 	typedef unsigned char u1;
 	static const uint16_t pad2 = (((u1) '=') << 8) | ((u1) '=');
-	static const char lookup[] = ""
+	static const u1 lookup[] = ""
 		"\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80" // 0x00
 		"\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80" // 0x10
 		"\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x3e\x80\x80\x80\x3f" // 0x20
