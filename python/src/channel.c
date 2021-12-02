@@ -94,6 +94,7 @@ static tll_channel_impl_t prefix_impl = {.init = pychannel_init, .name = "python
 static tll_channel_impl_t *channels[] = { &python_impl, &prefix_impl, NULL };
 
 struct tll_channel_module_t channel_module = {
+	.version = TLL_CHANNEL_MODULE_VERSION,
 	.impl = channels,
 	.flags = TLL_CHANNEL_MODULE_DLOPEN_GLOBAL,
 	.init = pyinit,

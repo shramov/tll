@@ -93,6 +93,8 @@ typedef enum tll_channel_module_flags_t
 	TLL_CHANNEL_MODULE_DLOPEN_GLOBAL = 1,
 } tll_channel_module_flags_t;
 
+#define TLL_CHANNEL_MODULE_VERSION 1
+
 typedef struct tll_channel_module_t
 {
 	/// Version of module symbol
@@ -260,6 +262,7 @@ struct channel_module_t : public tll_channel_module_t
 	constexpr channel_module_t(T ... args) : channels_array({static_cast<tll_channel_impl_t *>(args)..., nullptr})
 	{
 		impl = channels_array.data();
+		version = TLL_CHANNEL_MODULE_VERSION;
 	}
 };
 
