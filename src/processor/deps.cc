@@ -20,6 +20,7 @@ int Object::init(const tll::Channel::Url &url)
 	shutdown = reader.getT("shutdown-on", Shutdown::None, {{"none", Shutdown::None}, {"close", Shutdown::Close}, {"error", Shutdown::Error}});
 	reopen.timeout_min = reader.getT("reopen-timeout", reopen.timeout_min);
 	reopen.timeout_max = reader.getT("reopen-timeout-max", reopen.timeout_max);
+	reopen.timeout_tremble = reader.getT("reopen-active-min", reopen.timeout_tremble);
 	verbose = reader.getT("tll.processor-verbose", false);
 	if (!reader) {
 		tll::Logger _log("tll.processor");

@@ -423,7 +423,7 @@ TEST(Channel, Reopen)
 	auto ctx = tll::channel::Context(tll::Config());
 	ASSERT_EQ(ctx.reg(&Reopen::impl), 0);
 	ASSERT_EQ(ctx.reg(&ReopenChild::impl), 0);
-	Accum s = ctx.channel("reopen://;child=reopen-child://;reopen-timeout-min=100us;reopen-timeout-max=3s;name=reopen");
+	Accum s = ctx.channel("reopen://;child=reopen-child://;reopen-timeout-min=100us;reopen-timeout-max=3s;reopen-active-min=100us;name=reopen");
 	ASSERT_NE(s.get(), nullptr);
 
 	s->open();
@@ -465,4 +465,37 @@ TEST(Channel, Reopen)
 
 	s->close();
 	ASSERT_EQ(c->state(), tll::state::Closed);
+
+	s->open();
+	ASSERT_EQ(c->state(), tll::state::Opening);
+
+	msg.msgid = tll::state::Active;
+	ASSERT_EQ(c->post(&msg), 0);
+	ASSERT_EQ(c->state(), tll::state::Active);
+
+	msg.msgid = tll::state::Error;
+	ASSERT_EQ(c->post(&msg), 0);
+	ASSERT_EQ(c->state(), tll::state::Error);
+	ASSERT_NE(timer->dcaps() & tll::dcaps::Process, 0u);
+
+	timer->process();
+	ASSERT_EQ(c->state(), tll::state::Closed);
+	ASSERT_NE(timer->dcaps() & tll::dcaps::Process, 0u);
+
+	usleep(100);
+	timer->process();
+	ASSERT_EQ(c->state(), tll::state::Opening);
+
+	msg.msgid = tll::state::Active;
+	ASSERT_EQ(c->post(&msg), 0);
+	ASSERT_EQ(c->state(), tll::state::Active);
+
+	usleep(100);
+
+	c->close();
+	ASSERT_NE(timer->dcaps() & tll::dcaps::Process, 0u);
+
+	timer->process();
+	ASSERT_EQ(c->state(), tll::state::Opening);
+	ASSERT_EQ(timer->dcaps() & tll::dcaps::Process, 0u);
 }

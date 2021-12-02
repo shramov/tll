@@ -13,7 +13,6 @@
 #include "tll/scheme/channel/timer.h"
 
 #include "tll/util/time.h"
-#include "tll/util/time.h"
 
 namespace tll::channel {
 
@@ -22,10 +21,13 @@ struct ReopenData
 	Channel * channel = nullptr;
 	tll_state_t state = state::Closed;
 	time_point next = {};
+	time_point active_ts = {};
 
 	duration timeout_min = std::chrono::seconds(1);
 	duration timeout_max = std::chrono::seconds(30);
+	duration timeout_tremble = std::chrono::milliseconds(1);
 
+	bool reopen_wait = false;
 	unsigned count = 0;
 	ConstConfig open_params;
 
@@ -51,16 +53,35 @@ struct ReopenData
 	{
 		switch (s) {
 		case state::Opening:
+			next = {};
+			active_ts = {};
 			if (timeout() < timeout_max)
 				count++;
 			break;
 		case state::Active:
-			count = 0;
-			next = {};
+			active_ts = tll::time::now();
 			break;
 		case state::Error:
 			if (state == state::Opening) {
+				reopen_wait = true;
+			} else if (state == state::Active) {
+				if (tll::time::now() - active_ts < timeout_tremble)
+					reopen_wait = true;
+			}
+			break;
+		case state::Closing:
+			if (state == state::Active) {
+				if (tll::time::now() - active_ts < timeout_tremble)
+					reopen_wait = true;
+			}
+			break;
+		case state::Closed:
+			if (reopen_wait) {
 				next = tll::time::now() + timeout();
+				reopen_wait = false;
+			} else {
+				next = tll::time::now();
+				count = 0;
 			}
 			break;
 		case state::Destroy:
@@ -115,6 +136,7 @@ public:
 			auto reader = this->channelT()->channel_props_reader(url);
 			_reopen_data.timeout_min = reader.getT("reopen-timeout-min", _reopen_data.timeout_min);
 			_reopen_data.timeout_max = reader.getT("reopen-timeout-max", _reopen_data.timeout_max);
+			_reopen_data.timeout_tremble = reader.getT("reopen-active-min", _reopen_data.timeout_tremble);
 			if (!reader)
 				return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 		}
