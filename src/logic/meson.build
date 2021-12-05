@@ -9,3 +9,9 @@ shared_library('tll-logic-stat'
 	, dependencies : [fmt, tll]
 	, install: true
 	)
+
+shared_library('tll-logic-control'
+	, ['control.cc']
+	, dependencies : [fmt, tll]
+	, install: true
+	)
