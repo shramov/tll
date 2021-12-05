@@ -7,6 +7,7 @@
 
 #include "processor/processor.h"
 #include "processor/scheme.h"
+#include "tll/processor/scheme.h"
 
 #include "tll/logger/prefix.h"
 #include "tll/util/conv-fmt.h"
@@ -77,7 +78,7 @@ int Processor::_init(const tll::Channel::Url &url, Channel * master)
 		return _log.fail(EINVAL, "Empty processor config");
 	_cfg = *sub;
 
-	_ipc = context().channel(fmt::format("ipc://;mode=server;name={}/ipc;dump=no;tll.internal=yes", name));
+	_ipc = context().channel(fmt::format("ipc://;mode=server;broadcast=yes;name={}/ipc;dump=no;tll.internal=no", name));
 	if (!_ipc.get())
 		return _log.fail(EINVAL, "Failed to create IPC channel for processor");
 	_ipc->callback_add(this, TLL_MESSAGE_MASK_DATA);
@@ -91,7 +92,14 @@ int Processor::_init(const tll::Channel::Url &url, Channel * master)
 	_child_add(_timer.get(), "timer");
 	loop.add(_timer.get());
 
+	if (auto r = Base::_init(url, master); r)
+		return _log.fail(EINVAL, "Failed to init base");
+
 	//static_cast<TChannel *>(_ipc.get())->callback_addT(this, TLL_MESSAGE_MASK_DATA);
+
+	_scheme.reset(context().scheme_load(processor_scheme::scheme_string));
+	if (!_scheme.get())
+		return _log.fail(EINVAL, "Failed to load processor scheme");
 
 	if (init_depends())
 		return _log.fail(EINVAL, "Failed to init objects");
@@ -234,6 +242,9 @@ std::optional<Processor::PreObject> Processor::init_pre(std::string_view extname
 	auto master = obj.url.get("master");
 	if (master)
 		obj.depends_init.list.insert(std::string(*master));
+
+	obj.depends_init.list.erase(_ipc->name());
+	obj.depends_open.list.erase(_ipc->name());
 
 	{
 		std::list<std::string_view> tmp(obj.depends_init.list.begin(), obj.depends_init.list.end());
@@ -421,6 +432,7 @@ int Processor::cb(const Channel * c, const tll_msg_t * msg)
 	case scheme::State::id: {
 		auto data = (const scheme::State *) msg->data;
 		update(data->channel, data->state);
+		_report_state(data->channel, data->state, {});
 		break;
 	}
 	case scheme::WorkerState::id: {
@@ -443,6 +455,16 @@ int Processor::cb(const Channel * c, const tll_msg_t * msg)
 			return 0;
 		_log.info("All workers ready");
 		activate();
+		break;
+	}
+	// Normal messages
+	case processor_scheme::StateDump::meta_id(): {
+		for (auto & o : _objects)
+			_report_state(o.get(), o.state, msg->addr);
+		tll_msg_t m = { TLL_MESSAGE_DATA };
+		m.msgid = processor_scheme::StateDumpEnd::meta_id();
+		m.addr = msg->addr;
+		_ipc->post(&m);
 		break;
 	}
 	default:
@@ -567,7 +589,7 @@ int Processor::_close(bool force)
 	_timer->close();
 	loop.stop = true;
 
-	return Base<Processor>::_close();
+	return Base::_close();
 }
 
 void Processor::pending_add(tll::time_point ts, Object * o)
@@ -637,4 +659,19 @@ int Processor::pending_process(const tll_msg_t * msg)
 		pending_rearm(_pending.begin()->first);
 	}
 	return 0;
+}
+
+void Processor::_report_state(const Channel *c, tll_state_t s, tll_addr_t addr)
+{
+	_buf.resize(0);
+	_buf.resize(processor_scheme::StateUpdate::meta_size());
+	auto data = processor_scheme::StateUpdate::bind(_buf);
+	data.set_channel(c->name());
+	data.set_state((processor_scheme::StateUpdate::State) s);
+	tll_msg_t msg = { TLL_MESSAGE_DATA };
+	msg.msgid = data.meta_id();
+	msg.data = data.view().data();
+	msg.size = data.view().size();
+	msg.addr = addr;
+	_ipc->post(&msg);
 }

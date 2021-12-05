@@ -9,6 +9,22 @@ from tll.config import Config
 from tll.processor import Processor
 
 import pytest
+import decorator
+
+@pytest.fixture
+def context():
+    return Context()
+
+@pytest.fixture
+def asyncloop(context):
+    loop = asynctll.Loop(context)
+    yield loop
+    loop.destroy()
+    loop = None
+
+@decorator.decorator
+def asyncloop_run(f, asyncloop, *a, **kw):
+    asyncloop.run(f(asyncloop, *a, **kw))
 
 class OpenTest(Base):
     PROTO = "open-test"
@@ -124,3 +140,39 @@ processor.objects:
         loop.run(main(loop))
     finally:
         loop.destroy()
+
+@asyncloop_run
+async def test_control(asyncloop, context):
+    cfg = Config.load('''yamls://
+name: test
+processor.objects:
+  object:
+    url: null://
+''')
+
+    p = Processor(cfg, context=context)
+    asyncloop._loop.add(p)
+
+    p.open()
+
+    client = asyncloop.Channel('ipc://;mode=client;master=test;dump=yes;name=client;scheme=channel://test')
+    client.open()
+
+    assert len(p.workers) == 1
+    for w in p.workers:
+        w.open()
+
+    State = client.scheme.messages.StateUpdate.enums['State'].klass
+    m = await client.recv()
+    assert client.unpack(m).as_dict() == {'channel': 'object', 'state': State.Opening}
+
+    m = await client.recv()
+    assert client.unpack(m).as_dict() == {'channel': 'object', 'state': State.Active}
+
+    client.post({}, name='StateDump')
+
+    m = await client.recv()
+    assert client.unpack(m).as_dict() == {'channel': 'object', 'state': State.Active}
+
+    m = await client.recv()
+    assert client.unpack(m).SCHEME.name == 'StateDumpEnd'

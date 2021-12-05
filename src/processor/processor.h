@@ -9,7 +9,6 @@
 #define _PROCESSOR_CONTEXT_H
 
 #include "tll/channel/base.h"
-#include "tll/channel/impl.h"
 
 #include "tll/processor.h"
 #include "tll/processor/loop.h"
@@ -26,10 +25,13 @@ namespace tll::processor::_ {
 
 struct Processor : public tll::channel::Base<Processor>
 {
+	using Base = tll::channel::Base<Processor>;
+
 	static constexpr auto open_policy() { return OpenPolicy::Manual; }
 	static constexpr auto close_policy() { return ClosePolicy::Long; }
 	static constexpr auto process_policy() { return ProcessPolicy::Never; }
 	static constexpr auto child_policy() { return ChildPolicy::Proxy; } // Set Proxy cap to access IPC child channel
+	static constexpr auto scheme_policy() { return SchemePolicy::Manual; }
 	static constexpr std::string_view channel_protocol() { return "processor"; }
 
 	struct PreObject {
@@ -66,6 +68,8 @@ struct Processor : public tll::channel::Base<Processor>
 	std::map<std::string, tll::processor::_::Worker *, std::less<>> _workers;
 	std::unique_ptr<tll::Channel> _ipc;
 	std::unique_ptr<tll::Channel> _timer;
+
+	std::vector<char> _buf;
 
 	~Processor() { _free(); }
 
@@ -112,7 +116,7 @@ struct Processor : public tll::channel::Base<Processor>
 	friend struct tll::CallbackT<Processor>;
 	int cb(const Channel * c, const tll_msg_t * msg);
 
-	using tll::channel::Base<Processor>::post;
+	using Base::post;
 
 	template <typename T> int post(tll_addr_t addr, T body);
 	template <typename T> int post(const Object *o, T body) { return post<T>(o->worker->proc.addr, body); }
@@ -141,6 +145,8 @@ struct Processor : public tll::channel::Base<Processor>
 	}
 
 	int pending_process(const tll_msg_t * msg);
+
+	void _report_state(const Channel *c, tll_state_t s, tll_addr_t addr);
 };
 
 } // namespace tll::processor

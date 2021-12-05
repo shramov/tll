@@ -9,6 +9,8 @@
 #include "processor/scheme.h"
 #include "processor/worker.h"
 
+#include "tll/processor/scheme.h"
+
 #ifdef __linux__
 #include <sched.h>
 #endif
@@ -130,6 +132,8 @@ int Worker::callback(const Channel * c, const tll_msg_t * msg)
 		close();
 		break;
 	}
+	case processor_scheme::StateUpdate::meta_id():
+		break;
 	default:
 		_log.debug("Unknown message {}", msg->msgid);
 	}
