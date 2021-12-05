@@ -29,6 +29,7 @@ typedef struct tll_config_t tll_config_t;
  */
 typedef int (*tll_config_callback_t)(const char * key, int klen, const tll_config_t *value, void * data);
 typedef char * (*tll_config_value_callback_t)(int * len, void * data);
+typedef void (*tll_config_value_callback_free_t)(tll_config_value_callback_t cb, void * data);
 
 /** Check if key exists
  *
@@ -48,7 +49,7 @@ int tll_config_del(tll_config_t *, const char * path, int plen, int recursive);
 int tll_config_set(tll_config_t *cfg, const char * path, int plen, const char * value, int vlen);
 
 /// Set callback value
-int tll_config_set_callback(tll_config_t *, const char * path, int plen, tll_config_value_callback_t cb, void * user);
+int tll_config_set_callback(tll_config_t *, const char * path, int plen, tll_config_value_callback_t cb, void * user, tll_config_value_callback_free_t deleter);
 
 /// Set config subtree link
 int tll_config_set_link(tll_config_t *, const char * path, int plen, const char * dest, int dlen);
@@ -361,12 +362,12 @@ class Config : public ConfigT<false>
 	int set(std::string_view path, std::string_view value) { return tll_config_set(_cfg, path.data(), path.size(), value.data(), value.size()); }
 	int set(std::string_view path, ConfigT & cfg) { return tll_config_set_config(_cfg, path.data(), path.size(), cfg, 0); }
 	int set(std::string_view path, tll_config_t * cfg) { return tll_config_set_config(_cfg, path.data(), path.size(), cfg, 0); }
-	int set(std::string_view path, tll_config_value_callback_t cb, void * user) { return tll_config_set_callback(_cfg, path.data(), path.size(), cb, user); }
+	int set(std::string_view path, tll_config_value_callback_t cb, void * user) { return tll_config_set_callback(_cfg, path.data(), path.size(), cb, user, nullptr); }
 
 	template <typename V>
 	int set_ptr(std::string_view path, const V * ptr)
 	{
-		return tll_config_set_callback(_cfg, path.data(), path.size(), _to_string<V>, (void *) ptr);
+		return tll_config_set_callback(_cfg, path.data(), path.size(), _to_string<V>, (void *) ptr, nullptr);
 	}
 
 	int link(std::string_view path, std::string_view dest) { return tll_config_set_link(_cfg, path.data(), path.size(), dest.data(), dest.size()); }

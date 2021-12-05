@@ -202,14 +202,14 @@ int tll_config_set(tll_config_t *cfg, const char * path, int plen, const char * 
 	return sub->set(v);
 }
 
-int tll_config_set_callback(tll_config_t *cfg, const char * path, int plen, tll_config_value_callback_t cb, void * user)
+int tll_config_set_callback(tll_config_t *cfg, const char * path, int plen, tll_config_value_callback_t cb, void * user, tll_config_value_callback_free_t deleter)
 {
 	if (!cfg) return EINVAL;
 	if (path == nullptr)
-		return cfg->set(cb, user);
+		return cfg->set(cb, user, deleter);
 	auto sub = cfg->find(string_view_from_c(path, plen), 1);
 	if (!sub) return EINVAL;
-	return sub->set(cb, user);
+	return sub->set(cb, user, deleter);
 }
 
 int tll_config_set_link(tll_config_t *cfg, const char * path, int plen, const char * dest, int dlen)
@@ -291,7 +291,7 @@ int tll_config_get(const tll_config_t *c, const char *path, int plen, char *valu
 		auto v = std::get<tll_config_t::cb_pair_t>(c->data);
 		lock.unlock();
 		int slen = 0;
-		std::unique_ptr<char, decltype(&free)> str((*v.first)(&slen, v.second), &free);
+		std::unique_ptr<char, decltype(&free)> str(v(&slen), &free);
 		return _get_sv(std::string_view(str.get(), slen), value, vlen);
 	} else
 		return ENOENT;
@@ -318,7 +318,7 @@ char * tll_config_get_copy(const tll_config_t *c, const char *path, int plen, in
 	} else if (std::holds_alternative<tll_config_t::cb_pair_t>(c->data)) {
 		auto v = std::get<tll_config_t::cb_pair_t>(c->data);
 		lock.unlock();
-		return (*v.first)(vlen, v.second);
+		return v(vlen);
 	} else
 		return nullptr;
 }
@@ -371,7 +371,7 @@ int tll_config_t::process_imports(std::string_view path, const std::list<std::st
 			} else if (std::holds_alternative<tll_config_t::cb_pair_t>(i->data)) {
 				auto cb = std::get<tll_config_t::cb_pair_t>(i->data);
 				int slen = 0;
-				std::unique_ptr<char, decltype(&free)> str((*cb.first)(&slen, cb.second), &free);
+				std::unique_ptr<char, decltype(&free)> str(cb(&slen), &free);
 				if (!str)
 					continue;
 				imports.push_front(std::string(str.get(), slen));

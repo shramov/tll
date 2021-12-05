@@ -25,7 +25,23 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 {
 	typedef std::map<std::string, refptr_t<tll_config_t>, std::less<>> map_t;
 	typedef tll::split_helperT<'.'>::iterator path_iterator_t;
-	typedef std::pair<tll_config_value_callback_t, void *> cb_pair_t;
+	struct cb_pair_t {
+		struct internal {
+			tll_config_value_callback_t cb = nullptr;
+			void * user = nullptr;
+			tll_config_value_callback_free_t deleter = nullptr;
+			internal(tll_config_value_callback_t c, void * u, tll_config_value_callback_free_t d) : cb(c), user(u), deleter(d) {}
+			~internal()
+			{
+				if (!cb) return;
+				if (deleter) deleter(cb, user);
+			}
+		};
+
+		std::shared_ptr<internal> ptr;
+
+		char * operator () (int * slen) { return (ptr->cb)(slen, ptr->user); }
+	};
 
 	typedef std::unique_lock<std::shared_mutex> wlock_t;
 	typedef std::shared_lock<std::shared_mutex> rlock_t;
@@ -194,10 +210,10 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 		return 0;
 	}
 
-	int set(tll_config_value_callback_t cb, void * user)
+	int set(tll_config_value_callback_t cb, void * user, tll_config_value_callback_free_t deleter)
 	{
 		auto lock = wlock();
-		data = std::make_pair(cb, user);
+		data = cb_pair_t { std::make_shared<cb_pair_t::internal>(cb, user, deleter) };
 		return 0;
 	}
 
