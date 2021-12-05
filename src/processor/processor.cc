@@ -359,6 +359,13 @@ int Processor::build_rdepends()
 	for (auto & o : _objects) {
 		_log.debug("Object {}, depends [{}], rdepends [{}]", o->name(), o.depends, o.rdepends);
 		o.worker->objects.push_back(&o);
+
+		auto cfg = _config.sub("objects", true)->sub(o->name(), true);
+		cfg->set("name", o->name());
+		if (o.depends.size())
+			cfg->set("depends", tll::conv::to_string(o.depends));
+		if (o.rdepends.size())
+			cfg->set("rdepends", tll::conv::to_string(o.rdepends));
 	}
 	return 0;
 }
