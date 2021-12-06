@@ -8,11 +8,11 @@
 #ifndef _TLL_IMPL_CHANNEL_PUB_CLIENT_H
 #define _TLL_IMPL_CHANNEL_PUB_CLIENT_H
 
-#include "tll/channel/base.h"
 #include "tll/channel/frame.h"
+#include "tll/channel/lastseq.h"
 #include "tll/channel/tcp.h"
 
-class ChPubClient : public tll::channel::TcpClient<ChPubClient>
+class ChPubClient : public tll::channel::LastSeqRx<ChPubClient, tll::channel::TcpClient<ChPubClient>>
 {
 	bool _hello = true;
 	size_t _size;

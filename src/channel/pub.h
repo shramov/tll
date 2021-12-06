@@ -8,8 +8,8 @@
 #ifndef _TLL_IMPL_CHANNEL_PUB_H
 #define _TLL_IMPL_CHANNEL_PUB_H
 
-#include "tll/channel/base.h"
 #include "tll/channel/frame.h"
+#include "tll/channel/lastseq.h"
 #include "tll/channel/tcp.h"
 #include "tll/util/cppring.h"
 
@@ -46,7 +46,7 @@ class ChPubSocket : public tll::channel::TcpSocket<ChPubSocket>
 	int _on_active();
 };
 
-class ChPubServer : public tll::channel::TcpServer<ChPubServer, ChPubSocket>
+class ChPubServer : public tll::channel::LastSeqTx<ChPubServer, tll::channel::TcpServer<ChPubServer, ChPubSocket>>
 {
 	size_t _size;
 	tll::util::DataRing<tll_frame_t> _ring;

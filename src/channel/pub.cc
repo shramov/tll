@@ -86,6 +86,8 @@ int ChPubServer::_post(const tll_msg_t *msg, int flags)
 	if (full > _size / 2)
 		return _log.fail(EMSGSIZE, "Message too large for buffer {}: {}", _size, msg->size);
 
+	_last_seq_tx(msg->seq);
+
 	do {
 		if (_ring.push_back(frame, msg->data, msg->size) != nullptr)
 			break;
