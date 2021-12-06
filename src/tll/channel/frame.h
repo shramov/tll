@@ -8,6 +8,8 @@
 #ifndef _TLL_CHANNEL_FRAME_H
 #define _TLL_CHANNEL_FRAME_H
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -46,6 +48,8 @@ struct tll_frame_seq64_t
 
 #include <string_view>
 #include <vector>
+
+#include "tll/channel.h"
 
 namespace tll::frame {
 
