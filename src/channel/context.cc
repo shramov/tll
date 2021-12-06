@@ -33,6 +33,7 @@
 #include "channel/null.h"
 #include "channel/pub.h"
 #include "channel/serial.h"
+#include "channel/seq-check.h"
 #include "channel/tcp.h"
 #include "channel/timeit.h"
 #include "channel/timer.h"
@@ -45,6 +46,7 @@ using namespace tll;
 TLL_DEFINE_IMPL(ChDirect);
 TLL_DEFINE_IMPL(ChLoader);
 TLL_DEFINE_IMPL(ChNull);
+TLL_DEFINE_IMPL(tll::channel::SeqCheck);
 
 TLL_DECLARE_IMPL(ChIpc);
 TLL_DECLARE_IMPL(ChMem);
@@ -87,6 +89,8 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChUdp::impl);
 		reg(&ChYaml::impl);
 		reg(&ChZero::impl);
+
+		reg(&tll::channel::SeqCheck::impl);
 
 		auto cfg = tll::Channel::Url::parse("udp://;udp.multicast=yes");
 		if (cfg) alias_reg("mudp", *cfg);
