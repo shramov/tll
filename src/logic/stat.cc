@@ -6,6 +6,7 @@
  */
 
 #include "tll/channel/logic.h"
+#include "tll/channel/module.h"
 #include "tll/stat.h"
 #include "tll/util/conv.h"
 #include "tll/util/conv-fmt.h"
@@ -241,4 +242,4 @@ std::string Stat::_group(std::string_view name, tll_stat_unit_t unit, int64_t co
 
 TLL_DEFINE_IMPL(Stat);
 
-auto channel_module = tll::make_channel_module<Stat>();
+TLL_DEFINE_MODULE(Stat);

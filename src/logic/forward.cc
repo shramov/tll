@@ -6,6 +6,7 @@
  */
 
 #include "tll/channel/logic.h"
+#include "tll/channel/module.h"
 
 class Forward : public tll::LogicBase<Forward>
 {

@@ -16,6 +16,7 @@
 
 #include "tll/channel.h"
 #include "tll/channel/impl.h"
+#include "tll/channel/module.h"
 #include "tll/config.h"
 #include "tll/logger.h"
 #include "tll/logger/prefix.h"

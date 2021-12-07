@@ -2,7 +2,7 @@
 #include <errno.h>
 #include <Python.h>
 
-#include "tll/channel/impl.h"
+#include "tll/channel/module.h"
 #include "tll/config.h"
 
 #include "context_api.h"

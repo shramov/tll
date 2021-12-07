@@ -85,30 +85,6 @@ typedef struct tll_channel_internal_t
 	tll_stat_block_t * stat;
 } tll_channel_internal_t;
 
-/// Flags for tll_channel_module_t structure
-typedef enum tll_channel_module_flags_t
-{
-	/// Load module with RTLD_GLOBAL. Is needed when module is linked with some libraries
-	/// that are needed for symbol resolution of additional plugins like python modules
-	TLL_CHANNEL_MODULE_DLOPEN_GLOBAL = 1,
-} tll_channel_module_flags_t;
-
-#define TLL_CHANNEL_MODULE_VERSION 1
-
-typedef struct tll_channel_module_t
-{
-	/// Version of module symbol
-	int version;
-	/// Null terminated list of implementations
-	tll_channel_impl_t ** impl;
-	/// Init function, may be NULL. Non-zero return value indicates error and aborts module loading
-	int (*init)(struct tll_channel_module_t * m, tll_channel_context_t *ctx);
-	/// Free function, called on context destruction as many times as init function.
-	int (*free)(struct tll_channel_module_t * m, tll_channel_context_t *ctx);
-	/// Flags, @see tll_channel_module_flags_t
-	unsigned flags;
-} tll_channel_module_t;
-
 void tll_channel_list_free(tll_channel_list_t *l);
 int tll_channel_list_add(tll_channel_list_t **l, tll_channel_t *c);
 int tll_channel_list_del(tll_channel_list_t **l, const tll_channel_t *c);
@@ -249,31 +225,6 @@ public:
 
 	static const tll_scheme_t * _scheme(const tll_channel_t *c, int type) { return _dataT(c)->scheme(type); }
 };
-
-template <size_t Size>
-struct channel_module_t : public tll_channel_module_t
-{
-	std::array<tll_channel_impl_t *, Size + 1> channels_array;
-	constexpr channel_module_t() { impl = channels_array.data(); }
-	constexpr channel_module_t(channel_module_t &&m) : channels_array(std::move(m.channels_array)) { impl = channels_array.data(); }
-	constexpr channel_module_t(const channel_module_t &m) : channels_array(m.channels_array) { impl = channels_array.data(); }
-
-	template <typename ... T>
-	constexpr channel_module_t(T ... args) : channels_array({static_cast<tll_channel_impl_t *>(args)..., nullptr})
-	{
-		impl = channels_array.data();
-		version = TLL_CHANNEL_MODULE_VERSION;
-	}
-};
-
-template <typename ... Args>
-constexpr channel_module_t<sizeof...(Args)> make_channel_module()
-{
-	return channel_module_t<sizeof...(Args)>(&Args::impl...);
-}
-
-#define TLL_DEFINE_MODULE(...) \
-auto channel_module = tll::make_channel_module<__VA_ARGS__>()
 
 namespace channel::log_msg_format {
 
