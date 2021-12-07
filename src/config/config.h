@@ -73,8 +73,10 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 				if (cfg.get()) {
 					lock = cfg->rlock();
 					data = cfg->data;
-				} else
+				} else {
 					data = {};
+					return;
+				}
 			}
 		}
 		for (auto & k : cfg->kids) {

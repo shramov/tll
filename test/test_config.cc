@@ -223,4 +223,8 @@ TEST(Config, Link)
 	ASSERT_TRUE(c->get("a.b.c"));
 	ASSERT_EQ(*c->get("a.b.c"), "100");
 	ASSERT_FALSE(copy.get("a.b.c"));
+
+	copy = c->sub("a")->copy();
+	ASSERT_TRUE(copy.get("b.c"));
+	ASSERT_EQ(*copy.get("b.c"), "100");
 }
