@@ -302,13 +302,13 @@ char * tll_config_get_copy(const tll_config_t *c, const char *path, int plen, in
 {
 	if (!c) return nullptr;
 	refptr_t<const tll_config_t> cfg(c);
-	if (path != 0) {
+	if (path != nullptr) {
 		cfg = c->find(string_view_from_c(path, plen));
-		if (!cfg.get()) return 0;
+		if (!cfg.get()) return nullptr;
 	} else if (!c->value())
 		return nullptr;
 	auto lock = cfg->rlock();
-	cfg = tll_config_t::_lookup_link(c);
+	cfg = tll_config_t::_lookup_link(cfg.get());
 	lock = cfg->rlock();
 	c = cfg.get();
 	if (std::holds_alternative<std::string>(c->data)) {

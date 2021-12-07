@@ -24,6 +24,13 @@ TEST(Config, Get)
 	ASSERT_TRUE(cfg.has("a.b.c"));
 	ASSERT_EQ(*cfg.get("a.b.c"), "1");
 
+	auto cstr = tll_config_get_copy(cfg, "a.b.c", -1, nullptr);
+	EXPECT_NE(cstr, nullptr);
+	if (cstr) {
+		EXPECT_STREQ(cstr, "1");
+	}
+	tll_config_value_free(cstr);
+
 	auto sub = cfg.sub("a.b");
 	ASSERT_TRUE(sub);
 	ASSERT_TRUE(sub->has("c"));
