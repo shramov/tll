@@ -282,6 +282,8 @@ int tll_config_get(const tll_config_t *c, const char *path, int plen, char *valu
 	if (!vlen) return EINVAL;
 	auto lock = cfg->rlock();
 	cfg = tll_config_t::_lookup_link(cfg.get());
+	if (!cfg.get())
+		return ENOENT;
 	c = cfg.get();
 	lock = cfg->rlock();
 	if (std::holds_alternative<std::string>(c->data)) {
@@ -309,6 +311,8 @@ char * tll_config_get_copy(const tll_config_t *c, const char *path, int plen, in
 		return nullptr;
 	auto lock = cfg->rlock();
 	cfg = tll_config_t::_lookup_link(cfg.get());
+	if (!cfg.get())
+		return nullptr;
 	lock = cfg->rlock();
 	c = cfg.get();
 	if (std::holds_alternative<std::string>(c->data)) {

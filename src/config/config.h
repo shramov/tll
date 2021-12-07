@@ -205,6 +205,11 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 			//fmt::print("Convert path {} to relative to {}: {}\n", value.string(), p->string(), r.string());
 			value = r;
 		}
+		auto it = value.begin();
+		if (it == value.end()) // Empty path
+			return EINVAL;
+		if (*it != "..") // Links under itself
+			return EINVAL;
 		auto lock = wlock();
 		data = value;
 		return 0;

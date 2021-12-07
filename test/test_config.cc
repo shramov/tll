@@ -209,4 +209,18 @@ TEST(Config, Link)
 
 	compare_keys(c->sub("d")->browse("**"), {"a.a", "a.b", "b"});
 	compare_keys(copy.browse("**"), {"a.a", "a.b", "b"});
+
+	c = tll::Config();
+	ASSERT_EQ(c->link("a.b.c", "a"), EINVAL);
+	ASSERT_EQ(c->link("a.b.c", "/dangling/a"), 0);
+	ASSERT_FALSE(c->get("a.b.c"));
+
+	copy = c->copy();
+	ASSERT_FALSE(c->get("a.b.c"));
+	ASSERT_FALSE(copy.get("a.b.c"));
+
+	c->set("dangling.a", "100");
+	ASSERT_TRUE(c->get("a.b.c"));
+	ASSERT_EQ(*c->get("a.b.c"), "100");
+	ASSERT_FALSE(copy.get("a.b.c"));
 }
