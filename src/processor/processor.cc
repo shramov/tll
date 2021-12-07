@@ -79,10 +79,12 @@ int Processor::_init(const tll::Channel::Url &url, Channel * master)
 	_log = { fmt::format("tll.processor.context.{}", name) };
 	loop._log = { fmt::format("tll.processor.context.{}.loop", name) };
 
-	auto sub = url.sub("processor");
+	_root = url.copy();
+	_root.set("sys", context().config());
+	auto sub = _root.sub("processor");
 	if (!sub)
 		return _log.fail(EINVAL, "Empty processor config");
-	_cfg = sub->copy();
+	_cfg = *sub;
 
 	_ipc = context().channel(fmt::format("ipc://;mode=server;name={}/ipc;dump=no;tll.internal=yes", name));
 	if (!_ipc.get())
@@ -174,7 +176,7 @@ int Processor::init_one(const PreObject &obj)
 	return 0;
 }
 
-std::optional<Processor::PreObject> Processor::init_pre(std::string_view extname, tll::Config &cfg)
+std::optional<Processor::PreObject> Processor::init_pre(std::string_view extname, tll::ConstConfig &cfg)
 {
 	auto name = std::string(cfg.get("name").value_or(extname));
 	auto log = _log.prefix("object {}:", std::string_view(name)); // TODO: name is moved and left empty without std::string_view wrapper

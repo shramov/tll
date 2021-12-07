@@ -34,7 +34,7 @@ struct Processor : public tll::channel::Base<Processor>
 
 	struct PreObject {
 		tll::Channel::Url url;
-		tll::Config config;
+		tll::ConstConfig config;
 		std::string name;
 
 		bool disabled = false;
@@ -54,7 +54,8 @@ struct Processor : public tll::channel::Base<Processor>
 	};
 
 	tll::processor::Loop loop;
-	tll::Config _cfg;
+	tll::Config _root;
+	tll::ConstConfig _cfg;
 	std::list<Object> _objects;
 	std::multimap<tll::time_point, Object *> _pending;
 
@@ -73,7 +74,7 @@ struct Processor : public tll::channel::Base<Processor>
 
 	int init_one(const PreObject &obj);
 	int init_depends();
-	std::optional<PreObject> init_pre(std::string_view name, Config &cfg);
+	std::optional<PreObject> init_pre(std::string_view name, ConstConfig &cfg);
 	int object_depth(std::map<std::string, PreObject, std::less<>> &map, PreObject &o, std::list<std::string_view> & path, bool init);
 	Worker * init_worker(std::string_view name);
 
