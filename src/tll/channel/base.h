@@ -246,7 +246,7 @@ class Base
 		{
 			std::string r;
 			for (auto &[k, c] : cfg.browse("**")) {
-				auto v = cfg.get();
+				auto v = c.get();
 				if (r.size())
 					r += ";";
 				r += fmt::format("{}={}", k, v.value_or(""));
