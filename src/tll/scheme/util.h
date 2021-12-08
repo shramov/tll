@@ -113,6 +113,22 @@ int write_pointer(const tll::scheme::Field * field, View data, const generic_off
 	}
 	return 0;
 }
+
+template <typename View>
+void write_pointer_size(const tll::scheme::Field * field, View data, size_t size)
+{
+	switch (field->offset_ptr_version) {
+	case TLL_SCHEME_OFFSET_PTR_DEFAULT:
+		data.template dataT<tll_scheme_offset_ptr_t>()->size = size;
+		break;
+	case TLL_SCHEME_OFFSET_PTR_LEGACY_LONG:
+		data.template dataT<tll_scheme_offset_ptr_legacy_long_t>()->size = size;
+		break;
+	case TLL_SCHEME_OFFSET_PTR_LEGACY_SHORT:
+		data.template dataT<tll_scheme_offset_ptr_legacy_short_t>()->size = size;
+		break;
+	}
+}
 } // namespace tll::scheme
 
 #endif//_TLL_SCHEME_UTIL_H
