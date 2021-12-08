@@ -8,8 +8,6 @@ from tll.stat import Method, Unit
 from tll.test_util import Accum, ports
 from tll.processor import Loop
 
-import common
-
 import os
 import pytest
 import select

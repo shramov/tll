@@ -6,7 +6,6 @@ from tll.channel.base import Base
 from tll.config import Config
 from tll.processor import Processor
 
-import common
 import pytest
 
 class OpenTest(Base):

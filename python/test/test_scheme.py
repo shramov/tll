@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 # vim: sts=4 sw=4 et
 
-from common import *
-
 import tll.scheme as S
 from tll.scheme import Field as F
 from tll.s2b import s2b

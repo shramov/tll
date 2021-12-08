@@ -8,8 +8,6 @@ from tll.test_util import Accum
 
 from tll import asynctll
 
-import common
-
 import pytest
 import time
 

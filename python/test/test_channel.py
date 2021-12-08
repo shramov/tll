@@ -10,7 +10,6 @@ from tll.config import Url
 from tll.error import TLLError
 from tll.test_util import Accum
 
-import common
 import pytest
 
 class Echo(Base):

@@ -6,8 +6,6 @@ from tll.config import Config
 from tll.error import TLLError
 from tll.test_util import Accum
 
-import common
-
 import pytest
 import select
 import time

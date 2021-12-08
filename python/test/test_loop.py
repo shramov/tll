@@ -7,8 +7,6 @@ from tll.processor import Loop
 from tll.error import TLLError
 from tll.test_util import Accum
 
-import common
-
 def test_fd():
     ctx = C.Context()
     l = Loop()

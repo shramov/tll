@@ -5,8 +5,6 @@ import enum
 import copy
 import pytest
 
-import common
-
 from tll.config import Config
 from tll.error import TLLError
 
