@@ -188,6 +188,8 @@ public:
 		using namespace std::chrono_literals;
 		auto state = (tll_state_t) msg->msgid;
 		_reopen_data.on_state(state);
+		if (this->state() != state::Active && this->state() != state::Opening)
+			return 0;
 		if (state == state::Error) { // Async close
 			this->_log.debug("Channel failed, schedule close");
 			_reopen_rearm(tll::time::now());
