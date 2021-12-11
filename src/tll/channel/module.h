@@ -38,6 +38,8 @@ typedef struct tll_channel_module_t
 	unsigned flags;
 } tll_channel_module_t;
 
+typedef tll_channel_module_t * (*tll_channel_module_func_t)();
+
 #ifdef __cplusplus
 } // extern "C"
 #endif//__cplusplus
@@ -69,7 +71,11 @@ constexpr channel_module_t<sizeof...(Args)> make_channel_module()
 }
 
 #define TLL_DEFINE_MODULE(...) \
-	auto channel_module = tll::make_channel_module<__VA_ARGS__>()
+extern "C" tll_channel_module_t * channel_module() \
+{ \
+	static auto mod = tll::make_channel_module<__VA_ARGS__>(); \
+	return &mod; \
+}
 
 } // namespace tll
 

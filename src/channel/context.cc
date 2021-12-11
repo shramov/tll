@@ -208,12 +208,13 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 			return 0;
 		}
 
-		auto f = (tll_channel_module_t *) dlsym(module, symbol.c_str());
-		if (!f) {
+		auto func = (tll_channel_module_func_t) dlsym(module, symbol.c_str());
+		if (!func) {
 			dlclose(module);
 			return log.fail(EINVAL, "Failed to load: {} not found", symbol);
 		}
 
+		auto f = func();
 		if (f->version != TLL_CHANNEL_MODULE_VERSION) {
 			dlclose(module);
 			return log.fail(EINVAL, "Mismatched module version: expected {}, got {}", TLL_CHANNEL_MODULE_VERSION, f->version);
