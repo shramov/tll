@@ -197,35 +197,35 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		auto path = fmt::format("{}lib{}.so", sep == name.npos?std::string():p.substr(0, sep + 1), name);
 
 		log.debug("Loading from {}", path);
-		auto module = dlopen(path.c_str(), RTLD_LOCAL | RTLD_NOW);
+		std::unique_ptr<void, void (*)(void *)> module = {
+			dlopen(path.c_str(), RTLD_LOCAL | RTLD_NOW),
+			[](void *m) { if (m) dlclose(m); }
+		};
+
 		if (!module)
 			return log.fail(EINVAL, "Failed to load: {}", dlerror());
 
-		auto it = modules.find(module);
+		auto it = modules.find(module.get());
 		if (it != modules.end()) {
 			log.info("Module already loaded");
-			dlclose(module);
 			return 0;
 		}
 
-		auto func = (tll_channel_module_func_t) dlsym(module, symbol.c_str());
-		if (!func) {
-			dlclose(module);
+		auto func = (tll_channel_module_func_t) dlsym(module.get(), symbol.c_str());
+		if (!func)
 			return log.fail(EINVAL, "Failed to load: {} not found", symbol);
-		}
 
 		auto f = func();
-		if (f->version != TLL_CHANNEL_MODULE_VERSION) {
-			dlclose(module);
+		if (!f)
+			return log.fail(EINVAL, "Module loader {} returns null pointer", symbol);
+
+		if (f->version != TLL_CHANNEL_MODULE_VERSION)
 			return log.fail(EINVAL, "Mismatched module version: expected {}, got {}", TLL_CHANNEL_MODULE_VERSION, f->version);
-		}
 
 		if (f->flags & TLL_CHANNEL_MODULE_DLOPEN_GLOBAL) {
 			log.debug("Reload with RTLD_GLOBAL");
-			if (!dlopen(path.c_str(), RTLD_GLOBAL | RTLD_NOLOAD | RTLD_NOW)) {
-				dlclose(module);
+			if (!dlopen(path.c_str(), RTLD_GLOBAL | RTLD_NOLOAD | RTLD_NOW))
 				return log.fail(EINVAL, "Failed to load: failed to reload with RTLD_GLOBAL: {}", dlerror());
-			}
 		}
 
 		if (f->init) {
@@ -239,7 +239,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 			}
 		} else if (!f->init)
 			log.info("No channels defined in module {}:{}", path, symbol);
-		modules.insert({module, f});
+		modules.insert({module.release(), f});
 		return 0;
 	}
 
