@@ -76,6 +76,9 @@ struct __attribute__((packed)) offset_ptr_t : public Ptr
 	const_iterator begin() const { return const_iterator(data(), entity_size()); }
 	iterator end() { return begin() + this->size; }
 	const_iterator end() const { return begin() + this->size; }
+
+	auto & operator [] (size_t idx) { return *(begin() + idx); }
+	auto & operator [] (size_t idx) const { return *(begin() + idx); }
 };
 
 template <typename T = void> using offset_ptr_legacy_short_t = offset_ptr_t<T, tll_scheme_offset_ptr_legacy_short_t>;
