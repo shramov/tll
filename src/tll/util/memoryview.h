@@ -130,7 +130,7 @@ class memoryview<const T>
 	memoryview(const memoryview<T> &rhs, size_t offset = 0) : _memory(&rhs.memory()), _offset(rhs.offset() + offset) {}
 	memoryview(memoryview<T> &&rhs) : _memory(&rhs.memory()), _offset(rhs.offset()) {}
 
-	const T & memory() const { return _memory; }
+	const T & memory() const { return *_memory; }
 	size_t offset() const { return _offset; }
 
 	memoryview<const T> view(size_t offset) const { return memoryview(*_memory, _offset + offset); }
