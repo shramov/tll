@@ -15,7 +15,7 @@ test('test-util', executable('test-util',
 )
 
 test('test-lib', executable('test-lib',
-	sources: ['test_main.cc', 'test_config.cc', 'test_logger.cc', 'test_scheme.cc', 'test_stat.cc'],
+	sources: ['test_main.cc', 'test_config.cc', 'test_logger.cc', 'test_scheme.cc', 'test_scheme_binder.cc', 'test_stat.cc'],
 	cpp_args: '-DSCHEME_PATH="@0@"'.format(meson.current_source_dir() / 'test_scheme.yaml'),
 	dependencies: [gtest, fmt, tll],
 	),

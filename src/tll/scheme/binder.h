@@ -1,0 +1,235 @@
+/*
+ * Copyright (c) 2021 Pavel Shramov <shramov@mexmat.net>
+ *
+ * tll is free software; you can redistribute it and/or modify
+ * it under the terms of the MIT license. See LICENSE for details.
+ */
+
+#ifndef _TLL_SCHEME_BINDER_H
+#define _TLL_SCHEME_BINDER_H
+
+#include <tll/scheme/types.h>
+#include <tll/util/memoryview.h>
+
+namespace tll {
+
+namespace scheme::binder {
+
+template <typename Buf>
+class Base
+{
+ protected:
+	using view_type = tll::memoryview<Buf>;
+	view_type _buf;
+
+	template <typename T>
+	T _get_scalar(size_t offset) const
+	{
+		return *_buf.view(offset).template dataT<T>();
+	}
+
+	template <typename T>
+	void _set_scalar(size_t offset, T v)
+	{
+		*_buf.view(offset).template dataT<T>() = v;
+	}
+
+	template <typename Ptr>
+	std::string_view _get_string(size_t offset) const
+	{
+		auto ptr = _buf.view(offset).template dataT<Ptr>();
+		if (ptr->size == 0)
+			return "";
+		return {_buf.view(offset + ptr->offset).template dataT<char>(), ptr->size - 1u};
+	}
+
+	template <typename Ptr>
+	void _set_string(size_t offset, std::string_view v);
+
+	template <typename T>
+	T _get_binder(size_t offset) const
+	{
+		return T(_buf.view(offset));
+	}
+
+	template <typename T>
+	T _get_binder(size_t offset)
+	{
+		return T(_buf.view(offset));
+	}
+
+ public:
+	Base(view_type view) : _buf(view) {}
+
+	view_type & view() { return _buf; }
+	const view_type & view() const { return _buf; }
+};
+
+template <typename Buf, typename T>
+class binder_iterator
+{
+	using view_type = tll::memoryview<Buf>;
+	T _data;
+	size_t _step = 0;
+
+	void _shift(ptrdiff_t offset)
+	{
+		_data.view() = view_type(_data.view().memory(), _data.view().offset() + offset);
+	}
+ public:
+	using poiner = T *;
+	using value_type = T;
+	using reference = T &;
+
+	binder_iterator(view_type view, size_t step) : _data(view), _step(step) {}
+
+	binder_iterator & operator ++ () { _shift(_step); return *this; }
+	binder_iterator operator ++ (int) { auto tmp = *this; ++*this; return tmp; }
+
+	binder_iterator & operator -- () { _shift(-_step); return *this; }
+	binder_iterator operator -- (int) { auto tmp = *this; --*this; return tmp; }
+
+	binder_iterator & operator += (size_t i) { _shift(i * _step); return *this; }
+	binder_iterator operator + (size_t i) const { auto tmp = *this; tmp += i; return tmp; }
+
+	binder_iterator & operator -= (size_t i) { _shift(-i * _step); return *this; }
+	binder_iterator operator - (size_t i) const { auto tmp = *this; tmp -= i; return tmp; }
+
+	bool operator == (const binder_iterator &rhs) const { return _data.view().data() == rhs._data.view().data(); }
+	bool operator != (const binder_iterator &rhs) const { return _data.view().data() != rhs._data.view().data(); }
+
+	T& operator * () { return _data; }
+	const T& operator * () const { return _data; }
+
+	T * operator -> () { return &_data; }
+	const T * operator -> () const { return &_data; }
+};
+
+template <typename Buf, typename T, typename Ptr>
+class List : public Base<Buf>
+{
+ protected:
+	static constexpr bool is_binder = std::is_base_of_v<Base<Buf>, T>;
+	using pointer_type = tll::scheme::offset_ptr_t<std::conditional_t<is_binder, char, T>, Ptr>;
+
+	auto optr() { return this->_buf.template dataT<pointer_type>(); }
+	auto optr() const { return this->_buf.template dataT<pointer_type>(); }
+
+ public:
+	using view_type = typename Base<Buf>::view_type;
+	using iterator = std::conditional_t<is_binder, binder_iterator<Buf, T>, typename pointer_type::iterator>;
+	using const_iterator = std::conditional_t<is_binder, binder_iterator<Buf, T>, typename pointer_type::iterator>;
+
+	List(view_type view) : Base<Buf>(view) {}
+
+	static constexpr size_t entity_size_static()
+	{
+		if constexpr (is_binder)
+			return T::meta_size();
+		else
+			return sizeof(T);
+	}
+
+	size_t entity_size() const
+	{
+		if constexpr (std::is_same_v<Ptr, tll_scheme_offset_ptr_legacy_short_t>)
+			return entity_size_static();
+		else
+			return optr()->entity;
+	}
+
+	size_t size() const { return optr()->size; }
+
+	iterator begin()
+	{
+		if constexpr (is_binder)
+			return iterator(this->_buf.view(optr()->offset), entity_size());
+		else
+			return optr()->begin();
+	}
+
+	const_iterator begin() const
+	{
+		if constexpr (is_binder)
+			return const_iterator(this->_buf.view(optr()->offset), entity_size());
+		else
+			return optr()->begin();
+	}
+
+	iterator end() { return begin() + size(); }
+	const_iterator end() const { return begin() + size(); }
+
+	void resize(size_t size)
+	{
+		auto ptr = optr();
+		if (size <= ptr->size) {
+			ptr->size = size;
+			return;
+		}
+		const size_t entity = entity_size_static();
+		const auto data_end = ptr->offset + entity * ptr->size;
+		const auto buf_end = this->_buf.size();
+
+		if (ptr->size && buf_end == data_end) {
+			auto dview = this->_buf.view(ptr->offset);
+			if constexpr (is_binder)
+				memset(dview.data(), 0, dview.size());
+			dview.resize(entity * size);
+			optr()->size = size;
+		} else {
+			this->_buf.resize(buf_end + entity * size);
+			ptr = optr();
+			ptr->size = size;
+			ptr->offset = buf_end;
+			ptr->entity = entity;
+		}
+	}
+
+	std::conditional_t<is_binder, T, T &> operator [](size_t idx)
+	{
+		return *(begin() + idx);
+	}
+
+	const std::conditional_t<is_binder, T, T &> operator [](size_t idx) const
+	{
+		return *(begin() + idx);
+	}
+
+	/*
+	void push_back(std::enable_if_t<Scalar, T> v)
+	{
+		resize(size() + 1);
+		*--end() = v;
+	}
+	*/
+};
+
+
+template <typename Buf>
+template <typename Ptr>
+inline void Base<Buf>::_set_string(size_t offset, std::string_view v)
+{
+	auto l = _get_binder<List<Buf, char, Ptr>>(offset);
+	l.resize(v.size() + 1);
+	memcpy(&*l.begin(), v.data(), v.size());
+	*--l.end() = '\0';
+}
+
+
+} // namespace scheme::binder
+
+namespace scheme {
+
+template <typename Buf> using Binder = tll::scheme::binder::Base<Buf>;
+
+template <template <typename B> typename T, typename Buf>
+T<Buf> make_binder(Buf & buf)
+{
+	return T<Buf>(buf);
+}
+
+}
+
+} // namespace tll
+
+#endif//_TLL_SCHEME_BINDER_H
