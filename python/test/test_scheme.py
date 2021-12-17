@@ -610,6 +610,9 @@ def test_enum():
     assert u.e64.value == 10000
     assert u.e64 == u.e64.A
 
+    assert m.SCHEME['e8'].from_string('1') == m.e8.A
+    assert m.SCHEME['e8'].from_string('A') == m.e8.A
+
 def test_decimal128():
     scheme = S.Scheme("""yamls://
 - name: msg

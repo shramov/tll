@@ -524,7 +524,14 @@ cdef class FEnum(FBase):
         if isinstance(v, str):
             return self.enum_class.__members__[v]
         return self.enum_class(v)
-    cdef from_string(FEnum self, str s): return self.enum_class(s)
+    cdef from_string(FEnum self, str s):
+        v = self.enum_class.__members__.get(s, None)
+        if v is not None:
+            return v
+        try:
+            return self.enum_class(int(s))
+        except:
+            raise ValueError(f"Value {s} is not {self.enum_class} name or int value")
 _SUBTYPES[SubType.Enum] = FEnum
 
 cdef class FFixed(FBase):
