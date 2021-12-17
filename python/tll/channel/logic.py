@@ -38,6 +38,9 @@ class Logic(Base):
         for c in channels_unique:
             c.callback_add(self.logic)
 
+    def _free(self):
+        self._channels = {}
+
     def logic(self, channel, msg):
         try:
             stat = self.stat
