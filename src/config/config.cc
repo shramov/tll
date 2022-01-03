@@ -16,6 +16,7 @@
 #include "tll/util/url.h"
 #include "tll/util/zlib.h"
 
+#include <algorithm>
 #include <cstring>
 
 using tll::string_view_from_c;

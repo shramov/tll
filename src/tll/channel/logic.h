@@ -11,6 +11,8 @@
 #include "tll/channel/base.h"
 #include "tll/util/time.h"
 
+#include <algorithm>
+
 namespace tll {
 
 namespace channel {
