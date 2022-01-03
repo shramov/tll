@@ -43,6 +43,8 @@ struct connect
 	int64_t size;
 	tll::scheme::String<tll_scheme_offset_ptr_t> path;
 	tll::scheme::offset_ptr_t<header, tll_scheme_offset_ptr_t> headers;
+	tll::scheme::Bytes<8> bytes;
+	tll::scheme::ByteString<8> bytestring;
 };
 
 struct disconnect
@@ -89,7 +91,7 @@ struct connect : public tll::scheme::Binder<Buf>
 {
 	using tll::scheme::Binder<Buf>::Binder;
 
-	static constexpr size_t meta_size() { return 27; }
+	static constexpr size_t meta_size() { return 43; }
 
 	method_t get_method() const { return this->template _get_scalar<method_t>(0); };
 	void set_method(method_t v) { return this->template _set_scalar<method_t>(0, v); };
@@ -106,6 +108,12 @@ struct connect : public tll::scheme::Binder<Buf>
 	using type_headers = tll::scheme::binder::List<Buf, header<Buf>, tll_scheme_offset_ptr_t>;
 	const type_headers get_headers() const { return this->template _get_binder<type_headers>(19); }
 	type_headers get_headers() { return this->template _get_binder<type_headers>(19); }
+
+	const std::array<unsigned char, 8> & get_bytes() const { return this->template _get_bytes<8>(27); }
+	void set_bytes(const std::array<unsigned char, 8> &v) { return this->template _set_bytes<8>(27, v); }
+
+	std::string_view get_bytestring() const { return this->template _get_bytestring<8>(35); }
+	void set_bytestring(std::string_view v) { return this->template _set_bytestring<8>(35, v); }
 };
 
 template <typename Buf>
@@ -141,9 +149,15 @@ TEST(Scheme, Binder)
 	headers[1].set_header("key-1");
 	headers[1].set_value("value-1");
 
+	std::array<unsigned char, 8> bytes = {0, 1, 2, 3, 0, 0, 0, 0};
+	binder.set_bytes({0, 1, 2, 3});
+	binder.set_bytestring("abc");
+
 	ASSERT_EQ(binder.get_code(), 200);
 	ASSERT_EQ(binder.get_method(), http_binder::method_t::GET);
 	ASSERT_EQ(binder.get_path(), "/a/b/c");
+	ASSERT_EQ(binder.get_bytes(), bytes);
+	ASSERT_EQ(binder.get_bytestring(), "abc");
 
 	ASSERT_EQ(headers.size(), 2u);
 	ASSERT_EQ(headers[0].get_header(), "key-0");
@@ -157,8 +171,11 @@ TEST(Scheme, Binder)
 	ASSERT_EQ((int) binder.get_method(), (int) connect->method);
 	EXPECT_EQ(connect->path.size, 7u);
 	EXPECT_EQ(connect->path.entity, 1u);
-	EXPECT_EQ(connect->path.offset, 16u);
+	EXPECT_EQ(connect->path.offset, 32u);
 	ASSERT_EQ(binder.get_path(), connect->path);
+
+	ASSERT_EQ(binder.get_bytes(), connect->bytes);
+	ASSERT_EQ(binder.get_bytestring(), connect->bytestring);
 
 	ASSERT_EQ(headers.size(), connect->headers.size);
 
@@ -183,6 +200,8 @@ TEST(Scheme, Binder)
 	ASSERT_EQ(binder.get_code(), cbinder.get_code());
 	ASSERT_EQ(binder.get_method(), cbinder.get_method());
 	ASSERT_EQ(binder.get_path(), cbinder.get_path());
+	ASSERT_EQ(binder.get_bytes(), cbinder.get_bytes());
+	ASSERT_EQ(binder.get_bytestring(), cbinder.get_bytestring());
 
 	auto cheaders = cbinder.get_headers();
 	ASSERT_EQ(headers.size(), cheaders.size());

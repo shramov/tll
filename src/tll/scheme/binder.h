@@ -34,6 +34,35 @@ class Base
 		*_buf.view(offset).template dataT<T>() = v;
 	}
 
+	template <size_t Size>
+	const std::array<unsigned char, Size> & _get_bytes(size_t offset) const
+	{
+		return *_buf.view(offset).template dataT<std::array<unsigned char, Size>>();
+	}
+
+	template <size_t Size>
+	void _set_bytes(size_t offset, const std::array<unsigned char, Size> &v)
+	{
+		auto ptr = _buf.view(offset).template dataT<unsigned char>();
+		memcpy(ptr, v.data(), Size);
+	}
+
+	template <size_t Size>
+	std::string_view _get_bytestring(size_t offset) const
+	{
+		auto data = _buf.view(offset).template dataT<char>();
+		return {data, strnlen(data, Size)};
+	}
+
+	template <size_t Size>
+	void _set_bytestring(size_t offset, std::string_view v)
+	{
+		auto ptr = _buf.view(offset).template dataT<char>();
+		const auto size = std::min(v.size(), Size);
+		memcpy(ptr, v.data(), size);
+		memset(ptr + size, 0, Size - size);
+	}
+
 	template <typename Ptr>
 	std::string_view _get_string(size_t offset) const
 	{
