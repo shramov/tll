@@ -104,6 +104,8 @@ struct connect : public tll::scheme::Binder<Buf>
 
 	std::string_view get_path() const { return this->template _get_string<tll_scheme_offset_ptr_t>(11); }
 	void set_path(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(11, v); }
+	auto get_path_binder() { return this->template _get_binder<tll::scheme::binder::String<Buf, tll_scheme_offset_ptr_t>>(11); }
+	auto get_path_binder() const { return this->template _get_binder<tll::scheme::binder::String<const Buf, tll_scheme_offset_ptr_t>>(11); }
 
 	using type_headers = tll::scheme::binder::List<Buf, header<Buf>, tll_scheme_offset_ptr_t>;
 	const type_headers get_headers() const { return this->template _get_binder<type_headers>(19); }
@@ -140,8 +142,13 @@ TEST(Scheme, Binder)
 
 	binder.set_code(200);
 	binder.set_method(http_binder::method_t::GET);
+
 	binder.set_path("/a");
+	ASSERT_EQ(binder.get_path(), "/a");
+	binder.get_path_binder() = "/a/b";
+	ASSERT_EQ(binder.get_path(), "/a/b");
 	binder.set_path("/a/b/c");
+
 	auto headers = binder.get_headers();
 	headers.resize(2);
 	headers[0].set_header("key-0");
@@ -156,6 +163,7 @@ TEST(Scheme, Binder)
 	ASSERT_EQ(binder.get_code(), 200);
 	ASSERT_EQ(binder.get_method(), http_binder::method_t::GET);
 	ASSERT_EQ(binder.get_path(), "/a/b/c");
+	ASSERT_EQ(static_cast<std::string_view>(binder.get_path_binder()), "/a/b/c");
 	ASSERT_EQ(binder.get_bytes(), bytes);
 	ASSERT_EQ(binder.get_bytestring(), "abc");
 
@@ -200,6 +208,7 @@ TEST(Scheme, Binder)
 	ASSERT_EQ(binder.get_code(), cbinder.get_code());
 	ASSERT_EQ(binder.get_method(), cbinder.get_method());
 	ASSERT_EQ(binder.get_path(), cbinder.get_path());
+	ASSERT_EQ(binder.get_path(), cbinder.get_path_binder());
 	ASSERT_EQ(binder.get_bytes(), cbinder.get_bytes());
 	ASSERT_EQ(binder.get_bytestring(), cbinder.get_bytestring());
 

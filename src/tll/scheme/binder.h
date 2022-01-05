@@ -11,6 +11,9 @@
 #include <tll/scheme/types.h>
 #include <tll/util/memoryview.h>
 
+#include <stddef.h>
+#include <string.h>
+
 namespace tll {
 
 namespace scheme::binder {
@@ -69,7 +72,7 @@ class Base
 		auto ptr = _buf.view(offset).template dataT<Ptr>();
 		if (ptr->size == 0)
 			return "";
-		return {_buf.view(offset + ptr->offset).template dataT<char>(), ptr->size - 1u};
+		return {tll_scheme_offset_ptr_data(ptr), ptr->size - 1u};
 	}
 
 	template <typename Ptr>
@@ -147,7 +150,7 @@ class List : public Base<Buf>
  public:
 	using view_type = typename Base<Buf>::view_type;
 	using iterator = std::conditional_t<is_binder, binder_iterator<Buf, T>, typename pointer_type::iterator>;
-	using const_iterator = std::conditional_t<is_binder, binder_iterator<Buf, T>, typename pointer_type::iterator>;
+	using const_iterator = std::conditional_t<is_binder, binder_iterator<Buf, T>, typename pointer_type::const_iterator>;
 
 	List(view_type view) : Base<Buf>(view) {}
 
@@ -233,17 +236,46 @@ class List : public Base<Buf>
 	*/
 };
 
+template <typename Buf, typename Ptr>
+class String : public List<Buf, char, Ptr>
+{
+ public:
+	using view_type = typename Base<Buf>::view_type;
+	using pointer_type = tll::scheme::offset_ptr_t<char, Ptr>;
+	using iterator = typename pointer_type::iterator;
+	using const_iterator = typename pointer_type::const_iterator;
+
+	String(view_type view) : List<Buf, char, Ptr>(view) {}
+
+	size_t size() const { return std::max(this->optr()->size, 1u) - 1; }
+
+	iterator end() { return this->begin() + size(); }
+	const_iterator end() const { return this->begin() + size(); }
+
+	operator std::string_view () const
+	{
+		auto ptr = this->optr();
+		if (ptr->size == 0)
+			return "";
+		return { ptr->data(), ptr->size - 1u };
+	}
+
+	String & operator = (std::string_view v)
+	{
+		this->resize(v.size() + 1);
+		memcpy(&*this->begin(), v.data(), v.size());
+		*this->end() = 0;
+		return *this;
+	}
+};
 
 template <typename Buf>
 template <typename Ptr>
 inline void Base<Buf>::_set_string(size_t offset, std::string_view v)
 {
-	auto l = _get_binder<List<Buf, char, Ptr>>(offset);
-	l.resize(v.size() + 1);
-	memcpy(&*l.begin(), v.data(), v.size());
-	*--l.end() = '\0';
+	auto l = _get_binder<String<Buf, Ptr>>(offset);
+	l = v;
 }
-
 
 } // namespace scheme::binder
 
