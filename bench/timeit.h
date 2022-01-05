@@ -14,8 +14,10 @@ void timeit(size_t count, std::string_view name, F f, Args... args)
 
 	auto accum = f(args...);
 	auto start = system_clock::now();
-	for (auto i = 0u; i < count; i++)
+	for (auto i = 0u; i < count; i++) {
 		accum = f(args...);
+		asm volatile("": : :"memory");
+	}
 	(void) (accum == accum);
 	nanoseconds dt = system_clock::now() - start;
 	fmt::print("Time {}: {:.3f}ms/{}: {}\n", name, duration<double, std::milli>(dt).count(), count, dt / count);
