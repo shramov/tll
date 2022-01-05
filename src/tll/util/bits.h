@@ -9,6 +9,7 @@
 #define _TLL_UTIL_BITS_H
 
 #include <map>
+#include <string_view>
 #include <type_traits>
 
 namespace tll::util {

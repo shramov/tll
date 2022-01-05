@@ -18,6 +18,8 @@
 #ifndef _TLL_UTIL_MEMORYVIEW_H
 #define _TLL_UTIL_MEMORYVIEW_H
 
+#include <sys/types.h>
+
 #include <type_traits>
 
 namespace tll {
