@@ -64,9 +64,9 @@ struct memoryview_api
 	static constexpr bool is_const_data()
 	{
 		if constexpr (is_function_data<T>::value)
-			return std::is_const_v<decltype(std::declval<T>().data())>;
+			return std::is_const_v<std::remove_pointer_t<decltype(std::declval<T>().data())>>;
 		else
-			return std::is_const_v<decltype(std::declval<T>().data)>;
+			return std::is_const_v<std::remove_pointer_t<decltype(std::declval<T>().data)>>;
 	}
 
 	using pointer = typename std::conditional<is_const_data(), const void *, void *>::type;
