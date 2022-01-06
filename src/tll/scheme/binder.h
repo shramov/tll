@@ -69,10 +69,8 @@ class Base
 	template <typename Ptr>
 	std::string_view _get_string(size_t offset) const
 	{
-		auto ptr = _buf.view(offset).template dataT<Ptr>();
-		if (ptr->size == 0)
-			return "";
-		return {tll_scheme_offset_ptr_data(ptr), ptr->size - 1u};
+		auto ptr = _buf.view(offset).template dataT<tll::scheme::String<Ptr>>();
+		return *ptr;
 	}
 
 	template <typename Ptr>
