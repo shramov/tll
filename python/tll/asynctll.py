@@ -87,6 +87,9 @@ class Loop:
         for r in self.channels.keys():
             c.callback_del(self._callback, mask=C.MsgMask.All)
         self.channels = {}
+        for c in self.asyncchannels:
+            c.close()
+        self.asyncchannels = set()
 
     def Channel(self, *a, **kw):
         if self.context is None:
