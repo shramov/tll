@@ -51,16 +51,19 @@ def offset_ptr_version(f):
         raise ValueError(f"Unknown offset ptr version for field {f.name}: {f.offset_ptr_version}")
     return r
 
+def indent_one(indent, s):
+    if not s:
+        return s
+    return indent + s
+
 def indent(indent, s):
     if indent == "":
         return s
-    if not s:
-        return s
-    return "\n".join([indent + x for x in s.split('\n')])
+    return "\n".join([indent_one(indent, x) for x in s.split('\n')])
 
 def declare_enum(e):
     r = [f"""enum class {e.name}: {numeric(e.type)}""", "{"]
     for n,v in sorted(e.items(), key=lambda t: (t[1], t[0])):
         r += [f"\t{n} = {v},"]
-    r += ["};", ""]
+    r += ["};"]
     return "\n".join(r)
