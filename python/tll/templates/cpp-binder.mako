@@ -87,8 +87,6 @@ template <typename Buf>
 struct ${msg.name} : public tll::scheme::Binder<Buf>
 {
 	using tll::scheme::Binder<Buf>::Binder;
-	using tll::scheme::binder::List;
-	using tll::scheme::binder::String;
 
 	static constexpr size_t meta_size() { return ${msg.size}; }
 	static constexpr std::string_view meta_name() { return "${msg.name}"; }
