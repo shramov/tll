@@ -294,10 +294,11 @@ struct tll_processor_loop_t
 
 		if (delta & tll::dcaps::Process) {
 			if (caps & tll::dcaps::Process) {
-				_log.info("Add channel {} to nofd list", c->name(), c->fd());
+				_log.debug("Add channel {} to nofd list", c->name(), c->fd());
 				list_process.add(c);
 				list_nofd.add(c);
 			} else {
+				_log.debug("Drop channel {} to nofd list", c->name(), c->fd());
 				list_process.del(c);
 				list_nofd.del(c);
 			}
