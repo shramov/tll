@@ -14,7 +14,7 @@ class ChTimeIt : public tll::channel::Prefix<ChTimeIt>
 {
  public:
 	using Base = tll::channel::Prefix<ChTimeIt>;
-	static constexpr std::string_view channel_protocol() { return "timeit"; }
+	static constexpr std::string_view channel_protocol() { return "timeit+"; }
 
 	struct StatType : public Base::StatType
 	{
