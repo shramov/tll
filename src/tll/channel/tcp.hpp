@@ -484,17 +484,26 @@ int TcpServer<T, C>::_close()
 }
 
 template <typename T, typename C>
-int TcpServer<T, C>::_post(const tll_msg_t *msg, int flags)
+typename TcpServer<T, C>::tcp_socket_t * TcpServer<T, C>::_lookup(const tll_addr_t &a)
 {
-	auto addr = tcp_socket_addr_t::cast(&msg->addr);
+	auto addr = tcp_socket_addr_t::cast(&a);
 	if (addr->fd == -1)
-		return this->_log.fail(EINVAL, "Invalid address");
+		return this->_log.fail(nullptr, "Invalid address");
 	auto i = _clients.find(addr->fd);
 	if (i == _clients.end())
-		return this->_log.fail(ENOENT, "Address not found: {}/{}", addr->fd, addr->seq);
+		return this->_log.fail(nullptr, "Address not found: {}/{}", addr->fd, addr->seq);
 	if (addr->seq != i->second->msg_addr().seq)
-		return this->_log.fail(ENOENT, "Address seq mismatch: {} != {}", addr->seq, i->second->msg_addr().seq);
-	return i->second->post(msg, flags);
+		return this->_log.fail(nullptr, "Address seq mismatch: {} != {}", addr->seq, i->second->msg_addr().seq);
+	return i->second;
+}
+
+template <typename T, typename C>
+int TcpServer<T, C>::_post(const tll_msg_t *msg, int flags)
+{
+	auto socket = _lookup(msg->addr);
+	if (!socket)
+		return EINVAL;
+	return socket->post(msg, flags);
 }
 
 template <typename T, typename C>

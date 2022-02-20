@@ -235,6 +235,7 @@ class TcpServer : public Base<T>
 	int _bind(const tll::network::sockaddr_any &addr);
 	void _cleanup();
 	void _cleanup(tcp_socket_t *);
+	tcp_socket_t * _lookup(const tll_addr_t &addr);
 };
 
 } // namespace tll::channel
