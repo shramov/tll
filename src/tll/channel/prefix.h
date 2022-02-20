@@ -36,7 +36,7 @@ public:
 
 	const Scheme * scheme(int type) const
 	{
-		this->_log.debug("Request scheme {}", type);
+		this->_log.trace("Request scheme {}", type);
 		return _child->scheme(type);
 	}
 
