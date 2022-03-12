@@ -114,7 +114,7 @@ def test():
 
     assert c.result == []
     c.post(b'xxx', seq=100)
-    assert [(m.seq, m.data.tobytes()) for m in c.result], [(100 == b'xxx')]
+    assert [(m.seq, m.data.tobytes()) for m in c.result] == [(100, b'xxx')]
 
     c.close()
     assert [x.name for x in c.children] == ['orphan']
