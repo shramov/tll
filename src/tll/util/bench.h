@@ -1,11 +1,25 @@
-#ifndef _TIMEIT_H
-#define _TIMEIT_H
+/*
+ * Copyright (c) 2021-2022 Pavel Shramov <shramov@mexmat.net>
+ *
+ * tll is free software; you can redistribute it and/or modify
+ * it under the terms of the MIT license. See LICENSE for details.
+ *
+ */
+
+/*
+ * Helper function for microbenchmarking
+ */
+
+#ifndef _TLL_UTIL_BENCH_H
+#define _TLL_UTIL_BENCH_H
 
 #include <chrono>
 #include <fmt/format.h>
 
 #include <tll/util/time.h>
 #include <tll/util/conv-fmt.h>
+
+namespace tll::bench {
 
 template <typename T>
 struct reduce
@@ -54,7 +68,9 @@ auto timeit(size_t count, std::string_view name, F f, Args... args)
 	}
 	nanoseconds dt = system_clock::now() - start;
 	(void) accum;
-	fmt::print("Time {}: {:.3f}ms/{}: {}\n", name, duration<double, std::milli>(dt).count(), count, dt / count);
+	fmt::print("Time {}: {:.3f}ms/{}: {}\n", name, std::chrono::duration<double, std::milli>(dt).count(), count, dt / count);
 }
 
-#endif//_TIMEIT_H
+} // namespace tll::bench
+
+#endif//_TLL_UTIL_BENCH_H

@@ -1,3 +1,4 @@
+#include <tll/util/bench.h>
 #include <tll/util/time.h>
 
 #include <chrono>
@@ -5,7 +6,7 @@
 #include <time.h>
 #include <sys/time.h>
 
-#include "timeit.h"
+using namespace tll::bench;
 
 using namespace std::chrono;
 nanoseconds cgt(clockid_t clock)

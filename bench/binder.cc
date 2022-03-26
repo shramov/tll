@@ -1,6 +1,7 @@
 #include <tll/scheme/binder.h>
+#include <tll/util/bench.h>
 
-#include "timeit.h"
+using namespace tll::bench;
 
 struct __attribute__((packed)) caster
 {

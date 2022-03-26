@@ -1,10 +1,11 @@
 #include <tll/channel.h>
 #include <tll/logger.h>
 #include <tll/util/argparse.h>
+#include <tll/util/bench.h>
 
 #include <tll/channel/prefix.h>
 
-#include "timeit.h"
+using namespace tll::bench;
 
 class Echo : public tll::channel::Base<Echo>
 {
