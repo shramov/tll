@@ -147,6 +147,7 @@ template <> tll::channel_impl<UdpServer<frame>> tll::channel::Base<UdpServer<fra
 UDP_DEFINE_IMPL(void);
 UDP_DEFINE_IMPL(tll_frame_t);
 UDP_DEFINE_IMPL(tll_frame_short_t);
+UDP_DEFINE_IMPL(tll_frame_seq32_t);
 
 std::optional<const tll_channel_impl_t *> ChUdp::_init_replace(const tll::Channel::Url &url, tll::Channel *master)
 {
@@ -176,6 +177,14 @@ std::optional<const tll_channel_impl_t *> ChUdp::_init_replace(const tll::Channe
 				return &UdpClient<tll_frame_short_t>::impl;
 			else
 				return &UdpServer<tll_frame_short_t>::impl;
+		}
+	}
+	for (auto & n : tll::frame::FrameT<tll_frame_seq32_t>::name()) {
+		if (n == frame) {
+			if (client)
+				return &UdpClient<tll_frame_seq32_t>::impl;
+			else
+				return &UdpServer<tll_frame_seq32_t>::impl;
 		}
 	}
 	return _log.fail(std::nullopt, "Unknown frame '{}", frame);

@@ -379,7 +379,7 @@ class TestTcpNone(_test_tcp_base):
 
 class _test_udp_base:
     PROTO = 'invalid-url'
-    FRAME = True
+    FRAME = ('seq', 'msgid')
     TIMESTAMP = False
     CLEANUP = []
 
@@ -433,7 +433,8 @@ class _test_udp_base:
         s.process()
 
         assert [m.data.tobytes() for m in s.result] == [b'xxx']
-        assert [(m.seq, m.msgid) for m in s.result] == [(0x6ead, 0x6eef) if self.FRAME else (0, 0)] # No frame
+        assert [m.seq for m in s.result] == [0x6ead] if 'seq' in self.FRAME else [0]
+        assert [m.msgid for m in s.result] == [0x6eef] if 'msgid' in self.FRAME else [0]
 
         if self.TIMESTAMP:
             assert s.result[-1].time.seconds == pytest.approx(timestamp, 0.001)
@@ -460,10 +461,15 @@ class TestUdpShort(_test_udp_base):
     PROTO = 'udp://./test.sock;frame=short'
     CLEANUP = ['./test.sock']
 
+class TestUdpSeq32(_test_udp_base):
+    PROTO = 'udp://./test.sock;frame=seq32'
+    CLEANUP = ['./test.sock']
+    FRAME = ('seq',)
+
 class TestUdpNone(_test_udp_base):
     PROTO = 'udp://./test.sock;frame=none'
     CLEANUP = ['./test.sock']
-    FRAME = False
+    FRAME = []
 
 @pytest.mark.skipif(sys.platform != 'linux', reason='Network timestamping not supported')
 class TestUdpTS(_test_udp_base):
