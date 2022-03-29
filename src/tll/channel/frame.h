@@ -102,7 +102,7 @@ struct FrameT<tll_frame_seq32_t>
 template <>
 struct FrameT<tll_frame_seq64_t>
 {
-	using frame_type = tll_frame_seq32_t;
+	using frame_type = tll_frame_seq64_t;
 	static std::vector<std::string_view> name() { return {"seq64", "s8"}; }
 	static void read(tll_msg_t *m, const frame_type * data) { m->seq = data->seq; }
 	static void write(const tll_msg_t *m, frame_type * data) { data->seq = m->seq; }
