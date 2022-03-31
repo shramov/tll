@@ -8,6 +8,7 @@
 #include "gtest/gtest.h"
 
 #include "tll/util/size.h"
+#include "tll/util/sockaddr.h"
 #include "tll/util/time.h"
 #include "tll/conv/fixed_point.h"
 
@@ -272,4 +273,28 @@ TEST(Conv, FixedPoint)
 	EXPECT_FALSE(to_any<I3>("10.1234")); // Rounding
 
 	EXPECT_FALSE(to_any<U3>("-10")); // Negative
+}
+
+bool operator == (const in_addr &l, uint32_t r) { return l.s_addr == r; }
+
+TEST(Conv, IPv4)
+{
+	using tll::conv::to_any;
+	EXPECT_FALSE(to_any<in_addr>(""));
+	EXPECT_FALSE(to_any<in_addr>("10"));
+	EXPECT_FALSE(to_any<in_addr>("10.10"));
+	EXPECT_FALSE(to_any<in_addr>("10.10.10"));
+	EXPECT_FALSE(to_any<in_addr>("10.10.10.10.10"));
+	EXPECT_FALSE(to_any<in_addr>("300.10.10.10"));
+	EXPECT_FALSE(to_any<in_addr>("-10.10.10.10"));
+	EXPECT_FALSE(to_any<in_addr>("x10.10.10.10"));
+	EXPECT_FALSE(to_any<in_addr>("10..10.10"));
+
+	EXPECT_EQ_ANY(to_any<in_addr>("0.0.0.0"), 0x0u);
+	EXPECT_EQ_ANY(to_any<in_addr>("255.255.255.255"), 0xffffffffu);
+	EXPECT_EQ_ANY(to_any<in_addr>("1.2.3.4"), 0x04030201u);
+
+	EXPECT_EQ(to_string(in_addr { 0x0u }), "0.0.0.0");
+	EXPECT_EQ(to_string(in_addr { 0xffffffffu }), "255.255.255.255");
+	EXPECT_EQ(to_string(in_addr { 0x04030201u }), "1.2.3.4");
 }

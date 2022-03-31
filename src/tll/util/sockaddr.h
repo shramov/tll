@@ -11,6 +11,7 @@
 #include "tll/util/conv.h"
 #include "tll/util/result.h"
 
+#include <arpa/inet.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -18,6 +19,8 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+
+#include <fmt/format.h>
 
 namespace tll::network {
 
@@ -263,6 +266,32 @@ struct dump<tll::network::sockaddr_any> : public to_string_from_string_buf<tll::
 		if (v->sa_family == AF_UNIX)
 			return tll::conv::to_string_buf(*v.un(), buf);
 		return _sockaddr_to_str(v, v.size, buf);
+	}
+};
+
+template <>
+struct dump<in_addr> : public to_string_from_string_buf<in_addr>
+{
+	template <typename Buf>
+	static std::string_view to_string_buf(const in_addr &v, Buf &buf)
+	{
+		buf.resize(INET_ADDRSTRLEN);
+		if (inet_ntop(AF_INET, &v, (char *) buf.data(), INET_ADDRSTRLEN) == nullptr)
+			return "INVALID-IPV4";
+		return std::string_view((const char *) buf.data());
+	}
+};
+
+template <>
+struct parse<in_addr>
+{
+	static result_t<in_addr> to_any(std::string_view s)
+	{
+		in_addr r;
+		std::string str(s);
+		if (!inet_pton(AF_INET, str.c_str(), &r))
+			return error("Invalid IPv4 address");
+		return r;
 	}
 };
 } // namespace tll::conv
