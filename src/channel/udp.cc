@@ -13,7 +13,9 @@
 
 #include <chrono>
 
+#include <ifaddrs.h>
 #include <net/if.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #ifdef __linux__
@@ -61,12 +63,32 @@ class UdpSocket : public tll::channel::Base<T>
 	bool _multi = false;
 	bool _mcast_loop = true;
 	std::optional<std::string> _mcast_interface;
+	std::optional<in_addr> _mcast_source;
+
 	int _mcast_ifindex = 0;
+	std::optional<in_addr> _mcast_ifaddr4; // Only for ipv4 multicast structures, ipv6 use interface index
 
 	int _nametoindex()
 	{
 		if (!_mcast_interface || _mcast_ifindex)
 			return 0;
+		if (this->_addr->sa_family == AF_INET) {
+			_mcast_ifaddr4 = {};
+			struct ifaddrs * ifa;
+			if (getifaddrs(&ifa))
+				return this->_log.fail(EINVAL, "Failed to get interface list: {}", strerror(errno));
+			for (auto i = ifa; i; i = i->ifa_next) {
+				if (i->ifa_name == *_mcast_interface && i->ifa_addr && i->ifa_addr->sa_family == AF_INET) {
+					_mcast_ifaddr4 = ((const sockaddr_in *) i->ifa_addr)->sin_addr;
+					break;
+				}
+			}
+			freeifaddrs(ifa);
+			if (!_mcast_ifaddr4)
+				return this->_log.fail(EINVAL, "No ipv4 address for interface {}", *_mcast_interface);
+			this->_log.debug("Interface {} addr {}", *_mcast_interface, *_mcast_ifaddr4);
+		}
+
 		_mcast_ifindex = if_nametoindex(this->_mcast_interface->c_str());
 		if (_mcast_ifindex == 0)
 			return this->_log.fail(EINVAL, "Interface '{}' not found: {}", *this->_mcast_interface, strerror(errno));
@@ -206,6 +228,9 @@ int UdpSocket<T, F>::_init(const Channel::Url &url, Channel *master)
 	if (_multi) {
 		_mcast_loop = reader.getT("loop", true);
 		_mcast_interface = reader.get("interface");
+		auto source = reader.get("source");
+		if (reader.has("source"))
+			_mcast_source = reader.template getT<in_addr>("source");
 	}
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
@@ -536,7 +561,8 @@ int UdpServer<F>::_open(const ConstConfig &url)
 	_unlink_socket = _af == AF_UNIX;
 
 	if (this->_multi) {
-		this->_nametoindex();
+		if (this->_nametoindex())
+			return this->_log.fail(EINVAL, "Failed to get interface list");
 		this->_log.info("Join multicast group {}", this->_addr);
 		if (this->_addr->sa_family == AF_INET6) {
 			ipv6_mreq mreq = {};
@@ -544,6 +570,15 @@ int UdpServer<F>::_open(const ConstConfig &url)
 			mreq.ipv6mr_interface = this->_mcast_ifindex;
 			if (setsockoptT(this->fd(), IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, mreq))
 				return this->_log.fail(EINVAL, "Failed to add multicast membership: {}", strerror(errno));
+		} else if (this->_mcast_source) {
+			this->_log.info("Join multicast group {} with source {}", this->_addr, *this->_mcast_source);
+			ip_mreq_source mreq = {};
+			mreq.imr_multiaddr = this->_addr.in()->sin_addr;
+			mreq.imr_sourceaddr = *this->_mcast_source;
+			if (this->_mcast_ifaddr4)
+				mreq.imr_interface = *this->_mcast_ifaddr4;
+			if (setsockoptT(this->fd(), IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP, mreq))
+				return this->_log.fail(EINVAL, "Failed to add source multicast membership: {}", strerror(errno));
 		} else {
 			ip_mreqn mreq = {};
 			mreq.imr_multiaddr = this->_addr.in()->sin_addr;
