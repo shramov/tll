@@ -46,6 +46,8 @@ typedef tll_channel_module_t * (*tll_channel_module_func_t)();
 
 #ifdef __cplusplus
 
+#include <array>
+
 namespace tll {
 
 template <size_t Size>
