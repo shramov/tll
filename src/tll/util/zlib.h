@@ -27,7 +27,7 @@ inline result_t<bool> decompress(const T &data, Buf & buf)
 
 	z_stream stream = {0};
 
-	if (inflateInit(&stream))
+	if (inflateInit2(&stream, MAX_WBITS + 32))
 		return error("Failed to init inflate stream");
 	std::unique_ptr<z_stream, inflate_delete> _stream { &stream };
 
