@@ -8,6 +8,7 @@
 #include "gtest/gtest.h"
 
 #include "tll/scheme.h"
+#include "tll/scheme/conv.h"
 #include "tll/scheme/format.h"
 #include "tll/scheme/types.h"
 #include "tll/util/memoryview.h"
@@ -472,4 +473,10 @@ TYPED_TEST(SchemeOffsetPtr, OffsetPtr)
 
 	_test_offset_ptr(&ptr, entity_size);
 	_test_offset_ptr((const ptr_t *) &ptr, entity_size); 
+}
+
+TEST(Scheme, Conv)
+{
+	ASSERT_EQ(tll::conv::to_string(tll::scheme::Field::Int8), "int8");
+	ASSERT_EQ(tll::conv::to_string(tll::scheme::Field::Duration), "duration");
 }
