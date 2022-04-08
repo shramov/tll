@@ -67,16 +67,42 @@ int tll_channel_log_msg(const tll_channel_t * c, const char * _log, tll_logger_l
 	}
 
 	std::string body = "";
-	const std::string prefix = "  ";
-	if (format == log_msg_format::Text || format == log_msg_format::TextHex) {
+	std::string prefix = "  ";
+	if (format == log_msg_format::Text) {
 		body.reserve(msg->size);
 
-		auto data = (const char *) msg->data; 
-		for (auto c = data; c != data + msg->size; c++) {
-			if (tll::util::printable(*c))
-				body.push_back(*c);
+		auto data = std::string_view((const char *) msg->data, msg->size);
+		for (auto c : data) {
+			if (tll::util::printable(c))
+				body.push_back(c);
 			else
 				body.push_back('.');
+		}
+	} else if (format == log_msg_format::TextHex) {
+		prefix = "";
+		body.reserve(msg->size * 4 + (msg->size / 16) * 18);
+
+		auto data = std::string_view((const char *) msg->data, msg->size);
+		for (auto l = 0u; l < msg->size; l += 16) {
+			auto line = data.substr(l, 16);
+			body += fmt::format("  {:08x}:  ", l);
+
+			for (auto i = 0u; i < 16; i++) {
+				if (line.size() > i)
+					body += fmt::format("{:02x} ", (unsigned char) line[i]);
+				else
+					body += "   ";
+				if (i % 4 == 3)
+					body.push_back(' ');
+			}
+
+			for (auto c : line) {
+				if (tll::util::printable(c))
+					body.push_back(c);
+				else
+					body.push_back('.');
+			}
+			body.push_back('\n');
 		}
 	} else if (format == log_msg_format::Scheme) {
 		if (!scheme) {
