@@ -36,6 +36,15 @@ parser.add_argument('-o', '--output', dest='output', type=str,
 parser.add_argument('-T', '--template-dir', dest='template_dir', action='append',
                     default=[],
                     help='additional template directories')
+parser.add_argument('-c', '--channel', dest='channel', action='store_true',
+                    default=False,
+                    help='load scheme from channel')
+parser.add_argument('-m', '--module', dest='modules', action='append',
+                    default=[],
+                    help='additional channel modules')
+parser.add_argument('--timeout', dest='timeout', type=float,
+                    default=1,
+                    help='open timeout for channel')
 
 args, rest = parser.parse_known_args()
 
@@ -56,7 +65,30 @@ if args.help_template:
 
 options = subparser.parse_args(rest)
 
-scheme = S.Scheme('yaml://' + args.scheme)
+if args.channel:
+    from tll.channel import Context
+    from tll.processor import Loop
+    import time
+
+    timeout = time.time() + args.timeout
+    ctx = Context()
+    for m in args.modules:
+        ctx.load(m, 'channel_module')
+    c = ctx.Channel(args.scheme)
+    c.open()
+    if c.state != c.State.Active:
+        loop = Loop()
+        loop.add(c)
+        while c.state == c.State.Opening:
+            if timeout < time.time():
+                print("Timeout waiting for channel")
+                sys.exit(1)
+            loop.step(1)
+    scheme = c.scheme
+    c.close()
+    del c
+else:
+    scheme = S.Scheme('yaml://' + args.scheme)
 data = tmpl.render(S = S, scheme=scheme, options=options)
 
 if args.output in (None, '-'):
