@@ -192,6 +192,15 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		return 0;
 	}
 
+	static constexpr std::string_view library_suffix()
+	{
+#ifdef __APPLE__
+		return "dylib";
+#else
+		return "so";
+#endif
+	}
+
 	int load(const std::string &p, const std::string &symbol)
 	{
 		std::string_view name = p;
@@ -200,7 +209,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 			name = name.substr(sep + 1);
 		auto log = _log.prefix("Module {}:", name);
 
-		auto path = fmt::format("{}lib{}.so", sep == name.npos?std::string():p.substr(0, sep + 1), name);
+		auto path = fmt::format("{}lib{}.{}", sep == name.npos?std::string():p.substr(0, sep + 1), name, library_suffix());
 
 		log.debug("Loading from {}", path);
 		std::unique_ptr<void, void (*)(void *)> module = {
