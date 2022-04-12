@@ -15,6 +15,8 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include <array>
+
 using namespace tll;
 
 using File = tll::channel::File;
