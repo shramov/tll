@@ -57,9 +57,9 @@ struct state_t
 		anchors[(const char *) name] = cfg;
 	}
 
-	std::optional<Config> anchor(const yaml_char_t * name)
+	std::optional<Config> anchor(std::string_view name)
 	{
-		auto it = anchors.find((const char *) name);
+		auto it = anchors.find(name);
 		if (it == anchors.end()) return std::nullopt;
 		return it->second;
 	}
@@ -76,13 +76,14 @@ int state_t::parse(const yaml_event_t &event)
 		return 0;
 
 	case YAML_ALIAS_EVENT: {
-		auto alias = anchor(event.data.alias.anchor);
+		std::string_view name = (const char *) event.data.alias.anchor;
+		auto alias = anchor(name);
 		if (!alias)
-			return _log.fail(ENOENT, "Alias {} not found", event.data.alias.anchor);
+			return _log.fail(ENOENT, "Alias {} not found", name);
 		if (std::holds_alternative<bool>(key))
 			return _log.fail(EINVAL, "Got alias event in invalid context");
 		auto k = key_string();
-		_log.trace("Alias: {} to {}", k, event.data.alias.anchor);
+		_log.trace("Alias: {} to {}", k, name);
 		cfg.set(k, alias->copy());
 		return 0;
 	}
