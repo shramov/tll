@@ -11,16 +11,6 @@
 #include "tll/util/memoryview.h"
 #include "tll/util/string.h"
 
-const tll::scheme::Message * lookup(const tll::Scheme * s, int msgid)
-{
-	if (!s) return nullptr;
-	for (auto m = s->messages; m; m = m->next) {
-		if (m->msgid == msgid)
-			return m;
-	}
-	return nullptr;
-}
-
 int tll_channel_log_msg(const tll_channel_t * c, const char * _log, tll_logger_level_t level, tll_channel_log_msg_format_t format, const tll_msg_t * msg, const char * _text, int tlen)
 {
 	using namespace tll::channel;
@@ -45,7 +35,7 @@ int tll_channel_log_msg(const tll_channel_t * c, const char * _log, tll_logger_l
 	}
 
 	auto scheme = tll_channel_scheme(c, msg->type);
-	auto message = lookup(scheme, msg->msgid);
+	auto message = scheme ? scheme->lookup(msg->msgid) : nullptr;
 
 	std::string name;
 	if (!scheme)

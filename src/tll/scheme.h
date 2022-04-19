@@ -263,6 +263,42 @@ typedef struct tll_scheme_t
 #ifdef __cplusplus
 	static tll_scheme_t * load(std::string_view url) { return tll_scheme_load(url.data(), url.size()); }
 	tll_scheme_t * copy() const { return tll_scheme_copy(this); }
+
+	tll_scheme_message_t * lookup(int id)
+	{
+		for (auto m = messages; m; m = m->next) {
+			if (m->msgid == id)
+				return m;
+		}
+		return nullptr;
+	}
+
+	const tll_scheme_message_t * lookup(int id) const
+	{
+		for (auto m = messages; m; m = m->next) {
+			if (m->msgid == id)
+				return m;
+		}
+		return nullptr;
+	}
+
+	tll_scheme_message_t * lookup(std::string_view id)
+	{
+		for (auto m = messages; m; m = m->next) {
+			if (m->name && m->name == id)
+				return m;
+		}
+		return nullptr;
+	}
+
+	const tll_scheme_message_t * lookup(std::string_view id) const
+	{
+		for (auto m = messages; m; m = m->next) {
+			if (m->name && m->name == id)
+				return m;
+		}
+		return nullptr;
+	}
 #endif
 } tll_scheme_t;
 

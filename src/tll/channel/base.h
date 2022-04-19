@@ -374,36 +374,6 @@ class Base
 		//return nullptr;
 	}
 
-	template <tll_msg_type_t Type = TLL_MESSAGE_DATA, typename Id>
-	const scheme::Message * scheme_lookup(Id id)
-	{
-		if constexpr (Type == TLL_MESSAGE_DATA)
-			return scheme_lookup(_scheme.get(), id);
-		if constexpr (Type == TLL_MESSAGE_CONTROL)
-			return scheme_lookup(_scheme_control.get(), id);
-		return nullptr;
-	}
-
-	const scheme::Message * scheme_lookup(const Scheme * scheme, int msgid)
-	{
-		if (!scheme) return nullptr;
-		for (auto m = scheme->messages; m; m = m->next) {
-			if (m->msgid != 0 && m->msgid == msgid)
-				return m;
-		}
-		return nullptr;
-	}
-
-	const scheme::Message * scheme_lookup(const Scheme * scheme, std::string_view name)
-	{
-		if (!scheme) return nullptr;
-		for (auto m = scheme->messages; m; m = m->next) {
-			if (m->name && m->name == name)
-				return m;
-		}
-		return nullptr;
-	}
-
 	channel::Context context() { return Context(internal.self->context); }
 	const channel::Context context() const { return Context(internal.self->context); }
 
