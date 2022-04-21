@@ -43,6 +43,16 @@ class Echo(Base):
     def _post(self, msg, flags):
         self._callback(msg.copy())
 
+class OpenTest(Base):
+    PROTO = "open-test"
+
+    PROCESS_POLICY = Base.ProcessPolicy.Never
+
+    def _open(self, props):
+        self.log.info("Open: {}", props.as_dict())
+        if props.as_dict() != {'a':'1', 'b':'2', 'c':'3'}:
+            raise RuntimeError("Invalid open parameters")
+
 class TestPrefix(Prefix):
     __test__ = False
     PROTO = "prefix+"
@@ -127,6 +137,32 @@ def test():
 
     ctx.unregister(Echo)
     with pytest.raises(TLLError): ctx.Channel("echo://;name=echo")
+
+def test_open_params():
+    ctx = C.Context()
+
+    ctx.register(OpenTest)
+    c = ctx.Channel("open-test://;name=open")
+
+    with pytest.raises(TLLError): c.open()
+    assert c.state == c.State.Error
+    c.close()
+
+    c.open('a=1;b=2;c=3')
+    assert c.state == c.State.Active
+    c.close()
+
+    c.open('c=3;b=2;a=1')
+    assert c.state == c.State.Active
+    c.close()
+
+    c.open('a=1;b=2', c='3')
+    assert c.state == c.State.Active
+    c.close()
+
+    c.open(a='1', b='2', c='3')
+    assert c.state == c.State.Active
+    c.close()
 
 def test_prefix():
     ctx = C.Context()

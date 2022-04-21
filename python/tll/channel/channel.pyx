@@ -285,7 +285,7 @@ cdef class Channel:
             if params:
                 for s in params.split(';'):
                     k,v = s.split('=', 1)
-                cfg[k] = v
+                    cfg[k] = v
         for k,v in kw.items():
             cfg[k] = v
         r = tll_channel_open_cfg(self._ptr, (<Config>cfg)._ptr)
