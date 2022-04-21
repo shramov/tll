@@ -16,6 +16,8 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <stddef.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -88,6 +90,45 @@ struct sockaddr_any
 
 	struct sockaddr_un * un() { return (struct sockaddr_un *) buf; }
 	const struct sockaddr_un * un() const { return (const struct sockaddr_un *) buf; }
+
+	bool operator != (const sockaddr_in *rhs) const { return !(*this == rhs); }
+	bool operator == (const sockaddr_in *rhs) const
+	{
+		auto lhs = in();
+		return (lhs->sin_family == rhs->sin_family) &&
+			(lhs->sin_port == rhs->sin_port) &&
+			(lhs->sin_addr.s_addr == rhs->sin_addr.s_addr);
+		return true;
+	}
+
+	bool operator != (const sockaddr_in6 *rhs) const { return !(*this == rhs); }
+	bool operator == (const sockaddr_in6 *rhs) const
+	{
+		auto lhs = in6();
+		return (lhs->sin6_family == rhs->sin6_family) &&
+			(lhs->sin6_port == rhs->sin6_port) &&
+			(lhs->sin6_flowinfo == rhs->sin6_flowinfo) &&
+			(lhs->sin6_scope_id == rhs->sin6_scope_id) &&
+			(memcmp(lhs->sin6_addr.s6_addr, rhs->sin6_addr.s6_addr, sizeof(in6_addr)) == 0);
+		return true;
+	}
+
+	bool operator != (const sockaddr_any &rhs) const { return !(*this == rhs); }
+	bool operator == (const sockaddr_any &rhs) const
+	{
+		if ((*this)->sa_family != rhs->sa_family)
+			return false;
+		if (rhs->sa_family == AF_UNIX) {
+			if (size != rhs.size)
+				return false;
+			// See unix(7) for description of sun_path
+			return memcmp(un(), rhs.un(), size) == 0;
+		} else if (rhs->sa_family == AF_INET)
+			return (*this) == rhs.in();
+		else if (rhs->sa_family == AF_INET6)
+			return (*this) == rhs.in6();
+		return false;
+	}
 };
 
 static inline tll::result_t<std::vector<tll::network::sockaddr_any>> resolve(int af, int socktype, std::string_view host, unsigned short port)

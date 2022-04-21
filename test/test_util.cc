@@ -14,6 +14,7 @@
 #include "tll/util/browse.h"
 #include "tll/util/cppring.h"
 #include "tll/util/fixed_point.h"
+#include "tll/util/sockaddr.h"
 #include "tll/util/string.h"
 #include "tll/util/time.h"
 #include "tll/util/url.h"
@@ -670,4 +671,87 @@ TEST(Util, BitsWrapper)
 	ASSERT_TRUE(to_any<BitsABC>("a")); ASSERT_EQ(*to_any<BitsABC>("a"), BitsABC().a(true));
 	ASSERT_TRUE(to_any<BitsABC>("a | 0x8")); ASSERT_EQ(*to_any<BitsABC>("a | 0x8"), BitsABC(1 | (1 << 3)));
 	ASSERT_TRUE(to_any<BitsABC>("a|b")); ASSERT_EQ(*to_any<BitsABC>("a|b"), BitsABC(1 | (3 << 1)));
+}
+
+TEST(Util, SockAddr)
+{
+	using namespace tll::network;
+
+	std::string_view path = "@path";
+	auto r = resolve(AddressFamily::UNIX, SOCK_STREAM, path, 0);
+	ASSERT_TRUE(r);
+	ASSERT_EQ(r->size(), 1u);
+
+	sockaddr_any un;
+	un.size = offsetof(struct sockaddr_un, sun_path) + path.size(); // No trailing zero
+	un.un()->sun_family = AF_UNIX;
+	memcpy(un.un()->sun_path, "\0path", 5);
+	ASSERT_EQ(un, un);
+
+	ASSERT_EQ(r->front().size, un.size);
+	ASSERT_EQ(r->front(), un);
+	un.size--;
+	ASSERT_NE(r->front(), un);
+	un.size++;
+
+	r = resolve(AddressFamily::UNIX, SOCK_STREAM, "/path", 0);
+	ASSERT_TRUE(r);
+	ASSERT_EQ(r->size(), 1u);
+
+	{
+		sockaddr_any addr;
+		addr.size = offsetof(struct sockaddr_un, sun_path) + path.size() + 1;
+		addr.un()->sun_family = AF_UNIX;
+		memcpy(addr.un()->sun_path, "/path", 6);
+		ASSERT_EQ(addr, addr);
+		ASSERT_NE(un, addr);
+
+		ASSERT_EQ(r->front().size, addr.size);
+		ASSERT_EQ(r->front(), addr);
+	}
+
+	sockaddr_any in;
+	in.size = sizeof(sockaddr_in);
+	in.in()->sin_family = AF_INET;
+	in.in()->sin_port = htons(5555);
+	in.in()->sin_addr.s_addr = htonl(0x7f000001);
+
+	ASSERT_EQ(tll::conv::to_string(in), "127.0.0.1:5555");
+	ASSERT_EQ(in, in);
+	ASSERT_EQ(in, in.in());
+
+	ASSERT_NE(un, in);
+	ASSERT_NE(un, in.in());
+
+	r = resolve(AddressFamily::UNSPEC, SOCK_STREAM, "127.0.0.1", 5555);
+	ASSERT_TRUE(r);
+	ASSERT_EQ(r->size(), 1u);
+	ASSERT_EQ(tll::conv::to_string(r->front()), "127.0.0.1:5555");
+
+	ASSERT_EQ(r->front()->sa_family, in->sa_family);
+	ASSERT_EQ(r->front().in()->sin_addr.s_addr, in.in()->sin_addr.s_addr);
+	ASSERT_EQ(r->front(), in);
+	ASSERT_EQ(r->front(), in.in());
+
+	sockaddr_any in6;
+	in6.size = sizeof(sockaddr_in6);
+	in6.in6()->sin6_family = AF_INET6;
+	in6.in6()->sin6_port = htons(5555);
+	in6.in6()->sin6_addr.s6_addr[15] = 1;
+
+	ASSERT_EQ(tll::conv::to_string(in6), "::1:5555");
+
+	ASSERT_NE(un, in6);
+	ASSERT_NE(un, in6.in6());
+	ASSERT_NE(in, in6);
+	ASSERT_NE(in, in6.in6());
+
+	r = resolve(AddressFamily::UNSPEC, SOCK_STREAM, "::1", 5555);
+	ASSERT_TRUE(r);
+	ASSERT_EQ(r->size(), 1u);
+	ASSERT_EQ(tll::conv::to_string(r->front()), "::1:5555");
+
+	ASSERT_EQ(r->front()->sa_family, in6->sa_family);
+	ASSERT_EQ(r->front(), in6);
+	ASSERT_EQ(r->front(), in6.in6());
 }
