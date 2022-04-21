@@ -400,6 +400,7 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 		_settings.rcv_buffer_size = reader.getT("recv-buffer-size", size);
 	}
 	_settings.protocol = reader.getT("protocol", tcp_settings_t::Protocol::TCP);
+	_addr_mode = reader.getT("resolve-mode", Resolve::Normal, {{"normal", Resolve::Normal}, {"round-robin", Resolve::RR}});
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -441,11 +442,15 @@ int TcpClient<T, S>::_open(const ConstConfig &url)
 		peer = std::move(*r);
 	} else
 		peer = *_peer;
-	auto addr = tll::network::resolve(peer.af, SOCK_STREAM, peer.host, peer.port);
-	if (!addr)
-		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", peer.host, addr.error());
-	std::swap(_addr_list, *addr);
-	_addr = _addr_list.begin();
+
+	if (_addr_mode == Resolve::Normal || _addr == _addr_list.end()) {
+		auto addr = tll::network::resolve(peer.af, SOCK_STREAM, peer.host, peer.port);
+		if (!addr)
+			return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", peer.host, addr.error());
+
+		std::swap(_addr_list, *addr);
+		_addr = _addr_list.begin();
+	}
 
 	auto fd = socket((*_addr)->sa_family, SOCK_STREAM, _::select_protocol(this->_log, _settings, (*_addr)->sa_family));
 	if (fd == -1)

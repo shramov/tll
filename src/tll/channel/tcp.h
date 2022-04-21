@@ -228,6 +228,7 @@ class TcpClient : public S
 	using addr_list_t = std::vector<tll::network::sockaddr_any>;
 	addr_list_t _addr_list;
 	addr_list_t::iterator _addr = _addr_list.end();
+	enum class Resolve : int8_t { Normal, RR } _addr_mode = Resolve::Normal;
 
 	tcp_settings_t _settings = {};
 
