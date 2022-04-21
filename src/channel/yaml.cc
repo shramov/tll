@@ -270,11 +270,7 @@ int ChYaml::_fill(tll_msg_t * msg, tll::ConstConfig &cfg)
 	auto name = cfg.get("name");
 	if (!name)
 		return _log.fail(EINVAL, "No 'name' field for message {}", _idx);
-	auto m = _scheme->messages;
-	for (; m; m = m->next) {
-		if (m->name == *name)
-			break;
-	}
+	auto m = _scheme->lookup(*name);
 	if (!m)
 		return _log.fail(EINVAL, "Message '{}' not found in scheme for {}", *name, _idx);
 	_buf.clear();
