@@ -82,6 +82,7 @@ static inline void tll_msg_copy_info(tll_msg_t * dest, const tll_msg_t * src)
 	dest->msgid = src->msgid;
 	dest->seq = src->seq;
 	dest->addr = src->addr;
+	dest->time = src->time;
 }
 
 typedef struct tll_channel_context_t tll_channel_context_t;
