@@ -51,6 +51,11 @@ int timeit(tll::channel::Context &ctx, std::string_view url, bool callback)
 		c->process();
 	}
 
+	if (c->state() != tll::state::Active) {
+		fmt::print("Failed to open channel\n");
+		return EINVAL;
+	}
+
 	char data[1024] = {};
 	tll_msg_t msg = {};
 	msg.data = data;
