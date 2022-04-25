@@ -236,6 +236,21 @@ struct __attribute__((__packed__)) unions
     } u0;
 };
 
+struct __attribute__((__packed__)) unions_cpp
+{
+    struct __attribute__((__packed__)) u0 : public tll::scheme::UnionBase<uint8_t, sizeof(sub)> {
+	    int8_t unchecked_f0() const { return uncheckedT<int8_t>(); }
+	    int8_t * get_f0() { return getT<int8_t>(0); }
+	    const int8_t * get_f0() const { return getT<int8_t>(0); }
+	    void set_f0(int8_t v) { setT(0, v); }
+
+	    sub & unchecked_f1() { return uncheckedT<sub>(); }
+	    const sub & unchecked_f1() const { return uncheckedT<sub>(); }
+	    sub * get_f1() { return getT<sub>(1); }
+	    const sub * get_f1() const { return getT<sub>(1); }
+	    sub & set_f1() { return setT<sub>(1); }
+    } u0;
+};
 } // namespace generated
 
 TEST(Scheme, Format)
@@ -370,7 +385,17 @@ f8: 12.345)");
 	ASSERT_NE(message, nullptr);
 
 	generated::unions unions = {};
-	unions.u0.f0 = 123;
+	auto unions_cpp = (generated::unions_cpp *) &unions;
+
+	unions_cpp->u0.set_f0(123);
+	ASSERT_EQ(unions.u0_type, 0);
+	ASSERT_EQ(unions.u0.f0, 123);
+
+	ASSERT_EQ(unions_cpp->u0.type(), 0);
+	ASSERT_EQ(unions_cpp->u0.unchecked_f0(), 123);
+	ASSERT_NE(unions_cpp->u0.get_f0(), nullptr);
+	ASSERT_EQ(*unions_cpp->u0.get_f0(), 123);
+	ASSERT_EQ(unions_cpp->u0.get_f1(), nullptr);
 
 	mem = { &unions, sizeof(unions) };
 
@@ -378,7 +403,18 @@ f8: 12.345)");
 	ASSERT_TRUE(r);
 	ASSERT_EQ(*r, R"({u0: {f0: 123}})");
 
-	unions.u0_type = 1;
+	auto & usub = unions_cpp->u0.set_f1();
+	usub.s0 = 123456;
+
+	ASSERT_EQ(unions_cpp->u0.get_f0(), nullptr);
+	ASSERT_NE(unions_cpp->u0.get_f1(), nullptr);
+	ASSERT_EQ(unions_cpp->u0.get_f1()->s0, 123456);
+	ASSERT_EQ(unions_cpp->u0.unchecked_f1().s0, 123456);
+
+	ASSERT_EQ(unions.u0_type, 1);
+	ASSERT_EQ(unions.u0.f1.s0, 123456);
+
+	//unions.u0_type = 1;
 	unions.u0.f1.s0 = 123456;
 	unions.u0.f1.s1_size = 2;
 	unions.u0.f1.s1[0] = 123.456;

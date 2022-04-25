@@ -122,6 +122,25 @@ struct __attribute__((packed)) Array
 	std::array<value_type, Size> array;
 };
 
+template <typename Type, size_t Size>
+class __attribute__((packed)) UnionBase
+{
+	Type _type = 0 ;
+	unsigned char _data[Size] = {};
+
+ public:
+	Type type() const { return _type; }
+
+	template <typename T> T & uncheckedT() { return * (T *) _data; }
+	template <typename T> const T & uncheckedT() const { return * (const T *) _data; }
+
+	template <typename T> T * getT(Type t) { if (_type != t) return nullptr; return &uncheckedT<T>(); }
+	template <typename T> const T * getT(Type t) const { if (_type != t) return nullptr; return &uncheckedT<T>(); }
+
+	template <typename T> T & setT(Type t) { _type = t; auto & v = uncheckedT<T>(); v = {}; return v; }
+	template <typename T> void setT(Type t, const T &v) { _type = t; uncheckedT<T>() = v; }
+};
+
 } // namespace tll::scheme
 #endif
 
