@@ -62,15 +62,15 @@ void set_{f.name}(type_{f.name} v) {{ return this->template _set_scalar<type_{f.
         return cpp.indent("\t",
 f"""const {t} & get_{f.name}() const {{ return this->template _get_bytes<{f.size}>({f.offset}); }}
 void set_{f.name}(const {t} &v) const {{ return this->template _set_bytes<{f.size}>({f.offset}, {{v.data(), v.size()}}); }}
-void set_{f.name}(std::string_view v) const {{ return this->template _set_bytestring<{f.size}>({f.offset}, v); }}""")
+void set_{f.name}(std::string_view v) {{ return this->template _set_bytestring<{f.size}>({f.offset}, v); }}""")
     elif m == 'bytestring':
 	return cpp.indent("\t",
 f"""std::string_view get_{f.name}() const {{ return this->template _get_bytestring<{f.size}>({f.offset}); }}
-void set_{f.name}(std::string_view v) const {{ return this->template _set_bytestring<{f.size}>({f.offset}, v); }}""")
+void set_{f.name}(std::string_view v) {{ return this->template _set_bytestring<{f.size}>({f.offset}, v); }}""")
     elif m == 'string':
 	return cpp.indent("\t",
 f"""std::string_view get_{f.name}() const {{ return this->template _get_string<{cpp.offset_ptr_version(f)}>({f.offset}); }}
-void set_{f.name}(std::string_view v) const {{ return this->template _set_string<{cpp.offset_ptr_version(f)}>({f.offset}, v); }}""")
+void set_{f.name}(std::string_view v) {{ return this->template _set_string<{cpp.offset_ptr_version(f)}>({f.offset}, v); }}""")
     elif m == 'builder':
         return cpp.indent("\t",
 f"""using type_{f.name} = {t};
