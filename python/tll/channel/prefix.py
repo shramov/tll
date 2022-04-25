@@ -38,7 +38,7 @@ class Prefix(Base):
         self._child.close()
 
     def _post(self, msg, flags):
-        self._child.post(msg, flags)
+        self._child.post(msg, flags=flags)
 
     def _on_data(self, msg):
         self._callback(msg)
