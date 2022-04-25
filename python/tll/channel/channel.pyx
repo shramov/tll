@@ -306,10 +306,10 @@ cdef class Channel:
             raise TLLError("Post failed", r)
         return r
 
-    def post(self, data, type=None, msgid=None, seq=None, name=None, addr=None, flags=None):
+    def post(self, data, type=None, msgid=None, seq=None, name=None, addr=None, time=None, flags=None):
         if isinstance(data, CMessage):
-            if type == data.type and msgid is None and seq is None:
-                return self._post((<CMessage>data)._ptr, 0)
+            if (type is not None and type == data.type) and msgid is None and seq is None:
+                return self._post((<CMessage>data)._ptr, flags or 0)
 
         cdef tll_msg_t msg
         memset(&msg, 0, sizeof(msg))
@@ -319,6 +319,7 @@ cdef class Channel:
             msg.msgid = data.msgid
             msg.seq = data.seq
             msg.addr.i64 = data.addr
+            msg.time = TimePoint(msg.time, Resolution.ns, type=int).value
             data = data.data
         if name is not None:
             msg.msgid = self._scheme(type)[name].msgid
@@ -326,6 +327,7 @@ cdef class Channel:
         if msgid is not None: msg.msgid = msgid
         if seq is not None: msg.seq = seq
         if addr is not None: msg.addr.i64 = addr
+        if time is not None: msg.time = TimePoint(time, Resolution.ns, type=int).value
         mv = None
         if isinstance(data, dict):
             data = self._scheme(type)[name].object(**data)

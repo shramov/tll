@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # vim: sts=4 sw=4 et
 
-from tll import asynctll
+from tll import asynctll, chrono
 import tll.channel as C
 from tll.channel.base import Base
 from tll.channel.prefix import Prefix
@@ -10,6 +10,7 @@ from tll.config import Url
 from tll.error import TLLError
 from tll.test_util import Accum
 
+import datetime
 import pytest
 
 class Echo(Base):
@@ -93,7 +94,7 @@ def test():
 
     with pytest.raises(TLLError): ctx.Channel("echo://;name=echo")
     ctx.register(Echo)
-    c = Accum("echo://;name=echo", context=ctx)
+    c = Accum("echo://;name=echo", context=ctx, dump='text')
     cfg = c.config
 
     pyc = C.channel_cast(c)
@@ -123,8 +124,10 @@ def test():
     assert cfg.get("state", "") == "Active"
 
     assert c.result == []
-    c.post(b'xxx', seq=100)
+    now = datetime.datetime.now()
+    c.post(b'xxx', seq=100, time=now)
     assert [(m.seq, m.data.tobytes()) for m in c.result] == [(100, b'xxx')]
+    assert c.result[-1].time == chrono.TimePoint(now, resolution=chrono.Resolution.ns, type=int)
 
     c.close()
     assert [x.name for x in c.children] == ['orphan']
@@ -170,7 +173,7 @@ def test_prefix():
     with pytest.raises(TLLError): ctx.Channel("prefix+null://;name=channel")
     ctx.register(Echo)
     ctx.register(TestPrefix)
-    c = Accum("prefix+echo://;name=channel", context=ctx)
+    c = Accum("prefix+echo://;name=channel", context=ctx, dump='text')
     cfg = c.config
 
     pyc = C.channel_cast(c)
@@ -198,12 +201,14 @@ def test_prefix():
     assert cfg.get("state", "") == "Active"
 
     assert c.result == []
-    c.post(b'xxx', seq=100)
+    now = datetime.datetime.now()
+    c.post(b'xxx', seq=100, time=now)
     assert [(m.seq, m.data.tobytes()) for m in c.result] == [(100, b'xxx')]
+    #assert c.result[0].time == chrono.TimePoint(now, resolution=chrono.Resolution.ns, type=int)
 
     c.result = []
-    c.post(b'zzz', seq=200, type=C.Type.Control, addr=0xbeef)
-    assert [(m.type, m.seq, m.addr, m.data.tobytes()) for m in c.result], [(C.Type.Control, 200, 0xbeef, b'zzz')]
+    c.post(b'zzz', seq=200, type=C.Type.Control, addr=0xbeef, time=now)
+    assert [(m.type, m.seq, m.addr, m.data.tobytes()) for m in c.result] == [(C.Type.Control, 200, 0xbeef, b'zzz')]
 
     c.close()
     assert [x.name for x in c.children] == ['channel/prefix']

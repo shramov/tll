@@ -14,6 +14,7 @@ from ..url import *
 from ..s2b import b2s, s2b
 from ..logger import Logger
 from ..logger cimport TLL_LOGGER_INFO
+from .. import chrono
 from .. import error
 from .. import scheme
 from .. import stat
@@ -127,6 +128,7 @@ cdef class Base:
 
     def _callback(self, msg):
         if isinstance(msg, C.CMessage):
+            self._log_msg("Recv", (<C.CMessage>msg)._ptr)
             return self.internal.callback((<C.CMessage>msg)._ptr)
 
         cdef tll_msg_t cmsg
@@ -146,6 +148,9 @@ cdef class Base:
 
             seq = getattr(msg, 'seq', None)
             if seq: cmsg.seq = int(seq)
+
+            time = getattr(msg, 'time', None)
+            if time: cmsg.time = chrono.TimePoint(time, chrono.Resolution.ns, type=int).value
 
             data = getattr(msg, 'data', None)
 
