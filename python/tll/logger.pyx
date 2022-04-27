@@ -161,5 +161,10 @@ def init():
 def configure(config):
     if config is None:
         return
+    if isinstance(config, dict):
+        cfg = Config()
+        for k,v in config.items():
+            cfg[k] = v
+        config = cfg
 
     tll_logger_config((<Config>config)._ptr);
