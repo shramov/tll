@@ -663,6 +663,8 @@ def test_union():
 """)
 
     msg = scheme['msg']
+    assert msg['u'].type_union.union_size == 8
+
     m = msg.object(pre=0xffffffff, u=('sub', {'s0': 0xbeef}), post=0xffffffff)
 
     assert m.u[:1] == ('sub',)

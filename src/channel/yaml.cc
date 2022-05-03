@@ -192,7 +192,7 @@ int ChYaml::_fill(View view, const tll::scheme::Field * field, tll::ConstConfig 
 		if (l.size() > 1)
 			return _log.fail(EINVAL, "Failed to fill union: too many keys");
 		auto key = l.begin()->first;
-		for (auto i = 0u; i < field->type_union->size; i++) {
+		for (auto i = 0u; i < field->type_union->fields_size; i++) {
 			auto uf = field->type_union->fields + i;
 			_log.trace("Check union type {}", uf->name);
 			if (key == uf->name) {

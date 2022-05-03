@@ -98,8 +98,10 @@ typedef struct tll_scheme_union_t
 	struct tll_scheme_field_t * type_ptr;
 	/// Array of union variants
 	struct tll_scheme_field_t * fields;
-	/// Size of union fields
-	size_t size;
+	/// Size of union fields list (amount of fields)
+	size_t fields_size;
+	/// Size in bytes of union part (without type_ptr)
+	size_t union_size;
 	/// Options
 	struct tll_scheme_option_t * options;
 } tll_scheme_union_t;

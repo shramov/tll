@@ -142,13 +142,15 @@ void verify_scheme(tll::scheme::Scheme * s)
 	EXPECT_EQ(m->enums, nullptr);
 	f = m->fields;
 	CHECK_FIELD(f, "u0", Field::Union, 1u + 8u, 0u); EXPECT_EQ(f->sub_type, Field::SubNone);
-	ASSERT_NE(f->type_union, nullptr); ASSERT_STREQ(f->type_union->name, "u0"); ASSERT_EQ(f->type_union->size, 3u);
+	ASSERT_NE(f->type_union, nullptr); ASSERT_STREQ(f->type_union->name, "u0"); ASSERT_EQ(f->type_union->fields_size, 3u);
+	ASSERT_EQ(f->type_union->union_size, 8u);
 	CHECK_FIELD(f->type_union->fields + 0, "i8", Field::Int8, 1u, 1u);
 	CHECK_FIELD(f->type_union->fields + 1, "d", Field::Double, 8u, 1u);
 	CHECK_FIELD(f->type_union->fields + 2, "s", Field::Pointer, 8u, 1u);
 	f = f->next;
 	CHECK_FIELD(f, "u1", Field::Union, 1u + 37u, 9u); EXPECT_EQ(f->sub_type, Field::SubNone);
-	ASSERT_NE(f->type_union, nullptr); ASSERT_STREQ(f->type_union->name, "u1"); ASSERT_EQ(f->type_union->size, 2u);
+	ASSERT_NE(f->type_union, nullptr); ASSERT_STREQ(f->type_union->name, "u1"); ASSERT_EQ(f->type_union->fields_size, 2u);
+	ASSERT_EQ(f->type_union->union_size, 37u);
 	CHECK_FIELD(f->type_union->fields + 0, "b32", Field::Bytes, 32u, 1u);
 	CHECK_FIELD(f->type_union->fields + 1, "m", Field::Message, 37u, 1u);
 	f = f->next;

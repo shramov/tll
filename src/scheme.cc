@@ -418,10 +418,10 @@ struct Union
 		f.name = "_type";
 		f.options["_auto"] = "union";
 		r->type_ptr = f.finalize(s, m);
-		r->size = fields.size();
+		r->fields_size = fields.size();
 		r->fields = (tll_scheme_field_t *) malloc(sizeof(tll_scheme_field_t) * fields.size());
 		auto it = fields.begin();
-		for (auto uf = r->fields; uf != r->fields + r->size; uf++, it++) {
+		for (auto uf = r->fields; uf != r->fields + r->fields_size; uf++, it++) {
 			*uf = {};
 			it->finalize(s, m, uf);
 		}
@@ -1158,9 +1158,9 @@ Union * copy_unions(Scheme *ds, Message *dm, const Union *src)
 	*r = *src;
 	r->name = strdup(src->name);
 	r->options = copy_options(src->options);
-	r->fields = (tll_scheme_field_t *) malloc(sizeof(tll_scheme_field_t) * r->size);
+	r->fields = (tll_scheme_field_t *) malloc(sizeof(tll_scheme_field_t) * r->fields_size);
 	r->type_ptr = copy_fields(ds, dm, &r->type_ptr, src->type_ptr);
-	for (auto i = 0u; i < r->size; i++)
+	for (auto i = 0u; i < r->fields_size; i++)
 		copy_field_body(ds, dm, r->fields + i, src->fields + i);
 	r->next = copy_unions(ds, dm, src->next);
 	return r;
@@ -1301,7 +1301,7 @@ void tll_scheme_union_free(tll_scheme_union_t *u)
 	tll_scheme_option_free(u->options);
 	if (u->name) free((char *) u->name);
 	tll_scheme_field_free(u->type_ptr);
-	for (auto f = u->fields; f != u->fields + u->size; f++)
+	for (auto f = u->fields; f != u->fields + u->fields_size; f++)
 		tll_scheme_field_free_body(f);
 	free(u->fields);
 	tll_scheme_union_free(u->next);
@@ -1424,7 +1424,7 @@ std::string dump_body(const tll::scheme::Union * u)
 {
 	std::string r = "union: [";
 	bool comma = false;
-	for (auto uf = u->fields; uf != u->fields + u->size; uf++) {
+	for (auto uf = u->fields; uf != u->fields + u->fields_size; uf++) {
 		if (comma)
 			r += ", ";
 		comma = true;
@@ -1615,9 +1615,10 @@ int tll_scheme_field_fix(tll_scheme_field_t * f)
 		break;
 	case Field::Union: {
 		size_t size = 0;
-		for (auto uf = f->type_union->fields; uf != f->type_union->fields + f->type_union->size; uf++) {
+		for (auto uf = f->type_union->fields; uf != f->type_union->fields + f->type_union->fields_size; uf++) {
 			size = std::max(size, uf->size);
 		}
+		f->type_union->union_size = size;
 		f->size = f->type_union->type_ptr->size + size;
 		break;
 	}
@@ -1656,7 +1657,7 @@ int tll_scheme_message_fix(tll_scheme_message_t * m)
 	for (auto &u : list_wrap(m->unions)) {
 		if (tll_scheme_field_fix(u.type_ptr))
 			return EINVAL;
-		for (auto uf = u.fields; uf != u.fields + u.size; uf++) {
+		for (auto uf = u.fields; uf != u.fields + u.fields_size; uf++) {
 			uf->offset = u.type_ptr->size;
 			if (tll_scheme_field_fix(uf))
 				return EINVAL;

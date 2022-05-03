@@ -69,7 +69,8 @@ cdef extern from "tll/scheme.h":
         const char * name
         tll_scheme_field_t * type_ptr
         tll_scheme_field_t * fields
-        size_t size
+        size_t fields_size
+        size_t union_size
         tll_scheme_option_t * options
 
     ctypedef struct tll_scheme_field_t:

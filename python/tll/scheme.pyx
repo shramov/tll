@@ -94,8 +94,9 @@ cdef union_wrap(Scheme s, object m, tll_scheme_union_t * ptr):
     r.name = b2s(ptr.name)
     r.name_bytes = ptr.name
     r.type_ptr = field_wrap(s, m, ptr.type_ptr)
+    r.union_size = ptr.union_size
     r.fields = []
-    for i in range(ptr.size):
+    for i in range(ptr.fields_size):
         f = field_wrap(s, m, &ptr.fields[i])
         r[f.name] = f
         f.union_index = i
