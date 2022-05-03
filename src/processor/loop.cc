@@ -10,7 +10,11 @@
 
 tll_processor_loop_t * tll_processor_loop_new(const char * name, int len)
 {
-	return new tll_processor_loop_t(tll::string_view_from_c(name, len));
+	auto r = std::make_unique<tll_processor_loop_t>(tll::string_view_from_c(name, len));
+	tll::Config cfg;
+	if (r->init(cfg))
+		return nullptr;
+	return r.release();
 }
 
 void tll_processor_loop_free(tll_processor_loop_t *loop)
@@ -35,7 +39,7 @@ tll_channel_t * tll_processor_loop_poll(tll_processor_loop_t *loop, long timeout
 
 int tll_processor_loop_process(tll_processor_loop_t *loop)
 {
-	return loop->process();
+	return ENOSYS;
 }
 
 int tll_processor_loop_pending(tll_processor_loop_t *loop)

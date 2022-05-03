@@ -17,9 +17,10 @@
 #ifdef __linux__
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
+#include <sys/timerfd.h>
 #include <unistd.h>
-#elif defined(__FreeBSD__)
-#define WITH_KQUEUE
+#elif defined(__FreeBSD__) || defined(__APPLE__)
+#define WITH_KQUEUE 1
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
@@ -93,19 +94,245 @@ struct List
 		}
 	}
 };
+
+namespace loop {
+static constexpr timespec tll2ts(tll::duration ts)
+{
+	using namespace std::chrono;
+	auto s = duration_cast<seconds>(ts);
+	return { (time_t) s.count(), (long) nanoseconds(ts - s).count() };
+}
+
+#ifdef __linux__
+struct EPoll
+{
+	int fd = -1;
+	int fd_pending = -1;
+	int fd_nofd = -1;
+
+	EPoll() = default;
+	EPoll(EPoll &&rhs)
+	{
+		std::swap(fd, rhs.fd);
+		std::swap(fd_pending, rhs.fd_pending);
+		std::swap(fd_nofd, rhs.fd_nofd);
+	}
+
+	~EPoll()
+	{
+		if (fd != -1)
+			::close(fd);
+		fd = -1;
+		if (fd_pending != -1)
+			::close(fd_pending);
+		fd_pending = -1;
+		if (fd_nofd != -1)
+			::close(fd_nofd);
+		fd_nofd = -1;
+	}
+
+	int init(tll::Logger &log, const tll::duration &nofd_interval)
+	{
+		fd = epoll_create1(EPOLL_CLOEXEC);
+		if (fd == -1) return log.fail(EINVAL, "Failed to create epoll: {}", strerror(errno));
+		fd_pending = eventfd(1, EFD_NONBLOCK | EFD_CLOEXEC);
+		if (fd_pending == -1) return log.fail(EINVAL, "Failed to create eventfd: {}", strerror(errno));
+		fd_nofd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
+		if (fd_nofd == -1) return log.fail(EINVAL, "Failed to create timerfd: {}", strerror(errno));
+
+		epoll_event ev = {};
+
+		ev.data.ptr = &fd_pending;
+		if (epoll_ctl(fd, EPOLL_CTL_ADD, fd_pending, &ev))
+			return log.fail(EINVAL, "Failed to add pending list fd: {}", strerror(errno));
+
+		ev.data.ptr = &fd_nofd;
+		if (epoll_ctl(fd, EPOLL_CTL_ADD, fd_nofd, &ev))
+			return log.fail(EINVAL, "Failed to add nofd list fd: {}", strerror(errno));
+
+		struct itimerspec its = {};
+		its.it_interval = tll2ts(nofd_interval);
+		its.it_value = tll2ts(nofd_interval);
+		if (timerfd_settime(fd_nofd, 0, &its, nullptr))
+			return log.fail(EINVAL, "Failed to rearm timerfd: {}", strerror(errno));
+
+		return 0;
+	}
+
+	void _update_helper(int * fd, int events)
+	{
+		epoll_event ev = {};
+		ev.events = events;
+		ev.data.ptr = fd;
+		epoll_ctl(this->fd, EPOLL_CTL_MOD, *fd, &ev);
+	}
+
+	void pending_enable() { return _update_helper(&fd_pending, EPOLLIN); }
+	void pending_disable() { return _update_helper(&fd_pending, 0); }
+
+	void nofd_enable() { return _update_helper(&fd_nofd, EPOLLIN); }
+	void nofd_disable() { return _update_helper(&fd_nofd, 0); }
+	void nofd_flush()
+	{
+		uint64_t v;
+		auto r = read(fd_nofd, &v, sizeof(v));
+		(void) r;
+	}
+
+	static constexpr int caps2events(unsigned caps)
+	{
+		int r = 0;
+		if (!(caps & tll::dcaps::Suspend)) {
+			if (caps & tll::dcaps::CPOLLIN) r |= EPOLLIN;
+			if (caps & tll::dcaps::CPOLLOUT) r |= EPOLLOUT;
+		}
+		return r;
+	}
+
+	void _poll_helper(int flags, int cfd, const tll::Channel * c, unsigned caps)
+	{
+		epoll_event ev = {};
+		ev.events = caps2events(caps);
+		ev.data.ptr = (void *) c;
+		epoll_ctl(fd, flags, cfd, &ev);
+	}
+
+	void poll_add(int cfd, const tll::Channel * c, unsigned caps) { _poll_helper(EPOLL_CTL_ADD, cfd, c, caps); }
+	void poll_update(int cfd, const tll::Channel * c, unsigned caps) { _poll_helper(EPOLL_CTL_MOD, cfd, c, caps); }
+	void poll_del(int cfd) { _poll_helper(EPOLL_CTL_DEL, cfd, nullptr, 0); }
+
+	bool is_timeout(void *c) const { return c == nullptr; }
+	bool is_pending(void *c) { return c == (void *) &fd_pending; }
+	bool is_nofd(void *c) { return c == (void *) &fd_nofd; }
+	bool is_error(void *c) { return c == this; }
+
+	void * poll(tll::duration timeout)
+	{
+		epoll_event ev = {};
+		int r = epoll_wait(fd, &ev, 1, std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count());
+		if (!r)
+			return nullptr;
+		if (r < 0) {
+			if (errno == EINTR)
+				return nullptr;
+			return this; //_log.fail(nullptr, "epoll failed: {}", strerror(errno));
+		}
+
+		return ev.data.ptr;
+	}
+};
+#endif//__linux__
+
+#ifdef WITH_KQUEUE
+struct KQueue
+{
+	int kq = -1;
+	struct kevent kev_pending = {};
+	struct kevent kev_nofd = {};
+	static constexpr int pending_ident = 0x746c6c; // 'tll'
+
+	KQueue() = default;
+	KQueue(KQueue &&rhs)
+	{
+		std::swap(kq, rhs.kq);
+	}
+
+	~KQueue()
+	{
+		if (kq != -1)
+			::close(kq);
+		kq = -1;
+	}
+
+	int init(tll::Logger &log, const tll::duration &nofd_interval)
+	{
+		kq = kqueue();
+		if (kq == -1)
+			return log.fail(EINVAL, "Failed to create kqueue: {}", strerror(errno));
+
+		if (_pending_helper(EV_ADD, NOTE_FFNOP))
+			return log.fail(EINVAL, "Failed to add pending list kevent: {}", strerror(errno));
+
+		EV_SET(&kev_nofd, pending_ident, EVFILT_TIMER, EV_DISABLE, NOTE_NSECONDS, nofd_interval.count(), &kev_nofd);
+		if (_nofd_helper(EV_ADD | EV_DISABLE))
+			return log.fail(EINVAL, "Failed to add nofd list kevent: {}", strerror(errno));
+		return 0;
+	}
+
+	int _pending_helper(int flags, int note)
+	{
+		EV_SET(&kev_pending, pending_ident, EVFILT_USER, flags, note, 0, &kev_pending);
+		return kevent(kq, &kev_pending, 1, nullptr, 0, nullptr);
+	}
+
+	void pending_enable() { _pending_helper(EV_ENABLE, NOTE_FFNOP | NOTE_TRIGGER); }
+	void pending_disable() { _pending_helper(EV_DISABLE, NOTE_FFNOP); }
+
+	int _nofd_helper(int flags)
+	{
+		kev_nofd.flags = flags;
+		return kevent(kq, &kev_nofd, 1, nullptr, 0, nullptr);
+	}
+
+	void nofd_enable() { _nofd_helper(EV_ENABLE); }
+	void nofd_disable() { _nofd_helper(EV_DISABLE); }
+	void nofd_flush() {}
+
+	void _fd_helper(int flags, int fd, const tll::Channel * c, unsigned caps)
+	{
+		struct kevent kev[2];
+		EV_SET(kev + 0, fd, EVFILT_READ, flags, 0, 0, (void *) c);
+		EV_SET(kev + 1, fd, EVFILT_WRITE, EV_ADD | EV_DISABLE, 0, 0, (void *) c);
+		if (!(caps & tll::dcaps::Suspend)) {
+			if (caps & tll::dcaps::CPOLLIN) kev[0].flags = EV_ADD | EV_ENABLE;
+			if (caps & tll::dcaps::CPOLLOUT) kev[1].flags = EV_ADD | EV_ENABLE;
+		}
+		kevent(kq, kev, 2, nullptr, 0, nullptr);
+	}
+
+	void poll_add(int fd, const tll::Channel * c, unsigned caps) { _fd_helper(EV_ADD | EV_DISABLE, fd, c, caps); }
+	void poll_update(int fd, const tll::Channel * c, unsigned caps) { _fd_helper(EV_ADD | EV_DISABLE, fd, c, caps); }
+	void poll_del(int fd) { _fd_helper(EV_DISABLE, fd, nullptr, 0); }
+
+	bool is_timeout(void *c) const { return c == nullptr; }
+	bool is_pending(void *c) { return c == (void *) &kev_pending; }
+	bool is_nofd(void *c) { return c == (void *) &kev_nofd; }
+	bool is_error(void *c) { return c == this; }
+
+	void * poll(tll::duration timeout)
+	{
+		struct timespec ts = tll2ts(timeout);
+		struct kevent kev = {};
+		int r = kevent(kq, nullptr, 0, &kev, 1, &ts);
+		if (!r)
+			return nullptr;
+		if (r < 0) {
+			if (errno == EINTR)
+				return nullptr;
+			return this; //_log.fail(nullptr, "kevent failed: {}", strerror(errno));
+		}
+
+		return kev.udata;
+	}
+};
+#endif//WITH_KQUEUE
+} // namespace loop
+
 } // namespace tll::processor
 
 struct tll_processor_loop_t
 {
-	tll::Logger _log;
+	bool _poll_enable = true;
 #ifdef __linux__
-	int fd = { epoll_create1(0) };
-	int fd_pending = { eventfd(1, EFD_NONBLOCK) };
+	tll::processor::loop::EPoll _poll;
 #elif defined(WITH_KQUEUE)
-	int kq = { kqueue() };
-	struct kevent kev_pending = {};
-	static constexpr int pending_ident = 0x746c6c; // 'tll'
+	tll::processor::loop::KQueue _poll;
 #endif
+
+	tll::duration _poll_interval = std::chrono::milliseconds(10);
+
+	tll::Logger _log;
+
 	std::list<tll::Channel *> list; // All registered channels
 	tll::processor::List<tll::Channel> list_process; // List of channels to process
 	tll::processor::List<tll::Channel> list_pending; // List of channels with pending data
@@ -117,24 +344,36 @@ struct tll_processor_loop_t
 	tll_processor_loop_t(std::string_view name = "")
 		: _log(name.size() ? name : "tll.processor.loop")
 	{
+	}
+
+	int init(const tll::ConstConfig &cfg)
+	{
+		constexpr auto nofd_interval_default =
 #ifdef __linux__
-		epoll_event ev = {};
-		ev.data.ptr = (void *) this;
-		epoll_ctl(fd, EPOLL_CTL_ADD, fd_pending, &ev);
-#elif defined(WITH_KQUEUE)
-		EV_SET(&kev_pending, pending_ident, EVFILT_USER, EV_ADD, NOTE_FFNOP, 0, this);
-		kevent(kq, &kev_pending, 1, nullptr, 0, nullptr);
+			std::chrono::milliseconds(100);
+#else
+			std::chrono::milliseconds(10);
 #endif
+		auto reader = tll::make_props_reader(cfg);
+		auto name = reader.getT<std::string>("name", "");
+		_poll_enable = reader.getT("poll", true);
+		_poll_interval = reader.getT<tll::duration>("poll-interval", std::chrono::milliseconds(100));
+		auto nofd_interval = reader.getT<tll::duration>("nofd-interval", nofd_interval_default);
+
+		_log = { name.size() ? name : "tll.processor.loop" };
+		if (!reader)
+			return _log.fail(EINVAL, "Invalid parameters: {}", reader.error());
+
+		if (_poll_enable) {
+			if (_poll.init(_log, nofd_interval))
+				return _log.fail(EINVAL, "Failed to init poll subsystem");
+		}
+
+		return 0;
 	}
 
 	~tll_processor_loop_t()
 	{
-#ifdef __linux__
-		if (fd_pending != -1) ::close(fd_pending);
-		if (fd != -1) ::close(fd);
-#elif defined(WITH_KQUEUE)
-		if (kq != -1) ::close(kq);
-#endif
 		for (auto c : list) {
 			if (c) c->callback_del(this, TLL_MESSAGE_MASK_CHANNEL | TLL_MESSAGE_MASK_STATE);
 		}
@@ -146,10 +385,8 @@ struct tll_processor_loop_t
 	int step(tll::duration timeout)
 	{
 		auto c = poll(timeout);
-		if (c != nullptr)
-			return c->process();
-		else
-			process();
+		if (c)
+			c->process();
 		return 0;
 	}
 
@@ -162,78 +399,46 @@ struct tll_processor_loop_t
 
 	tll::Channel * poll(tll::duration timeout)
 	{
-#ifdef __linux__
-		epoll_event ev = {};
-		int r = epoll_wait(fd, &ev, 1, std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count());
-		if (!r)
-			return 0;
-		if (r < 0) {
-			if (errno == EINTR)
-				return 0;
-			return _log.fail(nullptr, "epoll failed: {}", strerror(errno));
-		}
-
-		if (ev.data.ptr == this) {
-			_log.debug("Poll on pending list");
+		if (_poll_enable) {
+			auto r = _poll.poll(timeout);
 			if (time_cache_enable)
 				tll::time::now();
-			for (auto & c: list_pending)
-				c->process();
+			if (_poll.is_pending(r)) {
+				_log.trace("Process pending: {} channels", list_pending.size);
+				process_list(list_pending);
+				return nullptr;
+			} else if (_poll.is_nofd(r)) {
+				_log.trace("Process nofd: {} channels", list_nofd.size);
+				process_list(list_nofd);
+				_poll.nofd_flush();
+				return nullptr;
+			} else if (_poll.is_timeout(r)) {
+				return nullptr;
+			} else if (_poll.is_error(r)) {
+				return _log.fail(nullptr, "Poll failed: {}", strerror(errno));
+			} else {
+				auto c = static_cast<tll::Channel *>(r);
+				_log.trace("Poll on {}", c->name());
+				return c;
+			}
 			return nullptr;
 		}
 
-		auto c = (tll::Channel *) ev.data.ptr;
-		_log.debug("Poll on {}", c->name());
 		if (time_cache_enable)
 			tll::time::now();
-		return c;
-#elif defined(WITH_KQUEUE)
-		struct timespec ts;
-		{
-			using namespace std::chrono;
-			auto s = duration_cast<seconds>(timeout);
-			ts = { (time_t) s.count(), (long) nanoseconds(timeout - s).count() };
-		}
-		struct kevent kev = {};
-		int r = kevent(kq, nullptr, 0, &kev, 1, &ts);
-		if (!r)
-			return 0;
-		if (r < 0) {
-			if (errno == EINTR)
-				return 0;
-			return _log.fail(nullptr, "kevent failed: {}", strerror(errno));
-		}
-
-		if (kev.filter == EVFILT_USER && kev.udata == this) {
-			_log.debug("Poll on pending list");
-			if (time_cache_enable)
-				tll::time::now();
-			for (auto & c: list_pending)
-				c->process();
-			return nullptr;
-		}
-
-		auto c = (tll::Channel *) kev.udata;
-		_log.debug("Poll on {}", c->name());
-		if (time_cache_enable)
-			tll::time::now();
-		return c;
-#endif
+		process_list(list_pending);
+		process_list(list_process);
 		return nullptr;
 	}
 
-	int process()
+	int process_list(tll::processor::List<tll::Channel> &l)
 	{
 		int r = 0;
-		for (unsigned i = 0; i < list_pending.size; i++) {
-			if (list_pending[i] == nullptr) continue;
-			r |= list_pending[i]->process() ^ EAGAIN;
+		for (unsigned i = 0; i < l.size; i++) {
+			if (l[i] == nullptr) continue;
+			r |= l[i]->process() ^ EAGAIN;
 		}
-		for (unsigned i = 0; i < list_nofd.size; i++) {
-			if (list_nofd[i] == nullptr) continue;
-			r |= list_nofd[i]->process() ^ EAGAIN;
-		}
-		return r == 0?EAGAIN:0;
+		return r == 0 ? EAGAIN : 0;
 	}
 
 	int add(tll::Channel *c)
@@ -241,12 +446,9 @@ struct tll_processor_loop_t
 		_log.info("Add channel {} with fd {}", c->name(), c->fd());
 		c->callback_add(this, TLL_MESSAGE_MASK_CHANNEL | TLL_MESSAGE_MASK_STATE);
 		list.push_back(c);
-		if (c->dcaps() & tll::dcaps::Process)
-			list_process.add(c);
-		if (c->dcaps() & tll::dcaps::Pending)
-			pending_add(c);
-		if (poll_add(c))
-			return _log.fail(EINVAL, "Failed to enable poll on channel {}", c->name());
+
+		process_add(c, c->fd(), c->dcaps());
+
 		for (auto i = c->children(); i; i = i->next) {
 			if (add(static_cast<tll::Channel *>(i->channel)))
 				return _log.fail(EINVAL, "Failed to add child {} of channel {}", tll_channel_name(i->channel), c->name());
@@ -259,63 +461,57 @@ struct tll_processor_loop_t
 		bool empty = list_pending.size == 0;
 		list_pending.add(c);
 		if (!empty) return;
-#ifdef __linux__
-		epoll_event ev = {};
-		ev.events = EPOLLIN;
-		ev.data.ptr = this;
-		epoll_ctl(fd, EPOLL_CTL_MOD, fd_pending, &ev);
-#elif defined(WITH_KQUEUE)
-		EV_SET(&kev_pending, pending_ident, EVFILT_USER, EV_ENABLE, NOTE_FFNOP | NOTE_TRIGGER, 0, this);
-		kevent(kq, &kev_pending, 1, nullptr, 0, nullptr);
-#endif
+		if (_poll_enable)
+			_poll.pending_enable();
 	}
 
 	void pending_del(const tll::Channel *c)
 	{
 		list_pending.del(c);
 		if (list_pending.size) return;
-#ifdef __linux__
-		epoll_event ev = {};
-		ev.data.ptr = this;
-		epoll_ctl(fd, EPOLL_CTL_MOD, fd_pending, &ev);
-#elif defined(WITH_KQUEUE)
-		EV_SET(&kev_pending, pending_ident, EVFILT_USER, EV_DISABLE, NOTE_FFNOP, 0, this);
-		kevent(kq, &kev_pending, 1, nullptr, 0, nullptr);
-#endif
+		if (_poll_enable)
+			_poll.pending_disable();
 	}
 
-	int poll_add(tll::Channel *c)
+	int process_add(tll::Channel *c, int fd, unsigned caps)
 	{
-		if (c->fd() == -1) {
-			if (c->state() == tll::state::Opening || c->state() == tll::state::Active) {
-				_log.info("Add channel {} to nofd list", c->name(), c->fd());
-				list_nofd.add(c);
-			}
+		if (!tll::dcaps::need_process(caps))
 			return 0;
-		}
 
-		_log.info("Add channel {} to poll with fd {}", c->name(), c->fd());
-		update_poll(c, c->dcaps(), true);
+		list_process.add(c);
+
+		if (caps & tll::dcaps::Pending)
+			pending_add(c);
+
+		if (fd == -1) {
+			_log.debug("Add channel {} to nofd list", c->name());
+			bool empty = list_nofd.size == 0;
+			list_nofd.add(c);
+			if (!empty) return 0;
+			if (_poll_enable)
+				_poll.nofd_enable();
+		} else if (_poll_enable) {
+			_log.info("Add channel {} to poll with fd {}", c->name(), fd);
+			_poll.poll_add(fd, c, caps);
+		}
 		return 0;
 	}
 
-	int poll_del(const tll::Channel *c, int fd)
+	int process_del(const tll::Channel *c, int fd)
 	{
-		if (fd == -1) {
-			_log.info("Drop channel {} from nofd list", c->name(), c->fd());
-			list_nofd.del(c);
-			return 0;
-		}
+		list_process.del(c);
+		pending_del(c);
 
-#ifdef __linux__
-		epoll_event ev = {};
-		epoll_ctl(this->fd, EPOLL_CTL_DEL, fd, &ev);
-#elif defined(WITH_KQUEUE)
-		struct kevent kev[2];
-		EV_SET(kev + 0, fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
-		EV_SET(kev + 1, fd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
-		kevent(kq, kev, 2, nullptr, 0, nullptr);
-#endif
+		if (fd == -1) {
+			_log.debug("Drop channel {} from nofd list", c->name());
+			list_nofd.del(c);
+			if (list_nofd.size) return 0;
+			if (_poll_enable)
+				_poll.nofd_disable();
+		} else if (_poll_enable) {
+			_log.info("Drop channel {} from poll with fd {}", c->name(), fd);
+			_poll.poll_add(fd, c, c->dcaps());
+		}
 		return 0;
 	}
 
@@ -325,6 +521,8 @@ struct tll_processor_loop_t
 		for (auto i = c->children(); i; i = i->next)
 			del(static_cast<const tll::Channel *>(i->channel));
 
+		process_del(c, c->fd());
+
 		for (auto it = list.begin(); it != list.end(); it++) {
 			if (*it != c)
 				continue;
@@ -332,42 +530,7 @@ struct tll_processor_loop_t
 			break;
 		}
 
-		list_process.del(c);
-		pending_del(c);
 		const_cast<tll::Channel *>(c)->callback_del(this, TLL_MESSAGE_MASK_CHANNEL | TLL_MESSAGE_MASK_STATE);
-		return 0;
-	}
-
-	int update_nofd(tll::Channel *c, unsigned caps, unsigned old)
-	{
-		auto delta = caps ^ old;
-
-		if (delta & tll::dcaps::Suspend) {
-			if (caps & tll::dcaps::Suspend)
-				list_nofd.add(c);
-			else
-				list_nofd.del(c);
-		}
-
-		if (delta & tll::dcaps::Process) {
-			if (caps & tll::dcaps::Process) {
-				_log.debug("Add channel {} to nofd list", c->name(), c->fd());
-				list_process.add(c);
-				list_nofd.add(c);
-			} else {
-				_log.debug("Drop channel {} to nofd list", c->name(), c->fd());
-				list_process.del(c);
-				list_nofd.del(c);
-			}
-		}
-
-		if (delta & tll::dcaps::Pending) {
-			if (caps & tll::dcaps::Pending)
-				pending_add((tll::Channel *) c);
-			else
-				pending_del(c);
-		}
-
 		return 0;
 	}
 
@@ -376,18 +539,22 @@ struct tll_processor_loop_t
 		auto delta = caps ^ old;
 		_log.debug("Update caps {}: {:b} -> {:b} (delta {:b})", c->name(), old, caps, delta);
 
-		if (c->fd() == -1)
-			return update_nofd(const_cast<tll::Channel *>(c), caps, old);
-
-		if (delta & (tll::dcaps::CPOLLMASK | tll::dcaps::Suspend)) {
-			update_poll(c, caps);
+		auto fd = c->fd();
+		if (delta & tll::dcaps::ProcessMask) {
+			if (tll::dcaps::need_process(caps) != tll::dcaps::need_process(old)) {
+				if (tll::dcaps::need_process(caps))
+					process_add((tll::Channel *) c, fd, caps);
+				else
+					process_del(c, fd);
+			}
 		}
 
-		if (delta & tll::dcaps::Process) {
-			if (caps & tll::dcaps::Process)
-				list_process.add((tll::Channel *) c);
-			else
-				list_process.del(c);
+		if (!tll::dcaps::need_process(caps))
+			return 0;
+
+		if (delta & (tll::dcaps::CPOLLMASK)) {
+			if (_poll_enable && fd != -1)
+				_poll.poll_update(c->fd(), c, caps);
 		}
 
 		if (delta & tll::dcaps::Pending) {
@@ -400,35 +567,15 @@ struct tll_processor_loop_t
 		return 0;
 	}
 
-	int update_poll(const tll::Channel *c, unsigned caps, bool add = false)
-	{
-#ifdef __linux__
-		epoll_event ev = {};
-		if (!(caps & tll::dcaps::Suspend)) {
-			if (caps & tll::dcaps::CPOLLIN) ev.events |= EPOLLIN;
-			if (caps & tll::dcaps::CPOLLOUT) ev.events |= EPOLLOUT;
-		}
-		ev.data.ptr = (void *) c;
-		epoll_ctl(fd, add?EPOLL_CTL_ADD:EPOLL_CTL_MOD, c->fd(), &ev);
-#elif defined(WITH_KQUEUE)
-		auto fd = c->fd();
-		struct kevent kev[2];
-		EV_SET(kev + 0, fd, EVFILT_READ, EV_ADD | EV_DISABLE, 0, 0, (void *) c);
-		EV_SET(kev + 1, fd, EVFILT_WRITE, EV_ADD | EV_DISABLE, 0, 0, (void *) c);
-		if (!(caps & tll::dcaps::Suspend)) {
-			if (caps & tll::dcaps::CPOLLIN) kev[0].flags = EV_ADD | EV_ENABLE;
-			if (caps & tll::dcaps::CPOLLOUT) kev[1].flags = EV_ADD | EV_ENABLE;
-		}
-		kevent(kq, kev, 2, nullptr, 0, nullptr);
-#endif
-		return 0;
-	}
-
 	int update_fd(tll::Channel *c, int old)
 	{
-		_log.info("Update channel {} fd: {} -> {}", c->name(), old, c->fd());
-		poll_del(c, old);
-		poll_add(c);
+		auto fd = c->fd();
+		auto caps = c->dcaps();
+		_log.info("Update channel {} fd: {} -> {}", c->name(), old, fd);
+		if (tll::dcaps::need_process(caps)) {
+			process_del(c, old);
+			process_add(c, fd, caps);
+		}
 		return 0;
 	}
 
@@ -436,9 +583,9 @@ struct tll_processor_loop_t
 	{
 		if (msg->type == TLL_MESSAGE_STATE) {
 			if (msg->msgid == tll::state::Opening)
-				return poll_add(const_cast<tll::Channel *>(c));
-			else if (msg->msgid == tll::state::Closing)
-				return poll_del(c, c->fd());
+				return process_add(const_cast<tll::Channel *>(c), c->fd(), c->dcaps());
+			else if (msg->msgid == tll::state::Closed)
+				return process_del(c, c->fd());
 			else if (msg->msgid == tll::state::Destroy)
 				return del(c);
 			return 0;

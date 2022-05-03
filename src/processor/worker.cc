@@ -20,7 +20,12 @@ int Worker::_init(const tll::Channel::Url &url, tll::Channel *master)
 		return _log.fail(EINVAL, "Invalid worker-name parameter", wname.error());
 
 	_log = { fmt::format("tll.processor.worker.{}", *wname) };
-	loop._log = { fmt::format("tll.processor.worker.{}.loop", *wname) };
+
+	auto lcfg = url.copy();
+	lcfg.set("name", fmt::format("tll.processor.worker.{}.loop", *wname));
+	if (loop.init(lcfg))
+		return _log.fail(EINVAL, "Failed to init processor loop");
+
 	_ctx = tll::channel_cast<Processor>(master);
 	if (!_ctx)
 		return _log.fail(EINVAL, "Invalid master channel, expected processor");

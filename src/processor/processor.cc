@@ -77,7 +77,11 @@ int Processor::parse_deps(Object &obj, const Config &cfg)
 int Processor::_init(const tll::Channel::Url &url, Channel * master)
 {
 	_log = { fmt::format("tll.processor.context.{}", name) };
-	loop._log = { fmt::format("tll.processor.context.{}.loop", name) };
+
+	tll::Config lcfg;
+	lcfg.set("name", fmt::format("tll.processor.context.{}.loop", name));
+	if (loop.init(lcfg))
+		return _log.fail(EINVAL, "Failed to init processor loop");
 
 	_root = url.copy();
 	_root.set("sys", context().config());
@@ -128,7 +132,15 @@ Worker * Processor::init_worker(std::string_view name)
 	auto it = _workers.find(name);
 	if (it != _workers.end())
 		return it->second;
+
 	tll::Channel::Url url;
+
+	auto wcfg = _cfg.sub("worker");
+	if (wcfg)
+		wcfg = wcfg->sub(name);
+	if (wcfg)
+		url = wcfg->copy();
+
 	url.proto("worker");
 	url.set("name", fmt::format("{}/worker/{}", this->name, name));
 	url.set("worker-name", name);
