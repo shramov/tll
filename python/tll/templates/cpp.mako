@@ -44,6 +44,8 @@ def field2type(f):
         return f"tll::scheme::Bytes<{f.size}>"
     elif f.type == f.Message:
         return f.type_msg.name
+    elif f.type == f.Union:
+        return f"struct {f.type_union.name}"
     elif f.type == f.Array:
     	t = field2type(f.type_array)
 	ct = field2type(f.count_ptr)
@@ -60,6 +62,19 @@ def field2type(f):
 	{
 % for n,v in sorted(e.items(), key=lambda t: (t[1], t[0])):
 		${n} = ${v},
+% endfor
+	};
+</%def>\
+<%def name='union2decl(u)'>\
+	struct ${u.name}: public tll::scheme::UnionBase<${cpp.numeric(u.type_ptr.type)}, ${u.union_size}>
+	{
+% for uf in u.fields:
+<% t = field2type(uf) %>\
+		${t} * get_${uf.name}() { return getT<${t}>(${uf.union_index}); }
+		const ${t} * get_${uf.name}() const { return getT<${t}>(${uf.union_index}); }
+		${t} & unchecked_${uf.name}() { return uncheckedT<${t}>(); }
+		const ${t} & unchecked_${uf.name}() const { return uncheckedT<${t}>(); }
+
 % endfor
 	};
 </%def>\
@@ -93,11 +108,17 @@ def field2type(f):
 % for e in scheme.enums.values():
 ${cpp.declare_enum(e)}
 % endfor
+% for u in scheme.unions.values():
+<%call expr='union2decl(u)'></%call>
+% endfor
 % for msg in scheme.messages:
 struct ${msg.name}
 {
 % for e in msg.enums.values():
 ${cpp.indent("\t", cpp.declare_enum(e))}
+% endfor
+% for u in msg.unions.values():
+<%call expr='union2decl(u)'></%call>
 % endfor
 % for f in msg.fields:
 <%call expr='field2code(f)'></%call>
