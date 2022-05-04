@@ -165,14 +165,14 @@ def test_mem(fd=True, **kw):
         poll = select.poll()
         poll.register(c.fd, select.POLLIN)
         poll.register(s.fd, select.POLLIN)
-        assert poll.poll(0), [(c.fd == select.POLLIN)]
+        assert poll.poll(0) == [(c.fd, select.POLLIN)]
 
     s.post(b'yyy', seq=20)
     c.process()
     assert s.result == []
     assert [(m.data.tobytes(), m.seq) for m in c.result] == [(b'xxx', 10)]
     if c.fd is not None:
-        assert poll.poll(0), [(c.fd == select.POLLIN)]
+        assert poll.poll(0) == [(c.fd, select.POLLIN)]
     assert c.dcaps & c.DCaps.Pending == c.DCaps.Pending
     c.result = []
 
