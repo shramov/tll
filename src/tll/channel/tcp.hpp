@@ -289,7 +289,7 @@ int TcpClient<T, S>::_process_connect()
 	auto r = poll(&pfd, 1, 0);
 	if (r < 0)
 		return this->_log.fail(errno, "Failed to poll: {}", strerror(errno));
-	if (r == 0 || (pfd.revents & POLLOUT) == 0)
+	if (r == 0 || (pfd.revents & (POLLOUT | POLLHUP)) == 0)
 		return EAGAIN;
 
 	this->_log.info("Connected");

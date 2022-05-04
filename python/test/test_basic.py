@@ -340,7 +340,12 @@ class _test_tcp_base:
 
         poll = select.poll()
         poll.register(c.fd, select.POLLOUT)
-        assert poll.poll(10), [(c.fd == select.POLLOUT | select.POLLERR | select.POLLHUP)]
+
+        if sys.platform.startswith('linux'):
+            events = select.POLLOUT | select.POLLERR | select.POLLHUP
+        else:
+            events = select.POLLHUP
+        assert poll.poll(10) == [(c.fd, events)]
 
         with pytest.raises(TLLError): c.process()
         assert c.state == c.State.Error
