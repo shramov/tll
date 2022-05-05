@@ -1384,7 +1384,10 @@ std::string dump_type(tll_scheme_field_type_t t, const tll::scheme::Field * f)
 		if (f->sub_type == Field::ByteString)
 			return "string";
 		return "*" + dump_type(f->type_ptr->type, f->type_ptr);
-	case Field::Union: return "union";
+	case Field::Union:
+		if (f && tll::getter::get(f->type_union->options, "_auto").value_or("") != "inline")
+			return f->type_union->name;
+		return "union";
 	}
 	return "unknown";
 }
@@ -1489,8 +1492,10 @@ std::string dump(const tll::scheme::Field * f)
 	r += fmt::format("name: '{}', type: '{}'", f->name, dump_type(f->type, f));
 	r += dump_options(f);
 
-	if (f->type == tll::scheme::Field::Union)
-		r += ", " + dump_body(f->type_union);
+	if (f->type == tll::scheme::Field::Union) {
+		if (tll::getter::get(f->type_union->options, "_auto").value_or("") == "inline")
+			r += ", " + dump_body(f->type_union);
+	}
 	if (f->sub_type == tll::scheme::Field::Enum) {
 		if (tll::getter::get(f->type_enum->options, "_auto").value_or("") == "inline")
 			r += ", " + dump_body(f->type_enum);
@@ -1520,6 +1525,13 @@ std::string dump(const tll::scheme::Message * m)
 			r += "    " + dump(&e) + "\n" ;
 		}
 	}
+	if (m->unions) {
+		r += "  unions:\n";
+		for (auto &u : list_wrap(m->unions)) {
+			if (tll::getter::get(u.options, "_auto").value_or("") != "inline")
+				r += fmt::format("    '{}': {{{}}}\n", u.name, dump_body(&u));
+		}
+	}
 	if (m->fields) {
 		r += "  fields:\n";
 		for (auto &f : list_wrap(m->fields))
@@ -1539,7 +1551,7 @@ char * tll_scheme_dump(const tll_scheme_t * s, const char * format)
 	if (fmt != "yamls" && fmt != "yamls+gz")
 		return nullptr;
 	std::string r;
-	if (s->options || s->enums || s->aliases) {
+	if (s->options || s->enums || s->unions || s->aliases) {
 		r += "- name: ''\n";
 		if (s->options)
 			r += "  " + dump(s->options) + "\n";
@@ -1547,6 +1559,12 @@ char * tll_scheme_dump(const tll_scheme_t * s, const char * format)
 			r += "  enums:\n";
 			for (auto &e : list_wrap(s->enums))
 				r += "    " + dump(&e) + "\n" ;
+		}
+		if (s->unions) {
+			r += "  unions:\n";
+			for (auto &u : list_wrap(s->unions)) {
+				r += fmt::format("    '{}': {{{}}}\n", u.name, dump_body(&u));
+			}
 		}
 		if (s->aliases) {
 			r += "  aliases:\n";
@@ -1613,15 +1631,9 @@ int tll_scheme_field_fix(tll_scheme_field_t * f)
 		}
 		f->size = f->type_msg->size;
 		break;
-	case Field::Union: {
-		size_t size = 0;
-		for (auto uf = f->type_union->fields; uf != f->type_union->fields + f->type_union->fields_size; uf++) {
-			size = std::max(size, uf->size);
-		}
-		f->type_union->union_size = size;
-		f->size = f->type_union->type_ptr->size + size;
+	case Field::Union:
+		f->size = f->type_union->type_ptr->size + f->type_union->union_size;
 		break;
-	}
 	}
 
 	if (f->sub_type != Field::SubNone && !tll::getter::has(f->options, "type")) {
@@ -1648,6 +1660,21 @@ int tll_scheme_field_fix(tll_scheme_field_t * f)
 	return 0;
 }
 
+int tll_scheme_union_fix(tll_scheme_union_t * u)
+{
+	if (!u) return EINVAL;
+	if (tll_scheme_field_fix(u->type_ptr))
+		return EINVAL;
+	u->union_size = 0;
+	for (auto uf = u->fields; uf != u->fields + u->fields_size; uf++) {
+		uf->offset = u->type_ptr->size;
+		if (tll_scheme_field_fix(uf))
+			return EINVAL;
+		u->union_size = std::max(u->union_size, uf->size);
+	}
+	return 0;
+}
+
 int tll_scheme_message_fix(tll_scheme_message_t * m)
 {
 	if (!m) return EINVAL;
@@ -1655,13 +1682,8 @@ int tll_scheme_message_fix(tll_scheme_message_t * m)
 	size_t offset = 0;
 
 	for (auto &u : list_wrap(m->unions)) {
-		if (tll_scheme_field_fix(u.type_ptr))
+		if (tll_scheme_union_fix(&u))
 			return EINVAL;
-		for (auto uf = u.fields; uf != u.fields + u.fields_size; uf++) {
-			uf->offset = u.type_ptr->size;
-			if (tll_scheme_field_fix(uf))
-				return EINVAL;
-		}
 	}
 
 	for (auto &f : list_wrap(m->fields)) {
@@ -1679,6 +1701,11 @@ int tll_scheme_fix(tll_scheme_t * s)
 	if (!s) return EINVAL;
 	if (!s->internal)
 		s->internal = new tll_scheme_internal_t;
+
+	for (auto &u : list_wrap(s->unions)) {
+		if (tll_scheme_union_fix(&u))
+			return EINVAL;
+	}
 	for (auto &m : list_wrap(s->messages)) {
 		if (tll_scheme_message_fix(&m))
 			return EINVAL;
