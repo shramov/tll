@@ -65,7 +65,7 @@ cdef extern from "tll/scheme.h":
         tll_scheme_option_t * options
 
     ctypedef struct tll_scheme_union_t:
-        #tll_scheme_union_t * next
+        tll_scheme_union_t * next
         const char * name
         tll_scheme_field_t * type_ptr
         tll_scheme_field_t * fields
@@ -110,11 +110,13 @@ cdef extern from "tll/scheme.h":
 
         tll_scheme_field_t * fields
         tll_scheme_enum_t * enums
+        tll_scheme_union_t * unions
 
     ctypedef struct tll_scheme_t:
         tll_scheme_option_t * options
         tll_scheme_message_t * messages
         tll_scheme_enum_t * enums
+        tll_scheme_union_t * unions
         tll_scheme_field_t * aliases
 
     cdef tll_scheme_t * tll_scheme_load(const char *str, int len)
@@ -144,6 +146,7 @@ cdef class Scheme:
     cdef int _own
     cdef object messages
     cdef object enums
+    cdef object unions
     cdef object aliases
     cdef object options
 

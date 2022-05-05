@@ -644,7 +644,7 @@ def test_decimal128():
 
     assert m.SCHEME['dec'].from_string('123.4') == decimal.Decimal('123.4')
 
-def test_union():
+def test_union_pack():
     scheme = S.Scheme("""yamls://
 - name: sub
   fields:
@@ -663,7 +663,10 @@ def test_union():
 """)
 
     msg = scheme['msg']
-    assert msg['u'].type_union.union_size == 8
+    u0 = msg['u'].type_union
+    assert u0.union_size == 8
+    assert [f.name for f in u0.fields] == ['i8', 'array', 'string', 'sub']
+    assert [f.union_index for f in u0.fields] == list(range(4))
 
     m = msg.object(pre=0xffffffff, u=('sub', {'s0': 0xbeef}), post=0xffffffff)
 
@@ -680,3 +683,50 @@ def test_union():
     m.u = ('i8', 100)
 
     assert m.as_dict() == {'pre':0xffffffff, 'u': ('i8', 100), 'post':0xffffffff}
+
+UNION_SCHEME ='''yamls://
+- name: ''
+  unions:
+    uglobal: {union: [{name: i8, type: int8}, {name: d, type: double}]}
+- name: msg
+  unions:
+    u0: {union: [{name: i8, type: int8}, {name: d, type: double}, {name: s, type: string}]}
+  fields:
+    - {name: u0, type: '*u0'}
+    - {name: u1, type: u0}
+    - {name: ug, type: uglobal}
+
+'''
+def _test_union(scheme):
+    s = S.Scheme(scheme)
+
+    assert [u.name for u in s.unions.values()] == ['uglobal']
+    assert [u.name for u in s['msg'].unions.values()] == ['u0']
+
+    u0 = s.unions['uglobal']
+    assert u0.name == 'uglobal'
+    assert u0.union_size == 8
+    assert [f.name for f in u0.fields] == ['i8', 'd']
+    assert [f.union_index for f in u0.fields] == list(range(2))
+
+    u0 = s['msg'].unions['u0']
+    assert u0.name == 'u0'
+    assert u0.union_size == 8
+    assert [f.name for f in u0.fields] == ['i8', 'd', 's']
+    assert [f.union_index for f in u0.fields] == list(range(3))
+
+    f0 = s['msg']['u0']
+    assert f0.type == f0.Type.Pointer
+    assert f0.type_ptr.type == f0.type_ptr.Type.Union
+
+    u0 = f0.type_ptr.type_union
+    assert u0.name == 'u0'
+    assert u0.union_size == 8
+    assert [f.name for f in u0.fields] == ['i8', 'd', 's']
+    assert [f.union_index for f in u0.fields] == list(range(3))
+
+def test_union():
+    _test_union(UNION_SCHEME)
+
+def test_union_dump():
+    _test_union(S.Scheme(UNION_SCHEME).dump())

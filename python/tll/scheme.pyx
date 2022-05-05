@@ -34,6 +34,7 @@ class Type(enum.Enum):
     Array = TLL_SCHEME_FIELD_ARRAY
     Pointer = TLL_SCHEME_FIELD_POINTER
     Union = TLL_SCHEME_FIELD_UNION
+_Type = Type
 
 class SubType(enum.Enum):
     NONE = TLL_SCHEME_SUB_NONE
@@ -734,6 +735,7 @@ def _as_dict_msg(msg, v):
     return r
 
 class Field:
+    Type = _Type
     Sub = SubType
     def init(self, name, type):
         impl = _TYPES.get(type)
@@ -823,7 +825,10 @@ cdef object field_wrap(Scheme s, object m, tll_scheme_field_t * ptr):
         L.__name__ = r.name
         r.list = L
     elif r.type == r.Union:
-        r.type_union = union_wrap(s, m, ptr.type_union)
+        uname = b2s(ptr.type_union.name)
+        r.type_union = m.unions.get(uname, s.unions.get(uname, None))
+        if r.type_union is None:
+            raise TLLError("Failed to build field {}: Union {} not found".format(r.name, uname))
     elif r.sub_type == r.Sub.Enum:
         ename = b2s(ptr.type_enum.name)
         r.type_enum = m.enums.get(ename, s.enums.get(ename, None))
@@ -993,6 +998,7 @@ cdef object message_wrap(Scheme s, tll_scheme_message_t * ptr):
     r.size = ptr.size
     r.options = Options.wrap(ptr.options)
     r.enums = OrderedDict()
+    r.unions = OrderedDict()
 
     class D(Data):
         SCHEME = r
@@ -1009,6 +1015,12 @@ cdef object message_wrap(Scheme s, tll_scheme_message_t * ptr):
         tmp = enum_wrap(e)
         r.enums[tmp.name] = tmp
         e = e.next
+
+    cdef tll_scheme_union_t * u = ptr.unions
+    while u != NULL:
+        tmp = union_wrap(s, r, u)
+        r.unions[tmp.name] = tmp
+        u = u.next
 
     cdef tll_scheme_field_t * f = ptr.fields
     while f != NULL:
@@ -1044,6 +1056,9 @@ cdef class Scheme:
 
     @property
     def enums(self): return self.enums
+
+    @property
+    def unions(self): return self.unions
 
     @property
     def aliases(self): return self.aliases
@@ -1093,6 +1108,7 @@ cdef class Scheme:
     cdef fill(Scheme self, const tll_scheme_t *ptr):
         self.options = Options.wrap(ptr.options)
         self.enums = OrderedDict()
+        self.unions = OrderedDict()
         self.aliases = OrderedDict()
         self.messages = []
 
@@ -1101,6 +1117,12 @@ cdef class Scheme:
             tmp = enum_wrap(e)
             self.enums[tmp.name] = tmp
             e = e.next
+
+        cdef tll_scheme_union_t * u = ptr.unions
+        while u != NULL:
+            tmp = union_wrap(self, None, u)
+            self.unions[tmp.name] = tmp
+            u = u.next
 
         cdef tll_scheme_field_t * f = ptr.aliases
         while f != NULL:
