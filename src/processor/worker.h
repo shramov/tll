@@ -33,7 +33,6 @@ struct Worker : public tll::channel::Base<Worker>
 		tll_addr_t addr = {};
 	} proc;
 
-	tll::processor::_::Processor * _ctx = nullptr;
 	std::unique_ptr<tll::Channel> _ipc;
 
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
@@ -57,24 +56,6 @@ struct Worker : public tll::channel::Base<Worker>
 		msg.size = sizeof(body);
 		return _ipc->post(&msg);
 	}
-
-	/*
-	int step(tll::duration timeout)
-	{
-		auto c = _loop.poll(timeout);
-		return c->process();
-	}
-
-	int run()
-	{
-		using namespace std::chrono;
-		init();
-		while (state == TLL_STATE_ACTIVE)
-			step(1000ms);
-		_log.error("Exit run loop");
-		return 0;
-	}
-	*/
 
 	friend struct tll::CallbackT<Worker>;
 	int callback(const Channel * c, const tll_msg_t * msg);

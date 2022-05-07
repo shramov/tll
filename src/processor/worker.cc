@@ -28,12 +28,6 @@ int Worker::_init(const tll::Channel::Url &url, tll::Channel *master)
 	if (loop.init(lcfg))
 		return _log.fail(EINVAL, "Failed to init processor loop");
 
-	_ctx = tll::channel_cast<Processor>(master);
-	if (!_ctx)
-		return _log.fail(EINVAL, "Invalid master channel, expected processor");
-	_ctx = tll::channel_cast<Processor>(master);
-	if (!_ctx)
-		return _log.fail(EINVAL, "Invalid master channel, expected processor");
 	_ipc = context().channel(fmt::format("ipc://;mode=client;dump=no;tll.internal=yes;name={}/ipc", name), master);
 	if (!_ipc)
 		return _log.fail(EINVAL, "Failed to create IPC client channel");
