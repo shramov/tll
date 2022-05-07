@@ -23,6 +23,8 @@ int Worker::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 	auto lcfg = url.copy();
 	lcfg.set("name", fmt::format("tll.processor.worker.{}.loop", *wname));
+	if (!lcfg.has("time-cache"))
+		lcfg.set("time-cache", "yes");
 	if (loop.init(lcfg))
 		return _log.fail(EINVAL, "Failed to init processor loop");
 
@@ -44,8 +46,8 @@ int Worker::_init(const tll::Channel::Url &url, tll::Channel *master)
 int Worker::_open(const ConstConfig &)
 {
 	loop.stop = false;
-	loop.time_cache_enable = true;
-	tll::time::cache_enable(true);
+	if (loop.time_cache_enable)
+		tll::time::cache_enable(true);
 
 	if (_ipc->open())
 		return _log.fail(EINVAL, "Failed to open IPC client channel");
@@ -62,8 +64,8 @@ int Worker::_close()
 	_ipc->close();
 	_log.debug("Stop loop");
 	loop.stop = true;
-	loop.time_cache_enable = false;
-	tll::time::cache_enable(false);
+	if (loop.time_cache_enable)
+		tll::time::cache_enable(false);
 
 	loop.del(self());
 	return 0;

@@ -359,6 +359,7 @@ struct tll_processor_loop_t
 		_poll_enable = reader.getT("poll", true);
 		_poll_interval = reader.getT<tll::duration>("poll-interval", std::chrono::milliseconds(100));
 		auto nofd_interval = reader.getT<tll::duration>("nofd-interval", nofd_interval_default);
+		time_cache_enable = reader.getT("time-cache", false);
 
 		_log = { name.size() ? name : "tll.processor.loop" };
 		if (!reader)
