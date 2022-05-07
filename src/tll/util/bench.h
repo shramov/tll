@@ -21,6 +21,13 @@
 
 namespace tll::bench {
 
+template <typename R, typename P>
+void prewarm(const std::chrono::duration<R, P> &timeout)
+{
+	auto end = std::chrono::steady_clock::now() + timeout;
+	while (end > std::chrono::steady_clock::now()) {}
+}
+
 template <typename T>
 struct reduce
 {
