@@ -33,6 +33,7 @@ public:
 	static constexpr auto child_policy() { return Base<T>::ChildPolicy::Single; }
 	static constexpr auto close_policy() { return Base<T>::ClosePolicy::Long; }
 	static constexpr auto process_policy() { return Base<T>::ProcessPolicy::Never; }
+	static constexpr auto scheme_policy() { return Base<T>::SchemePolicy::Manual; }
 
 	const Scheme * scheme(int type) const
 	{

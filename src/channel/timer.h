@@ -43,6 +43,7 @@ class ChTimer : public tll::channel::Base<ChTimer>
  public:
 	static constexpr std::string_view channel_protocol() { return "timer"; }
 	static constexpr auto process_policy() { return ProcessPolicy::Custom; }
+	static constexpr auto scheme_policy() { return SchemePolicy::Manual; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::ConstConfig &);

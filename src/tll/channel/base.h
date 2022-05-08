@@ -101,6 +101,9 @@ class Base
 	enum class ChildPolicy { Never, Single, Many };
 	static constexpr auto child_policy() { return ChildPolicy::Never; }
 
+	enum class SchemePolicy { Normal, Manual };
+	static constexpr auto scheme_policy() { return SchemePolicy::Normal; }
+
 	tll_channel_internal_t internal = {};
 
 	using StatType = tll_channel_stat_t;
@@ -234,6 +237,8 @@ class Base
 		static_cast<ChannelT *>(this)->_free();
 		if (internal.stat)
 			delete static_cast<stat::Block<typename T::StatType> *>(internal.stat);
+		_scheme.reset();
+		_scheme_control.reset();
 		tll_channel_internal_clear(&internal);
 	}
 
@@ -254,7 +259,7 @@ class Base
 			_log.info("Open channel: {}", r);
 		}
 		state(state::Opening);
-		switch (T::process_policy()) {
+		switch (ChannelT::process_policy()) {
 		case ProcessPolicy::Normal:
 		case ProcessPolicy::Always:
 			_update_dcaps(dcaps::Process);
@@ -264,7 +269,7 @@ class Base
 			break;
 		}
 
-		if (_scheme_url) {
+		if (ChannelT::scheme_policy() == SchemePolicy::Normal && _scheme_url) {
 			_log.debug("Loading scheme from {}...", _scheme_url->substr(0, 64));
 			_scheme.reset(context().scheme_load(*_scheme_url, _scheme_cache));
 			if (!_scheme) {
@@ -275,7 +280,7 @@ class Base
 		auto r = static_cast<ChannelT *>(this)->_open(cfg);
 		if (r)
 			state(state::Error);
-		else if (T::open_policy() == OpenPolicy::Auto)
+		else if (ChannelT::open_policy() == OpenPolicy::Auto)
 			state(state::Active);
 		return r;
 	}
@@ -315,7 +320,8 @@ class Base
 	/// Common cleanup code that can be called from finalizing part of long close
 	int _close(bool force = false)
 	{
-		_scheme.reset();
+		if (ChannelT::scheme_policy() == SchemePolicy::Normal)
+			_scheme.reset();
 		_update_dcaps(0, dcaps::Process | dcaps::Pending | dcaps::CPOLLMASK);
 
 		for (auto i = self()->children(); i; ) {
