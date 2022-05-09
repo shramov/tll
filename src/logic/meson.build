@@ -27,6 +27,12 @@ if rapidjson.found()
                 )
 endif
 
+shared_library('tll-logic-rtt'
+	, ['rtt.cc']
+	, dependencies : [fmt, tll]
+	, install: true
+	)
+
 mansources = [
 	'forward.rst',
 	'stat.rst',
