@@ -89,16 +89,15 @@ int ChTimer::_open(const ConstConfig &url)
 		auto initial = (_initial.count() ? _initial : _interval);
 		_next = _now() + initial;
 		_log.debug("Next wakeup: {}", std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(initial));
+		unsigned caps = dcaps::Process;
 #ifdef __linux__
-		struct itimerspec its = {};
-		its.it_interval = tll2ts(_interval);
-		its.it_value = tll2ts(initial);
-		if (timerfd_settime(fd(), 0, &its, nullptr))
-			return _log.fail(EINVAL, "Failed to rearm timerfd: {}", strerror(errno));
-		_update_dcaps(dcaps::Process | dcaps::CPOLLIN);
-#else
-		_update_dcaps(dcaps::Process);
+		if (_with_fd) {
+			if (_rearm_timerfd(initial, _interval, 0))
+				return EINVAL;
+			caps |= dcaps::CPOLLIN;
+		}
 #endif
+		_update_dcaps(caps);
 	} else
 		_next = {};
 
@@ -123,6 +122,18 @@ timer_clock::time_point ChTimer::_now() const
 	return time_point(ts2tll(ts));
 }
 
+#ifdef __linux__
+int ChTimer::_rearm_timerfd(tll::duration initial, tll::duration interval, int flags)
+{
+	struct itimerspec its = {};
+	its.it_value = tll2ts(initial);
+	its.it_interval = tll2ts(interval);
+	if (timerfd_settime(fd(), flags, &its, nullptr))
+		return _log.fail(EINVAL, "Failed to rearm timerfd: {}", strerror(errno));
+	return 0;
+}
+#endif
+
 int ChTimer::_rearm(tll::duration ts)
 {
 	auto now = _now();
@@ -132,11 +143,11 @@ int ChTimer::_rearm(tll::duration ts)
 	_log.debug("Rearm relative: {}", ts);
 	unsigned caps = dcaps::Process;
 #ifdef __linux__
-	struct itimerspec its = {};
-	its.it_value = tll2ts(ts);
-	if (timerfd_settime(fd(), 0, &its, nullptr))
-		return _log.fail(EINVAL, "Failed to rearm timerfd: {}", strerror(errno));
-	caps |= dcaps::CPOLLIN;
+	if (_with_fd) {
+		if (_rearm_timerfd(ts, {}, 0))
+			return EINVAL;
+		caps |= dcaps::CPOLLIN;
+	}
 #endif
 	_update_dcaps(caps);
 	return 0;
@@ -149,11 +160,11 @@ int ChTimer::_rearm(tll::time_point ts)
 
 	unsigned caps = dcaps::Process;
 #ifdef __linux__
-	struct itimerspec its = {};
-	its.it_value = tll2ts(ts.time_since_epoch());
-	if (timerfd_settime(fd(), TFD_TIMER_ABSTIME, &its, nullptr))
-		return _log.fail(EINVAL, "Failed to rearm timerfd: {}", strerror(errno));
-	caps |= dcaps::CPOLLIN;
+	if (_with_fd) {
+		if (_rearm_timerfd(ts.time_since_epoch(), {}, TFD_TIMER_ABSTIME))
+			return EINVAL;
+		caps |= dcaps::CPOLLIN;
+	}
 #endif
 	_update_dcaps(caps);
 	return 0;
@@ -165,9 +176,10 @@ int ChTimer::_rearm_clear()
 	_interval = {};
 
 #ifdef __linux__
-	struct itimerspec its = {};
-	if (timerfd_settime(fd(), TFD_TIMER_ABSTIME, &its, nullptr))
-		return _log.fail(EINVAL, "Failed to clear timerfd: {}", strerror(errno));
+	if (_with_fd) {
+		if (_rearm_timerfd({}, {}, 0))
+			return EINVAL;
+	}
 #endif
 	_update_dcaps(0, dcaps::Process | dcaps::CPOLLIN);
 	return 0;

@@ -40,6 +40,9 @@ class ChTimer : public tll::channel::Base<ChTimer>
 	int _rearm(tll::duration);
 	int _rearm(tll::time_point);
 	int _rearm_clear();
+#ifdef __linux__
+	int _rearm_timerfd(tll::duration initial, tll::duration interval, int flags);
+#endif
  public:
 	static constexpr std::string_view channel_protocol() { return "timer"; }
 	static constexpr auto process_policy() { return ProcessPolicy::Custom; }
