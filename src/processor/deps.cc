@@ -16,7 +16,9 @@ using namespace tll::processor::_;
 
 int Object::init(const tll::Channel::Url &url)
 {
-	auto reader = tll::make_props_reader(url);
+	auto chain = tll::make_props_chain(url.sub("processor"), url, channel->context().config_defaults().sub("processor"));
+	auto reader = tll::make_props_reader(chain);
+
 	shutdown = reader.getT("shutdown-on", Shutdown::None, {{"none", Shutdown::None}, {"close", Shutdown::Close}, {"error", Shutdown::Error}});
 	reopen.timeout_min = reader.getT("reopen-timeout", reopen.timeout_min);
 	reopen.timeout_max = reader.getT("reopen-timeout-max", reopen.timeout_max);
