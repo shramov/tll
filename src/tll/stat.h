@@ -352,8 +352,11 @@ class BlockT : public tll_stat_block_t
 		auto p = (page_t *) tll::stat::acquire(this);
 		if constexpr (derived)
 			return p;
-		else
+		else {
+			if (p == nullptr)
+				return nullptr;
 			return &p->data;
+		}
 	}
 
 	void release(T * p)
