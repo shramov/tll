@@ -28,7 +28,7 @@ class ChTimer : public tll::channel::Base<ChTimer>
 	using time_point = timer_clock::time_point;
 
 	bool _with_fd = true;
-	tll::duration _initial, _initial_init;
+	bool _oneshot_init = false;
 	tll::duration _interval, _interval_init;
 
 	clockid_t _clock_type;
@@ -41,7 +41,7 @@ class ChTimer : public tll::channel::Base<ChTimer>
 	int _rearm(tll::time_point);
 	int _rearm_clear();
 #ifdef __linux__
-	int _rearm_timerfd(tll::duration initial, tll::duration interval, int flags);
+	int _rearm_timerfd(tll::duration interval, bool oneshot, int flags);
 #endif
  public:
 	static constexpr std::string_view channel_protocol() { return "timer"; }

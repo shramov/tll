@@ -48,11 +48,21 @@ int ChTimer::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = channel_props_reader(url);
 	_with_fd = reader.getT("fd", true);
+	_oneshot_init = reader.getT("oneshot", false);
 	_interval_init = reader.getT<tll::duration>("interval", 0ns);
-	_initial_init = reader.getT<tll::duration>("initial", 0ns);
+	auto initial = reader.getT<tll::duration>("initial", 0ns);
 	_clock_type = reader.getT("clock", CLOCK_MONOTONIC, {{"monotonic", CLOCK_MONOTONIC}, {"realtime", CLOCK_REALTIME}});
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
+
+	if (initial.count()) {
+		_log.warning("'initial' parameter is deprecated, use 'interval=...;oneshot=yes'");
+		if (_interval_init.count() == 0) {
+			_interval_init = initial;
+			_oneshot_init = true;
+		} else if (initial != _interval_init)
+			return _log.fail(EINVAL, "Non equal initial and interval values: {} != {}", initial, _interval_init);
+	}
 
 	struct timespec ts = {};
 	if (clock_gettime(_clock_type, &ts))
@@ -72,9 +82,12 @@ int ChTimer::_open(const ConstConfig &url)
 	_next = {};
 	auto reader = channel_props_reader(url);
 	_interval = reader.getT<tll::duration>("interval", _interval_init);
-	_initial = reader.getT<tll::duration>("initial", _initial_init);
+	auto oneshot = reader.getT("oneshot", _oneshot_init);
+	auto initial = reader.getT<tll::duration>("initial", 0ns);
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
+	if (initial.count())
+		return _log.fail(EINVAL, "'initial' parameter is deprecated");
 
 #ifdef __linux__
 	if (_with_fd) {
@@ -85,18 +98,19 @@ int ChTimer::_open(const ConstConfig &url)
 	}
 #endif
 
-	if (_interval.count() || _initial.count()) {
-		auto initial = (_initial.count() ? _initial : _interval);
-		_next = _now() + initial;
-		_log.debug("Next wakeup: {}", std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(initial));
+	if (_interval.count()) {
+		_next = _now() + _interval;
+		_log.debug("Next wakeup: {}", std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(_interval));
 		unsigned caps = dcaps::Process;
 #ifdef __linux__
 		if (_with_fd) {
-			if (_rearm_timerfd(initial, _interval, 0))
+			if (_rearm_timerfd(_interval, oneshot, 0))
 				return EINVAL;
 			caps |= dcaps::CPOLLIN;
 		}
 #endif
+		if (oneshot)
+			_interval = {};
 		_update_dcaps(caps);
 	} else
 		_next = {};
@@ -123,11 +137,12 @@ timer_clock::time_point ChTimer::_now() const
 }
 
 #ifdef __linux__
-int ChTimer::_rearm_timerfd(tll::duration initial, tll::duration interval, int flags)
+int ChTimer::_rearm_timerfd(tll::duration interval, bool oneshot, int flags)
 {
 	struct itimerspec its = {};
-	its.it_value = tll2ts(initial);
-	its.it_interval = tll2ts(interval);
+	its.it_value = tll2ts(interval);
+	if (!oneshot)
+		its.it_interval = tll2ts(interval);
 	if (timerfd_settime(fd(), flags, &its, nullptr))
 		return _log.fail(EINVAL, "Failed to rearm timerfd: {}", strerror(errno));
 	return 0;
@@ -144,7 +159,7 @@ int ChTimer::_rearm(tll::duration ts)
 	unsigned caps = dcaps::Process;
 #ifdef __linux__
 	if (_with_fd) {
-		if (_rearm_timerfd(ts, {}, 0))
+		if (_rearm_timerfd(ts, true, 0))
 			return EINVAL;
 		caps |= dcaps::CPOLLIN;
 	}
@@ -161,7 +176,7 @@ int ChTimer::_rearm(tll::time_point ts)
 	unsigned caps = dcaps::Process;
 #ifdef __linux__
 	if (_with_fd) {
-		if (_rearm_timerfd(ts.time_since_epoch(), {}, TFD_TIMER_ABSTIME))
+		if (_rearm_timerfd(ts.time_since_epoch(), true, TFD_TIMER_ABSTIME))
 			return EINVAL;
 		caps |= dcaps::CPOLLIN;
 	}
@@ -177,7 +192,7 @@ int ChTimer::_rearm_clear()
 
 #ifdef __linux__
 	if (_with_fd) {
-		if (_rearm_timerfd({}, {}, 0))
+		if (_rearm_timerfd({}, true, 0))
 			return EINVAL;
 	}
 #endif

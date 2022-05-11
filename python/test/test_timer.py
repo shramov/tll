@@ -24,18 +24,18 @@ def test_properties():
     assert c.fd != -1
     assert c.scheme != None
 
-
 @pytest.mark.parametrize("init,open,wait", [
     ('', '', []),
-    ('initial=5ms', '', ['5ms']),
-    ('', 'initial=5ms', ['5ms']),
+    ('interval=5ms;oneshot=true', '', ['5ms']),
+    ('', 'interval=5ms;oneshot=true', ['5ms']),
     ('interval=10ms', '', ['10ms', '10ms', None]),
     ('', 'interval=10ms', ['10ms', '10ms', None]),
-    ('initial=5ms;interval=10ms', '', ['5ms', '10ms', None]),
-    ('', 'initial=5ms;interval=10ms', ['5ms', '10ms', None]),
-    ('initial=5ms', 'interval=10ms', ['5ms', '10ms', None]),
-    ('interval=10ms', 'initial=5ms', ['5ms', '10ms', None]),
-    ('clock=realtime;interval=10ms', 'initial=5ms', ['5ms', '10ms', None]),
+    ('interval=5ms', 'interval=10ms', ['10ms', '10ms', None]),
+    ('interval=10ms', 'oneshot=true', ['10ms']),
+    ('clock=realtime;interval=10ms', '', ['10ms', '10ms', None]),
+# Legacy tests
+    ('initial=5ms', '', ['5ms']),
+    ('initial=10ms;interval=10ms', '', ['10ms', '10ms', None]),
 ])
 def test(init, open, wait):
     c = Accum('timer://;{}'.format(init), name='timer', dump='yes', context=ctx)
@@ -78,7 +78,7 @@ def test(init, open, wait):
 def test_post_clear(clock, msg, fail):
     c = Accum('timer://', name='timer', clock=clock, dump='yes', context=ctx)
 
-    c.open(initial='10ms')
+    c.open(interval='10ms')
 
     assert c.result == []
     assert c.dcaps == c.DCaps.Process | c.DCaps.PollIn
