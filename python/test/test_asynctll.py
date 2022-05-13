@@ -39,6 +39,24 @@ def test_asynctll():
 
     loop.run(main())
 
+def test_wait_state():
+    loop = asynctll.Loop(context=C.Context())
+    async def main():
+        c = loop.Channel('null://;name=null')
+
+        c.open()
+
+        assert await c.recv_state(ignore=None) == c.State.Opening
+        assert await c.recv_state(ignore=None) == c.State.Active
+
+        c.close()
+        c.open()
+        assert await c.recv_state() == c.State.Active
+        c.close()
+        assert await c.recv_state() == c.State.Closed
+
+    loop.run(main())
+
 def test_channel():
     loop = asynctll.Loop(context=C.Context())
     async def main(loop):

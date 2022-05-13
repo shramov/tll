@@ -5,6 +5,7 @@ from tll.logger import Logger
 from tll.processor import Loop as PLoop
 import tll.channel as C
 
+import collections
 import heapq
 import queue
 import time
@@ -27,30 +28,78 @@ class AsyncChannel(C.Channel):
 
         C.Channel.__init__(self, *a, **kw)
         self._loop = weakref.ref(loop)
-        self._result = queue.Queue()
-        self.callback_add(weakref.ref(self), mask=self.MASK)
+        self._result = collections.deque()
+        self._result_state = collections.deque()
+        self.callback_add(weakref.ref(self), mask=self.MASK | C.MsgMask.State)
 
     def __call__(self, c, msg):
-        self._result.put(msg.clone())
+        if msg.type == msg.Type.State:
+            self._result_state.append(C.State(msg.msgid))
+            if self.MASK & C.MsgMask.State:
+                self._result.append(msg.clone())
+        else:
+            self._result.append(msg.clone())
         l = self._loop()
         if l:
             l._ticks += 1
+
+    def open(self, *a, **kw):
+        self._result.clear()
+        self._result_state.clear()
+        return C.Channel.open(self, *a, **kw)
+
+    @property
+    def result(self):
+        return self._result
 
     async def recv(self, timeout=1.):
         l = self._loop()
         if not l:
             raise RuntimeError("Async TLL loop destroyed, bailing out")
 
-        if not self._result.empty():
-            return self._result.get()
+        if self._result:
+            return self._result.popleft()
         ts = l._timer_arm(timeout)
         try:
             while True:
                 await l._wait()
-                if not self._result.empty():
-                    return self._result.get()
+                if self._result:
+                    return self._result.popleft()
                 if time.time() > ts:
                     raise TimeoutError("Timeout waiting for message")
+        finally:
+            l._timer_done(ts)
+
+    def _filter_state(self, ignore):
+        while self._result_state:
+            m = self._result_state.popleft()
+            if ignore is not None:
+                if isinstance(ignore, (int, C.State)):
+                    if m == C.State(ignore):
+                        continue
+                elif m in ignore:
+                    continue
+            return m
+        return None
+
+    async def recv_state(self, timeout=1., ignore={C.State.Opening, C.State.Closing}):
+        l = self._loop()
+        if not l:
+            raise RuntimeError("Async TLL loop destroyed, bailing out")
+
+        s = self._filter_state(ignore)
+        if s is not None:
+            return s
+
+        ts = l._timer_arm(timeout)
+        try:
+            while True:
+                await l._wait()
+                s = self._filter_state(ignore)
+                if s is not None:
+                    return s
+                if time.time() > ts:
+                    raise TimeoutError("Timeout waiting for state")
         finally:
             l._timer_done(ts)
 
