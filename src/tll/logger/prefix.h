@@ -15,7 +15,7 @@
 
 namespace tll::logger {
 
-namespace {
+namespace _ {
 
 template <typename... Args>
 struct arg_store_t : public fmt::format_arg_store<fmt::format_context, Args...>
@@ -92,10 +92,10 @@ struct _delayed_format_t<Func, true>
 		}
 	}
 };
-}
+} // namespace _
 
 template <typename Fmt, typename... Args>
-using delayed_format_t = _delayed_format_t<Fmt, std::is_invocable_v<Fmt>, Args...>;
+using delayed_format_t = _::_delayed_format_t<Fmt, std::is_invocable_v<Fmt>, Args...>;
 
 template <typename Log = Logger, typename Fmt = std::string_view, typename... Args>
 class Prefix : public logger::Methods<Prefix<Log, Fmt, Args...>>
