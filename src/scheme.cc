@@ -1638,8 +1638,14 @@ int tll_scheme_field_fix(tll_scheme_field_t * f)
 
 	if (f->sub_type != Field::SubNone && !tll::getter::has(f->options, "type")) {
 		switch (f->sub_type) {
+		case Field::Bits:
+			f->options = alloc_option("type", "bits", f->options);
+			break;
 		case Field::ByteString:
 			f->options = alloc_option("type", "string", f->options);
+			break;
+		case Field::Enum:
+			f->options = alloc_option("type", "enum", f->options);
 			break;
 		case Field::Fixed:
 			f->options = alloc_option("type", fmt::format("fixed{}", f->fixed_precision), f->options);
