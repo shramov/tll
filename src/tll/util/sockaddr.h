@@ -105,14 +105,21 @@ static inline tll::result_t<std::vector<tll::network::sockaddr_any>> resolve(int
 	if (af == AF_UNIX)
 	{
 		l.resize(1);
-		l.back().size = sizeof(sockaddr_un);
+		l.back().size = offsetof(struct sockaddr_un, sun_path) + host.size() + 1;
 		auto addr = l.back().un();
 		addr->sun_family = AF_UNIX;
-		if (host.size() > sizeof(addr->sun_path))
+		if (host.size() >= sizeof(addr->sun_path))
 			return error("Filename for Unix socket too long");
 		memcpy(addr->sun_path, host.data(), host.size());
-		if (host[0] == '@')
+		/*
+		 * Normal paths have trailing zero, abstract paths do not
+		 * See unix(7) for sun_path description
+		 */
+		if (host[0] == '@') {
+			l.back().size--;
 			addr->sun_path[0] = '\0';
+		} else
+			addr->sun_path[host.size()] = 0;
 		return l;
 	}
 
