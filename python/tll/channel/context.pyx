@@ -349,12 +349,12 @@ cdef Impl pychannel_lookup(object module):
     log = Logger("tll.channel.python")
     path = None
     if not module:
-        return log.fail(EINVAL, "Need python parameter")
+        return log.fail(None, "Need python parameter")
     module = b2s(module)
     if '/' in module:
         path, module = module.rsplit('/', 1)
     if ':' not in module:
-        return log.fail(EINVAL, "Invalid module parameter '{}': need 'module:Class'".format(module))
+        return log.fail(None, "Invalid module parameter '{}': need 'module:Class'".format(module))
     module, klass = module.split(':', 1)
     if path and path not in sys.path:
         sys.path.insert(0, path)
