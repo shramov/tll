@@ -26,8 +26,6 @@ template <typename T>
 class Event : public Base<T>
 {
  protected:
-	bool _with_fd = true;
-
 	int _event_notify_nocheck();
 	int _event_clear_nocheck();
 

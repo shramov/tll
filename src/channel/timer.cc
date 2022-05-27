@@ -47,7 +47,6 @@ constexpr timespec tll2ts(tll::duration ts)
 int ChTimer::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = channel_props_reader(url);
-	_with_fd = reader.getT("fd", true);
 	_oneshot_init = reader.getT("oneshot", false);
 	_interval_init = reader.getT<tll::duration>("interval", 0ns);
 	auto initial = reader.getT<tll::duration>("initial", 0ns);

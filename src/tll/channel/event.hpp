@@ -19,15 +19,11 @@ namespace tll::channel {
 template <typename T>
 int Event<T>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
-	auto reader = this->channelT()->channel_props_reader(url);
-	_with_fd = reader.getT("fd", _with_fd);
-	if (!reader)
-		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
-	if (!_with_fd)
+	if (!this->_with_fd)
 		this->_log.debug("Event notification disabled");
 #ifndef __linux__
 	this->_log.debug("Event polling supported only on Linux");
-	_with_fd = false;
+	this->_with_fd = false;
 #endif
 	return Base<T>::_init(url, master);
 }
@@ -35,7 +31,7 @@ int Event<T>::_init(const tll::Channel::Url &url, tll::Channel *master)
 template <typename T>
 int Event<T>::_open(const ConstConfig &url)
 {
-	if (!_with_fd) return 0;
+	if (!this->_with_fd) return 0;
 #ifdef __linux__
 	auto fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
 	if (fd == -1)

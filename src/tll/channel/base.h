@@ -110,6 +110,7 @@ class Base
 
 	stat::BlockT<StatType> * stat() { return static_cast<stat::BlockT<StatType> *>(internal.stat); }
 	bool _stat_enable = false;
+	bool _with_fd = true;
 
 	scheme::ConstSchemePtr _scheme;
 	scheme::ConstSchemePtr _scheme_control;
@@ -185,6 +186,7 @@ class Base
 		_scheme_url = reader.get("scheme");
 		_scheme_cache = reader.getT("scheme-cache", true);
 		_stat_enable = reader.getT("stat", false);
+		_with_fd = reader.getT("fd", true);
 
 		enum rw_t { None = 0, R = 1, W = 2, RW = R | W };
 		auto dir = reader.getT("dir", None, {{"r", R}, {"w", W}, {"rw", RW}, {"in", R}, {"out", W}, {"inout", RW}});
