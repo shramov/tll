@@ -27,7 +27,7 @@ class ChDirect : public tll::channel::Base<ChDirect>
 			return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
 		if (control) {
-			_log.debug("Loading control scheme from {}...", _scheme_url->substr(0, 64));
+			_log.debug("Loading control scheme from {}...", control->substr(0, 64));
 			_scheme_control.reset(context().scheme_load(*control));
 			if (!_scheme_control)
 				return _log.fail(EINVAL, "Failed to load control scheme from {}...", control->substr(0, 64));
