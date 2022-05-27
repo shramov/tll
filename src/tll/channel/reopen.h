@@ -128,7 +128,10 @@ public:
 				return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 		}
 
-		_reopen_timer = this->context().channel(fmt::format("timer://;clock=realtime;name={}/reopen-timer;tll.internal=yes", this->name));
+		auto curl = this->child_url_parse("timer://;clock=realtime", "reopen-timer");
+		if (!curl)
+			return this->_log.fail(EINVAL, "Failed to parse timer url: {}", curl.error());
+		_reopen_timer = this->context().channel(*curl);
 		if (!_reopen_timer)
 			return this->_log.fail(EINVAL, "Failed to create timer channel");
 		_reopen_timer->callback_add([](auto * c, auto * m, void * user) { return static_cast<Reopen *>(user)->_reopen_timer_cb(m); }, this, TLL_MESSAGE_MASK_DATA);
