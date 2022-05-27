@@ -2,11 +2,12 @@
 # cython: language_level=3
 
 from ..channel.channel cimport tll_channel_t
+from ..config cimport tll_config_t
 
 cdef extern from "tll/processor/loop.h" nogil:
     ctypedef struct tll_processor_loop_t
 
-    cdef tll_processor_loop_t * tll_processor_loop_new(const char *name, int len)
+    cdef tll_processor_loop_t * tll_processor_loop_new_cfg(const tll_config_t *cfg)
     cdef void tll_processor_loop_free(tll_processor_loop_t *)
 
     cdef int tll_processor_loop_add(tll_processor_loop_t *, tll_channel_t *)

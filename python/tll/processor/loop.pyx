@@ -3,6 +3,7 @@
 
 from .loop cimport *
 from ..channel.channel cimport Channel
+from ..config cimport Config
 from ..s2b cimport s2b
 
 from .. import error
@@ -10,12 +11,19 @@ from .. import error
 cdef class Loop:
     cdef tll_processor_loop_t * _ptr
 
-    def __cinit__(self, name=None, bare=False):
+    def __cinit__(self, name=None, bare=False, config={}):
         name = name or ''
         name = s2b(name)
         if bare:
             self._ptr = NULL
-        self._ptr = tll_processor_loop_new(name, len(name))
+
+        if isinstance(config, dict):
+            config = Config.from_dict(config)
+        elif not isinstance(config, Config):
+            raise TypeError("Invalid config argument: {}".format(config))
+        self._ptr = tll_processor_loop_new_cfg((<Config>config)._ptr)
+        if self._ptr == NULL:
+            raise error.TLLError("Failed to init processor loop")
 
     def __dealloc__(self):
         if self._ptr != NULL:

@@ -7,6 +7,14 @@ from tll.processor import Loop
 from tll.error import TLLError
 from tll.test_util import Accum
 
+import pytest
+
+def test_config():
+    with pytest.raises(TypeError): Loop(config='abc')
+    with pytest.raises(TLLError): Loop(config={'poll':'abc'})
+    Loop(config={'poll':'yes'})
+    Loop(config={'poll':'no'})
+
 def test_fd():
     ctx = C.Context()
     l = Loop()
