@@ -28,19 +28,6 @@ struct CallbackT<tll::processor::_::Processor>
 
 using namespace tll::processor::_;
 
-std::optional<tll::Channel::Url> Processor::parse_common(std::string_view type, std::string_view name, const Config &cfg)
-{
-	auto n = std::string(cfg.get("name").value_or(name));
-	auto url = cfg.getT<tll::Channel::Url>("url");
-	if (!url)
-		return _log.fail(std::nullopt, "Failed to load url for {}: {}", name, url.error());
-	_log.debug("Create {} {}: {}", type, name, *url);
-	if (url->has("name"))
-		return _log.fail(std::nullopt, "Duplicate name parameter for {} {}", type, name);
-	url->set("name", n);
-	return *url;
-}
-
 void Processor::decay(Object * obj, bool root)
 {
 	if (obj->decay)
@@ -160,7 +147,7 @@ Worker * Processor::init_worker(std::string_view name)
 	return w;
 }
 
-int Processor::init_one(const PreObject &obj)
+int Processor::init_one(PreObject &obj)
 {
 	auto & name = obj.name;
 	auto log = _log.prefix("{} {}:", "object", std::string_view(name)); // TODO: name is moved and left empty without std::string_view wrapper
@@ -170,6 +157,9 @@ int Processor::init_one(const PreObject &obj)
 	auto w = init_worker(wname);
 	if (!w)
 		return log.fail(EINVAL, "Failed to init worker {}", wname);
+
+	if (!obj.url.has("fd") && !w->loop._poll_enable)
+		obj.url.set("fd", "no");
 
 	auto channel = context().channel(obj.url);
 	if (!channel)

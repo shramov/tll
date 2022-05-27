@@ -69,10 +69,9 @@ struct Processor : public tll::channel::Base<Processor>
 
 	~Processor() { _free(); }
 
-	std::optional<tll::Channel::Url> parse_common(std::string_view type, std::string_view path, const Config &cfg);
 	int parse_deps(Object &obj, const Config &cfg);
 
-	int init_one(const PreObject &obj);
+	int init_one(PreObject &obj);
 	int init_depends();
 	std::optional<PreObject> init_pre(std::string_view name, ConstConfig &cfg);
 	int object_depth(std::map<std::string, PreObject, std::less<>> &map, PreObject &o, std::list<std::string_view> & path, bool init);
