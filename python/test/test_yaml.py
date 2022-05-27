@@ -222,3 +222,28 @@ config.0:
     assert [(m.msgid, m.seq) for m in c.result] == [(10, 0)]
     m = c.unpack(c.result[0])
     assert m.as_dict() == {'f0': r}
+
+def test_control():
+    scheme = f'''yamls://
+- name: msg
+  id: 10
+  fields:
+    - {{name: f0, type: int32}}
+'''
+    url = Config.load(f'''yamls://
+tll.proto: yaml
+name: yaml
+dump: scheme
+config.0:
+  name: msg
+  type: control
+  seq: 20
+  data.f0: 100
+''')
+    url['scheme-control'] = scheme
+    c = Accum(url)
+    c.open()
+    c.process()
+    assert [(m.type, m.msgid, m.seq) for m in c.result] == [(Accum.Type.Control, 10, 20)]
+    m = c.unpack(c.result[0])
+    assert m.as_dict() == {'f0': 100}

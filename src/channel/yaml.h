@@ -29,7 +29,7 @@ class ChYaml : public tll::channel::Base<ChYaml>
 
 	int _process(long timeout, int flags);
 
-	int _fill(tll_msg_t * msg, tll::ConstConfig &cfg);
+	int _fill(const tll::Scheme * scheme, tll_msg_t * msg, tll::ConstConfig &cfg);
 
 	template <typename View>
 	int _fill(View view, const tll::scheme::Message * msg, tll::ConstConfig &cfg);

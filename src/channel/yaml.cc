@@ -27,8 +27,17 @@ int ChYaml::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 	auto reader = channel_props_reader(url);
 	_autoclose = reader.getT("autoclose", true);
+	auto control = reader.get("scheme-control");
+
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
+
+	if (control) {
+		_log.debug("Loading control scheme from {}...", control->substr(0, 64));
+		_scheme_control.reset(context().scheme_load(*control));
+		if (!_scheme_control)
+			return _log.fail(EINVAL, "Failed to load control scheme from {}...", control->substr(0, 64));
+	}
 
 	if (!_scheme_url)
 		_log.info("Working with raw data without scheme");
@@ -261,7 +270,7 @@ int ChYaml::_fill(View view, const tll::scheme::Message * msg, tll::ConstConfig 
 	return 0;
 }
 
-int ChYaml::_fill(tll_msg_t * msg, tll::ConstConfig &cfg)
+int ChYaml::_fill(const tll::Scheme * scheme, tll_msg_t * msg, tll::ConstConfig &cfg)
 {
 	auto data = cfg.sub("data");
 	if (!data)
@@ -270,7 +279,7 @@ int ChYaml::_fill(tll_msg_t * msg, tll::ConstConfig &cfg)
 	auto name = cfg.get("name");
 	if (!name)
 		return _log.fail(EINVAL, "No 'name' field for message {}", _idx);
-	auto m = _scheme->lookup(*name);
+	auto m = scheme->lookup(*name);
 	if (!m)
 		return _log.fail(EINVAL, "Message '{}' not found in scheme for {}", *name, _idx);
 	_buf.clear();
@@ -302,16 +311,21 @@ int ChYaml::_process(long timeout, int flags)
 	auto reader = tll::make_props_reader(cfg);
 	msg.seq = reader.getT<long long>("seq", 0);
 	msg.addr.i64 = reader.getT<int64_t>("addr", 0);
+	msg.type = reader.getT("type", TLL_MESSAGE_DATA, {{"data", TLL_MESSAGE_DATA}, {"control", TLL_MESSAGE_CONTROL}});
 	auto data = cfg.get("data");
 
-	if (!_scheme) {
+	auto scheme = _scheme.get();
+	if (msg.type == TLL_MESSAGE_CONTROL)
+		scheme = _scheme_control.get();
+
+	if (!scheme) {
 		msg.msgid = reader.getT<int>("msgid", 0);
 		if (!data)
 			return _log.fail(EINVAL, "No 'data' field for message {}", _idx);
 		msg.size = data->size();
 		msg.data = data->data();
 	} else {
-		if (_fill(&msg, cfg))
+		if (_fill(scheme, &msg, cfg))
 			return _log.fail(EINVAL, "Failed to fill message {}", _idx);
 	}
 
