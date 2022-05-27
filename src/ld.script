@@ -92,6 +92,7 @@ TLL_0.0.0 {
 		tll_processor_loop_del;
 		tll_processor_loop_free;
 		tll_processor_loop_new;
+		tll_processor_loop_new_cfg;
 		tll_processor_loop_pending;
 		tll_processor_loop_poll;
 		tll_processor_loop_process;

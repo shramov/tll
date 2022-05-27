@@ -17,6 +17,14 @@ tll_processor_loop_t * tll_processor_loop_new(const char * name, int len)
 	return r.release();
 }
 
+tll_processor_loop_t * tll_processor_loop_new_cfg(const tll_config_t * cfg)
+{
+	auto r = std::make_unique<tll_processor_loop_t>();
+	if (r->init(tll::ConstConfig(cfg)))
+		return nullptr;
+	return r.release();
+}
+
 void tll_processor_loop_free(tll_processor_loop_t *loop)
 {
 	delete loop;

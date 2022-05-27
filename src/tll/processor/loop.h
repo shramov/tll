@@ -615,6 +615,7 @@ extern "C" {
 typedef struct tll_processor_loop_t tll_processor_loop_t;
 
 tll_processor_loop_t * tll_processor_loop_new(const char * name, int len);
+tll_processor_loop_t * tll_processor_loop_new_cfg(const tll_config_t *cfg);
 void tll_processor_loop_free(tll_processor_loop_t *);
 
 int tll_processor_loop_add(tll_processor_loop_t *, tll_channel_t *);
