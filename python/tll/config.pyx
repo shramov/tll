@@ -157,6 +157,13 @@ cdef class Config:
         if cb is None:
             return list(_cb)
 
+    @staticmethod
+    def from_dict(d):
+        r = Config()
+        for k,v in d.items():
+            r.set(k, v)
+        return r
+
     def as_dict(self):
         if self.value():
             return self.get()

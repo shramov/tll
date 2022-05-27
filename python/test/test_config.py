@@ -17,6 +17,7 @@ def test_basic():
     assert 'b.z' not in cfg
     assert 'b.x' in cfg
     assert cfg.as_dict() == {'a': [{'x': '0', 'y': '1'}, {'x': '1', 'y': '0'}], 'b': {'x': '2', 'y': '2'}}
+    assert cfg.from_dict({'a':'1', 'b.c':'2'}).as_dict() == {'a': '1', 'b': {'c': '2'}}
     #del cfg['b.x']
     #assert_false('b.x' in cfg)
 
