@@ -53,8 +53,7 @@ public:
 		tll::Channel::Url curl = url.copy();
 		curl.proto(proto.substr(sep + 1));
 		curl.host(url.host());
-		curl.set("name", fmt::format("{}/{}", this->name, pproto));
-		curl.set("tll.internal", "yes");
+		this->child_url_fill(curl, pproto);
 
 		for (auto &k : std::vector<std::string_view> { "dump", "stat" }) {
 			if (curl.has(k))

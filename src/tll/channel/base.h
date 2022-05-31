@@ -164,6 +164,22 @@ class Base
 		}
 	}
 
+	tll::result_t<Channel::Url> child_url_parse(std::string_view url, std::string_view suffix) const
+	{
+		auto cfg = Channel::Url::parse(url);
+		if (cfg)
+			child_url_fill(*cfg, suffix);
+		return cfg;
+	}
+
+	void child_url_fill(Channel::Url &url, std::string_view suffix) const
+	{
+		url.set("name", fmt::format("{}/{}", name, suffix));
+		url.set("tll.internal", "yes");
+		if (!_with_fd && !url.has("fd"))
+			url.set("fd", "no");
+	}
+
 	int init(const Channel::Url &url, tll::Channel *master, tll_channel_context_t *ctx)
 	{
 		_log.info("Init channel {}", tll::conv::to_string(url));
