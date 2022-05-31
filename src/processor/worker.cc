@@ -28,7 +28,13 @@ int Worker::_init(const tll::Channel::Url &url, tll::Channel *master)
 	if (loop.init(lcfg))
 		return _log.fail(EINVAL, "Failed to init processor loop");
 
-	_ipc = context().channel(fmt::format("ipc://;mode=client;dump=no;tll.internal=yes;name={}/ipc", name), master);
+	_with_fd = loop._poll_enable;
+	_log.info("Worker in {} mode", _with_fd ? "polling" : "spinwait");
+
+	auto curl = child_url_parse("ipc://;mode=client", "ipc");
+	if (!curl)
+		return _log.fail(EINVAL, "Failed to parse ipc url");
+	_ipc = context().channel(*curl, master);
 	if (!_ipc)
 		return _log.fail(EINVAL, "Failed to create IPC client channel");
 	_ipc->callback_add(this, TLL_MESSAGE_MASK_DATA);
