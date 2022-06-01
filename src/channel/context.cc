@@ -652,8 +652,10 @@ int tll_channel_resume(tll_channel_t *c)
 int tll_channel_open(tll_channel_t *c, const char *str, size_t len)
 {
 	if (!c || !c->impl || !c->impl->open) return EINVAL;
-	if (!str || !len)
-		return (*c->impl->open)(c, nullptr);
+	if (!str || !len) {
+		tll::Config cfg;
+		return (*c->impl->open)(c, cfg);
+	}
 	auto r = tll::ConfigUrl::parse_props(string_view_from_c(str, len));
 	if (!r) {
 		tll::Logger log(fmt::format("tll.channel.{}", tll_channel_name(c)));
@@ -663,7 +665,14 @@ int tll_channel_open(tll_channel_t *c, const char *str, size_t len)
 }
 
 int tll_channel_open_cfg(tll_channel_t *c, const tll_config_t *cfg)
-	FORWARD_SAFE(open, c, cfg);
+{
+	if (!c || !c->impl || !c->impl->open) return EINVAL;
+	if (!cfg) {
+		tll::Config cfg;
+		return (*c->impl->open)(c, cfg);
+	}
+	return (*c->impl->open)(c, cfg);
+}
 
 int tll_channel_close(tll_channel_t *c, int force)
 	FORWARD_SAFE(close, c, force);
