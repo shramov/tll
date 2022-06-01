@@ -20,7 +20,7 @@ TEST(Config, Get)
 	ASSERT_TRUE(cfg.has("a.b.c"));
 	ASSERT_EQ(*cfg.get("a.b.c"), "");
 
-	cfg.set("a.b.c", "1");
+	cfg.setT("a.b.c", 1);
 	ASSERT_TRUE(cfg.has("a.b.c"));
 	ASSERT_EQ(*cfg.get("a.b.c"), "1");
 
@@ -59,6 +59,9 @@ TEST(Config, Get)
 	ASSERT_TRUE(sub->value());
 	ASSERT_TRUE(tll_config_has(*sub, nullptr, -1));
 	ASSERT_EQ(*sub->get(), "3");
+
+	sub->setT(4);
+	ASSERT_EQ(*sub->get(), "4");
 }
 
 template <typename T>

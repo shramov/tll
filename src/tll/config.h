@@ -359,10 +359,22 @@ class Config : public ConfigT<false>
 
 	int del(std::string_view path, bool recursive = false) { return tll_config_del(_cfg, path.data(), path.size(), recursive); }
 
+	int set(std::string_view value) { return tll_config_set(_cfg, nullptr, 0, value.data(), value.size()); }
+	int set(tll_config_value_callback_t cb, void * user) { return tll_config_set_callback(_cfg, nullptr, 0, cb, user, nullptr); }
+
 	int set(std::string_view path, std::string_view value) { return tll_config_set(_cfg, path.data(), path.size(), value.data(), value.size()); }
 	int set(std::string_view path, ConfigT & cfg) { return tll_config_set_config(_cfg, path.data(), path.size(), cfg, 0); }
 	int set(std::string_view path, tll_config_t * cfg) { return tll_config_set_config(_cfg, path.data(), path.size(), cfg, 0); }
 	int set(std::string_view path, tll_config_value_callback_t cb, void * user) { return tll_config_set_callback(_cfg, path.data(), path.size(), cb, user, nullptr); }
+
+	template <typename T> int setT(const T &v) { return set(tll::conv::to_string(v)); }
+	template <typename T> int setT(std::string_view path, const T &v) { return set(path, tll::conv::to_string(v)); }
+
+	template <typename V>
+	int set_ptr(const V * ptr)
+	{
+		return tll_config_set_callback(_cfg, nullptr, 0, _to_string<V>, (void *) ptr, nullptr);
+	}
 
 	template <typename V>
 	int set_ptr(std::string_view path, const V * ptr)
