@@ -150,11 +150,12 @@ cdef class Channel:
     cdef tll_channel_t * _ptr
     cdef int _own
     cdef object _callbacks
-    cdef Scheme _scheme_cache
-    cdef Scheme _scheme_control_cache
+    cdef object _scheme_cache
     cdef object __weakref__
 
     cdef _post(self, const tll_msg_t * msg, int flags)
 
     @staticmethod
     cdef Channel wrap(tll_channel_t * ptr)
+
+    cdef object _scheme_load(self, int t)

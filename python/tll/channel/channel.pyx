@@ -218,8 +218,7 @@ cdef class Channel:
         self._ptr = NULL
         self._own = False
         self._callbacks = {}
-        self._scheme_cache = None
-        self._scheme_control_cache = None
+        self._scheme_cache = [None, None]
 
     def __init__(self, url, master=None, context=None, **kw):
         if url is None:
@@ -399,29 +398,31 @@ cdef class Channel:
 
     @property
     def scheme(self):
-        cdef const tll_scheme_t * ptr = tll_channel_scheme(self._ptr, TLL_MESSAGE_DATA)
-        if ptr == NULL:
-            self._scheme_cache = None
-            return None
-        if not self._scheme_cache or not self._scheme_cache.same(ptr):
-            self._scheme_cache = Scheme.wrap(ptr, ref=True)
-        return self._scheme_cache
+        return self._scheme_load(Type.Data)
 
     @property
     def scheme_control(self):
-        cdef const tll_scheme_t * ptr = tll_channel_scheme(self._ptr, TLL_MESSAGE_CONTROL)
+        return self._scheme_load(Type.Control)
+
+    @property
+    def _scheme_cache(self):
+        return self._scheme_cache
+
+    cdef object _scheme_load(self, int t):
+        cdef const tll_scheme_t * ptr = tll_channel_scheme(self._ptr, t)
         if ptr == NULL:
-            self._scheme_control_cache = None
+            self._scheme_cache[t] = None
             return None
-        if not self._scheme_control_cache or not self._scheme_control_cache.same(ptr):
-            self._scheme_control_cache = Scheme.wrap(ptr, ref=True)
-        return self._scheme_control_cache
+        cdef Scheme scheme = <Scheme>self._scheme_cache[t]
+        if scheme is None or not scheme.same(ptr):
+            scheme = self._scheme_cache[t] = Scheme.wrap(ptr, ref=True)
+        return scheme
 
     def _scheme(self, t):
-        if t == Type.Data or t == None:
-            return self.scheme
-        elif t == Type.Control:
-            return self.scheme_control
+        if t in (Type.Data, Type.Control):
+            return self._scheme_load(int(t))
+        elif t is None:
+            return self._scheme_load(Type.Data)
         else:
             raise ValueError("No scheme defined for message type {}".format(t))
 
