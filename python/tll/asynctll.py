@@ -34,7 +34,13 @@ class AsyncChannel(C.Channel):
 
     def __call__(self, c, msg):
         if msg.type == msg.Type.State:
-            self._result_state.append(C.State(msg.msgid))
+            state = C.State(msg.msgid)
+            self._result_state.append(state)
+            if state in (C.State.Opening, C.State.Active):
+                # Force cache scheme
+                C.Channel._scheme(self, self.Type.Data)
+                C.Channel._scheme(self, self.Type.Control)
+
             if self.MASK & C.MsgMask.State:
                 self._result.append(msg.clone())
         else:
@@ -42,6 +48,23 @@ class AsyncChannel(C.Channel):
         l = self._loop()
         if l:
             l._ticks += 1
+
+    @property
+    def scheme(self):
+        return self._scheme(self.Type.Data)
+
+    @property
+    def scheme_control(self):
+        return self._scheme(self.Type.Control)
+
+    def _scheme(self, t):
+        if self.state in (self.State.Opening, self.State.Active):
+            return C.Channel._scheme(self, t)
+        if t is None:
+            t = self.Type.Data
+        if t not in (self.Type.Data, self.Type.Control):
+            raise ValueError(f"No scheme defined for message type {t}")
+        return self._scheme_cache[int(t)]
 
     def open(self, *a, **kw):
         self._result.clear()

@@ -135,3 +135,13 @@ def test_direct_recv():
         assert dt < 0.001
 
     loop.run(main(loop))
+
+def test_scheme_cache():
+    loop = asynctll.Loop(C.Context())
+
+    c = loop.Channel('direct://;scheme=yamls://{};scheme-control=yamls://{}')
+    c.open()
+    c.close()
+
+    assert c.scheme != None
+    assert c.scheme_control != None
