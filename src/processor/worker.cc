@@ -28,7 +28,7 @@ int Worker::_init(const tll::Channel::Url &url, tll::Channel *master)
 	if (loop.init(lcfg))
 		return _log.fail(EINVAL, "Failed to init processor loop");
 
-	_with_fd = loop._poll_enable;
+	_with_fd = loop.poll_enable();
 	_log.info("Worker in {} mode", _with_fd ? "polling" : "spinwait");
 
 	auto curl = child_url_parse("ipc://;mode=client", "ipc");

@@ -373,6 +373,16 @@ struct tll_processor_loop_t
 		return 0;
 	}
 
+	bool poll_enable() const { return _poll_enable; }
+	int poll_fd() const
+	{
+#ifdef __linux__
+		if (_poll_enable)
+			return _poll.fd;
+#endif
+		return -1;
+	}
+
 	~tll_processor_loop_t()
 	{
 		for (auto c : list) {

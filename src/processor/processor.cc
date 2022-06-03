@@ -158,7 +158,7 @@ int Processor::init_one(PreObject &obj)
 	if (!w)
 		return log.fail(EINVAL, "Failed to init worker {}", wname);
 
-	if (!obj.url.has("fd") && !w->loop._poll_enable)
+	if (!obj.url.has("fd") && !w->loop.poll_enable())
 		obj.url.set("fd", "no");
 
 	auto channel = context().channel(obj.url);
