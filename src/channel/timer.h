@@ -28,6 +28,7 @@ class ChTimer : public tll::channel::Base<ChTimer>
 	using time_point = timer_clock::time_point;
 
 	bool _oneshot_init = false;
+	bool _skip_old = false;
 	tll::duration _interval, _interval_init;
 
 	clockid_t _clock_type;

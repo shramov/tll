@@ -51,6 +51,7 @@ int ChTimer::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_interval_init = reader.getT<tll::duration>("interval", 0ns);
 	auto initial = reader.getT<tll::duration>("initial", 0ns);
 	_clock_type = reader.getT("clock", CLOCK_MONOTONIC, {{"monotonic", CLOCK_MONOTONIC}, {"realtime", CLOCK_REALTIME}});
+	_skip_old = reader.getT("skip-old", false);
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -242,9 +243,15 @@ int ChTimer::_process(long timeout, int flags)
 	msg.data = &now;
 	msg.size = sizeof(now);
 
-	if (_interval.count())
+	if (_interval.count()) {
+		if (_skip_old) {
+			unsigned shift = (now - _next) / _interval;
+			if (shift != 0)
+				_log.debug("Skip {} old events", shift);
+			_next += shift * _interval;
+		}
 		_next += _interval;
-	else
+	} else
 		_next = {};
 
 #ifdef __linux__

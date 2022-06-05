@@ -123,3 +123,18 @@ def test_post(clock, msg, wait):
     c.process()
     assert [m.msgid for m in c.result] == [2]
     assert c.dcaps == 0
+
+def test_skip():
+    c = Accum('timer://;interval=10ms;skip-old=yes', name='timer', dump='yes')
+
+    c.open()
+
+    time.sleep(0.03)
+    c.process()
+    c.process()
+    assert len(c.result) == 1
+
+    time.sleep(0.03)
+    c.process()
+    c.process()
+    assert len(c.result) == 2
