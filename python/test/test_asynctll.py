@@ -12,6 +12,8 @@ import pytest
 import time
 
 def test_asynctll():
+    with pytest.raises(TLLError): asynctll.Loop(config={'nofd-interval':'xxx', 'poll':'xxx'})
+
     loop = asynctll.Loop()
     async def main():
         ctx = C.Context()

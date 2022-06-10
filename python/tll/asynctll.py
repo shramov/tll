@@ -127,22 +127,22 @@ class AsyncChannel(C.Channel):
             l._timer_done(ts)
 
 class Loop:
-    def __init__(self, context = None, tick_interval = 0.1):
+    def __init__(self, context = None, tick_interval = 0.1, config={}):
         self.context = context
         self.channels = weakref.WeakKeyDictionary()
         self.asyncchannels = weakref.WeakSet()
-        self._loop = PLoop()
         self.log = Logger("tll.python.loop")
         self.tick = 0.01
         self._ticks = 0
+        self._state = C.State.Closed
         self._ctx = C.Context()
         self._timer = self._ctx.Channel("timer://;clock=realtime;name=asynctll;dump=scheme")
-        self._loop.add(self._timer)
         self._timer_cb_ref = self._timer_cb
         self._timer.callback_add(self._timer_cb, mask=C.MsgMask.Data)
         self._timer.open("interval={}ms".format(int(1000 * tick_interval)))
         self._timer_queue = []
-        self._state = C.State.Closed
+        self._loop = PLoop(config=config)
+        self._loop.add(self._timer)
 
     def __del__(self):
         self.destroy()
