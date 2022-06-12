@@ -131,16 +131,18 @@ class Loop:
         self.context = context
         self.channels = weakref.WeakKeyDictionary()
         self.asyncchannels = weakref.WeakSet()
-        self.log = Logger("tll.python.loop")
+        self.log = Logger("tll.python.asynctll")
         self.tick = 0.01
         self._ticks = 0
         self._state = C.State.Closed
         self._ctx = C.Context()
-        self._timer = self._ctx.Channel("timer://;clock=realtime;name=asynctll;dump=scheme")
+        self._timer = self._ctx.Channel("timer://;clock=realtime;name=asynctll")
         self._timer_cb_ref = self._timer_cb
         self._timer.callback_add(self._timer_cb, mask=C.MsgMask.Data)
         self._timer.open("interval={}ms".format(int(1000 * tick_interval)))
         self._timer_queue = []
+
+        config.setdefault('name', 'tll.python.asynctll/loop')
         self._loop = PLoop(config=config)
         self._loop.add(self._timer)
 
@@ -175,7 +177,7 @@ class Loop:
         return c
 
     def _timer_cb(self, c, m):
-        self.log.info("Timer cb")
+        self.log.debug("Timer cb")
         self._ticks += 1
         now = time.time()
         for ts in self._timer_queue:
@@ -275,12 +277,12 @@ class Loop:
                     if self._loop.pending:
                         self._loop.process()
                 if self._ticks:
-                    self.log.info("Ticks: {}", self._ticks)
+                    self.log.debug("Ticks: {}", self._ticks)
                 for _ in range(self._ticks):
                     future.send(None)
                 self._ticks = 0
         except StopIteration as e:
-            self.log.info("Future completed")
+            self.log.debug("Future completed")
             return e.value
 
     def _callback(self, channel, msg):
