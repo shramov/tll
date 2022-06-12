@@ -11,6 +11,6 @@ cdef extern from "tll/processor.h" nogil:
 
     cdef int tll_processor_init(tll_channel_context_t *) nogil
 
-    cdef tll_channel_list_t * tll_processor_workers(tll_processor_t *) nogil
+    cdef const tll_channel_list_t * tll_processor_workers(tll_processor_t *) nogil
     cdef tll_processor_loop_t * tll_processor_loop(tll_processor_t *)
     cdef tll_processor_loop_t * tll_processor_worker_loop(tll_processor_t *)

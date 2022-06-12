@@ -50,7 +50,7 @@ cdef class Processor(Channel):
     @property
     def workers(self):
         r = []
-        cdef tll_channel_list_t * ptr = tll_processor_workers(self._ptr)
+        cdef const tll_channel_list_t * ptr = tll_processor_workers(self._ptr)
         while ptr != NULL:
             r.append(Worker.wrap(ptr.channel))
             ptr = ptr.next

@@ -21,7 +21,7 @@ struct tll_processor_loop_t;
 
 int tll_processor_init(tll_channel_context_t * cctx);
 
-tll_channel_list_t * tll_processor_workers(tll_processor_t *p);
+const tll_channel_list_t * tll_processor_workers(tll_processor_t *p);
 
 struct tll_processor_loop_t * tll_processor_loop(tll_processor_t *p);
 struct tll_processor_loop_t * tll_processor_worker_loop(tll_processor_worker_t *w);
