@@ -48,6 +48,14 @@ cdef extern from "tll/scheme.h":
         unsigned size
         unsigned offset
 
+    ctypedef struct tll_scheme_bits_t:
+        tll_scheme_bits_t * next
+        const char * name
+        tll_scheme_field_type_t type
+        size_t size
+        tll_scheme_bit_field_t * values
+        tll_scheme_option_t * options
+
     ctypedef struct tll_scheme_option_t:
         tll_scheme_option_t * next
         const char * name
@@ -98,6 +106,7 @@ cdef extern from "tll/scheme.h":
         tll_scheme_time_resolution_t time_resolution
 
         tll_scheme_bit_field_t * bitfields
+        tll_scheme_bits_t * type_bits
 
         tll_scheme_union_t * type_union
 
@@ -112,12 +121,14 @@ cdef extern from "tll/scheme.h":
         tll_scheme_field_t * fields
         tll_scheme_enum_t * enums
         tll_scheme_union_t * unions
+        tll_scheme_bits_t * bits
 
     ctypedef struct tll_scheme_t:
         tll_scheme_option_t * options
         tll_scheme_message_t * messages
         tll_scheme_enum_t * enums
         tll_scheme_union_t * unions
+        tll_scheme_bits_t * bits
         tll_scheme_field_t * aliases
 
     cdef tll_scheme_t * tll_scheme_load(const char *str, int len)
@@ -150,6 +161,7 @@ cdef class Scheme:
     cdef object unions
     cdef object aliases
     cdef object options
+    cdef object bits
 
     cdef fill(Scheme self, const tll_scheme_t * cfg)
     cdef same(Scheme self, const tll_scheme_t * cfg)

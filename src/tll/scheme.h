@@ -107,6 +107,26 @@ typedef struct tll_scheme_union_t
 	struct tll_scheme_option_t * options;
 } tll_scheme_union_t;
 
+typedef struct tll_scheme_bit_field_t
+{
+	struct tll_scheme_bit_field_t * next;
+	const char * name;
+	unsigned offset;
+	unsigned size;
+} tll_scheme_bit_field_t;
+
+/// Bits descriptor
+typedef struct tll_scheme_bits_t
+{
+	/// Pointer to next element in linked list
+	struct tll_scheme_bits_t * next;
+	const char * name;
+	tll_scheme_field_type_t type;
+	size_t size;
+	struct tll_scheme_bit_field_t * values;
+	struct tll_scheme_option_t * options;
+} tll_scheme_bits_t;
+
 struct tll_scheme_message_t;
 
 /*
@@ -132,14 +152,6 @@ typedef enum tll_scheme_offset_ptr_version_t {
 	TLL_SCHEME_OFFSET_PTR_LEGACY_SHORT,
 	TLL_SCHEME_OFFSET_PTR_LEGACY_LONG,
 } tll_scheme_offset_ptr_version_t;
-
-typedef struct tll_scheme_bit_field_t
-{
-	struct tll_scheme_bit_field_t * next;
-	const char * name;
-	unsigned offset;
-	unsigned size;
-} tll_scheme_bit_field_t;
 
 typedef struct tll_scheme_field_t
 {
@@ -183,7 +195,10 @@ typedef struct tll_scheme_field_t
 		tll_scheme_time_resolution_t time_resolution;
 
 		/// List of bit fields with corresponding offsets
-		struct tll_scheme_bit_field_t * bitfields;
+		struct {
+			struct tll_scheme_bit_field_t * bitfields;
+			struct tll_scheme_bits_t * type_bits;
+		};
 
 		/// Union descriptors
 		struct tll_scheme_union_t * type_union;
@@ -238,6 +253,8 @@ typedef struct tll_scheme_message_t
 	void * user;
 	/// Function to destroy user defined data, if not specified standard ``free`` is used
 	void (*user_free)(void *);
+
+	struct tll_scheme_bits_t * bits;
 } tll_scheme_message_t;
 
 typedef struct tll_scheme_import_t
@@ -263,6 +280,8 @@ typedef struct tll_scheme_t
 	void * user;
 	/// Function to destroy user defined data, if not specified standard ``free`` is used
 	void (*user_free)(void *);
+
+	struct tll_scheme_bits_t * bits;
 
 #ifdef __cplusplus
 	static tll_scheme_t * load(std::string_view url) { return tll_scheme_load(url.data(), url.size()); }
@@ -369,6 +388,7 @@ using Option = tll_scheme_option_t;
 using EnumValue = tll_scheme_enum_value_t;
 using Enum = tll_scheme_enum_t;
 using Union = tll_scheme_union_t;
+using BitFields = tll_scheme_bits_t;
 using Field = tll_scheme_field_t;
 using Message = tll_scheme_message_t;
 using Scheme = tll_scheme_t;

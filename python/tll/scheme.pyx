@@ -16,7 +16,7 @@ import enum
 from .error import TLLError
 from .buffer cimport *
 from . import chrono
-from .bits import Bits, BitField, fill_properties
+from . import bits as B
 from . import decimal128
 
 class Type(enum.Enum):
@@ -104,6 +104,31 @@ cdef union_wrap(Scheme s, object m, tll_scheme_union_t * ptr):
         f.union_index = i
         r.fields.append(f)
     r.klass = namedtuple('Union', ['type', 'value'])
+    return r
+
+class Bits(OrderedDict):
+    pass
+
+cdef bits_wrap(tll_scheme_bits_t * ptr):
+    r = Bits()
+    r.options = Options.wrap(ptr.options)
+    r.name = b2s(ptr.name)
+    r.name_bytes = ptr.name
+    r.type = Type(ptr.type)
+    r.size = ptr.size
+    r.fields = []
+    cdef tll_scheme_bit_field_t * bf = ptr.values
+    while bf != NULL:
+        name = b2s(bf.name)
+        v = B.BitField(name, bf.size, bf.offset)
+        r[name] = v
+        r.fields.append(v)
+        bf = bf.next
+    @B.fill_properties
+    class Klass(B.Bits):
+        BITS = r
+    Klass.__name__ = r.name
+    r.klass = Klass
     return r
 
 def memoryview_check(o):
@@ -618,7 +643,7 @@ cdef class FBits(FBase):
 
     def __init__(self, f):
         self.base = f.impl
-        self.default = f.bitclass
+        self.default = f.type_bits.klass
 
     cdef pack(FBits self, v, dest, tail, int tail_offset):
         return self.base.pack(v._value, dest, tail, tail_offset)
@@ -835,22 +860,17 @@ cdef object field_wrap(Scheme s, object m, tll_scheme_field_t * ptr):
         r.type_enum = m.enums.get(ename, s.enums.get(ename, None))
         if r.type_enum is None:
             raise TLLError("Failed to build field {}: Enum {} not found".format(r.name, ename))
+    elif r.sub_type == r.Sub.Bits:
+        bname = b2s(ptr.type_bits.name)
+        r.type_bits = m.bits.get(bname, s.bits.get(bname, None))
+        if r.type_bits is None:
+            print(m.bits, s.bits)
+            raise TLLError("Failed to build field {}: Bits {} not found".format(r.name, bname))
+        r.bitfields = r.type_bits # Legacy
     elif r.sub_type == r.Sub.FixedPoint:
         r.fixed_precision = ptr.fixed_precision
     elif r.sub_type == r.Sub.TimePoint or r.sub_type == r.Sub.Duration:
         r.time_resolution = _time_resolution_map[ptr.time_resolution]
-    elif r.sub_type == r.Sub.Bits:
-        r.bitfields = {}
-        bits = ptr.bitfields
-        while bits != NULL:
-            name = b2s(bits.name)
-            r.bitfields[name] = BitField(name, bits.size, bits.offset)
-            bits = bits.next
-        @fill_properties
-        class B(Bits):
-            BITS = r.bitfields
-        B.__name__ = r.name
-        r.bitclass = B
 
     r.size = ptr.size
     r.offset = ptr.offset
@@ -1000,6 +1020,7 @@ cdef object message_wrap(Scheme s, tll_scheme_message_t * ptr):
     r.options = Options.wrap(ptr.options)
     r.enums = OrderedDict()
     r.unions = OrderedDict()
+    r.bits = OrderedDict()
 
     class D(Data):
         SCHEME = r
@@ -1022,6 +1043,12 @@ cdef object message_wrap(Scheme s, tll_scheme_message_t * ptr):
         tmp = union_wrap(s, r, u)
         r.unions[tmp.name] = tmp
         u = u.next
+
+    cdef tll_scheme_bits_t * b = ptr.bits
+    while b != NULL:
+        tmp = bits_wrap(b)
+        r.bits[tmp.name] = tmp
+        b = b.next
 
     cdef tll_scheme_field_t * f = ptr.fields
     while f != NULL:
@@ -1060,6 +1087,9 @@ cdef class Scheme:
 
     @property
     def unions(self): return self.unions
+
+    @property
+    def bits(self): return self.bits
 
     @property
     def aliases(self): return self.aliases
@@ -1110,6 +1140,7 @@ cdef class Scheme:
         self.options = Options.wrap(ptr.options)
         self.enums = OrderedDict()
         self.unions = OrderedDict()
+        self.bits = OrderedDict()
         self.aliases = OrderedDict()
         self.messages = []
 
@@ -1124,6 +1155,12 @@ cdef class Scheme:
             tmp = union_wrap(self, None, u)
             self.unions[tmp.name] = tmp
             u = u.next
+
+        cdef tll_scheme_bits_t * b = ptr.bits
+        while b != NULL:
+            tmp = bits_wrap(b)
+            self.bits[tmp.name] = tmp
+            b = b.next
 
         cdef tll_scheme_field_t * f = ptr.aliases
         while f != NULL:

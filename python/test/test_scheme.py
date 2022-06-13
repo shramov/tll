@@ -539,15 +539,20 @@ def test_duration():
     m.us = '123ms'
     assert m.us == Duration(123000, 'us', int)
 
-def test_bits():
-    scheme = S.Scheme("""yamls://
-- name: msg
-  fields:
-    - {name: i8, type: int8, options.type: bits, bits: [a, b, c]}
-    - {name: u32, type: uint32, options.type: bits, bits: [c, d, e]}
-""")
+def _test_bits(scheme):
+    scheme = S.Scheme(scheme)
 
     msg = scheme['msg']
+    i8 = msg['i8'].type_bits
+    u32 = msg['u32'].type_bits
+
+    assert i8.name == 'i8'
+    assert i8.type == msg['i8'].Type.Int8
+    assert [(x.name, x.offset, x.size) for x in i8.values()] == [('a', 0, 1), ('b', 1, 1), ('c', 2, 1)]
+    assert u32.name == 'u32'
+    assert u32.type == msg['u32'].Type.UInt32
+    assert [(x.name, x.offset, x.size) for x in u32.values()] == [('c', 0, 1), ('d', 1, 1), ('e', 2, 1)]
+
     m = msg.object(i8 = 0, u32 = 0)
     m.i8.a = 1
     m.i8.b = 0
@@ -584,6 +589,29 @@ def test_bits():
     assert m.i8.a == True
     assert m.i8.b == False
     assert m.i8.c == True
+
+def test_bits_inline():
+    _test_bits(
+    """yamls://
+- name: msg
+  fields:
+    - {name: i8, type: int8, options.type: bits, bits: [a, b, c]}
+    - {name: u32, type: uint32, options.type: bits, bits: [c, d, e]}
+""")
+
+def test_bits():
+    _test_bits(
+    """yamls://
+- name:
+  bits:
+    i8: {type: int8, options.type: bits, bits: [a, b, c]}
+- name: msg
+  bits:
+    u32: {type: uint32, options.type: bits, bits: [c, d, e]}
+  fields:
+    - {name: i8, type: i8}
+    - {name: u32, type: u32}
+""")
 
 def test_enum():
     scheme = S.Scheme("""yamls://

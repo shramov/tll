@@ -29,6 +29,7 @@
 #include <set>
 
 void tll_scheme_free(tll_scheme_t *);
+void tll_scheme_bits_free(tll_scheme_bits_t *b);
 
 using namespace tll::scheme;
 using tll::util::list_wrap;
@@ -151,6 +152,23 @@ inline std::optional<tll_scheme_field_type_t> parse_type_int(std::string_view ty
 		return std::nullopt;
 }
 
+inline std::optional<size_t> field_int_size(tll_scheme_field_type_t type)
+{
+	switch (type) {
+	case tll::scheme::Field::Int8: return 1;
+	case tll::scheme::Field::Int16: return 2;
+	case tll::scheme::Field::Int32: return 4;
+	case tll::scheme::Field::Int64: return 8;
+	case tll::scheme::Field::UInt8: return 1;
+	case tll::scheme::Field::UInt16: return 2;
+	case tll::scheme::Field::UInt32: return 4;
+	case tll::scheme::Field::UInt64: return 4;
+	default:
+		break;
+	}
+	return std::nullopt;
+}
+
 struct Options : public tll::Props
 {
 
@@ -249,13 +267,10 @@ struct Enum
 		}
 		r.type = *t;
 
-		switch (r.type) {
-		case tll::scheme::Field::Int8: r.size = 1; break;
-		case tll::scheme::Field::Int16: r.size = 2; break;
-		case tll::scheme::Field::Int32: r.size = 4; break;
-		case tll::scheme::Field::Int64: r.size = 8; break;
-		default: break;
-		}
+		if (auto s = field_int_size(r.type); s)
+			r.size = *s;
+		else
+			return _log.fail(std::nullopt, "Non-integer type {}", r.type);
 
 		auto o = Options::parse(cfg);
 		if (!o) return _log.fail(std::nullopt, "Failed to parse options for enum {}", name);
@@ -277,6 +292,79 @@ struct Enum
 	}
 };
 
+struct Bits
+{
+	std::string name;
+	Options options;
+	size_t size = -1;
+	tll_scheme_field_type_t type = TLL_SCHEME_FIELD_INT8;
+	std::list<std::string> bitfields;
+
+	using unique_ptr = std::unique_ptr<tll::scheme::BitFields, decltype(&tll_scheme_bits_free)>;
+
+	tll::scheme::BitFields * finalize()
+	{
+		auto r = (tll::scheme::BitFields *) malloc(sizeof(tll::scheme::BitFields));
+		*r = {};
+		r->type = type;
+		r->size = size;
+		r->name = strdup(name.c_str());
+		r->options = options.finalize();
+		auto last = &r->values;
+		size_t offset = 0;
+		for (auto & f : bitfields) {
+			*last = alloc_bit_field(f, 1, offset++);
+			last = &(*last)->next;
+		}
+		return r;
+	}
+
+	static int parse_list(tll::Logger &_log, tll::Config &cfg, std::list<Bits> &r)
+	{
+		std::set<std::string_view> names;
+		for (auto & i : r) names.insert(i.name);
+		for (auto & [path, c] : cfg.browse("bits.*", true)) {
+			auto n = path.substr(5);
+			if (names.find(n) != names.end())
+				return _log.fail(EINVAL, "Duplicate bits name {}", n);
+			auto v = Bits::parse(c, n);
+			if (!v)
+				return _log.fail(EINVAL, "Failed to load bits {}", n);
+			r.push_back(*v);
+			names.insert(r.back().name);
+		}
+		return 0;
+	}
+
+	static std::optional<Bits> parse(tll::Config &cfg, std::string_view name)
+	{
+		Bits r;
+		r.name = name;
+		tll::Logger _log = {"tll.scheme.enum." + r.name};
+
+		auto type = cfg.get("type");
+		if (!type)
+			return _log.fail(std::nullopt, "Failed to parse enum {}: missing type", name);
+		auto t = parse_type_int(*type);
+		r.type = *t;
+
+		if (auto s = field_int_size(r.type); s)
+			r.size = *s;
+		else
+			return _log.fail(std::nullopt, "Non-integer type {}", r.type);
+
+		auto o = Options::parse(cfg);
+		if (!o) return _log.fail(std::nullopt, "Failed to parse options for enum {}", name);
+		std::swap(r.options, *o);
+
+		for (auto & [k, c] : cfg.browse("bits.*")) {
+			r.bitfields.emplace_back(*c.get());
+		}
+
+		return r;
+	}
+};
+
 struct Message;
 struct Field
 {
@@ -293,9 +381,9 @@ struct Field
 	std::string type_msg;
 	std::string type_enum;
 	std::string type_union;
+	std::string type_bits;
 	unsigned fixed_precision; // For fixed
 	time_resolution_t time_resolution = TLL_SCHEME_TIME_NS;
-	std::list<std::string> bitfields; // For bitfield
 
 	void finalize(tll::scheme::Scheme *s, tll::scheme::Message *m, tll::scheme::Field *r);
 	tll::scheme::Field * finalize(tll::scheme::Scheme *s, tll::scheme::Message *m)
@@ -309,6 +397,7 @@ struct Field
 	int lookup(std::string_view type);
 	int parse_enum_inline(tll::Config &cfg);
 	int parse_union_inline(tll::Config &cfg);
+	int parse_bits_inline(tll::Config &cfg);
 	int parse_type(tll::Config &cfg, std::string_view type);
 	int parse_sub_type(tll::Config &cfg, std::string_view t)
 	{
@@ -337,10 +426,8 @@ struct Field
 					return EINVAL; //_log.fail(EINVAL, "Invalid decimal precision {}: {}", t.substr(5), s.error());
 				fixed_precision = *s;
 			} else if (t == "bits") {
-				sub_type = tll::scheme::Field::Bits;
-				for (auto & [k, c] : cfg.browse("bits.*")) {
-					bitfields.emplace_back(*c.get());
-				}
+				if (parse_bits_inline(cfg))
+					return EINVAL;
 			}
 		case Field::Double:
 			if (t == "enum") {
@@ -477,6 +564,7 @@ struct Message
 	std::list<Field> fields;
 	std::list<Enum> enums;
 	std::list<Union> unions;
+	std::list<Bits> bits;
 
 	tll::scheme::Message * finalize(tll::scheme::Scheme * s)
 	{
@@ -495,6 +583,12 @@ struct Message
 			*ulast = u.finalize(s, r);
 			ulast = &(*ulast)->next;
 		}
+		auto blast = &r->bits;
+		for (auto & b : bits) {
+			*blast = b.finalize();
+			blast = &(*blast)->next;
+		}
+
 		auto flast = &r->fields;
 		for (auto & f : fields) {
 			*flast = f.finalize(s, r);
@@ -526,6 +620,9 @@ struct Message
 
 		if (Union::parse_list(_log, m, cfg, m.unions))
 			return _log.fail(std::nullopt, "Failed to parse unions");
+
+		if (Bits::parse_list(_log, cfg, m.bits))
+			return _log.fail(std::nullopt, "Failed to parse bits");
 
 		for (auto & [unused, fc] : cfg.browse("fields.*", true)) {
 			auto n = fc.get("name");
@@ -560,6 +657,7 @@ struct Scheme
 	std::list<Message> messages;
 	std::list<Enum> enums;
 	std::list<Union> unions;
+	std::list<Bits> bits;
 	std::list<Field> aliases;
 
 	std::map<std::string, std::string> imports;
@@ -580,6 +678,12 @@ struct Scheme
 			tll::scheme::Message m = {};
 			*ulast = u.finalize(r, &m);
 			ulast = &(*ulast)->next;
+		}
+
+		auto blast = &r->bits;
+		for (auto & b : bits) {
+			*blast = b.finalize();
+			blast = &(*blast)->next;
 		}
 
 		auto alast = &r->aliases;
@@ -657,6 +761,9 @@ struct Scheme
 
 		if (Union::parse_list(_log, message, cfg, unions))
 			return _log.fail(EINVAL, "Failed to parse unions");
+
+		if (Bits::parse_list(_log, cfg, bits))
+			return _log.fail(EINVAL, "Failed to parse bits");
 
 		for (auto & [unused, fc] : cfg.browse("aliases.*", true)) {
 			auto n = fc.get("name");
@@ -766,6 +873,13 @@ int Field::lookup(std::string_view type)
 			return 0;
 		}
 	}
+	for (auto & i : parent->bits) {
+		if (i.name == type) {
+			type_bits = type;
+			this->sub_type = tll::scheme::Field::Bits;
+			return 0;
+		}
+	}
 	for (auto & i : parent->parent->enums) {
 		if (i.name == type) {
 			type_enum = type;
@@ -777,6 +891,13 @@ int Field::lookup(std::string_view type)
 		if (i.name == type) {
 			type_union = type;
 			this->type = tll::scheme::Field::Union;
+			return 0;
+		}
+	}
+	for (auto & i : parent->parent->bits) {
+		if (i.name == type) {
+			type_bits = type;
+			this->sub_type = tll::scheme::Field::Bits;
 			return 0;
 		}
 	}
@@ -853,12 +974,8 @@ void Field::finalize(tll::scheme::Scheme *s, tll::scheme::Message *m, tll::schem
 	} else if (sub_type == Field::Fixed) {
 		r->fixed_precision = fixed_precision;
 	} else if (sub_type == Field::Bits) {
-		auto last = &r->bitfields;
-		size_t offset = 0;
-		for (auto & f : bitfields) {
-			*last = alloc_bit_field(f, 1, offset++);
-			last = &(*last)->next;
-		}
+		r->type_bits = find_entry(type_bits, m->bits, s->bits);
+		r->bitfields = r->type_bits->values;
 	} else if (type == Field::Message) {
 		r->type_msg = find_entry(type_msg, s->messages);
 	} else if (type == Field::Union) {
@@ -934,6 +1051,23 @@ int Field::parse_union_inline(tll::Config &cfg)
 	u->options["_auto"] = "inline";
 	parent->unions.push_back(std::move(*u));
 	type_union = name;
+	return 0;
+}
+
+int Field::parse_bits_inline(tll::Config &cfg)
+{
+	tll::Logger _log = {"tll.scheme.field." + name};
+	if (find_entry(name, parent->bits))
+		return _log.fail(EINVAL, "Can not create auto-bits {}, duplicate name", name);
+	auto r = Bits::parse(cfg, name);
+	if (!r)
+		return _log.fail(EINVAL, "Failed to parse inline bits {}", name);
+
+	r->options.clear();
+	r->options["_auto"] = "inline";
+	parent->bits.push_back(std::move(*r));
+	type_bits = name;
+	sub_type = tll::scheme::Field::Bits;
 	return 0;
 }
 
@@ -1113,6 +1247,28 @@ Enum * copy_enums(const Enum *src)
 	return r;
 }
 
+tll_scheme_bit_field_t * copy_bit_fields(const tll_scheme_bit_field_t *src)
+{
+	if (!src) return nullptr;
+	auto r = (tll_scheme_bit_field_t *) malloc(sizeof(tll_scheme_bit_field_t));
+	*r = *src;
+	r->name = strdup(src->name);
+	r->next = copy_bit_fields(src->next);
+	return r;
+}
+
+BitFields * copy_bits(const BitFields *src)
+{
+	if (!src) return nullptr;
+	auto r = (BitFields *) malloc(sizeof(BitFields));
+	*r = *src;
+	r->name = strdup(src->name);
+	r->options = copy_options(src->options);
+	r->values = copy_bit_fields(src->values);
+	r->next = copy_bits(src->next);
+	return r;
+}
+
 Field * copy_fields(Scheme *ds, Message *dm, Field **result, const Field *src);
 
 void copy_field_body(Scheme *ds, Message *dm, Field *r, const Field *src)
@@ -1135,12 +1291,8 @@ void copy_field_body(Scheme *ds, Message *dm, Field *r, const Field *src)
 	} else if (r->sub_type == Field::Enum) {
 		r->type_enum = find_entry(src->type_enum->name, dm->enums, ds->enums);
 	} else if (r->sub_type == Field::Bits) {
-		r->bitfields = nullptr;
-		auto last = &r->bitfields;
-		for (auto &f : list_wrap(src->bitfields)) {
-			*last = alloc_bit_field(f.name, f.size, f.offset);
-			last = &(*last)->next;
-		}
+		r->type_bits = find_entry(src->type_bits->name, dm->bits, ds->bits);
+		r->bitfields = r->type_bits->values;
 	}
 }
 
@@ -1182,6 +1334,7 @@ Message * copy_messages(Scheme *ds, Message ** result, const Message *src)
 	r->options = copy_options(src->options);
 	r->enums = copy_enums(src->enums);
 	r->unions = copy_unions(ds, r, src->unions);
+	r->bits = copy_bits(src->bits);
 	r->fields = nullptr;
 	copy_fields(ds, r, &r->fields, src->fields);
 	copy_messages(ds, &r->next, src->next);
@@ -1202,6 +1355,7 @@ tll_scheme_t * tll_scheme_copy(const tll_scheme_t *src)
 	r->options = copy_options(src->options);
 	r->enums = copy_enums(src->enums);
 	r->unions = copy_unions(r, &m, src->unions);
+	r->bits = copy_bits(src->bits);
 	r->aliases = nullptr;
 
 	copy_fields(r, &m, &r->aliases, src->aliases);
@@ -1271,6 +1425,16 @@ void tll_scheme_bit_field_free(tll_scheme_bit_field_t *f)
 	free(f);
 }
 
+void tll_scheme_bits_free(tll_scheme_bits_t *b)
+{
+	if (!b) return;
+	tll_scheme_option_free(b->options);
+	if (b->name) free((char *) b->name);
+	tll_scheme_bit_field_free(b->values);
+	tll_scheme_bits_free(b->next);
+	free(b);
+}
+
 static void tll_scheme_field_free_body(tll_scheme_field_t *f)
 {
 	if (!f) return;
@@ -1286,8 +1450,7 @@ static void tll_scheme_field_free_body(tll_scheme_field_t *f)
 		tll_scheme_field_free(f->type_array);
 	} else if (f->type == Field::Pointer) {
 		tll_scheme_field_free(f->type_ptr);
-	} else if (f->sub_type == Field::Bits)
-		tll_scheme_bit_field_free(f->bitfields);
+	}
 	if (f->name) free((char *) f->name);
 }
 
@@ -1323,6 +1486,7 @@ void tll_scheme_message_free(tll_scheme_message_t *m)
 	tll_scheme_option_free(m->options);
 	tll_scheme_enum_free(m->enums);
 	tll_scheme_union_free(m->unions);
+	tll_scheme_bits_free(m->bits);
 	if (m->name) free((char *) m->name);
 	for (auto f = m->fields; f;) {
 		auto tmp = f;
@@ -1344,6 +1508,7 @@ void tll_scheme_free(tll_scheme_t *s)
 	tll_scheme_option_free(s->options);
 	tll_scheme_enum_free(s->enums);
 	tll_scheme_union_free(s->unions);
+	tll_scheme_bits_free(s->bits);
 	for (auto f = s->aliases; f;) {
 		auto tmp = f;
 		f = f->next;
@@ -1595,8 +1760,12 @@ int tll_scheme_field_fix(tll_scheme_field_t * f)
 {
 	if (!f) return EINVAL;
 	using tll::scheme::Field;
-	if (f->sub_type == Field::Enum)
+	if (f->sub_type == Field::Enum) {
 		f->type = f->type_enum->type;
+	} else if (f->sub_type == Field::Bits) {
+		f->type = f->type_bits->type;
+		f->bitfields = f->type_bits->values;
+	}
 	switch (f->type) {
 	case Field::Int8: f->size = 1; break;
 	case Field::Int16: f->size = 2; break;
@@ -1686,6 +1855,15 @@ int tll_scheme_union_fix(tll_scheme_union_t * u)
 	return 0;
 }
 
+int tll_scheme_bits_fix(tll_scheme_bits_t * v)
+{
+	auto s = tll::scheme::internal::field_int_size(v->type);
+	if (!s)
+		return EINVAL;
+	v->size = *s;
+	return 0;
+}
+
 int tll_scheme_message_fix(tll_scheme_message_t * m)
 {
 	if (!m) return EINVAL;
@@ -1694,6 +1872,11 @@ int tll_scheme_message_fix(tll_scheme_message_t * m)
 
 	for (auto &u : list_wrap(m->unions)) {
 		if (tll_scheme_union_fix(&u))
+			return EINVAL;
+	}
+
+	for (auto &v : list_wrap(m->bits)) {
+		if (tll_scheme_bits_fix(&v))
 			return EINVAL;
 	}
 
@@ -1715,6 +1898,10 @@ int tll_scheme_fix(tll_scheme_t * s)
 
 	for (auto &u : list_wrap(s->unions)) {
 		if (tll_scheme_union_fix(&u))
+			return EINVAL;
+	}
+	for (auto &v : list_wrap(s->bits)) {
+		if (tll_scheme_bits_fix(&v))
 			return EINVAL;
 	}
 	for (auto &m : list_wrap(s->messages)) {
