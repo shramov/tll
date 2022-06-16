@@ -41,7 +41,7 @@ def field2type(f):
     elif f.type == f.Bytes:
 	if f.sub_type == f.Sub.ByteString:
 	    return f"tll::scheme::ByteString<{f.size}>", "bytestring"
-	return f"tll::scheme::Bytes<{f.size}", "bytes"
+	return f"tll::scheme::Bytes<{f.size}>", "bytes"
     elif f.type == f.Array:
     	raise RuntimeError("Array not supported")
     elif f.type == f.Pointer:
