@@ -14,6 +14,8 @@
 #include <stddef.h>
 #include <string.h>
 
+#include <optional>
+
 namespace tll {
 
 namespace scheme::binder {
@@ -274,6 +276,21 @@ inline void Base<Buf>::_set_string(size_t offset, std::string_view v)
 	auto l = _get_binder<String<Buf, Ptr>>(offset);
 	l = v;
 }
+
+template <typename Buf, typename Type>
+class Union : public Base<Buf>
+{
+ protected:
+	void _set_type(Type v) { this->template _set_scalar<Type>(0, v); }
+
+ public:
+	using view_type = typename Base<Buf>::view_type;
+	static constexpr size_t data_offset = sizeof(Type);
+
+	Union(view_type view) : Base<Buf>(view) {}
+
+	Type union_type() const { return this->template _get_scalar<Type>(0); }
+};
 
 } // namespace scheme::binder
 
