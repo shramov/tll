@@ -61,6 +61,10 @@ def indent(indent, s):
         return s
     return "\n".join([indent_one(indent, x) for x in s.split('\n')])
 
+def indent_filter(text):
+    return indent('\t', text)
+#lambda s: indent(ind', s)
+
 def declare_enum(e):
     r = [f"""enum class {e.name}: {numeric(e.type)}""", "{"]
     for n,v in sorted(e.items(), key=lambda t: (t[1], t[0])):

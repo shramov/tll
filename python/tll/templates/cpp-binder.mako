@@ -38,6 +38,8 @@ def field2type(f):
 	return t, "scalar"
     elif f.type == f.Message:
     	return f"{f.type_msg.name}<Buf>", "builder"
+    elif f.type == f.Union:
+        return f"{f.type_union.name}<Buf>", "builder"
     elif f.type == f.Bytes:
 	if f.sub_type == f.Sub.ByteString:
 	    return f"tll::scheme::ByteString<{f.size}>", "bytestring"
@@ -77,9 +79,51 @@ f"""using type_{f.name} = {t};
 const type_{f.name} get_{f.name}() const {{ return this->template _get_binder<type_{f.name}>({f.offset}); }}
 type_{f.name} get_{f.name}() {{ return this->template _get_binder<type_{f.name}>({f.offset}); }}""")
 %>\
+<%def name='union2decl_inner(u)' filter='cpp.indent_filter'><%call expr='union2decl(u)'></%call></%def>\
+<%def name='union2decl(u)'>\
+
+template <typename B>
+struct ${u.name}: public tll::scheme::binder::Union<B, ${cpp.numeric(u.type_ptr.type)}>
+{
+	using union_index_type = ${cpp.numeric(u.type_ptr.type)};
+	using tll::scheme::binder::Union<B, union_index_type>::Union;
+% for f in u.fields:
+
+<% (t, m) = field2type(f) %>\
+	static constexpr union_index_type index_${f.name} = ${f.union_index};
+	using type_${f.name} = ${t};
+% if m == "string" or m == "bytestring":
+	std::optional<std::string_view> get_${f.name}() const { if (this->union_type() != index_${f.name}) return std::nullopt; return unchecked_${f.name}(); }
+% else:
+	std::optional<${t}> get_${f.name}() const { if (this->union_type() != index_${f.name}) return std::nullopt; return unchecked_${f.name}(); }
+% endif
+% if m == "builder":
+	${t} unchecked_${f.name}() { return this->template _get_binder<${t}>(${f.offset}); }
+	${t} unchecked_${f.name}() const { return this->template _get_binder<${t}>(${f.offset}); }
+	${t} set_${f.name}() { this->_set_type(index_${f.name}); return this->template _get_binder<${t}>(${f.offset}); }
+% elif m == 'bytes':
+	${t} unchecked_${f.name}() const { return this->template _get_bytes<${f.size}>(${f.offset}); }
+	void set_${f.name}(const ${t} &v) const { this->_set_type(index_${f.name}); return this->template _set_bytes<${f.size}>(${f.offset}, {v.data(), v.size()}); }
+	void set_${f.name}(std::string_view v) { this->_set_type(index_${f.name}); return this->template _set_bytestring<${f.size}>(${f.offset}, v); }
+% elif m == 'bytestring':
+	std::string_view unchecked_${f.name}() const { return this->template _get_bytestring<${f.size}>(${f.offset}); }
+	void set_${f.name}(std::string_view v) { this->_set_type(index_${f.name}); this->template _set_bytestring<${f.size}>(${f.offset}, v); }
+% elif m == 'string':
+	std::string_view unchecked_${f.name}() const { return this->template _get_string<${cpp.offset_ptr_version(f)}>(${f.offset}); }
+	void set_${f.name}(std::string_view v) { this->_set_type(index_${f.name}); this->template _set_string<${cpp.offset_ptr_version(f)}>(${f.offset}, v); }
+% else:
+	${t} unchecked_${f.name}() const { return this->template _get_scalar<${t}>(${f.offset}); }
+	void set_${f.name}(const ${t} &v) { this->_set_type(index_${f.name}); this->template _set_scalar<${t}>(${f.offset}, v); }
+% endif
+% endfor
+};
+</%def>\
 % for e in scheme.enums.values():
 
 ${cpp.declare_enum(e)}
+% endfor
+% for u in scheme.unions.values():
+<%call expr='union2decl(u)'></%call>
 % endfor
 % for msg in scheme.messages:
 
@@ -96,6 +140,9 @@ struct ${msg.name} : public tll::scheme::Binder<Buf>
 % for e in msg.enums.values():
 
 ${cpp.indent("\t", cpp.declare_enum(e))}
+% endfor
+% for u in msg.unions.values():
+<%call expr='union2decl_inner(u)'></%call>
 % endfor
 % for f in msg.fields:
 
