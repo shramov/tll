@@ -3,7 +3,7 @@
 
 from .scheme cimport *
 from .s2b cimport *
-from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t
+from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t
 from libc.string cimport memcpy, memset
 from libc.errno cimport EINVAL, EMSGSIZE
 from cython cimport typeof
@@ -27,6 +27,7 @@ class Type(enum.Enum):
     UInt8 = TLL_SCHEME_FIELD_UINT8
     UInt16 = TLL_SCHEME_FIELD_UINT16
     UInt32 = TLL_SCHEME_FIELD_UINT32
+    UInt64 = TLL_SCHEME_FIELD_UINT64
     Double = TLL_SCHEME_FIELD_DOUBLE
     Decimal128 = TLL_SCHEME_FIELD_DECIMAL128
     Bytes = TLL_SCHEME_FIELD_BYTES
@@ -117,6 +118,7 @@ ctypedef fused primitive_t:
     uint8_t
     uint16_t
     uint32_t
+    uint64_t
     double
 
 cdef struct offset_ptr_t:
@@ -288,6 +290,14 @@ cdef class FUInt32(FBase):
     cdef convert(FUInt32 self, v): return <uint32_t>v
     cdef from_string(FUInt32 self, str s): return int(s, 0)
 _TYPES[Type.UInt32] = FUInt32
+
+cdef class FUInt64(FBase):
+    default = int
+    cdef pack(FUInt64 self, v, dest, tail, int tail_offset): return pack_fused(<uint64_t>v, dest)
+    cdef unpack(FUInt64 self, src): return unpack_fused(<uint64_t>0, src)
+    cdef convert(FUInt64 self, v): return <uint64_t>v
+    cdef from_string(FUInt64 self, str s): return int(s, 0)
+_TYPES[Type.UInt64] = FUInt64
 
 cdef class FDouble(FBase):
     default = float
@@ -698,15 +708,6 @@ cdef unpack_vstring(object src, int optr_version):
         return r.tobytes()
     return str(r, encoding='utf-8')
 
-def convert_int8(v): return <int8_t>v
-def convert_int16(v): return <int16_t>v
-def convert_int32(v): return <int32_t>v
-def convert_int64(v): return <int64_t>v
-def convert_uint8(v): return <uint8_t>v
-def convert_uint16(v): return <uint16_t>v
-def convert_uint32(v): return <uint32_t>v
-def convert_double(v): return float(v)
-def convert_decimal128(v): return Decimal(v)
 def convert_str(v):
     if isinstance(v, bytes):
         return v.decode('utf-8')

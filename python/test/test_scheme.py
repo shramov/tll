@@ -292,7 +292,7 @@ def test_import():
     assert [(f.name, f.type, f.sub_type) for f in s.aliases.values()] == [("license", F.Bytes, F.Sub.ByteString)]
     assert [m.name for m in s.messages] == ['sub', 'msg']
 
-@pytest.mark.parametrize("t", ['int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32'])
+@pytest.mark.parametrize("t", ['int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64'])
 def test_scalar(t):
     scheme = S.Scheme("""yamls://
 - name: msg
@@ -300,16 +300,22 @@ def test_scalar(t):
     - {name: f, type: %s}
 """ % t)
 
+    msg = scheme['msg']
+    field = msg['f']
+
     if t[0] == 'u':
         size = int(t[4:])
         imin = 0
         imax = 2 ** size - 1
+        assert field.type == getattr(field, f'UInt{size}')
     else:
         size = int(t[3:])
         imin = -1 * 2 ** (size - 1)
         imax = 2 ** (size - 1) - 1
+        assert field.type == getattr(field, f'Int{size}')
 
-    msg = scheme['msg']
+    assert msg.size == size // 8
+    assert field.size == size // 8
 
     m = msg.object()
 
@@ -364,13 +370,14 @@ def test_fixed():
     - {name: u8,  type: uint8, options.type: fixed5}
     - {name: u16, type: uint16, options.type: fixed6}
     - {name: u32, type: uint32, options.type: fixed7}
+    - {name: u64, type: uint64, options.type: fixed8}
 """)
 
     msg = scheme['msg']
     for (i,f) in enumerate(msg.fields):
         assert f.fixed_precision == i + 1, f"field {f.name}: {f.fixed_precision} != {i + 1}"
 
-    m = msg.object(i8=-1, i16=2, i32=-3, i64=41.4, u8='0.0007', u16='0.012345', u32='123')
+    m = msg.object(i8=-1, i16=2, i32=-3, i64=41.4, u8='0.0007', u16='0.012345', u32='123', u64='0.12345678')
     assert m.i8 == decimal.Decimal(-1)
     assert m.i16 == 2
     assert m.i32 == decimal.Decimal(-3)
@@ -378,6 +385,7 @@ def test_fixed():
     assert m.u8 == decimal.Decimal('0.0007')
     assert m.u16 == decimal.Decimal('0.012345')
     assert m.u32 == decimal.Decimal('123')
+    assert m.u64 == decimal.Decimal('0.12345678')
 
     data = memoryview(m.pack())
     u = msg.unpack(data)
