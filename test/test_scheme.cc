@@ -518,3 +518,61 @@ TEST(Scheme, Conv)
 	ASSERT_EQ(tll::conv::to_string(tll::scheme::Field::Int8), "int8");
 	ASSERT_EQ(tll::conv::to_string(tll::scheme::Field::Duration), "duration");
 }
+
+static constexpr std::string_view pmap_scheme_string = R"(yamls://
+- name: msg
+  fields:
+    - {name: f0, type: int32}
+    - {name: pmap, type: uint32, options.pmap: yes}
+    - {name: f1, type: int32}
+)";
+
+void verify_pmap(tll::scheme::Scheme * s)
+{
+	ASSERT_NE(s, nullptr);
+
+	auto m = s->messages;
+	ASSERT_NE(m, nullptr);
+	EXPECT_STREQ(m->name, "msg");
+	ASSERT_NE(m->pmap, nullptr);
+	ASSERT_STREQ(m->pmap->name, "pmap");
+	auto f = m->fields;
+	CHECK_FIELD(f, "f0", Field::Int32, 4u, 0u); f = f->next;
+	ASSERT_EQ(m->pmap, f);
+	CHECK_FIELD(f, "pmap", Field::UInt32, 4u, 4u); f = f->next;
+	CHECK_FIELD(f, "f1", Field::Int32, 4u, 8u); f = f->next;
+	ASSERT_EQ(f, nullptr);
+}
+
+TEST(Scheme, PMap)
+{
+	SchemePtr s(Scheme::load(pmap_scheme_string));
+	verify_pmap(s.get());
+
+	check_load_fail(R"(yamls://
+- name: msg
+  fields:
+    - {name: f0, type: int32, options.pmap: yes}
+    - {name: f1, type: int32, options.pmap: yes}
+)");
+
+	check_load_fail(R"(yamls://
+- name: msg
+  fields:
+    - {name: f0, type: int32, options.pmap: xxx}
+)");
+	check_load_fail(R"(yamls://
+- name: msg
+  fields:
+    - {name: f0, type: double, options.pmap: yes}
+)");
+}
+
+TEST(Scheme, PMapCopy)
+{
+	SchemePtr ptr(Scheme::load(pmap_scheme_string));
+	ASSERT_NE(ptr.get(), nullptr);
+
+	SchemePtr copy(ptr->copy());
+	verify_pmap(copy.get());
+}

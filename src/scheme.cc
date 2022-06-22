@@ -559,6 +559,7 @@ struct Message
 {
 	int msgid = 0;
 	std::string name;
+	std::string pmap;
 	Scheme * parent = nullptr;
 	Options options;
 	std::list<Field> fields;
@@ -952,6 +953,28 @@ std::optional<Field> Field::parse(Message &m, tll::Config &cfg, std::string_view
 		if (f.parse_sub_type(cfg, *fsub))
 			return _log.fail(std::nullopt, "Failed to parse sub-type {}", *fsub);
 	}
+	auto pmap = f.options.getT("pmap", false);
+	if (!pmap)
+		return _log.fail(std::nullopt, "Invalid 'pmap' option: {}", pmap.error());
+	if (*pmap) {
+		switch (f.type) {
+		case tll::scheme::Field::Int8:
+		case tll::scheme::Field::Int16:
+		case tll::scheme::Field::Int32:
+		case tll::scheme::Field::Int64:
+		case tll::scheme::Field::UInt8:
+		case tll::scheme::Field::UInt16:
+		case tll::scheme::Field::UInt32:
+		case tll::scheme::Field::UInt64:
+		case tll::scheme::Field::Bytes:
+			break;
+		default:
+			return _log.fail(std::nullopt, "Invalid pmap type: {}", f.type);
+		}
+		if (m.pmap.size())
+			return _log.fail(std::nullopt, "Duplicate pmap fields: {} and {}", m.pmap, f.name);
+		m.pmap = f.name;
+	}
 	return f;
 }
 
@@ -1269,9 +1292,9 @@ BitFields * copy_bits(const BitFields *src)
 	return r;
 }
 
-Field * copy_fields(Scheme *ds, Message *dm, Field **result, const Field *src);
+Field * copy_fields(Scheme *ds, Message *dm, Field **result, const Field *src, const Message *sm);
 
-void copy_field_body(Scheme *ds, Message *dm, Field *r, const Field *src)
+void copy_field_body(Scheme *ds, Message *dm, Field *r, const Field *src, const Message *sm)
 {
 	*r = *src;
 	r->name = strdup(src->name);
@@ -1282,10 +1305,10 @@ void copy_field_body(Scheme *ds, Message *dm, Field *r, const Field *src)
 	if (r->type == Field::Message) {
 		r->type_msg = find_entry(src->type_msg->name, ds->messages);
 	} else if (r->type == Field::Array) {
-		r->count_ptr = copy_fields(ds, dm, &r->count_ptr, src->count_ptr);
-		r->type_array = copy_fields(ds, dm, &r->type_array, src->type_array);
+		r->count_ptr = copy_fields(ds, dm, &r->count_ptr, src->count_ptr, sm);
+		r->type_array = copy_fields(ds, dm, &r->type_array, src->type_array, sm);
 	} else if (r->type == Field::Pointer) {
-		r->type_ptr = copy_fields(ds, dm, &r->type_ptr, src->type_ptr);
+		r->type_ptr = copy_fields(ds, dm, &r->type_ptr, src->type_ptr, sm);
 	} else if (r->type == Field::Union) {
 		r->type_union = find_entry(src->type_union->name, dm->unions, ds->unions);
 	} else if (r->sub_type == Field::Enum) {
@@ -1296,13 +1319,15 @@ void copy_field_body(Scheme *ds, Message *dm, Field *r, const Field *src)
 	}
 }
 
-Field * copy_fields(Scheme *ds, Message *dm, Field **result, const Field *src)
+Field * copy_fields(Scheme *ds, Message *dm, Field **result, const Field *src, const Message *sm)
 {
 	if (!src) return nullptr;
 	auto r = (Field *) malloc(sizeof(Field));
 	*result = r;
-	copy_field_body(ds, dm, r, src);
-	copy_fields(ds, dm, &r->next, src->next);
+	copy_field_body(ds, dm, r, src, sm);
+	if (sm && src == sm->pmap)
+		dm->pmap = r;
+	copy_fields(ds, dm, &r->next, src->next, sm);
 	return r;
 }
 
@@ -1314,9 +1339,9 @@ Union * copy_unions(Scheme *ds, Message *dm, const Union *src)
 	r->name = strdup(src->name);
 	r->options = copy_options(src->options);
 	r->fields = (tll_scheme_field_t *) malloc(sizeof(tll_scheme_field_t) * r->fields_size);
-	r->type_ptr = copy_fields(ds, dm, &r->type_ptr, src->type_ptr);
+	r->type_ptr = copy_fields(ds, dm, &r->type_ptr, src->type_ptr, nullptr);
 	for (auto i = 0u; i < r->fields_size; i++)
-		copy_field_body(ds, dm, r->fields + i, src->fields + i);
+		copy_field_body(ds, dm, r->fields + i, src->fields + i, nullptr);
 	r->next = copy_unions(ds, dm, src->next);
 	return r;
 }
@@ -1336,7 +1361,8 @@ Message * copy_messages(Scheme *ds, Message ** result, const Message *src)
 	r->unions = copy_unions(ds, r, src->unions);
 	r->bits = copy_bits(src->bits);
 	r->fields = nullptr;
-	copy_fields(ds, r, &r->fields, src->fields);
+	r->pmap = nullptr;
+	copy_fields(ds, r, &r->fields, src->fields, src);
 	copy_messages(ds, &r->next, src->next);
 	return r;
 }
@@ -1358,7 +1384,7 @@ tll_scheme_t * tll_scheme_copy(const tll_scheme_t *src)
 	r->bits = copy_bits(src->bits);
 	r->aliases = nullptr;
 
-	copy_fields(r, &m, &r->aliases, src->aliases);
+	copy_fields(r, &m, &r->aliases, src->aliases, nullptr);
 
 	r->messages = nullptr;
 	copy_messages(r, &r->messages, src->messages);
@@ -1846,10 +1872,12 @@ int tll_scheme_union_fix(tll_scheme_union_t * u)
 	if (tll_scheme_field_fix(u->type_ptr))
 		return EINVAL;
 	u->union_size = 0;
+	unsigned index = 0;
 	for (auto uf = u->fields; uf != u->fields + u->fields_size; uf++) {
 		uf->offset = u->type_ptr->size;
 		if (tll_scheme_field_fix(uf))
 			return EINVAL;
+		uf->index = index++;
 		u->union_size = std::max(u->union_size, uf->size);
 	}
 	return 0;
@@ -1880,9 +1908,18 @@ int tll_scheme_message_fix(tll_scheme_message_t * m)
 			return EINVAL;
 	}
 
+	unsigned index = 0;
 	for (auto &f : list_wrap(m->fields)) {
 		if (tll_scheme_field_fix(&f))
 			return EINVAL;
+		f.index = -1;
+		auto pmap = tll::getter::getT(f.options, "pmap", false);
+		if (pmap && *pmap) {
+			if (m->pmap)
+				return EINVAL;
+			m->pmap = &f;
+		} else if (tll::getter::get(f.options, "_auto").value_or("") == "")
+			f.index = index++;
 		f.offset = offset;
 		offset += f.size;
 	}

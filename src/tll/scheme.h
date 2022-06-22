@@ -209,6 +209,9 @@ typedef struct tll_scheme_field_t
 	/// Function to destroy user defined data, if not specified standard ``free`` is used
 	void (*user_free)(void *);
 
+	/// Field index, negative if not defined (auto or mandatory fields)
+	int index;
+
 #ifdef __cplusplus
 	static constexpr auto Int8 = TLL_SCHEME_FIELD_INT8;
 	static constexpr auto Int16 = TLL_SCHEME_FIELD_INT16;
@@ -255,6 +258,9 @@ typedef struct tll_scheme_message_t
 	void (*user_free)(void *);
 
 	struct tll_scheme_bits_t * bits;
+
+	/// Presence map field (if defined)
+	struct tll_scheme_field_t * pmap;
 } tll_scheme_message_t;
 
 typedef struct tll_scheme_import_t
