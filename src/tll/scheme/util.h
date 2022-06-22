@@ -26,6 +26,7 @@ long long read_size(const tll::scheme::Field * field, const View &data)
 	case Field::UInt8:  return *data.template dataT<uint8_t>();
 	case Field::UInt16: return *data.template dataT<uint16_t>();
 	case Field::UInt32: return *data.template dataT<uint32_t>();
+	case Field::UInt64: return *data.template dataT<uint64_t>();
 	default: return -1;
 	}
 }
@@ -43,6 +44,7 @@ int write_size(const tll::scheme::Field * field, View data, size_t size)
 	case Field::UInt8:  *data.template dataT<uint8_t>() = size; break;
 	case Field::UInt16: *data.template dataT<uint16_t>() = size; break;
 	case Field::UInt32: *data.template dataT<uint32_t>() = size; break;
+	case Field::UInt64: *data.template dataT<uint64_t>() = size; break;
 	default: break;
 	}
 	return 0;

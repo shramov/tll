@@ -139,6 +139,7 @@ format_result_t to_strings(const tll::scheme::Field * field, const View &data)
 	case Field::UInt8:  return to_strings_number(field, *data.template dataT<uint8_t>());
 	case Field::UInt16: return to_strings_number(field, *data.template dataT<uint16_t>());
 	case Field::UInt32: return to_strings_number(field, *data.template dataT<uint32_t>());
+	case Field::UInt64: return to_strings_number(field, *data.template dataT<uint64_t>());
 	case Field::Double: return to_strings_number(field, *data.template dataT<double>());
 	case Field::Decimal128:
 		return std::list<std::string> { tll::conv::to_string(*data.template dataT<tll::util::Decimal128>()) };

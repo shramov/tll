@@ -227,6 +227,7 @@ int ChYaml::_fill(View view, const tll::scheme::Field * field, tll::ConstConfig 
 	case Field::UInt8: return _fill_numeric(view.template dataT<uint8_t>(), field, *v);
 	case Field::UInt16: return _fill_numeric(view.template dataT<uint16_t>(), field, *v);
 	case Field::UInt32: return _fill_numeric(view.template dataT<uint32_t>(), field, *v);
+	case Field::UInt64: return _fill_numeric(view.template dataT<uint64_t>(), field, *v);
 	case Field::Double: return _fill_numeric(view.template dataT<double>(), field, *v);
 
 	case Field::Decimal128: {

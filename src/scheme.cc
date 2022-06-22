@@ -146,6 +146,7 @@ inline std::optional<tll_scheme_field_type_t> parse_type_int(std::string_view ty
 	else if (type == "uint8") return tll::scheme::Field::UInt8;
 	else if (type == "uint16") return tll::scheme::Field::UInt16;
 	else if (type == "uint32") return tll::scheme::Field::UInt32;
+	else if (type == "uint64") return tll::scheme::Field::UInt64;
 	else
 		return std::nullopt;
 }
@@ -328,6 +329,7 @@ struct Field
 		case Field::UInt8:
 		case Field::UInt16:
 		case Field::UInt32:
+		case Field::UInt64:
 			if (starts_with(t, "fixed")) {
 				sub_type = tll::scheme::Field::Fixed;
 				auto s = tll::conv::to_any<unsigned>(t.substr(5));
@@ -995,6 +997,7 @@ int Field::parse_type(tll::Config &cfg, std::string_view type)
 	else if (type == "uint8") this->type = tll::scheme::Field::UInt8;
 	else if (type == "uint16") this->type = tll::scheme::Field::UInt16;
 	else if (type == "uint32") this->type = tll::scheme::Field::UInt32;
+	else if (type == "uint64") this->type = tll::scheme::Field::UInt64;
 	else if (type == "double") this->type = tll::scheme::Field::Double;
 	else if (type == "decimal128") this->type = tll::scheme::Field::Decimal128;
 	else if (type == "string") {
@@ -1374,6 +1377,7 @@ std::string dump_type(tll_scheme_field_type_t t, const tll::scheme::Field * f)
 	case Field::UInt8:  return "uint8";
 	case Field::UInt16: return "uint16";
 	case Field::UInt32: return "uint32";
+	case Field::UInt64: return "uint64";
 	case Field::Double: return "double";
 	case Field::Decimal128: return "decimal128";
 	case Field::Message: if (!f) return "unknown"; return f->type_msg->name;
@@ -1601,6 +1605,7 @@ int tll_scheme_field_fix(tll_scheme_field_t * f)
 	case Field::UInt8: f->size = 1; break;
 	case Field::UInt16: f->size = 2; break;
 	case Field::UInt32: f->size = 4; break;
+	case Field::UInt64: f->size = 8; break;
 	case Field::Double: f->size = 8; break;
 	case Field::Decimal128: f->size = 16; break;
 	case Field::Bytes: if (f->size == 0) f->size = 1; break;

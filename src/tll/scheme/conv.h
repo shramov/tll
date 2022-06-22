@@ -27,6 +27,7 @@ struct dump<tll_scheme_field_type_t> : public to_string_from_string_buf<tll_sche
 		case Field::UInt8: return "uint8";
 		case Field::UInt16: return "uint16";
 		case Field::UInt32: return "uint32";
+		case Field::UInt64: return "uint64";
 		case Field::Double: return "double";
 		case Field::Decimal128: return "decimal128";
 		case Field::Bytes: return "bytes";
