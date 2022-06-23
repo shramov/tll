@@ -259,6 +259,7 @@ class TestSerial:
 
 class _test_tcp_base:
     PROTO = 'invalid-url'
+    ADDR = ('unix', 0)
     FRAME = True
     CLEANUP = []
     TIMESTAMP = False
@@ -302,6 +303,11 @@ class _test_tcp_base:
         assert c.state == c.State.Active
         assert c.dcaps == c.DCaps.Process | c.DCaps.PollIn
 
+        assert [(m.type, m.msgid) for m in s.result] == [(C.Type.Control, s.scheme_control['Connect'].msgid)]
+        assert s.unpack(s.result[0]).as_dict()['host'] == self.ADDR
+        addr = s.result[0].addr
+        s.result = []
+
         for i in s.children:
             spoll.register(i.fd, select.POLLIN)
         cpoll.register(c.fd, select.POLLIN)
@@ -312,7 +318,7 @@ class _test_tcp_base:
         for i in s.children:
             i.process()
 
-        assert [m.data.tobytes() for m in s.result] == [b'xxx'] # No frame
+        assert [(m.addr, m.data.tobytes()) for m in s.result] == [(addr, b'xxx')] # No frame
         assert [(m.seq, m.msgid) for m in s.result] == [(0x6ead, 0x6eef) if self.FRAME else (0, 0)] # No frame
         if self.TIMESTAMP:
             assert s.result[-1].time.seconds == pytest.approx(timestamp, 0.001)
@@ -327,6 +333,14 @@ class _test_tcp_base:
         assert [(m.seq, m.msgid) for m in c.result] == [(0x6eef, 0x6ead) if self.FRAME else (0, 0)] # No frame
         if self.TIMESTAMP:
             assert s.result[-1].time.seconds == pytest.approx(timestamp, 0.001)
+
+        s.result = []
+        c.close()
+        assert spoll.poll(10) != []
+        for i in s.children:
+            i.process()
+
+        assert [(m.type, m.msgid, m.addr) for m in s.result] == [(C.Type.Control, s.scheme_control['Disconnect'].msgid, addr)]
 
     def test_open_fail(self):
         c = self.c
@@ -357,17 +371,21 @@ class TestTcpUnix(_test_tcp_base):
     CLEANUP = ['test.sock']
 
 class TestTcp4(_test_tcp_base):
+    ADDR = ('ipv4', 0x0100007f)
     PROTO = 'tcp://127.0.0.1:{}'.format(ports.TCP4)
 
 class TestTcp6(_test_tcp_base):
+    ADDR = ('ipv6', socket.inet_pton(socket.AF_INET6, '::1'))
     PROTO = 'tcp://::1:{}'.format(ports.TCP6)
 
 @pytest.mark.skipif(sys.platform != 'linux', reason='Network timestamping not supported')
 class TestTcp6TS(_test_tcp_base):
+    ADDR = ('ipv6', socket.inet_pton(socket.AF_INET6, '::1'))
     PROTO = 'tcp://::1:{};timestamping=yes'.format(ports.TCP6)
     TIMESTAMP = True
 
 class TestTcpAny(_test_tcp_base):
+    ADDR = ('ipv6', socket.inet_pton(socket.AF_INET6, '::1'))
     PROTO = 'tcp://localhost:{}'.format(ports.TCP4)
 
     def _children_count(self):

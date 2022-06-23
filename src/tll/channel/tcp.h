@@ -42,6 +42,12 @@ struct tcp_settings_t {
 	bool timestamping = false;
 };
 
+struct tcp_connect_t {
+	int fd;
+	socklen_t  addrlen;
+	sockaddr * addr;
+};
+
 template <typename T>
 class TcpSocket : public Base<T>
 {
@@ -204,8 +210,9 @@ class TcpServer : public Base<T>
 
 	int _post(const tll_msg_t *msg, int flags);
 
+	void _on_child_connect(tcp_socket_t *, const tcp_connect_t *);
 	void _on_child_error(tcp_socket_t *) {}
-	void _on_child_closing(tcp_socket_t *) {}
+	void _on_child_closing(tcp_socket_t *);
 
  protected:
 	// Hooks

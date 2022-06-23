@@ -1,0 +1,10 @@
+- name: Connect
+  id: 10
+  unions:
+    IPAny: {union: [{name: ipv4, type: uint32}, {name: ipv6, type: byte16}, {name: unix, type: uint8}]}
+  fields:
+    - {name: host, type: IPAny }
+    - {name: port, type: uint16 }
+
+- name: Disconnect
+  id: 20

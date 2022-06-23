@@ -9,6 +9,7 @@
 #define _TLL_IMPL_CHANNEL_TCP_HPP
 
 #include "tll/channel/tcp.h"
+#include "tll/channel/tcp-scheme.h"
 
 #include "tll/util/conv-fmt.h"
 #include "tll/util/size.h"
@@ -368,9 +369,14 @@ int TcpServerSocket<T>::_process(long timeout, int flags)
 #endif
 
 	tll_msg_t msg = {};
+	tcp_connect_t data = {};
+	data.fd = fd;
+	data.addrlen = addr.size;
+	data.addr = addr;
+
 	msg.type = TLL_MESSAGE_DATA;
-	msg.size = sizeof(fd);
-	msg.data = &fd;
+	msg.size = sizeof(data);
+	msg.data = &data;
 	this->_callback_data(&msg);
 	fd.release();
 	return 0;
@@ -394,6 +400,10 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_af = r->af;
 	_host = r->host;
 	_port = r->port;
+
+	this->_scheme_control.reset(this->context().scheme_load(tcp_scheme::scheme_string));
+	if (!this->_scheme_control.get())
+		return this->_log.fail(EINVAL, "Failed to load control scheme");
 
 	this->_log.debug("Listen on {}:{}", _host, _port);
 	return 0;
@@ -551,6 +561,39 @@ int TcpServer<T, C>::_cb_state(const tll_channel_t *c, const tll_msg_t *msg)
 }
 
 template <typename T, typename C>
+void TcpServer<T, C>::_on_child_connect(tcp_socket_t *socket, const tcp_connect_t * conn)
+{
+	std::array<char, tcp_scheme::Connect<tll_msg_t>::meta_size()> buf;
+	auto connect = tll::scheme::make_binder<tcp_scheme::Connect>(buf);
+	if (conn->addr->sa_family == AF_INET) {
+		auto in = (const sockaddr_in *) conn->addr;
+		connect.get_host().set_ipv4(in->sin_addr.s_addr);
+		connect.set_port(ntohs(in->sin_port));
+	} else if (conn->addr->sa_family == AF_INET6) {
+		auto in6 = (const sockaddr_in6 *) conn->addr;
+		connect.get_host().set_ipv6({(const char *) &in6->sin6_addr, 16 });
+		connect.set_port(ntohs(in6->sin6_port));
+	} else if (conn->addr->sa_family == AF_UNIX) {
+		connect.get_host().set_unix(0);
+	}
+	tll_msg_t msg = { TLL_MESSAGE_CONTROL };
+	msg.msgid = connect.meta_id();
+	msg.size = connect.view().size();
+	msg.data = connect.view().data();
+	msg.addr = socket->msg_addr();
+	this->_callback(&msg);
+}
+
+template <typename T, typename C>
+void TcpServer<T, C>::_on_child_closing(tcp_socket_t *socket)
+{
+	tll_msg_t m = { TLL_MESSAGE_CONTROL };
+	m.msgid = tcp_scheme::Disconnect<tll_msg_t>::meta_id();
+	m.addr = socket->msg_addr();
+	this->_callback(&m);
+}
+
+template <typename T, typename C>
 int TcpServer<T, C>::_cb_data(const tll_channel_t *c, const tll_msg_t *msg)
 {
 	return this->_callback_data(msg);
@@ -574,9 +617,10 @@ int TcpServer<T, C>::_cb_socket(const tll_channel_t *c, const tll_msg_t *msg)
 		}
 		return 0;
 	}
-	if (msg->size != sizeof(int))
-		return this->_log.fail(EMSGSIZE, "Invalid fd size: {}", msg->size);
-	auto fd = * (int *) msg->data;
+	if (msg->size < sizeof(tcp_connect_t))
+		return this->_log.fail(EMSGSIZE, "Invalid connect data size: {} < {}", msg->size, sizeof(tcp_connect_t));
+	auto conn = (const tcp_connect_t *) msg->data;
+	auto fd = conn->fd;
 	this->_log.debug("Got connection fd {}", fd);
 	if (this->state() != tll::state::Active) {
 		this->_log.debug("Close incoming connection, current state is {}", tll_state_str(this->state()));
@@ -607,6 +651,9 @@ int TcpServer<T, C>::_cb_socket(const tll_channel_t *c, const tll_msg_t *msg)
 		_clients.emplace(fd, client);
 	this->_child_add(r.release());
 	client->open(tll::ConstConfig());
+
+	this->channelT()->_on_child_connect(client, conn);
+
 	return 0;
 }
 
