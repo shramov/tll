@@ -154,7 +154,7 @@ format_result_t to_strings(const tll::scheme::Field * field, const View &data)
 			if (tll::util::printable(*c) && *c != '"')
 				result.push_back(*c);
 			else
-				result += fmt::format("\\x{:02x}", *c);
+				result += fmt::format("\\x{:02x}", (unsigned char) *c);
 		}
 		return std::list<std::string> {'"' + result + '"'};
 	}
