@@ -68,6 +68,16 @@ format_result_t to_strings_number(const tll::scheme::Field * field, Int v)
 		if (field->sub_type == field->Fixed) {
 			tll::conv::unpacked_float<Int> u(v, -field->fixed_precision);
 			return std::list<std::string> { conv::to_string(u) };
+		} else if (field->sub_type == field->Bits) {
+			std::string r;
+			for (auto b = field->bitfields; b; b = b->next) {
+				if (v & (1 << b->offset)) {
+					if (r.size())
+						r += " | ";
+					r += std::string(b->name);
+				}
+			}
+			return std::list<std::string> { r };
 		}
 	}
 	if (field->sub_type == field->TimePoint) {
