@@ -137,6 +137,7 @@ struct ${msg.name} : public tll::scheme::Binder<Buf>
 % if msg.msgid:
 	static constexpr int meta_id() { return ${msg.msgid}; }
 % endif
+	void view_resize() { this->_view_resize(meta_size()); }
 % for e in msg.enums.values():
 
 ${cpp.indent("\t", cpp.declare_enum(e))}

@@ -90,6 +90,12 @@ class Base
 		return T(_buf.view(offset));
 	}
 
+	void _view_resize(size_t size)
+	{
+		_buf.resize(0);
+		_buf.resize(size);
+	}
+
  public:
 	Base(view_type view) : _buf(view) {}
 
