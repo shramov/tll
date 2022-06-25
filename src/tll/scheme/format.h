@@ -78,6 +78,12 @@ format_result_t to_strings_number(const tll::scheme::Field * field, Int v)
 				}
 			}
 			return std::list<std::string> { r };
+		} else if (field->sub_type == field->Enum) {
+			for (auto i = field->type_enum->values; i; i = i->next) {
+				if ((Int) i->value == v)
+					return std::list<std::string> { i->name };
+			}
+			return std::list<std::string> { tll::conv::to_string(v) };
 		}
 	}
 	if (field->sub_type == field->TimePoint) {
