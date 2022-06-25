@@ -40,9 +40,9 @@ class Base
 	}
 
 	template <size_t Size>
-	const std::array<unsigned char, Size> & _get_bytes(size_t offset) const
+	const Bytes<Size> & _get_bytes(size_t offset) const
 	{
-		return *_buf.view(offset).template dataT<std::array<unsigned char, Size>>();
+		return *_buf.view(offset).template dataT<Bytes<Size>>();
 	}
 
 	template <size_t Size>
