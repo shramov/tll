@@ -345,6 +345,32 @@ struct parse<in_addr>
 };
 
 template <>
+struct dump<in6_addr> : public to_string_from_string_buf<in6_addr>
+{
+	template <typename Buf>
+	static std::string_view to_string_buf(const in6_addr &v, Buf &buf)
+	{
+		buf.resize(INET6_ADDRSTRLEN);
+		if (inet_ntop(AF_INET6, &v, (char *) buf.data(), INET6_ADDRSTRLEN) == nullptr)
+			return "INVALID-IPV6";
+		return std::string_view((const char *) buf.data());
+	}
+};
+
+template <>
+struct parse<in6_addr>
+{
+	static result_t<in6_addr> to_any(std::string_view s)
+	{
+		in6_addr r;
+		std::string str(s);
+		if (!inet_pton(AF_INET6, str.c_str(), &r))
+			return error("Invalid IPv6 address");
+		return r;
+	}
+};
+
+template <>
 struct dump<ether_addr> : public to_string_from_string_buf<ether_addr>
 {
 	template <typename Buf>
