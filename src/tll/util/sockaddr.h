@@ -14,6 +14,7 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <netinet/ether.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <stddef.h>
@@ -339,6 +340,56 @@ struct parse<in_addr>
 		std::string str(s);
 		if (!inet_pton(AF_INET, str.c_str(), &r))
 			return error("Invalid IPv4 address");
+		return r;
+	}
+};
+
+template <>
+struct dump<ether_addr> : public to_string_from_string_buf<ether_addr>
+{
+	template <typename Buf>
+	static inline std::string_view to_string_buf(const ether_addr &v, Buf &buf)
+	{
+		buf.resize(2 * 6 + 5 + 1);
+		static const char lookup[] = "0123456789abcdef";
+		auto begin = (char *) buf.data();
+		auto ptr = begin;
+		for (auto i = 0u; i < sizeof(v); i++) {
+			unsigned char lo = v.ether_addr_octet[i] & 0xfu;
+			unsigned char hi = (v.ether_addr_octet[i] & 0xffu) >> 4;
+			if (i != 0)
+				*ptr++ = ':';
+			*ptr++ = lookup[hi];
+			*ptr++ = lookup[lo];
+		}
+		*ptr++ = '\0';
+		return { (const char *) buf.data(), 2 * 6 + 5 };
+	}
+};
+
+template <>
+struct parse<ether_addr>
+{
+	using value_type = ether_addr;
+	static result_t<value_type> to_any(std::string_view s)
+	{
+		if (s.size() != 2 * 6 + 5)
+			return error("Invalid string length");
+		auto end = s.data() + 2 * 6 + 5;
+
+		ether_addr r = {};
+		auto rptr = r.ether_addr_octet;
+		for (auto ptr = s.data(); ptr != end;) {
+			if (ptr != s.data()) {
+				if (*ptr++ != ':')
+					return error("Invalid separator");
+			}
+			auto hi = Digits<16>::decode(*ptr++);
+			auto lo = Digits<16>::decode(*ptr++);
+			if (hi == 16 || lo == 16)
+				return error("Invalid digits");
+			*rptr++ = (hi << 4) | lo;
+		}
 		return r;
 	}
 };
