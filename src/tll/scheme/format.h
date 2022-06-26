@@ -224,10 +224,15 @@ format_result_t to_strings(const tll::scheme::Field * field, const View &data)
 template <typename View>
 format_result_t to_strings(const tll::scheme::Message * msg, const View &data)
 {
+	auto pmap = msg->pmap ? data.view(msg->pmap->offset) : data;
 	if (data.size() < msg->size)
 		return unexpected(path_error_t {"", fmt::format("Message size too small: {} < {}", data.size(), msg->size)});
 	std::list<std::string> result;
 	for (auto f = msg->fields; f; f = f->next) {
+		if (msg->pmap) {
+			if (!tll::scheme::pmap_get(pmap.data(), f->index))
+				continue;
+		}
 		auto r = to_strings(f, data.view(f->offset));
 		if (!r)
 			return unexpected(append_path(r.error(), f->name));

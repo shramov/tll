@@ -345,6 +345,30 @@ int tll_scheme_fix(tll_scheme_t *);
 int tll_scheme_message_fix(tll_scheme_message_t *);
 int tll_scheme_field_fix(tll_scheme_field_t *);
 
+static inline int tll_scheme_pmap_get(const void * data, int index)
+{
+	if (index < 0)
+		return 1;
+	const unsigned char * udata = (const unsigned char *) data;
+	return (udata[index / 8] & (1 << (index % 8))) != 0;
+}
+
+inline void tll_scheme_pmap_set(void * data, int index)
+{
+	if (index < 0)
+		return;
+	unsigned char * udata = (unsigned char *) data;
+	udata[index / 8] |= (1 << (index % 8));
+}
+
+static inline void tll_scheme_pmap_unset(void * data, int index)
+{
+	if (index < 0)
+		return;
+	unsigned char * udata = (unsigned char *) data;
+	udata[index / 8] &= 0xffu ^ (1 << (index % 8));
+}
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
@@ -403,6 +427,10 @@ using ConstSchemePtr = std::unique_ptr<const Scheme>;
 using SchemePtr = std::unique_ptr<Scheme>;
 
 using time_resolution_t = tll_scheme_time_resolution_t;
+
+inline bool pmap_get(const void * data, int index) { return tll_scheme_pmap_get(data, index); }
+inline void pmap_set(void * data, int index) { tll_scheme_pmap_set(data, index); }
+inline void pmap_unset(void * data, int index) { tll_scheme_pmap_unset(data, index); }
 
 constexpr std::string_view time_resolution_str(time_resolution_t r)
 {
