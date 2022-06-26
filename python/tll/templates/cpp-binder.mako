@@ -52,31 +52,36 @@ def field2type(f):
 	return f"""tll::scheme::binder::List<Buf, {t}, {cpp.offset_ptr_version(f)}>""", "builder"
     raise ValueError(f"Unknown type for field {f.name}: {f.type}")
 
-def field2code(f):
+def field2code(msg, f):
     t, m = field2type(f)
+    pmap, suffix = "", ""
+    if msg.pmap and f.index > 0:
+        pmap = f"_pmap_set({f.index}); "
+        suffix = f"""
+bool has_{f.name}() const {{ return _pmap_get({f.index}); }}"""
     if m == 'scalar':
         return cpp.indent("\t",
 f"""using type_{f.name} = {t};
 type_{f.name} get_{f.name}() const {{ return this->template _get_scalar<type_{f.name}>({f.offset}); }}
-void set_{f.name}(type_{f.name} v) {{ return this->template _set_scalar<type_{f.name}>({f.offset}, v); }}""")
+void set_{f.name}(type_{f.name} v) {{ {pmap}return this->template _set_scalar<type_{f.name}>({f.offset}, v); }}""" + suffix)
     elif m == 'bytes':
         return cpp.indent("\t",
 f"""const {t} & get_{f.name}() const {{ return this->template _get_bytes<{f.size}>({f.offset}); }}
-void set_{f.name}(const {t} &v) const {{ return this->template _set_bytes<{f.size}>({f.offset}, {{v.data(), v.size()}}); }}
-void set_{f.name}(std::string_view v) {{ return this->template _set_bytestring<{f.size}>({f.offset}, v); }}""")
+void set_{f.name}(const {t} &v) const {{ {pmap}return this->template _set_bytes<{f.size}>({f.offset}, {{v.data(), v.size()}}); }}
+void set_{f.name}(std::string_view v) {{ {pmap}return this->template _set_bytestring<{f.size}>({f.offset}, v); }}""" + suffix)
     elif m == 'bytestring':
 	return cpp.indent("\t",
 f"""std::string_view get_{f.name}() const {{ return this->template _get_bytestring<{f.size}>({f.offset}); }}
-void set_{f.name}(std::string_view v) {{ return this->template _set_bytestring<{f.size}>({f.offset}, v); }}""")
+void set_{f.name}(std::string_view v) {{ {pmap}return this->template _set_bytestring<{f.size}>({f.offset}, v); }}""" + suffix)
     elif m == 'string':
 	return cpp.indent("\t",
 f"""std::string_view get_{f.name}() const {{ return this->template _get_string<{cpp.offset_ptr_version(f)}>({f.offset}); }}
-void set_{f.name}(std::string_view v) {{ return this->template _set_string<{cpp.offset_ptr_version(f)}>({f.offset}, v); }}""")
+void set_{f.name}(std::string_view v) {{ {pmap}return this->template _set_string<{cpp.offset_ptr_version(f)}>({f.offset}, v); }}""" + suffix)
     elif m == 'builder':
         return cpp.indent("\t",
 f"""using type_{f.name} = {t};
 const type_{f.name} get_{f.name}() const {{ return this->template _get_binder<type_{f.name}>({f.offset}); }}
-type_{f.name} get_{f.name}() {{ return this->template _get_binder<type_{f.name}>({f.offset}); }}""")
+type_{f.name} get_{f.name}() {{ return this->template _get_binder<type_{f.name}>({f.offset}); }}""" + suffix)
 %>\
 <%def name='union2decl_inner(u)' filter='cpp.indent_filter'><%call expr='union2decl(u)'></%call></%def>\
 <%def name='union2decl(u)'>\
@@ -141,6 +146,10 @@ struct ${msg.name} : public tll::scheme::Binder<Buf>
 	static constexpr int meta_id() { return ${msg.msgid}; }
 % endif
 	void view_resize() { this->_view_resize(meta_size()); }
+% if msg.pmap:
+	bool _pmap_get(int index) const { return tll::scheme::pmap_get(this->view().view(${msg.pmap.offset}).data(), index); }
+	void _pmap_set(int index) { tll::scheme::pmap_set(this->view().view(${msg.pmap.offset}).data(), index); }
+% endif
 % for e in msg.enums.values():
 
 ${cpp.indent("\t", cpp.declare_enum(e))}
@@ -154,7 +163,7 @@ ${cpp.indent("\t", cpp.declare_bits(b))}
 % endfor
 % for f in msg.fields:
 
-${field2code(f)}
+${field2code(msg, f)}
 % endfor
 };
 % endfor
