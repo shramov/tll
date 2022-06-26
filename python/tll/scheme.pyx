@@ -831,6 +831,7 @@ cdef object field_wrap(Scheme s, object m, tll_scheme_field_t * ptr):
     r.options = Options.wrap(ptr.options)
     r.type = Type(ptr.type)
     r.sub_type = SubType(ptr.sub_type)
+    r.index = ptr.index
     if r.type == r.Message:
         r.type_msg = s[ptr.type_msg.name]
     elif r.type == r.Array:
@@ -990,10 +991,13 @@ class Message(OrderedDict):
 
     def pack(self, v, dest, tail, tail_offset):
         memoryview_check(dest)
+        pmap = dest[self.pmap.offset:self.pmap.offset + self.pmap.size] if self.pmap else None
         for f in self.fields:
             i = getattr(v, f.name, None)
             if i is None:
                 continue
+            if pmap and f.index >= 0:
+                pmap[f.index // 8] |= (1 << (f.index % 8))
             off = f.offset
             f.pack_data(i, dest[off:off + f.size], tail, tail_offset - off)
 
@@ -1001,8 +1005,14 @@ class Message(OrderedDict):
         memoryview_check(src)
         if len(src) < self.size:
             raise ValueError("Buffer size {} less then message size {}".format(len(src), self.size))
+        pmap = src[self.pmap.offset:self.pmap.offset + self.pmap.size] if self.pmap else None
         v = self.object() if v is None else v
         for f in self.fields:
+            if pmap:
+                if f.index >= 0 and pmap[f.index // 8] & (1 << (f.index % 8)) == 0:
+                    continue
+                elif self.pmap.name == f.name:
+                    continue
             r = f.unpack_data(src[f.offset:])
             object.__setattr__(v, f.name, r)
         return v
@@ -1055,6 +1065,11 @@ cdef object message_wrap(Scheme s, tll_scheme_message_t * ptr):
         tmp = field_wrap(s, r, f)
         r[tmp.name] = tmp
         f = f.next
+
+    if ptr.pmap:
+        r.pmap = r[b2s(ptr.pmap.name)]
+    else:
+        r.pmap = None
 
     return r
 

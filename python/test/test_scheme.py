@@ -766,3 +766,23 @@ def test_union():
 
 def test_union_dump():
     _test_union(S.Scheme(UNION_SCHEME).dump())
+
+def test_pmap():
+    scheme = '''yamls://
+- name: msg
+  id: 10
+  fields:
+    - {name: f0, type: int32}
+    - {name: f1, type: int32}
+    - {name: pmap, type: uint8, options.pmap: yes}
+    - {name: f2, type: int32}
+'''
+
+    scheme = S.Scheme(scheme)
+    msg = scheme['msg']
+
+    m = msg.klass(f0=100, f2=200)
+    u = msg.unpack(memoryview(m.pack()))
+
+    assert m.as_dict() == {'f0':100, 'f2':200}
+    assert u.as_dict() == {'f0':100, 'f2':200}

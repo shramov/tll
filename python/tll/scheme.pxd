@@ -90,6 +90,7 @@ cdef extern from "tll/scheme.h":
         tll_scheme_field_type_t type
         tll_scheme_sub_type_t sub_type
         size_t size
+        int index
 
 	# union
         tll_scheme_message_t * type_msg
@@ -122,6 +123,8 @@ cdef extern from "tll/scheme.h":
         tll_scheme_enum_t * enums
         tll_scheme_union_t * unions
         tll_scheme_bits_t * bits
+
+        tll_scheme_field_t * pmap
 
     ctypedef struct tll_scheme_t:
         tll_scheme_option_t * options
