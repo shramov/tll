@@ -17,8 +17,7 @@ def field2scalar(f):
     t = cpp.numeric(f.type)
     if t is not None:
         if f.sub_type == f.Sub.Bits:
-            #return f"tll::scheme::Bits<{t}>"
-            return t
+            return f.type_bits.name
         elif f.sub_type == f.Sub.Enum:
             return f.type_enum.name
         elif f.sub_type == f.Sub.FixedPoint:
@@ -125,6 +124,10 @@ ${cpp.declare_enum(e)}
 % for u in scheme.unions.values():
 <%call expr='union2decl(u)'></%call>
 % endfor
+% for b in scheme.bits.values():
+
+${cpp.declare_bits(b)}
+% endfor
 % for msg in scheme.messages:
 
 template <typename Buf>
@@ -144,6 +147,10 @@ ${cpp.indent("\t", cpp.declare_enum(e))}
 % endfor
 % for u in msg.unions.values():
 <%call expr='union2decl_inner(u)'></%call>
+% endfor
+% for b in msg.bits.values():
+
+${cpp.indent("\t", cpp.declare_bits(b))}
 % endfor
 % for f in msg.fields:
 

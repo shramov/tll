@@ -78,31 +78,7 @@ def field2type(f):
 % endfor
 	};
 </%def>\
-<%def name='field2decl(f)' filter='cpp.weaktrim'>
-% if f.type == f.Array:
-<%call expr='field2decl(f.type_array)'></%call>\
-% elif f.type == f.Pointer:
-<%call expr='field2decl(f.type_ptr)'></%call>\
-% elif f.sub_type == f.Sub.Bits:
-	struct ${f.name}: public tll::scheme::Bits<${cpp.numeric(f.type)}>
-	{
-		using tll::scheme::Bits<${cpp.numeric(f.type)}>::Bits;
-% for n,b in sorted(f.bitfields.items(), key=lambda t: (t[1].offset, t[1].size, t[0])):
-		constexpr auto ${b.name}() const { return get(${b.offset}, ${b.size}); }; constexpr ${f.name} & ${b.name}(${"unsigned" if b.size > 1 else "bool"} v) { set(${b.offset}, ${b.size}, v); return *this; };
-% endfor
-		static std::map<std::string_view, value_type> bits_descriptor()
-		{
-			return {
-% for n,b in sorted(f.bitfields.items(), key=lambda t: (t[1].offset, t[1].size, t[0])):
-				{ "${b.name}", static_cast<value_type>(Bits::mask(${b.size})) << ${b.offset} },
-% endfor
-			};
-		}
-	};
-% endif
-</%def>\
 <%def name='field2code(f)'>\
-<%call expr='field2decl(f)'></%call>\
 	${field2type(f)} ${f.name};\
 </%def>
 % for e in scheme.enums.values():
@@ -110,6 +86,9 @@ ${cpp.declare_enum(e)}
 % endfor
 % for u in scheme.unions.values():
 <%call expr='union2decl(u)'></%call>
+% endfor
+% for b in scheme.bits.values():
+${cpp.declare_bits(e)}
 % endfor
 % for msg in scheme.messages:
 struct ${msg.name}
@@ -119,6 +98,9 @@ ${cpp.indent("\t", cpp.declare_enum(e))}
 % endfor
 % for u in msg.unions.values():
 <%call expr='union2decl(u)'></%call>
+% endfor
+% for b in msg.bits.values():
+${cpp.indent("\t", cpp.declare_bits(b))}
 % endfor
 % for f in msg.fields:
 <%call expr='field2code(f)'></%call>

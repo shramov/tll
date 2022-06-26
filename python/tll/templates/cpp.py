@@ -71,3 +71,21 @@ def declare_enum(e):
         r += [f"\t{n} = {v},"]
     r += ["};"]
     return "\n".join(r)
+
+def declare_bits(b):
+    r = [f"""struct {b.name}: public tll::scheme::Bits<{numeric(b.type)}>
+{{
+\tusing tll::scheme::Bits<{numeric(b.type)}>::Bits;"""]
+    for f in b.values():
+        ft = "unsigned" if f.size > 1 else "bool"
+        r += [f"""\tconstexpr auto {f.name}() const {{ return get({f.offset}, {f.size}); }};
+\tconstexpr {b.name} & {f.name}({ft} v) {{ set({f.offset}, {f.size}, v); return *this; }};"""]
+    r += [f"""\tstatic std::map<std::string_view, value_type> bits_descriptor()
+\t{{
+\t\treturn {{"""]
+    for f in b.values():
+        r += [f"""\t\t\t{{ "{f.name}", static_cast<value_type>(Bits::mask({f.size})) << {f.offset} }},"""]
+    r += ["""\t\t};
+\t}
+};"""]
+    return "\n".join(r)
