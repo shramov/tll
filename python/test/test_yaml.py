@@ -247,3 +247,35 @@ config.0:
     assert [(m.type, m.msgid, m.seq) for m in c.result] == [(Accum.Type.Control, 10, 20)]
     m = c.unpack(c.result[0])
     assert m.as_dict() == {'f0': 100}
+
+def test_pmap():
+    scheme = '''yamls://
+- name: msg
+  id: 10
+  fields:
+    - {name: f0, type: int32}
+    - {name: f1, type: int32}
+    - {name: pmap, type: uint8, options.pmap: yes}
+    - {name: f2, type: int32}
+'''
+
+    url = Config.load('''yamls://
+tll.proto: yaml
+name: yaml
+dump: scheme
+config:
+  - name: msg
+    data: {f0: 100, f2: 200}
+  - name: msg
+    data: {f1: 300}
+''')
+    url['scheme'] = scheme
+    c = Accum(url)
+    c.open()
+    c.process()
+    c.process()
+    assert [(m.type, m.msgid) for m in c.result] == [(Accum.Type.Data, 10)] * 2
+    m = c.unpack(c.result[0])
+    assert m.as_dict() == {'f0': 100, 'f2': 200}
+    m = c.unpack(c.result[1])
+    assert m.as_dict() == {'f1': 300}

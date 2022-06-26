@@ -259,12 +259,15 @@ int ChYaml::_fill(View view, const tll::scheme::Field * field, tll::ConstConfig 
 template <typename View>
 int ChYaml::_fill(View view, const tll::scheme::Message * msg, tll::ConstConfig &cfg)
 {
+	View pmap = msg->pmap ? view.view(msg->pmap->offset) : view;
 	_log.trace("Fill message {}", msg->name);
 	for (auto f = msg->fields; f; f = f->next) {
 		auto c = cfg.sub(f->name);
 		if (!c)
 			continue;
 		_log.trace("Fill field {}", f->name);
+		if (msg->pmap && f->index >= 0)
+			tll::scheme::pmap_set(pmap.data(), f->index);
 		if (_fill(view.view(f->offset), f, *c))
 			return _log.fail(EINVAL, "Failed to fill field {}", f->name);
 	}
