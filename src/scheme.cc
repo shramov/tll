@@ -566,6 +566,7 @@ struct Message
 	std::list<Enum> enums;
 	std::list<Union> unions;
 	std::list<Bits> bits;
+	bool defaults_optional = false;
 
 	tll::scheme::Message * finalize(tll::scheme::Scheme * s)
 	{
@@ -615,6 +616,11 @@ struct Message
 		auto o = Options::parse(cfg);
 		if (!o) return _log.fail(std::nullopt, "Failed to parse options for message {}", m.name);
 		std::swap(m.options, *o);
+
+		auto optional = m.options.getT("defaults.optional", false);
+		if (!optional)
+			return _log.fail(std::nullopt, "Invalid defaults.optional option: {}", optional.error());
+		m.defaults_optional = *optional;
 
 		if (Enum::parse_list(_log, cfg, m.enums))
 			return _log.fail(std::nullopt, "Failed to parse enums");
@@ -1898,6 +1904,10 @@ int tll_scheme_message_fix(tll_scheme_message_t * m)
 	if (m->size) return 0;
 	size_t offset = 0;
 
+	auto moptional = tll::getter::getT(m->options, "defaults.optional", false);
+	if (!moptional)
+		return EINVAL;
+
 	for (auto &u : list_wrap(m->unions)) {
 		if (tll_scheme_union_fix(&u))
 			return EINVAL;
@@ -1913,11 +1923,16 @@ int tll_scheme_message_fix(tll_scheme_message_t * m)
 		if (tll_scheme_field_fix(&f))
 			return EINVAL;
 		f.index = -1;
-		auto pmap = tll::getter::getT(f.options, "pmap", false);
-		if (pmap && *pmap) {
+		auto reader = tll::make_props_reader(f.options);
+		auto pmap = reader.getT("pmap", false);
+		auto optional = reader.getT("optional", *moptional);
+		if (!reader)
+			return EINVAL;
+		if (pmap) {
 			if (m->pmap)
 				return EINVAL;
 			m->pmap = &f;
+		} else if (!optional) { // Skip index
 		} else if (tll::getter::get(f.options, "_auto").value_or("") == "")
 			f.index = index++;
 		f.offset = offset;

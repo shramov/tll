@@ -252,11 +252,13 @@ def test_pmap():
     scheme = '''yamls://
 - name: msg
   id: 10
+  options.defaults.optional: yes
   fields:
     - {name: f0, type: int32}
     - {name: f1, type: int32}
     - {name: pmap, type: uint8, options.pmap: yes}
     - {name: f2, type: int32}
+    - {name: f3, type: int32, options.optional: no}
 '''
 
     url = Config.load('''yamls://
@@ -276,6 +278,6 @@ config:
     c.process()
     assert [(m.type, m.msgid) for m in c.result] == [(Accum.Type.Data, 10)] * 2
     m = c.unpack(c.result[0])
-    assert m.as_dict() == {'f0': 100, 'f2': 200}
+    assert m.as_dict() == {'f0': 100, 'f2': 200, 'f3': 0}
     m = c.unpack(c.result[1])
-    assert m.as_dict() == {'f1': 300}
+    assert m.as_dict() == {'f1': 300, 'f3': 0}

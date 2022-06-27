@@ -771,6 +771,7 @@ def test_pmap():
     scheme = '''yamls://
 - name: msg
   id: 10
+  options.defaults.optional: yes
   fields:
     - {name: f0, type: int32}
     - {name: f1, type: int32}

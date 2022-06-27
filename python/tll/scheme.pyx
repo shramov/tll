@@ -819,6 +819,10 @@ class Field:
         cdef FBase impl = self.impl
         return impl.as_dict(v)
 
+    @property
+    def optional(self):
+        return self.index < 0
+
 for t in Type:
     setattr(Field, t.name, t)
 
