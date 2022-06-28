@@ -55,7 +55,7 @@ def field2type(f):
 def field2code(msg, f):
     t, m = field2type(f)
     pmap, suffix = "", ""
-    if msg.pmap and f.index > 0:
+    if msg.pmap and f.optional:
         pmap = f"_pmap_set({f.index}); "
         suffix = f"""
 bool has_{f.name}() const {{ return _pmap_get({f.index}); }}"""

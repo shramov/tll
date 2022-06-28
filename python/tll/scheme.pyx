@@ -821,7 +821,7 @@ class Field:
 
     @property
     def optional(self):
-        return self.index < 0
+        return self.index >= 0
 
 for t in Type:
     setattr(Field, t.name, t)

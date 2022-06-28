@@ -777,13 +777,20 @@ def test_pmap():
     - {name: f1, type: int32}
     - {name: pmap, type: uint8, options.pmap: yes}
     - {name: f2, type: int32}
+    - {name: f3, type: int32, options.optional: no}
 '''
 
     scheme = S.Scheme(scheme)
     msg = scheme['msg']
 
+    assert msg['f0'].optional == True
+    assert msg['f1'].optional == True
+    assert msg['pmap'].optional == False
+    assert msg['f2'].optional == True
+    assert msg['f3'].optional == False
+
     m = msg.klass(f0=100, f2=200)
     u = msg.unpack(memoryview(m.pack()))
 
     assert m.as_dict() == {'f0':100, 'f2':200}
-    assert u.as_dict() == {'f0':100, 'f2':200}
+    assert u.as_dict() == {'f0':100, 'f2':200, 'f3':0}
