@@ -29,6 +29,13 @@ struct tll_frame_short_t
 	int64_t seq;
 };
 
+struct tll_frame_tiny_t
+{
+	uint16_t size;
+	int16_t msgid;
+	int32_t seq;
+};
+
 struct tll_frame_seq32_t
 {
 	uint32_t seq;
@@ -88,6 +95,12 @@ template <>
 struct FrameT<tll_frame_short_t> : public FrameFillT<tll_frame_short_t>
 {
 	static std::vector<std::string_view> name() { return {"short", "l2m2s8"}; }
+};
+
+template <>
+struct FrameT<tll_frame_tiny_t> : public FrameFillT<tll_frame_tiny_t>
+{
+	static std::vector<std::string_view> name() { return {"tiny", "l2m2s4"}; }
 };
 
 template <>

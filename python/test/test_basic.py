@@ -395,6 +395,9 @@ class TestTcpAny(_test_tcp_base):
 class TestTcpShort(_test_tcp_base):
     PROTO = 'tcp://./test.sock;frame=short'
 
+class TestTcpTiny(_test_tcp_base):
+    PROTO = 'tcp://./test.sock;frame=tiny'
+
 class TestTcpNone(_test_tcp_base):
     PROTO = 'tcp://./test.sock;frame=none'
     CLEANUP = ['./test.sock']
