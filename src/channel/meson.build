@@ -4,6 +4,7 @@ channel_sources = files(
 	, 'context.cc'
 	, 'ipc.cc'
 	, 'file.cc'
+	, 'framed.cc'
 	, 'log.cc'
 	, 'lz4.cc'
 	, 'mem.cc'
