@@ -5,7 +5,7 @@ Maintainer: Pavel Shramov <shramov@mexmat.net>
 Build-Depends: debhelper (>=10), dh-python, meson (>= 0.53), cmake, pkg-config,
     libfmt-dev (>= 5.3), libyaml-dev, zlib1g-dev, liblz4-dev, libspdlog-dev, libgtest-dev | googletest,
     python3-docutils, rst2pdf,
-    python3-all-dev, cython3, python3-pytest, python3-yaml, python3-lz4
+    python3-all-dev, cython3, python3-pytest, python3-yaml, python3-lz4, python3-decorator
 Standards-Version: 4.5.0
 Vcs-Git: https://github.com/shramov/tll
 X-Python3-Version: >= 3.6

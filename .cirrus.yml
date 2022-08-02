@@ -2,7 +2,7 @@ task:
   name: FreeBSD
   freebsd_instance:
     image_family: freebsd-12-3
-  install_script: pkg install -y meson pkgconf libfmt liblz4 libyaml googletest python3 py38-cython py38-pytest py38-pytest-timeout py38-yaml py38-lz4
+  install_script: pkg install -y meson pkgconf libfmt liblz4 libyaml googletest python3 py38-cython py38-pytest py38-pytest-timeout py38-yaml py38-lz4 py38-decorator
   script: |
     set -e
     meson build
