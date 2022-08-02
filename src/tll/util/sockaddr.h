@@ -14,14 +14,16 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <netdb.h>
-#include <netinet/ether.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <stddef.h>
 #include <string.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+
+#include <net/ethernet.h>
 
 #include <fmt/format.h>
 
@@ -380,9 +382,10 @@ struct dump<ether_addr> : public to_string_from_string_buf<ether_addr>
 		static const char lookup[] = "0123456789abcdef";
 		auto begin = (char *) buf.data();
 		auto ptr = begin;
+		auto octet = (const uint8_t *) &v;
 		for (auto i = 0u; i < sizeof(v); i++) {
-			unsigned char lo = v.ether_addr_octet[i] & 0xfu;
-			unsigned char hi = (v.ether_addr_octet[i] & 0xffu) >> 4;
+			unsigned char lo = octet[i] & 0xfu;
+			unsigned char hi = (octet[i] & 0xffu) >> 4;
 			if (i != 0)
 				*ptr++ = ':';
 			*ptr++ = lookup[hi];
@@ -404,7 +407,7 @@ struct parse<ether_addr>
 		auto end = s.data() + 2 * 6 + 5;
 
 		ether_addr r = {};
-		auto rptr = r.ether_addr_octet;
+		auto rptr = (uint8_t *) &r;
 		for (auto ptr = s.data(); ptr != end;) {
 			if (ptr != s.data()) {
 				if (*ptr++ != ':')
