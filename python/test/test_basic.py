@@ -384,13 +384,16 @@ class TestTcp6TS(_test_tcp_base):
     PROTO = 'tcp://::1:{};timestamping=yes'.format(ports.TCP6)
     TIMESTAMP = True
 
+localhost = socket.getaddrinfo('localhost', 0, type=socket.SOCK_STREAM)
+localhost_af = localhost[0][0]
+
 class TestTcpAny(_test_tcp_base):
-    ADDR = ('ipv6', socket.inet_pton(socket.AF_INET6, '::1'))
+    ADDR = TestTcp6.ADDR if localhost_af == socket.AF_INET6 else TestTcp4.ADDR
     PROTO = 'tcp://localhost:{}'.format(ports.TCP4)
 
     def _children_count(self):
         import socket
-        return len(socket.getaddrinfo('localhost', 0, type=socket.SOCK_STREAM))
+        return len(localhost)
 
 class TestTcpShort(_test_tcp_base):
     PROTO = 'tcp://./test.sock;frame=short'
