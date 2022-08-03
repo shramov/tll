@@ -28,7 +28,7 @@ def asyncloop_run(f, asyncloop, *a, **kw):
 @asyncloop_run
 @pytest.mark.parametrize("frame", ['std', 'short', 'tiny', 'l4m4s8', 'l2m2s8', 'l2m2s4'])
 async def test(asyncloop, tmp_path, frame):
-    s = asyncloop.Channel(f'framed+tcp:///{tmp_path}/tcp.sock;framed.frame={frame};tcp.frame=none;dump=frame;name=server;mode=server')
+    s = asyncloop.Channel(f'frame+tcp:///{tmp_path}/tcp.sock;frame.frame={frame};tcp.frame=none;dump=frame;name=server;mode=server')
     c = asyncloop.Channel(f'tcp:///{tmp_path}/tcp.sock;frame={frame};dump=frame;name=client;mode=client')
 
     s.open()
@@ -65,7 +65,7 @@ async def test(asyncloop, tmp_path, frame):
 
 @pytest.mark.parametrize("frame,pack", [('std', 'Iiq'), ('short', 'Hhq'), ('tiny', 'Hhi'), ('l4m4s8', 'Iiq'), ('l2m2s8', 'Hhq'), ('l2m2s4', 'Hhi')])
 def test_pack(frame, pack, context):
-    s = Accum(f'framed+direct://;frame={frame};name=server', context=context)
+    s = Accum(f'frame+direct://;frame={frame};name=server', context=context)
     c = context.Channel(f'direct://', master=s)
 
     s.open()

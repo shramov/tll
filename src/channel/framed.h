@@ -25,7 +25,7 @@ class Framed : public tll::channel::Prefix<Framed<Frame>>
 	tll_msg_t _msg_recv = {};
 
  public:
-	static constexpr std::string_view channel_protocol() { return "framed+"; }
+	static constexpr std::string_view channel_protocol() { return "frame+"; }
 
 	std::optional<const tll_channel_impl_t *> _init_replace(const tll::Channel::Url &url, tll::Channel *master);
 
