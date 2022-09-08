@@ -54,7 +54,7 @@ TLL_DEFINE_IMPL(tll::channel::SeqCheck);
 
 TLL_DECLARE_IMPL(ChIpc);
 TLL_DECLARE_IMPL(channel::File);
-TLL_DECLARE_IMPL(Framed<tll_frame_t>);
+TLL_DECLARE_IMPL(Framed);
 TLL_DECLARE_IMPL(ChMem);
 TLL_DECLARE_IMPL(ChLZ4);
 TLL_DECLARE_IMPL(ChPubServer);
@@ -86,7 +86,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChDirect::impl);
 		reg(&ChIpc::impl);
 		reg(&channel::File::impl);
-		reg(&Framed<tll_frame_t>::impl);
+		reg(&Framed::impl);
 		reg(&ChMem::impl);
 		reg(&ChLZ4::impl);
 		reg(&ChLoader::impl);
