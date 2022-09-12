@@ -473,7 +473,7 @@ public:
 	static result_t<Config> parse_props(std::string_view s)
 	{
 		Config r;
-		for (const auto & i : split<';'>(s)) {
+		for (const auto i : split<';'>(s)) {
 			if (i.empty()) continue;
 			auto sep = i.find_first_of('=');
 			if (sep == i.npos)

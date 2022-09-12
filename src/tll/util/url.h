@@ -31,7 +31,7 @@ class PropsT : public std::map<Str, Str, std::less<>>, public PropsGetter<PropsT
 	static tll::result_t<PropsT<Str>> parse(std::string_view s)
 	{
 		PropsT<Str> r;
-		for (const auto & i : split<';'>(s)) {
+		for (const auto i : split<';'>(s)) {
 			if (i.empty()) continue;
 			auto sep = i.find_first_of('=');
 			if (sep == i.npos)
