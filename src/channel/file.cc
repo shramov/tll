@@ -21,6 +21,19 @@ using namespace tll;
 
 using File = tll::channel::File;
 
+#ifdef __APPLE__
+#if MAC_OS_X_VERSION_MIN_REQUIRED <= 1010
+
+ssize_t pwritev(int fd, const struct iovec *iov, int iovcnt, off_t offset)
+{
+	if (lseek(fd, offset, SEEK_SET) < 0)
+		return -1;
+	return writev(fd, iov, iovcnt);
+}
+
+#endif
+#endif
+
 struct __attribute__((packed)) full_frame_t
 {
 	File::frame_size_t size;
