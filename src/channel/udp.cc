@@ -28,6 +28,10 @@
 #define IPV6_ADD_MEMBERSHIP IPV6_JOIN_GROUP
 #endif
 
+#if defined(__APPLE__) && !defined(MSG_NOSIGNAL)
+#  define MSG_NOSIGNAL 0
+#endif//__APPLE__
+
 #ifdef __linux__
 static constexpr std::string_view control_scheme = R"(yamls://
 - name: time
