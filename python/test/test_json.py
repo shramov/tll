@@ -90,3 +90,43 @@ def test_simple(t, v):
     c.post(json.dumps(data).encode('utf-8'))
     assert [(m.msgid, m.seq) for m in s.result] == [(10, 100)]
     assert s.unpack(s.result[0]).as_dict() == {'g0': -1, 'g1': -1, 'f0': v}
+
+@pytest.mark.skipif(not WITH_JSON, reason='JSON not supported')
+@pytest.mark.parametrize("t,v", [
+    ('int8', 123),
+    ('int16', 12312),
+    ('int32', 123123123),
+    ('int64', 123123123123),
+    ('uint8', 123),
+    ('uint16', 12312),
+    ('uint32', 123123123),
+    ('uint64', 123123123123),
+])
+def test_enum(t,v):
+    scheme = '''yamls://
+- name: msg
+  id: 10
+  enums:
+    e1: {type: %(t)s,  enum: {A: %(v)s, B: 2}}
+    e2: {type: %(t)s, enum: {C: %(v)s, D: 2}}
+  fields:
+    - {name: g0, type: int64}
+    - {name: f0, type: e1, options.json.enum-as-int: yes}
+    - {name: f1, type: e2}
+    - {name: g1, type: int64}
+''' % {'t': t, 'v': v}
+    s = Accum('json+direct://', scheme=scheme, name='json', dump='scheme')
+    c = Accum('direct://', name='raw', master=s, dump='text')
+    s.open()
+    c.open()
+
+    s.post({'g0': -1, 'f0': 'A', 'f1': v, 'g1': -1}, name='msg', seq=100)
+
+    assert [(m.msgid, m.seq) for m in c.result] == [(10, 100)]
+    data = json.loads(c.result[0].data.tobytes())
+    assert data == {'_tll_name': 'msg', '_tll_seq': 100, 'f0': v, 'f1': 'C', 'g0': -1, 'g1': -1}
+
+    c.post(json.dumps(data).encode('utf-8'))
+    assert [(m.msgid, m.seq) for m in s.result] == [(10, 100)]
+    r = s.unpack(s.result[0])
+    assert r.as_dict() == {'g0': -1, 'g1': -1, 'f0': r.f0.A, 'f1': r.f1.C}

@@ -148,7 +148,15 @@ struct DataHandler : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Data
 		auto fview = state.fview();
 		if (f->sub_type == Field::SubNone) {
 			return decode_scalar<T>(fview, str);
-		} else if (f->sub_type == Field::Duration) {
+		//} else if (f->sub_type == Field::Duration) {
+		} else if (f->sub_type == Field::Enum) {
+			for (auto e = f->type_enum->values; e; e = e->next) {
+				if (e->name == str) {
+					*fview.template dataT<T>() = (T) e->value;
+					return true;
+				}
+			}
+			return decode_scalar<T>(fview, str);
 		} else
 			return decode_scalar<T>(fview, str);
 		return true;
