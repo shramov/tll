@@ -489,6 +489,15 @@ def test_bytes():
     u = msg.unpack(memoryview(m.pack()))
     assert u.as_dict() == m.as_dict()
 
+    with pytest.raises(ValueError):
+        m.f0 = 'abc'
+
+    with pytest.raises(ValueError):
+        m.f0 = b'abc'
+
+    with pytest.raises(TypeError):
+        m.f0 = 1
+
 def test_time_point():
     scheme = S.Scheme("""yamls://
 - name: msg

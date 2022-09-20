@@ -356,7 +356,14 @@ cdef class FBytes(FBase):
 
     cdef pack(FBytes self, v, dest, tail, int tail_offset): return pack_bytes(v, dest, tail, tail_offset)
     cdef unpack(FBytes self, src): return unpack_bytes(src[:self.size])
-    cdef convert(FBytes self, v): return convert_bytes(v)
+    cdef convert(FBytes self, v):
+        if isinstance(v, str):
+            v = v.encode('utf-8')
+        elif not isinstance(v, bytes):
+            raise TypeError(f"Expected bytes, got {type(v)}: {v}")
+        if len(v) > self.size:
+            raise ValueError(f"Too many bytes: {len(v)} > {self.size}")
+        return v
     cdef from_string(FBytes self, str s): return s.encode('utf-8')
 _TYPES[Type.Bytes] = FBytes
 
@@ -739,13 +746,6 @@ def convert_str(v):
     elif not isinstance(v, str):
         raise TypeError(f"Expected str, got {type(v)}: {v}")
     return v
-
-def convert_bytes(v):
-    if isinstance(v, bytes):
-        return v
-    elif not isinstance(v, str):
-        raise TypeError(f"Expected bytes, got {type(v)}: {v}")
-    return v.encode('utf-8')
 
 def from_string_int(v): return int(v, 0)
 
