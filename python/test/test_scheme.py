@@ -803,3 +803,46 @@ def test_pmap():
 
     assert m.as_dict() == {'f0':100, 'f2':200}
     assert u.as_dict() == {'f0':100, 'f2':200, 'f3':0}
+
+def test_inline():
+    scheme = '''yamls://
+- name: a
+  fields:
+    - {name: a, type: int16}
+- name: b
+  fields:
+    - {name: a, type: a, options.inline: yes}
+    - {name: b, type: int32}
+- name: msg
+  id: 10
+  fields:
+    - {name: b, type: b, options.inline: yes}
+    - {name: c, type: int64}
+'''
+
+    scheme = S.Scheme(scheme)
+    msg = scheme['msg']
+
+    assert [(f.name, f.type) for f in msg.fields] == [('a', F.Int16), ('b', F.Int32), ('c', F.Int64)]
+
+    with pytest.raises(RuntimeError):
+        S.Scheme('''yamls://
+- name: a
+  fields:
+    - {name: a, type: int16}
+- name: b
+  fields:
+    - {name: m, type: a, options.inline: yes}
+    - {name: a, type: int32}
+''')
+
+    with pytest.raises(RuntimeError):
+        S.Scheme('''yamls://
+- name: a
+  fields:
+    - {name: a, type: int16}
+- name: b
+  fields:
+    - {name: a, type: int32}
+    - {name: m, type: a, options.inline: yes}
+''')

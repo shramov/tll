@@ -555,6 +555,9 @@ struct Union
 };
 
 struct Scheme;
+
+const Message * lookup(const Scheme &, std::string_view);
+
 struct Message
 {
 	int msgid = 0;
@@ -646,6 +649,25 @@ struct Message
 			auto f = Field::parse(m, fc, *n);
 			if (!f)
 				return _log.fail(std::nullopt, "Failed to load field {}", *n);
+			if (f->type == tll::scheme::Field::Message) {
+				auto inl = f->options.getT("inline", false);
+				if (!inl)
+					return _log.fail(std::nullopt, "Invalid 'inline' option: {}", inl.error());
+				if (*inl) {
+					auto msg = lookup(s, f->type_msg);
+					if (!msg)
+						return _log.fail(std::nullopt, "Invalid message name '{}'", f->type_msg);
+					for (auto & mf : msg->fields) {
+						_log.trace("Copy inline field {}", mf.name);
+						for (auto & f : m.fields) {
+							if (f.name == mf.name)
+								return _log.fail(std::nullopt, "Duplicate field name {}", mf.name);
+						}
+						m.fields.push_back(mf);
+					}
+					continue;
+				}
+			}
 			m.fields.push_back(*f);
 		}
 		return m;
@@ -856,6 +878,15 @@ struct Scheme
 		return s;
 	}
 };
+
+const Message * lookup(const Scheme &s, std::string_view name)
+{
+	for (auto & m : s.messages) {
+		if (m.name == name)
+			return &m;
+	}
+	return nullptr;
+}
 
 int Field::lookup(std::string_view type)
 {
