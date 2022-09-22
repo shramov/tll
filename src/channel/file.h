@@ -17,18 +17,20 @@ namespace tll::channel {
 class File : public tll::channel::Base<File>
 {
 	size_t _block_size = 0;
+	size_t _block_init = 0;
 	size_t _block_end = 0;
 	size_t _offset = 0;
 
 	std::vector<char> _buf;
 	std::string _filename;
 
-	enum class Compression { None, LZ4, LZMA } _compression;
+	enum class Compression : uint8_t { None = 0, LZ4 = 1} _compression;
 
 public:
 	using frame_size_t = int32_t;
 	struct __attribute__((packed)) frame_t
 	{
+		frame_t(int32_t m, int64_t s) : msgid(m), seq(s) {}
 		frame_t(const tll_msg_t *msg) : msgid(msg->msgid), seq(msg->seq) {}
 		int32_t msgid;
 		int64_t seq;
@@ -49,6 +51,7 @@ private:
 	int _read_data(size_t size, tll_msg_t *msg);
 
 	int _write_data(const void *data, size_t size) { return _write_datav(tll::const_memory { data, size }); }
+	int _write_raw(const void *data, size_t size, size_t _offset);
 
 	template <typename ... Args>
 	int _write_datav(Args && ... args);
@@ -56,6 +59,8 @@ private:
 	int _seek(std::optional<long long> seq);
 	int _block_seq(size_t block, tll_msg_t *msg);
 	int _read_seq(tll_msg_t *msg);
+	int _read_meta();
+	int _write_meta();
 
 	int _shift(size_t size);
 	int _shift(const tll_msg_t * msg) { return _shift(sizeof(frame_size_t) + sizeof(frame_t) + msg->size); }

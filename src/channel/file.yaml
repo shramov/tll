@@ -1,0 +1,19 @@
+- name: Attribute
+  fields:
+    - {name: attribute, type: string}
+    - {name: value, type: string}
+
+- name: Meta
+  id: 0x6174654d
+  enums:
+    Compression: {type: uint8, enum: {None: 0}}
+  fields:
+    - {name: meta_size, type: uint16}
+    - {name: version, type: uint8}
+    - {name: compression, type: Compression}
+    - {name: block, type: uint32}
+    - {name: scheme, type: string}
+    - {name: attributes, type: '*Attribute'}
+
+- name: Block
+  id: 0x6b636c42

@@ -6,6 +6,7 @@
  */
 
 #include "channel/file.h"
+#include "channel/file-scheme.h"
 
 #include "tll/util/size.h"
 
@@ -45,7 +46,7 @@ TLL_DEFINE_IMPL(File);
 int File::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = channel_props_reader(url);
-	_block_size = reader.getT("block", util::Size {1024 * 1024});
+	_block_init = reader.getT("block", util::Size {1024 * 1024});
 	_compression = reader.getT("compress", Compression::None, {{"no", Compression::None}, {"lz4", Compression::LZ4}});
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
@@ -53,7 +54,7 @@ int File::_init(const tll::Channel::Url &url, tll::Channel *master)
 	if (_compression != Compression::None)
 		return _log.fail(EINVAL, "Compression not supported");
 
-	_buf.resize(_block_size);
+	_buf.resize(_block_init);
 
 	_filename = url.host();
 	if (_filename.empty())
@@ -67,20 +68,20 @@ int File::_init(const tll::Channel::Url &url, tll::Channel *master)
 int File::_open(const ConstConfig &props)
 {
 	_log.debug("Open file {}", _filename);
-	auto mode = O_RDONLY;
-	if (internal.caps & caps::Output)
-		mode = O_RDWR | O_CREAT;
-
-	auto fd = ::open(_filename.c_str(), mode, 0644);
-	if (fd == -1)
-		return _log.fail(EINVAL, "Failed to open file {} for writing: {}", _filename, strerror(errno));
-	_update_fd(fd);
 
 	_offset = 0;
-	_block_end = _block_size;
+	_block_end = _block_size = _block_init;
 
+	auto reader = tll::make_props_reader(props);
 	if (internal.caps & caps::Input) {
-		auto reader = tll::make_props_reader(props);
+		auto fd = ::open(_filename.c_str(), O_RDONLY, 0644);
+		if (fd == -1)
+			return _log.fail(EINVAL, "Failed to open file {} for writing: {}", _filename, strerror(errno));
+		_update_fd(fd);
+
+		if (auto r = _read_meta(); r)
+			return _log.fail(EINVAL, "Failed to read metadata");
+
 		auto seq = reader.getT<long long>("seq", 0);
 		if (!reader)
 			return _log.fail(EINVAL, "Invalid params: {}", reader.error());
@@ -88,9 +89,49 @@ int File::_open(const ConstConfig &props)
 			return _log.fail(EINVAL, "Seek failed");
 		_update_dcaps(dcaps::Process | dcaps::Pending);
 	} else {
+		auto overwrite = reader.getT("overwrite", false);
+		if (!reader)
+			return _log.fail(EINVAL, "Invalid params: {}", reader.error());
+
+		if (access(_filename.c_str(), F_OK)) { // File not found, create new
+			overwrite = true;
+		} else {
+			struct stat s;
+			auto r = ::stat(_filename.c_str(), &s);
+			if (r < 0)
+				return _log.fail(EINVAL, "Failed to get file size: {}", strerror(errno));
+			if (s.st_size == 0) // Empty file
+				overwrite = true;
+		}
+
+		std::string fn(_filename);
+		if (overwrite) {
+			fn += ".XXXXXX";
+			auto fd = mkstemp(fn.data());
+			if (fd == -1)
+				return _log.fail(EINVAL, "Failed to create temporary file {}: {}", fn, strerror(errno));
+			_update_fd(fd);
+
+			if (_write_meta()) {
+				return _log.fail(EINVAL, "Failed to write metadata");
+				unlink(fn.c_str());
+			}
+			_log.info("Rename temporary file {} to {}", fn, _filename);
+			rename(fn.c_str(), _filename.c_str());
+		} else {
+			auto fd = ::open(fn.data(), O_RDWR | O_CREAT, 0600);
+			if (fd == -1)
+				return _log.fail(EINVAL, "Failed to open file {} for writing: {}", _filename, strerror(errno));
+			_update_fd(fd);
+
+			if (auto r = _read_meta(); r)
+				return _log.fail(EINVAL, "Failed to read metadata");
+		}
+
 		if (auto r = _seek(std::nullopt); r && r != EAGAIN)
 			return _log.fail(EINVAL, "Seek failed");
 	}
+	_config.setT("block", util::Size { _block_size });
 	return 0;
 }
 
@@ -117,6 +158,85 @@ int File::_check_write(size_t size, int r)
 		return _log.fail(EINVAL, "Truncated write: {} of {} bytes written", r, size);
 	}
 	return 0;
+}
+
+int File::_read_meta()
+{
+	_offset = 0;
+	frame_size_t frame;
+
+	if (auto r = _read_frame(&frame); r)
+		return _log.fail(EINVAL, "Failed to read meta frame");
+
+	ssize_t size = frame - sizeof(frame);
+	if (size < (ssize_t) sizeof(frame_t))
+		return _log.fail(EINVAL, "Invalid frame size at {:x}: {} too small", _offset, frame);
+
+	tll_msg_t msg = { TLL_MESSAGE_DATA };
+	if (auto r = _read_data(size, &msg); r)
+		return _log.fail(EINVAL, "Failed to read meta data");
+
+	auto meta = tll::scheme::make_binder<file_scheme::Meta>(msg);
+	if (msg.msgid != meta.meta_id())
+		return _log.fail(EINVAL, "Invalid meta id: expected {}, got {}", msg.msgid, meta.meta_id());
+	if (msg.size < meta.meta_size())
+		return _log.fail(EINVAL, "Invalid meta size: {} less then minimum {}", msg.size, meta.meta_size());
+
+	_block_end = _block_size = meta.get_block();
+	auto comp = meta.get_compression();
+
+	_log.info("Meta info: block size {}, compression {}", _block_size, (uint8_t) comp);
+
+	switch (comp) {
+	case decltype(comp)::None:
+		_compression = Compression::None;
+		break;
+	default:
+		return _log.fail(EINVAL, "Compression {} not supported", (uint8_t) comp);
+	}
+
+	std::string_view scheme = meta.get_scheme();
+	if (scheme.size()) {
+		auto s = tll::Scheme::load(scheme);
+		if (!s)
+			return _log.fail(EINVAL, "Failed to load scheme");
+		_scheme.reset(s);
+	}
+
+	_buf.resize(_block_size);
+	return 0;
+}
+
+int File::_write_meta()
+{
+	_offset = 0;
+
+	std::vector<char> buf;
+	buf.resize(sizeof(full_frame_t));
+
+	auto view = tll::make_view(buf, sizeof(full_frame_t));
+	auto meta = tll::scheme::make_binder<file_scheme::Meta>(view);
+	view.resize(meta.meta_size());
+	meta.set_block(_block_size);
+	meta.set_compression((decltype(meta)::Compression)_compression);
+
+	if (_scheme) {
+		auto s = tll_scheme_dump(_scheme.get(), nullptr);
+		if (!s)
+			return _log.fail(EINVAL, "Failed to serialize scheme");
+		meta.set_scheme(s);
+		::free(s);
+	}
+
+	_log.info("Write {} bytes of metadata ({})", buf.size(), meta.meta_size());
+
+	view = tll::make_view(buf);
+	*view.dataT<frame_size_t>() = buf.size();
+	view = view.view(sizeof(frame_size_t));
+	*view.dataT<frame_t>() = frame_t { meta.meta_id(), 0 };
+
+	_offset = buf.size();
+	return _write_raw(buf.data(), buf.size(), 0);
 }
 
 int File::_shift(size_t size)
@@ -263,6 +383,11 @@ int File::_post(const tll_msg_t *msg, int flags)
 	return _write_datav(const_memory { &meta, sizeof(meta) }, const_memory { msg->data, msg->size });
 }
 
+int File::_write_raw(const void * data, size_t size, size_t offset)
+{
+	return _check_write(size, pwrite(fd(), data, size, offset));
+}
+
 template <typename ... Args>
 int File::_write_datav(Args && ... args)
 {
@@ -288,21 +413,22 @@ int File::_write_datav(Args && ... args)
 	if (_offset + size > _block_end) {
 		frame_size_t frame = -1;
 
-		if (_check_write(sizeof(frame), pwrite(fd(), &frame, sizeof(frame), _offset)))
+		if (_write_raw(&frame, sizeof(frame), _offset))
 			return EINVAL;
 
 		_offset = _block_end;
 		_block_end += _block_size;
 	}
 
-	if (_offset + _block_size == _block_end) {
+	if (_offset + _block_size == _block_end) { // Write block meta
 		frame = 4;
-		if (_check_write(sizeof(frame), pwrite(fd(), &frame, sizeof(frame), _offset)))
+		if (_write_raw(&frame, sizeof(frame), _offset))
 			return EINVAL;
 		_offset += sizeof(frame);
 	}
 
 	frame = size;
+	_log.debug("Write frame {} at {}", frame, _offset);
 	if (_check_write(size, pwritev(fd(), iov, N + 1, _offset)))
 		return EINVAL;
 
