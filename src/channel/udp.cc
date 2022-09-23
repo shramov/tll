@@ -299,6 +299,9 @@ int UdpSocket<T, F>::_open(const ConstConfig &url)
 	}
 
 	if (_multi && _mcast_interface) {
+		if (this->_nametoindex())
+			return this->_log.fail(EINVAL, "Failed to get interface list");
+
 		this->_log.info("Set multicast interface to {}: index {}", *_mcast_interface, _mcast_ifindex);
 		if (_addr->sa_family == AF_INET6) {
 			if (setsockoptT<int>(this->fd(), IPPROTO_IPV6, IPV6_MULTICAST_IF, _mcast_ifindex))
