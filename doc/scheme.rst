@@ -43,12 +43,33 @@ about new type can process raw wire type.
 
 Supported logical types:
 
- - ``enum``:
+ - ``enum``: set of fixed named values, like C enum type;
  - ``bytestring``: field contains string (maybe without null terminator) with
    length ``strnlen(data, sizeof(data))``, only for ``bytes`` wire type;
  - ``fixed_point``: fixed point real number e.g. ``int64`` with 2 digits after decimal point, only for integral types;
  - ``time_point``: timestamp with resolution e.g. ``int64`` microseconds from epoch, only for integral and real types;
  - ``duration``: duration with resolution e.g. ``double`` seconds interval, only for integral and real types;
+
+Enum
+----
+
+An enum is a type with fixed named values, like C enum type. Wire type can be any integer - both
+signed and unsigned.
+
+Following scheme declares two identical messages - with normal and inline enum declarations. From
+user perspective both messages looks same.
+
+.. code::
+
+  - name: normal_enum
+    enums:
+      e1: {type: int16, enum: {A: 0, B: 1, C: 2}}
+    fields:
+      - {name: f1, type: e1}
+
+  - name: inline_enum
+    fields:
+      - {name: f1, type: int16, options.type: enum, enum: {A: 0, B: 1, C: 2}}
 
 Time fields
 -----------
@@ -71,3 +92,6 @@ Pointers
 
 .. _capnproto: https://capnproto.org/
 .. _sbe: https://github.com/real-logic/simple-binary-encoding
+
+..
+    vim: sts=4 sw=4 et tw=100
