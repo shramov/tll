@@ -27,7 +27,7 @@ def writer(context, filename):
 
 @pytest.fixture
 def reader(context, filename):
-    return Accum(f'file://{filename}', name='reader', dump='frame', dir='r', context='context', block='1kb')
+    return Accum(f'file://{filename}', name='reader', dump='frame', dir='r', context=context, autoclose='no')
 
 Frame = collections.namedtuple('Frame', ('size', 'msgid', 'seq'))
 
@@ -167,3 +167,17 @@ def test_meta(context, filename):
     assert r.scheme != None
     assert [m.name for m in r.scheme.messages] == ['msg']
     assert r.config.get('block', '') == '1kb'
+
+def test_autoclose(context, filename, writer):
+    writer.open()
+    reader = Accum(f'file://{filename}', name='reader', dump='frame', dir='r', context=context, autoclose='yes')
+
+    for i in range(10):
+        writer.post(b'abc' * i, seq = 10 * (i + 1), msgid = i)
+
+    reader.open(seq='50')
+    reader.process()
+    for _ in range(10):
+        reader.process()
+    assert [m.seq for m in reader.result] == list(range(50, 101, 10))
+    assert reader.state == reader.State.Closed

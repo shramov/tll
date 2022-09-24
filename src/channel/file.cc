@@ -48,6 +48,7 @@ int File::_init(const tll::Channel::Url &url, tll::Channel *master)
 	auto reader = channel_props_reader(url);
 	_block_init = reader.getT("block", util::Size {1024 * 1024});
 	_compression = reader.getT("compress", Compression::None, {{"no", Compression::None}, {"lz4", Compression::LZ4}});
+	_autoclose = reader.getT("autoclose", true);
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -131,6 +132,7 @@ int File::_open(const ConstConfig &props)
 		if (auto r = _seek(std::nullopt); r && r != EAGAIN)
 			return _log.fail(EINVAL, "Seek failed");
 	}
+	_buf.resize(_block_size);
 	_config.setT("block", util::Size { _block_size });
 	return 0;
 }
@@ -428,7 +430,7 @@ int File::_write_datav(Args && ... args)
 	}
 
 	frame = size;
-	_log.debug("Write frame {} at {}", frame, _offset);
+	_log.trace("Write frame {} at {}", frame, _offset);
 	if (_check_write(size, pwritev(fd(), iov, N + 1, _offset)))
 		return EINVAL;
 
@@ -488,7 +490,11 @@ int File::_process(long timeout, int flags)
 	auto r = _read_frame(&frame);
 
 	if (r == EAGAIN) {
-		_dcaps_pending(false);
+		if (_autoclose) {
+			_log.info("All messages processed. Closing");
+			close();
+		} else
+			_dcaps_pending(false);
 		return EAGAIN;
 	} else if (r)
 		return r;

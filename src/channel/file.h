@@ -25,6 +25,7 @@ class File : public tll::channel::Base<File>
 	std::string _filename;
 
 	enum class Compression : uint8_t { None = 0, LZ4 = 1} _compression;
+	bool _autoclose = true;
 
 public:
 	using frame_size_t = int32_t;
