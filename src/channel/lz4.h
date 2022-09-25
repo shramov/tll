@@ -8,21 +8,16 @@
 #ifndef _TLL_CHANNEL_LZ4_H
 #define _TLL_CHANNEL_LZ4_H
 
-#include "tll/channel/prefix.h"
+#include "tll/channel/codec.h"
 
-class ChLZ4 : public tll::channel::Prefix<ChLZ4>
+class ChLZ4 : public tll::channel::Codec<ChLZ4>
 {
-	using Base = tll::channel::Prefix<ChLZ4>;
+	using Base = tll::channel::Codec<ChLZ4>;
 
-	std::vector<char> _buffer_enc;
-	std::vector<char> _buffer_dec;
 	std::vector<char> _lz4_enc;
 	std::vector<char> _lz4_dec;
-	tll_msg_t _msg_enc = {};
-	tll_msg_t _msg_dec = {};
 
 	int _level = 0;
-	bool _inverted = false;
 	size_t _max_size = 0;
 
  public:
@@ -30,10 +25,6 @@ class ChLZ4 : public tll::channel::Prefix<ChLZ4>
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 
-	int _post(const tll_msg_t *msg, int flags);
-	int _on_data(const tll_msg_t *msg);
-
- private:
 	const tll_msg_t * _encode(const tll_msg_t *msg);
 	const tll_msg_t * _decode(const tll_msg_t *msg);
 };

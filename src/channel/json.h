@@ -8,14 +8,13 @@
 #ifndef _TLL_CHANNEL_JSON_H
 #define _TLL_CHANNEL_JSON_H
 
-#include "tll/channel/prefix.h"
+#include "tll/channel/codec.h"
 
 #include "tll/util/json.h"
 
-class ChJSON : public tll::channel::Prefix<ChJSON>
+class ChJSON : public tll::channel::Codec<ChJSON>
 {
 	tll::json::JSON _json = { _log };
-	bool _inverted = false;
 
 	using Base = tll::channel::Prefix<ChJSON>;
 
@@ -23,20 +22,28 @@ class ChJSON : public tll::channel::Prefix<ChJSON>
 	static constexpr std::string_view channel_protocol() { return "json+"; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *parent);
-	//int _open(const tll::PropsView &);
-	//int _close();
 
-	int _encode(const tll_msg_t *msg, rapidjson::MemoryBuffer &buf);
-	int _decode(const tll_msg_t *msg, tll::util::buffer &buf);
+	const tll_msg_t * _encode(const tll_msg_t *msg)
+	{
+		tll_msg_copy_info(&_msg_enc, msg);
+		auto r = _json.encode(msg, &_msg_enc);
+		if (!r)
+			return _log.fail(nullptr, "Failed to encode JSON");
+		_msg_enc.data = r->data;
+		_msg_enc.size = r->size;
+		return &_msg_enc;
+	}
 
-	template <typename W, typename Buf>
-	int _encode_field(W &writer, const Buf &data, const tll::scheme::Field *field);
-
-	template <typename W, typename Buf>
-	int _encode_message(W &writer, const Buf &data, const tll::scheme::Message *msg);
-
-	int _post(const tll_msg_t *msg, int flags);
-	int _on_data(const tll_msg_t *msg);
+	const tll_msg_t * _decode(const tll_msg_t *msg)
+	{
+		tll_msg_copy_info(&_msg_enc, msg);
+		auto r = _json.decode(msg, &_msg_enc);
+		if (!r)
+			return _log.fail(nullptr, "Failed to decode JSON");
+		_msg_enc.data = r->data;
+		_msg_enc.size = r->size;
+		return &_msg_enc;
+	}
 
 	int _on_active()
 	{
