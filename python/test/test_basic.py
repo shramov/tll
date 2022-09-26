@@ -13,6 +13,7 @@ import os
 import pytest
 import select
 import socket
+import struct
 import sys
 import time
 
@@ -696,3 +697,25 @@ def test_lz4():
 
     c.post(b'xxx')
     assert s.state == s.State.Error
+
+@pytest.mark.parametrize("smin,smax", [(10, 100), (300, 400)])
+@pytest.mark.parametrize("mode,pattern", [("random", ""), ("seq", ""), ("pattern", "0x1122334455667788")])
+def test_random(smin, smax, mode, pattern):
+    s = Accum(f'random+direct://;data-mode={mode};pattern={pattern};min={smin}b;max={smax}b', name='server', context=ctx)
+    c = Accum('direct://', name='client', master=s, context=ctx)
+
+    s.open()
+    c.open()
+
+    c.post(b'')
+    c.post(b'')
+
+    assert [m.seq for m in s.result] == [1, 2]
+    for m in s.result:
+        assert len(m.data) >= smin
+        assert len(m.data) <= smax
+        if mode == 'seq':
+            assert m.data.tobytes() == bytes([x % 256 for x in range(len(m.data))])
+        elif mode == 'pattern':
+            p = struct.pack('Q', int(pattern, 0))
+            assert m.data.tobytes() == (p * (len(m.data) // 8 + 1))[:len(m.data)]

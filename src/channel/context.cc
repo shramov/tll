@@ -39,6 +39,7 @@
 #include "channel/mem.h"
 #include "channel/null.h"
 #include "channel/pub.h"
+#include "channel/random.h"
 #include "channel/serial.h"
 #include "channel/seq-check.h"
 #include "channel/tcp.h"
@@ -53,6 +54,7 @@ using namespace tll;
 TLL_DEFINE_IMPL(ChDirect);
 TLL_DEFINE_IMPL(ChLoader);
 TLL_DEFINE_IMPL(ChNull);
+TLL_DEFINE_IMPL(tll::channel::Random);
 TLL_DEFINE_IMPL(tll::channel::SeqCheck);
 
 TLL_DECLARE_IMPL(ChIpc);
@@ -101,6 +103,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChLoader::impl);
 		reg(&ChNull::impl);
 		reg(&ChPubServer::impl);
+		reg(&tll::channel::Random::impl);
 		reg(&ChSerial::impl);
 		reg(&ChTcp::impl);
 		reg(&ChTimeIt::impl);
