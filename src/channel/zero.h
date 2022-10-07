@@ -25,6 +25,7 @@ class ChZero : public tll::channel::Event<ChZero>
 
 	int _process(long timeout, int flags)
 	{
+		_msg.seq++;
 		_callback(&_msg);
 		return 0;
 	}

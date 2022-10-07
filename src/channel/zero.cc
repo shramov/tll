@@ -33,6 +33,7 @@ int ChZero::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 int ChZero::_open(const ConstConfig &url)
 {
+	_msg.seq = 0;
 	int r = Event<ChZero>::_open(url);
 	if (r)
 		return r;
