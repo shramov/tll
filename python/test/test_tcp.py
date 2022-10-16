@@ -99,6 +99,44 @@ class _test_tcp_base:
 
         assert [(m.type, m.msgid, m.addr) for m in s.result] == [(C.Type.Control, s.scheme_control['Disconnect'].msgid, addr)]
 
+    def test_disconnect(self):
+        s, c = self.s, self.c
+
+        s.open()
+        assert s.state == s.State.Active
+        assert len(s.children) == self._children_count()
+
+        spoll = select.poll()
+        for i in s.children:
+            spoll.register(i.fd, select.POLLIN)
+        cpoll = select.poll()
+
+        c.open()
+        if c.state == c.State.Opening:
+            assert c.state == c.State.Opening
+            assert c.dcaps == c.DCaps.Process | c.DCaps.PollOut
+            cpoll.register(c.fd, select.POLLOUT)
+
+            assert cpoll.poll(100), [(c.fd == select.POLLOUT)]
+            c.process()
+
+        assert spoll.poll(100) != []
+        for i in s.children:
+            i.process()
+
+        assert c.state == c.State.Active
+        assert c.dcaps == c.DCaps.Process | c.DCaps.PollIn
+
+        assert [(m.type, m.msgid) for m in s.result] == [(C.Type.Control, s.scheme_control['Connect'].msgid)]
+        s.post(b'', name='Disconnect', type=s.Type.Control, addr=s.result[0].addr)
+
+        cpoll.register(c.fd, select.POLLIN)
+
+        assert cpoll.poll(10) != []
+        c.process()
+
+        assert c.state == c.State.Closed
+
     def test_open_fail(self):
         c = self.c
         try:

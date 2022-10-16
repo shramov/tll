@@ -23,7 +23,7 @@ class FramedSocket : public tll::channel::TcpSocket<T>
  public:
 	static constexpr std::string_view param_prefix() { return "tcp"; }
 
-	int _post(const tll_msg_t *msg, int flags);
+	int _post_data(const tll_msg_t *msg, int flags);
 	int _process(long timeout, int flags);
 
  private:
@@ -121,7 +121,7 @@ std::optional<const tll_channel_impl_t *> ChTcp::_init_replace(const tll::Channe
 }
 
 template <typename T, typename Frame>
-int FramedSocket<T, Frame>::_post(const tll_msg_t *msg, int flags)
+int FramedSocket<T, Frame>::_post_data(const tll_msg_t *msg, int flags)
 {
 	if (msg->type != TLL_MESSAGE_DATA)
 		return 0;

@@ -72,7 +72,21 @@ class TcpSocket : public Base<T>
 	int _open(const tll::ConstConfig &);
 	int _close();
 
-	int _post(const tll_msg_t *msg, int flags);
+	int _post(const tll_msg_t *msg, int flags)
+	{
+		switch (msg->type) {
+		case TLL_MESSAGE_DATA:
+			return this->channelT()->_post_data(msg, flags);
+		case TLL_MESSAGE_CONTROL:
+			return this->channelT()->_post_control(msg, flags);
+		default:
+			break;
+		}
+		return 0;
+	}
+	int _post_data(const tll_msg_t *msg, int flags);
+	int _post_control(const tll_msg_t *msg, int flags);
+
 	int _process(long timeout, int flags);
 
 	void bind(int fd, int seq = 0) { this->_update_fd(fd); _msg_addr = { fd, seq }; }

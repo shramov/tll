@@ -64,16 +64,24 @@ int TcpSocket<T>::_close()
 }
 
 template <typename T>
-int TcpSocket<T>::_post(const tll_msg_t *msg, int flags)
+int TcpSocket<T>::_post_data(const tll_msg_t *msg, int flags)
 {
-	if (msg->type != TLL_MESSAGE_DATA)
-		return 0;
 	this->_log.debug("Post {} bytes of data", msg->size);
 	int r = send(this->fd(), msg->data, msg->size, MSG_NOSIGNAL | MSG_DONTWAIT);
 	if (r < 0)
 		return this->_log.fail(errno, "Failed to post data: {}", strerror(errno));
 	else if ((size_t) r != msg->size)
 		return this->_log.fail(errno, "Failed to post data (truncated): {}", strerror(errno));
+	return 0;
+}
+
+template <typename T>
+int TcpSocket<T>::_post_control(const tll_msg_t *msg, int flags)
+{
+	if (msg->msgid == tcp_scheme::Disconnect<tll_msg_t>::meta_id()) {
+		this->_log.info("Disconnect client on user request");
+		this->close();
+	}
 	return 0;
 }
 
