@@ -108,6 +108,9 @@ def test_zero(args, caps):
     assert c.dcaps == caps | c.DCaps.Process
     if caps & c.DCaps.PollIn:
         assert c.fd != None
+    for _ in range(10):
+        c.process()
+    assert [m.seq for m in c.result] == list(range(10))
 
 def test_direct():
     s = Accum('direct://', name='server', context=ctx)
