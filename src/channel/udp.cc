@@ -34,11 +34,15 @@
 
 #ifdef __linux__
 static constexpr std::string_view control_scheme = R"(yamls://
-- name: time
+- name: Time
   id: 10
-  fields: []
+  fields:
+    - {name: time, type: int64, options.type: duration, options.resolution: ns}
 )";
 #endif
+
+static constexpr int time_msgid = 10;
+using time_type = std::chrono::duration<int64_t, std::nano>;
 
 using namespace tll;
 using tll::network::AddressFamily;
@@ -102,7 +106,7 @@ class UdpSocket : public tll::channel::Base<T>
 		return 0;
 	}
 
-	std::chrono::nanoseconds _cmsg_timestamp(msghdr *msg);
+	time_type _cmsg_timestamp(msghdr *msg);
 	uint32_t _cmsg_seq(msghdr *msg);
 	int _process_errqueue()
 	{
@@ -408,7 +412,7 @@ int UdpSocket<T, Frame>::_process(long timeout, int flags)
 }
 
 template <typename T, typename Frame>
-std::chrono::nanoseconds UdpSocket<T, Frame>::_cmsg_timestamp(msghdr * msg)
+time_type UdpSocket<T, Frame>::_cmsg_timestamp(msghdr * msg)
 {
 	using namespace std::chrono;
 	nanoseconds r = {};
@@ -458,15 +462,20 @@ int UdpSocket<T, Frame>::_process_errqueue(msghdr * mhdr)
 			return EAGAIN;
 		return this->_log.fail(EINVAL, "Failed to receive errqueue message: {}", strerror(errno));
 	}
-	tll_msg_t msg = {};
+
+	auto time = _cmsg_timestamp(mhdr);
 	auto seq = _cmsg_seq(mhdr);
+
+	tll_msg_t msg = {};
 	if (_tx_idx - seq > _tx_seq.size())
 		msg.seq = -1;
 	else
 		msg.seq = _tx_seq[seq % _tx_seq.size()];
 	msg.type = TLL_MESSAGE_CONTROL;
-	msg.msgid = 10;
-	msg.time = _cmsg_timestamp(mhdr).count();
+	msg.msgid = time_msgid;
+	msg.time = time.count();
+	msg.data = &time;
+	msg.size = sizeof(time);
 	this->_callback(&msg);
 #endif
 	return 0;
