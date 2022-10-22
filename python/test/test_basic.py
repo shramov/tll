@@ -564,7 +564,7 @@ def test_random(smin, smax, mode, pattern):
     c.post(b'')
     c.post(b'')
 
-    assert [m.seq for m in s.result] == [1, 2]
+    assert [m.seq for m in s.result] == [0, 1]
     for m in s.result:
         assert len(m.data) >= smin
         assert len(m.data) <= smax

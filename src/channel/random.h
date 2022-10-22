@@ -65,7 +65,7 @@ class Random : public tll::channel::Prefix<Random>
 
 	int _open(const tll::ConstConfig &params)
 	{
-		_msg.seq = 0;
+		_msg.seq = -1;
 		return Base::_open(params);
 	}
 
