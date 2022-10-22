@@ -310,7 +310,7 @@ class _test_udp_base:
             if c.result == []:
                 assert cpoll.poll(10) != []
                 c.process()
-            assert [(m.seq, m.msgid) for m in c.result if m.type == m.Type.Control] == [(0, 10)]
+            assert [(m.seq, m.msgid) for m in c.result if m.type == m.Type.Control] == [(0x6ead, 10)]
             assert c.result[-1].time.seconds == pytest.approx(timestamp, 0.001)
 
         assert spoll.poll(10) != []

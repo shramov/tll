@@ -61,6 +61,9 @@ class UdpSocket : public tll::channel::Base<T>
 	size_t _rcvbuf = 0;
 	unsigned _ttl = 0;
 
+	std::array<long long, 8> _tx_seq;
+	unsigned _tx_idx = 0;
+
 	bool _timestamping = false;
 	bool _timestamping_tx = false;
 
@@ -261,6 +264,8 @@ int UdpSocket<T, F>::_open(const ConstConfig &url)
 	if (int r = nonblock(this->fd()))
 		return this->_log.fail(EINVAL, "Failed to set nonblock: {}", strerror(r));
 
+	_tx_idx = -1;
+	_tx_seq = {};
 	if (_timestamping) {
 #ifdef __linux__
 		int v = SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_RX_HARDWARE | SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_SOFTWARE;
@@ -348,6 +353,7 @@ int UdpSocket<T, Frame>::_send(const tll_msg_t * msg, const tll::network::sockad
 		m.msg_iov = iov + 1;
 		m.msg_iovlen = 1;
 	}
+	_tx_seq[++_tx_idx % _tx_seq.size()] = msg->seq;
 	auto r = sendmsg(this->fd(), &m, MSG_NOSIGNAL);
 	if (r < 0) {
 		if (errno == EAGAIN)
@@ -453,10 +459,14 @@ int UdpSocket<T, Frame>::_process_errqueue(msghdr * mhdr)
 		return this->_log.fail(EINVAL, "Failed to receive errqueue message: {}", strerror(errno));
 	}
 	tll_msg_t msg = {};
+	auto seq = _cmsg_seq(mhdr);
+	if (_tx_idx - seq > _tx_seq.size())
+		msg.seq = -1;
+	else
+		msg.seq = _tx_seq[seq % _tx_seq.size()];
 	msg.type = TLL_MESSAGE_CONTROL;
 	msg.msgid = 10;
 	msg.time = _cmsg_timestamp(mhdr).count();
-	msg.seq = _cmsg_seq(mhdr);
 	this->_callback(&msg);
 #endif
 	return 0;
