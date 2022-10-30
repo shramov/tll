@@ -30,7 +30,7 @@ namespace tll::util
 class ArgumentParser
 {
  public:
-	using value_type = std::variant<bool *, int *, std::string *, std::vector<std::string> *>;
+	using value_type = std::variant<bool *, int *, unsigned *, std::string *, std::vector<std::string> *>;
 
 	ArgumentParser(const ArgumentParser &) = delete;
 	ArgumentParser(ArgumentParser &&) = delete;
@@ -171,8 +171,13 @@ inline expected<int, std::string> ArgumentParser::parse(int argc, char *argv[]) 
 		} else if (std::holds_alternative<int *>(arg->value)) {
 			auto v = tll::conv::to_any<int>(*value);
 			if (!v)
-				return error(fmt::format("Invalid int value for flag '{}': {} ", flag, *value, *v));
+				return error(fmt::format("Invalid int value '{}' for flag '{}': {} ", *value, flag, v.error()));
 			*std::get<int *>(arg->value) = *v;
+		} else if (std::holds_alternative<unsigned *>(arg->value)) {
+			auto v = tll::conv::to_any<unsigned>(*value);
+			if (!v)
+				return error(fmt::format("Invalid unsigned value '{}' for flag '{}': {} ", *value, flag, v.error()));
+			*std::get<unsigned *>(arg->value) = *v;
 		} else if (std::holds_alternative<std::vector<std::string> *>(arg->value)) {
 			std::get<std::vector<std::string> *>(arg->value)->push_back(std::string(*value));
 		}
