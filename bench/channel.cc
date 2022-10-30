@@ -30,20 +30,21 @@ int post(tll::Channel * c, tll_msg_t * msg)
 	return c->post(msg);
 }
 
-int timeit(tll::channel::Context &ctx, std::string_view url, bool callback)
+std::unique_ptr<tll::Channel> prepare(tll::channel::Context &ctx, std::string_view url, bool callback, size_t &counter)
 {
-	constexpr size_t count = 10000000;
 	auto c = ctx.channel(url);
 	if (!c)
-		return -1;
-	size_t counter = 0;
+		return nullptr;
+
 	if (callback) {
 		//fmt::print("Add callback\n");
 		c->callback_add([](auto *c, auto *m, void *user) { ++*(size_t *)user; return 0; }, &counter);
 	}
 
-	if (c->open())
-		return -1;
+	if (c->open()) {
+		fmt::print("Failed to open channel\n");
+		return nullptr;
+	}
 
 	for (auto i = 0; i < 10; i++) {
 		if (c->state() != tll::state::Opening)
@@ -53,8 +54,18 @@ int timeit(tll::channel::Context &ctx, std::string_view url, bool callback)
 
 	if (c->state() != tll::state::Active) {
 		fmt::print("Failed to open channel\n");
-		return EINVAL;
+		return nullptr;
 	}
+	return c;
+}
+
+int timeit_post(tll::channel::Context &ctx, std::string_view url, bool callback, unsigned count)
+{
+	size_t counter = 0;
+	auto c = prepare(ctx, url, callback, counter);
+
+	if (!c.get())
+		return -1;
 
 	char data[1024] = {};
 	tll_msg_t msg = {};
@@ -62,6 +73,42 @@ int timeit(tll::channel::Context &ctx, std::string_view url, bool callback)
 	msg.size = 128;
 
 	timeit(count, url, post, c.get(), &msg);
+	if (callback && !counter)
+		fmt::print("Callback was added but not called\n");
+	return 0;
+}
+
+std::vector<tll::Channel *> process_list(tll::Channel * c)
+{
+	std::vector<tll::Channel *> r;
+	if (c->dcaps() & tll::dcaps::Process)
+		r.push_back(c);
+	for (auto ptr = c->children(); ptr; ptr = ptr->next) {
+		for (auto & i : process_list(static_cast<tll::Channel *>(ptr->channel)))
+			r.push_back(i);
+	}
+	return r;
+}
+
+int timeit_process(tll::channel::Context &ctx, std::string_view url, bool callback, unsigned count)
+{
+	size_t counter = 0;
+	auto c = prepare(ctx, url, callback, counter);
+
+	if (!c.get())
+		return -1;
+
+	auto list = process_list(c.get());
+	if (list.size() == 0) {
+		fmt::print("No channels to process for {}\n", url);
+		return 0;
+	}
+	if (list.size() != 1) {
+		fmt::print("Channel with several active childs\n");
+		return -1;
+	}
+
+	timeit(count, url, tll_channel_process, list[0], 0, 0);
 	if (callback && !counter)
 		fmt::print("Callback was added but not called\n");
 	return 0;
@@ -76,10 +123,14 @@ int main(int argc, char *argv[])
 	std::vector<std::string> url;
 	std::vector<std::string> modules;
 	bool callback = false;
+	bool process = false;
+	unsigned count = 10000000;
 
 	parser.add_argument({"URL"}, "channel url", &url);
 	parser.add_argument({"-m", "--module"}, "load channel modules", &modules);
 	parser.add_argument({"-c", "--callback"}, "add callback", &callback);
+	parser.add_argument({"--process"}, "run process benchmark", &process);
+	parser.add_argument({"-C", "--count"}, "number of iterations", &count);
 	auto pr = parser.parse(argc, argv);
 	if (!pr) {
 		fmt::print("Invalid arguments: {}\nRun '{} --help' for more information\n", pr.error(), argv[0]);
@@ -102,11 +153,14 @@ int main(int argc, char *argv[])
 
 	if (url.empty())
 		url = {"null://", "prefix+null://", "echo://", "prefix+echo://"};
-	url.insert(url.begin(), "null://;name=prewarm");
 
-	for (auto & u : url)
-		timeit(ctx, u, callback);
+	timeit_post(ctx, "null://;name=prewarm", true, count);
+	for (auto & u : url) {
+		if (process)
+			timeit_process(ctx, u, callback, count);
+		else
+			timeit_post(ctx, u, callback, count);
+	}
 
 	return 0;
 }
-
