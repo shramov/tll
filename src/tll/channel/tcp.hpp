@@ -146,6 +146,9 @@ int TcpSocket<T>::setup(const tcp_settings_t &settings)
 	}
 #endif
 
+	if (settings.keepalive && setsockoptT<int>(this->fd(), SOL_SOCKET, SO_KEEPALIVE, 1))
+		return this->_log.fail(EINVAL, "Failed to set keepalive: {}", strerror(errno));
+
 	if (settings.sndbuf && setsockoptT<int>(this->fd(), SOL_SOCKET, SO_SNDBUF, settings.sndbuf))
 		return this->_log.fail(EINVAL, "Failed to set sndbuf to {}: {}", settings.sndbuf, strerror(errno));
 
@@ -225,6 +228,7 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	auto af = reader.getT("af", network::AddressFamily::UNSPEC);
 	this->_size = reader.template getT<util::Size>("size", 128 * 1024);
 	_settings.timestamping = reader.getT("timestamping", false);
+	_settings.keepalive = reader.getT("keepalive", true);
 	_settings.sndbuf = reader.getT("sndbuf", util::Size { 0 });
 	_settings.rcvbuf = reader.getT("rcvbuf", util::Size { 0 });
 	if (!reader)
@@ -396,6 +400,7 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	auto reader = this->channelT()->channel_props_reader(url);
 	auto af = reader.getT("af", network::AddressFamily::UNSPEC);
 	_settings.timestamping = reader.getT("timestamping", false);
+	_settings.keepalive = reader.getT("keepalive", true);
 	_settings.sndbuf = reader.getT("sndbuf", util::Size { 0 });
 	_settings.rcvbuf = reader.getT("rcvbuf", util::Size { 0 });
 	if (!reader)

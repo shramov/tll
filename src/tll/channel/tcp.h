@@ -40,6 +40,7 @@ struct tcp_settings_t {
 	size_t sndbuf = 0;
 	size_t rcvbuf = 0;
 	bool timestamping = false;
+	bool keepalive = true;
 };
 
 struct tcp_connect_t {
