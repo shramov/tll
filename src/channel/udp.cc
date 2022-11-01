@@ -39,9 +39,10 @@ static constexpr std::string_view control_scheme = R"(yamls://
   fields:
     - {name: time, type: int64, options.type: duration, options.resolution: ns}
 )";
-#endif
 
 static constexpr int time_msgid = 10;
+#endif
+
 using time_type = std::chrono::duration<int64_t, std::nano>;
 
 using namespace tll;
