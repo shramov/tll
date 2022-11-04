@@ -11,7 +11,6 @@
 #include "tll/logger.h"
 #include "tll/channel.h"
 #include "tll/channel/reopen.h"
-#include "tll/util/url.h"
 #include "tll/util/time.h"
 
 #include <algorithm>

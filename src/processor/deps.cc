@@ -5,8 +5,6 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
-#include "tll/util/url.h"
-
 #include "processor/deps.h"
 #include "processor/worker.h"
 #include "processor/scheme.h"
