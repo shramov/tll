@@ -95,7 +95,7 @@ public:
 		auto props = PropsT<Str>::parse(s.substr(hsep + 1));
 		if (!props)
 			return error(props.error());
-		std::swap(r, *props);
+		static_cast<PropsT<Str> &>(r) = std::move(*props);
 		return std::move(r);
 	}
 };
