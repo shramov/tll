@@ -11,6 +11,7 @@
 #include "tll/util/size.h"
 #include "tll/util/sockaddr.h"
 
+#include <array>
 #include <chrono>
 
 #include <ifaddrs.h>
