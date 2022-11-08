@@ -28,6 +28,7 @@ nanoseconds ftime() { return seconds(time(0)); }
 int main()
 {
 	constexpr size_t count = 100000;
+	prewarm(100ms);
 	timeit(count, "system_clock::now", system_clock::now);
 	timeit(count, "steady_clock::now", steady_clock::now);
 	timeit(count, "hrt::now", high_resolution_clock::now);
