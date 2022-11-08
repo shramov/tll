@@ -433,6 +433,8 @@ class ConfigUrl : public Config
 public:
 	using Config::Config;
 
+	ConfigUrl copy() const { return ConfigUrl(Config::copy()); }
+
 	std::string proto() const { return std::string(get("tll.proto").value_or("")); }
 	std::string host() const { return std::string(get("tll.host").value_or("")); }
 

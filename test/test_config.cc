@@ -166,6 +166,9 @@ tcp:
 	ASSERT_TRUE(r);
 	ASSERT_EQ(std::string("tcp://*:8080;dump=yes;stat=yes"), tll::conv::to_string(*r));
 
+	auto copy = r->copy();
+	ASSERT_EQ(copy.proto(), "tcp");
+
 	c->set("tcp.url.dump", "no");
 
 	ASSERT_FALSE(c->getT<tll::ConfigUrl>("tcp.url"));
