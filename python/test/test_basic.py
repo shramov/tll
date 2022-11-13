@@ -153,7 +153,7 @@ def test_mem(fd=True, **kw):
     with pytest.raises(TLLError): s.post(b'x' * 1024)
     s.post(b'xxx', seq=10)
 
-    c = Accum('mem://', name='client', master=s, context=ctx)
+    c = Accum('mem://', name='client', master=s, context=ctx, **kw)
 
     assert c.result == []
     assert s.result == []
@@ -200,6 +200,21 @@ def test_mem(fd=True, **kw):
 
 def test_mem_nofd():
     test_mem(fd=False)
+
+def test_mem_full():
+    test_mem(frame='full')
+
+def test_mem_full_control():
+    s = Accum('mem://;size=1kb', name='server', context=ctx, frame='full')
+    c = Accum('mem://', name='client', master=s, context=ctx, frame='full')
+
+    s.open()
+    c.open()
+
+    s.post(b'xxx', type=s.Type.Control, msgid=10, seq=100, addr=0xbeef, time=1000)
+    c.process()
+    m = c.result[-1]
+    assert (s.Type.Control, 10, 100, 0xbeef, 1000) == (m.type, m.msgid, m.seq, m.addr, m.time.value)
 
 def test_mem_free():
     s = ctx.Channel('mem://;size=1kb;name=master')

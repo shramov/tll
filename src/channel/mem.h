@@ -8,47 +8,16 @@
 #ifndef _TLL_CHANNEL_MEM_H
 #define _TLL_CHANNEL_MEM_H
 
-#include "tll/channel/event.h"
+#include "tll/channel/base.h"
 
-#include "tll/ring.h"
-
-#include <mutex>
-
-class ChMem : public tll::channel::Event<ChMem>
+class ChMem : public tll::channel::Base<ChMem>
 {
-	struct Ring {
-		Ring(size_t size) { ring_init(&ring, size, 0); }
-		~Ring()
-		{
-			ring_free(&ring);
-			notify.close();
-		}
-
-		ringbuffer_t ring = {};
-		tll::channel::EventNotify notify;
-	};
-
-	size_t _size = 1024;
-	std::mutex _mutex; // shared_ptr initialization lock
-	auto _lock() { return std::unique_lock<std::mutex>(_mutex); }
-	std::shared_ptr<Ring> _rin;
-	std::shared_ptr<Ring> _rout;
-	bool _child = false;
-	ChMem * _sibling = nullptr;
-	bool _empty() const;
-
  public:
 	static constexpr std::string_view channel_protocol() { return "mem"; }
 
-	int _init(const tll::Channel::Url &, tll::Channel *master);
-	int _open(const tll::ConstConfig &);
-	int _close();
-	void _free();
+	std::optional<const tll_channel_impl_t *> _init_replace(const tll::Channel::Url &url, tll::Channel *master);
 
-	int _process(long timeout, int flags);
-	int _post(const tll_msg_t *msg, int flags);
+	int _init(const tll::Channel::Url &url, tll::Channel * master) { return this->_log.fail(EINVAL, "Failed to choose proper mem channel"); }
 };
-
-//extern template class tll::channel::Base<ChMem>;
 
 #endif//_TLL_CHANNEL_MEM_H
