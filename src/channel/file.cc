@@ -248,7 +248,7 @@ int File::_shift(size_t size)
 	_log.trace("Shift offset {} + {}", _offset, size);
 	_offset += size;
 
-	if (_offset + sizeof(full_frame_t) > _block_end) {
+	if (_offset + sizeof(full_frame_t) + 1 > _block_end) {
 		_log.trace("Shift block to 0x{:x}", _block_end);
 		_offset = _block_end;
 		_block_end += _block_size;
@@ -277,6 +277,7 @@ int File::_seek(std::optional<long long> seq)
 		} else if (r != EAGAIN)
 			return _log.fail(EINVAL, "Failed to read seq of block {}", last);
 	}
+	++last;
 
 	if (!seq) { // Seek to end
 		do {
@@ -311,6 +312,7 @@ int File::_seek(std::optional<long long> seq)
 			continue;
 		} else if (r)
 			return r;
+		_log.trace("Block {} seq: {}", mid, msg.seq);
 		if (msg.seq == *seq)
 			return 0;
 		if (msg.seq > *seq)
@@ -322,16 +324,20 @@ int File::_seek(std::optional<long long> seq)
 	_offset = first * _block_size;
 	_block_end = _offset + _block_size;
 
-	frame_size_t frame;
-	if (auto r = _read_frame(&frame); r)
-		return r;
-	_shift(frame);
-
 	do {
-		_log.debug("Check seq at {}", _offset);
-		if (auto r = _read_seq(&msg); r)
+		frame_size_t frame;
+		if (auto r = _read_frame(&frame); r)
 			return r;
-		_log.debug("Message {}/{} at {}", msg.seq, msg.size, _offset);
+
+		if (_offset + _block_size == _block_end) {
+			_shift(frame);
+			continue;
+		}
+
+		_log.debug("Check seq at 0x{:x}", _offset);
+		if (auto r = _read_seq(frame, &msg); r)
+			return r;
+		_log.debug("Message {}/{} at 0x{:x}", msg.seq, msg.size, _offset);
 		if (msg.seq >= *seq)
 			break;
 		_shift(&msg);
@@ -364,7 +370,11 @@ int File::_read_seq(tll_msg_t *msg)
 
 	if (auto r = _read_frame(&frame); r)
 		return r;
+	return _read_seq(frame, msg);
+}
 
+int File::_read_seq(frame_size_t frame, tll_msg_t *msg)
+{
 	size_t size = _data_size(frame);
 	if (size < sizeof(frame_t))
 		return _log.fail(EINVAL, "Invalid frame size at 0x{:x}: {} too small", _offset, frame);

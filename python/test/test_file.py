@@ -143,7 +143,7 @@ def test_block_boundary(writer, reader, filename):
     assert [(x.seq, x.msgid, len(x.data), x.data.tobytes()) for x in reader.result] == [(1, 10, 512, b'b' * 512)]
     reader.result = []
 
-@pytest.mark.parametrize("seq,r", [(None, 10), (0, 10), (5, 10), (100, 100), (105, 110)])
+@pytest.mark.parametrize("seq,r", [(None, 10), (0, 10), (5, 10), (100, 100), (105, 110), (1000, 1000)])
 def test_open_seq(seq, r, writer, reader):
     writer.open()
 
@@ -153,6 +153,16 @@ def test_open_seq(seq, r, writer, reader):
     reader.open(**({'seq': str(seq)} if seq is not None else {}))
     reader.process()
     assert [(x.seq, x.msgid, len(x.data)) for x in reader.result] == [(r, r // 10 - 1, 3 * (r // 10 - 1))]
+
+def test_open_seq_border(writer, reader):
+    writer.open()
+
+    writer.post(b'a' * 512, seq = 0, msgid = 10)
+    writer.post(b'b' * 512, seq = 10, msgid = 20)
+
+    reader.open(seq='5')
+    reader.process()
+    assert [(x.seq, x.msgid, len(x.data)) for x in reader.result] == [(10, 20, 512)]
 
 def test_meta(context, filename):
     SCHEME = '''yamls://

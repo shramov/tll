@@ -61,6 +61,7 @@ private:
 
 	int _seek(std::optional<long long> seq);
 	int _block_seq(size_t block, tll_msg_t *msg);
+	int _read_seq(frame_size_t frame, tll_msg_t *msg);
 	int _read_seq(tll_msg_t *msg);
 	int _read_meta();
 	int _write_meta();
