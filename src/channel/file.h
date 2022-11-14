@@ -51,6 +51,8 @@ private:
 	int _read_frame(frame_size_t *);
 	int _read_data(size_t size, tll_msg_t *msg);
 
+	size_t _data_size(frame_size_t frame) { return frame - sizeof(frame) - 1; }
+
 	int _write_data(const void *data, size_t size) { return _write_datav(tll::const_memory { data, size }); }
 	int _write_raw(const void *data, size_t size, size_t _offset);
 
@@ -64,7 +66,7 @@ private:
 	int _write_meta();
 
 	int _shift(size_t size);
-	int _shift(const tll_msg_t * msg) { return _shift(sizeof(frame_size_t) + sizeof(frame_t) + msg->size); }
+	int _shift(const tll_msg_t * msg) { return _shift(sizeof(frame_size_t) + sizeof(frame_t) + msg->size + 1); }
 	void _truncate(size_t offset);
 	int _check_write(size_t size, int r);
 };

@@ -170,9 +170,9 @@ int File::_read_meta()
 	if (auto r = _read_frame(&frame); r)
 		return _log.fail(EINVAL, "Failed to read meta frame");
 
-	ssize_t size = frame - sizeof(frame);
-	if (size < (ssize_t) sizeof(frame_t))
-		return _log.fail(EINVAL, "Invalid frame size at {:x}: {} too small", _offset, frame);
+	size_t size = _data_size(frame);
+	if (size < sizeof(frame_t))
+		return _log.fail(EINVAL, "Invalid frame size at 0x{:x}: {} too small", _offset, frame);
 
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	if (auto r = _read_data(size, &msg); r)
@@ -213,7 +213,7 @@ int File::_write_meta()
 {
 	_offset = 0;
 
-	std::vector<char> buf;
+	std::vector<uint8_t> buf;
 	buf.resize(sizeof(full_frame_t));
 
 	auto view = tll::make_view(buf, sizeof(full_frame_t));
@@ -229,6 +229,8 @@ int File::_write_meta()
 		meta.set_scheme(s);
 		::free(s);
 	}
+
+	buf.push_back(0x80u);
 
 	_log.info("Write {} bytes of metadata ({})", buf.size(), meta.meta_size());
 
@@ -247,7 +249,7 @@ int File::_shift(size_t size)
 	_offset += size;
 
 	if (_offset + sizeof(full_frame_t) > _block_end) {
-		_log.trace("Shift block to {:x}", _block_end);
+		_log.trace("Shift block to 0x{:x}", _block_end);
 		_offset = _block_end;
 		_block_end += _block_size;
 	}
@@ -363,9 +365,11 @@ int File::_read_seq(tll_msg_t *msg)
 	if (auto r = _read_frame(&frame); r)
 		return r;
 
-	auto r = _read_data(sizeof(frame_t), msg);
-	msg->size = frame - sizeof(frame) - sizeof(frame_t);
-	return r;
+	size_t size = _data_size(frame);
+	if (size < sizeof(frame_t))
+		return _log.fail(EINVAL, "Invalid frame size at 0x{:x}: {} too small", _offset, frame);
+
+	return _read_data(size, msg);
 }
 
 int File::_post(const tll_msg_t *msg, int flags)
@@ -395,13 +399,16 @@ int File::_write_datav(Args && ... args)
 {
 	constexpr unsigned N = sizeof...(Args);
 	std::array<const_memory, N> data({const_memory(std::forward<Args>(args))...});
-	struct iovec iov[N + 1];
+	struct iovec iov[N + 2];
 
 	frame_size_t frame;
+	uint8_t tail = 0x80;
 	iov[0].iov_base = &frame;
 	iov[0].iov_len = sizeof(frame);
+	iov[N + 1].iov_base = &tail;
+	iov[N + 1].iov_len = sizeof(tail);
 
-	size_t size = sizeof(frame);
+	size_t size = sizeof(frame) + 1;
 
 	for (unsigned i = 0; i < N; i++) {
 		iov[i + 1].iov_base = (void *) data[i].data;
@@ -423,15 +430,15 @@ int File::_write_datav(Args && ... args)
 	}
 
 	if (_offset + _block_size == _block_end) { // Write block meta
-		frame = 4;
-		if (_write_raw(&frame, sizeof(frame), _offset))
+		static constexpr uint8_t header[5] = {5, 0, 0, 0, 0x80};
+		if (_write_raw(&header, sizeof(header), _offset))
 			return EINVAL;
-		_offset += sizeof(frame);
+		_offset += sizeof(header);
 	}
 
 	frame = size;
 	_log.trace("Write frame {} at {}", frame, _offset);
-	if (_check_write(size, pwritev(fd(), iov, N + 1, _offset)))
+	if (_check_write(size, pwritev(fd(), iov, N + 2, _offset)))
 		return EINVAL;
 
 	return _shift(size);
@@ -442,7 +449,7 @@ int File::_read_frame(frame_size_t *frame)
 	auto r = pread(fd(), frame, sizeof(*frame), _offset);
 
 	if (r < 0)
-		return _log.fail(EINVAL, "Failed to read frame at {:x}: {}", _offset, strerror(errno));
+		return _log.fail(EINVAL, "Failed to read frame at 0x{:x}: {}", _offset, strerror(errno));
 
 	if (r < (ssize_t) sizeof(*frame))
 		return EAGAIN;
@@ -450,10 +457,16 @@ int File::_read_frame(frame_size_t *frame)
 	if (*frame == 0)
 		return EAGAIN;
 
-	if (*frame != -1)
-		return 0;
+	if (*frame != -1) {
+		if (*frame < (ssize_t) sizeof(*frame) + 1)
+			return _log.fail(EMSGSIZE, "Invalid frame size at 0x{:x}: {} < minimum {}", _offset, *frame, sizeof(*frame) + 1);
 
-	_log.trace("Found skip frame at offset {:x}", _offset);
+		if (_offset + *frame > _block_end)
+			return _log.fail(EMSGSIZE, "Invalid frame size at 0x{:x}: {} excedes block boundary", _offset, *frame);
+		return 0;
+	}
+
+	_log.trace("Found skip frame at offset 0x{:x}", _offset);
 	if (_offset + _block_size == _block_end)
 		return EAGAIN;
 
@@ -466,11 +479,14 @@ int File::_read_frame(frame_size_t *frame)
 int File::_read_data(size_t size, tll_msg_t *msg)
 {
 	_log.trace("Read {} bytes of data at {} + {}", size, _offset, sizeof(frame_size_t));
-	auto r = pread(fd(), _buf.data(), size, _offset + sizeof(frame_size_t));
+	auto r = pread(fd(), _buf.data(), size + 1, _offset + sizeof(frame_size_t));
 
 	if (r < 0)
-		return _log.fail(EINVAL, "Failed to read data at {:x}: {}", _offset, strerror(errno));
-	if (r < (ssize_t) size)
+		return _log.fail(EINVAL, "Failed to read data at 0x{:x}: {}", _offset, strerror(errno));
+	if (r < (ssize_t) size + 1)
+		return EAGAIN;
+
+	if ((((const uint8_t *) _buf.data())[size] & 0x80) == 0) // No tail marker
 		return EAGAIN;
 
 	auto meta = (frame_t *) _buf.data();
@@ -504,12 +520,9 @@ int File::_process(long timeout, int flags)
 		return _process(timeout, flags);
 	}
 
-	ssize_t size = frame - sizeof(frame);
-	if (size < (ssize_t) sizeof(frame_t))
-		return _log.fail(EINVAL, "Invalid frame size at {:x}: {} too small", _offset, frame);
-
-	if (_offset + frame > _block_end)
-		return _log.fail(EMSGSIZE, "Invalid frame size at {:x}: {} excedes block boundary", _offset, frame);
+	size_t size = _data_size(frame);
+	if (size < sizeof(frame_t))
+		return _log.fail(EINVAL, "Invalid frame size at 0x{:x}: {} too small", _offset, frame);
 
 	r = _read_data(size, &msg);
 

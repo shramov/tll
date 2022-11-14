@@ -11,7 +11,8 @@ from tll.channel import Context
 from tll.error import TLLError
 from tll.test_util import Accum
 
-META_SIZE = 4 + 12 + 24 # Size + frame + meta
+EXTRA_SIZE = 4 + 12 + 1 # Size + frame + tail marker
+META_SIZE = EXTRA_SIZE + 24 # Extra + meta size
 
 @pytest.fixture
 def context():
@@ -40,29 +41,29 @@ def test_basic(writer, reader, filename):
     assert w.dcaps == w.DCaps.Zero
 
     with pytest.raises(TLLError): w.post(b'x' * 1024 * 1024)
-    with pytest.raises(TLLError): w.post(b'x' * (1024 - 15))
+    with pytest.raises(TLLError): w.post(b'x' * (1024 - EXTRA_SIZE + 1))
 
     assert filename.stat().st_size == META_SIZE
     fp = filename.open('rb')
 
     w.post(b'a' * 128, seq=0, msgid=0)
-    assert filename.stat().st_size == META_SIZE + (128 + 16) * 1
+    assert filename.stat().st_size == META_SIZE + (128 + EXTRA_SIZE) * 1
 
     data = fp.read(16)
-    assert data == b'\x28\0\0\0Meta\0\0\0\0\0\0\0\0'
+    assert data == bytes([META_SIZE]) + b'\0\0\0Meta\0\0\0\0\0\0\0\0'
 
-    data = fp.read(0x28 - 16) # Skip meta
+    data = fp.read(META_SIZE - 16) # Skip meta
 
-    data = fp.read(128 + 16)
-    assert frame(data) == Frame(128 + 16, 0, 0)
-    assert data[16:] == b'a' * 128
+    data = fp.read(128 + EXTRA_SIZE)
+    assert frame(data) == Frame(128 + EXTRA_SIZE, 0, 0)
+    assert data[16:] == b'a' * 128 + b'\x80'
 
     w.post(b'b' * 128, seq=1, msgid=10)
-    assert filename.stat().st_size == META_SIZE + (128 + 16) * 2
+    assert filename.stat().st_size == META_SIZE + (128 + EXTRA_SIZE) * 2
 
-    data = fp.read(128 + 16)
-    assert frame(data) == Frame(128 + 16, 10, 1)
-    assert data[16:] == b'b' * 128
+    data = fp.read(128 + EXTRA_SIZE)
+    assert frame(data) == Frame(128 + EXTRA_SIZE, 10, 1)
+    assert data[16:] == b'b' * 128 + b'\x80'
 
     reader.open()
     assert reader.dcaps == reader.DCaps.Process | reader.DCaps.Pending
@@ -80,11 +81,11 @@ def test_basic(writer, reader, filename):
     assert reader.dcaps == reader.DCaps.Process
 
     w.post(b'c' * 128, seq=2, msgid=20)
-    assert filename.stat().st_size == META_SIZE + (128 + 16) * 3
+    assert filename.stat().st_size == META_SIZE + (128 + EXTRA_SIZE) * 3
 
-    data = fp.read(128 + 16)
-    assert frame(data) == Frame(128 + 16, 20, 2)
-    assert data[16:] == b'c' * 128
+    data = fp.read(128 + EXTRA_SIZE)
+    assert frame(data) == Frame(128 + EXTRA_SIZE, 20, 2)
+    assert data[16:] == b'c' * 128 + b'\x80'
 
     reader.process()
     assert [(x.seq, x.msgid, len(x.data), x.data.tobytes()) for x in reader.result] == [(2, 20, 128, b'c' * 128)]
@@ -103,16 +104,16 @@ def test_block_boundary(writer, reader, filename):
     fp = filename.open('rb')
 
     w.post(b'a' * 512, seq=0, msgid=0)
-    assert filename.stat().st_size == META_SIZE + (512 + 16) * 1
+    assert filename.stat().st_size == META_SIZE + (512 + EXTRA_SIZE) * 1
 
     data = fp.read(16)
-    assert data == b'\x28\0\0\0Meta\0\0\0\0\0\0\0\0'
+    assert data == bytes([META_SIZE]) + b'\0\0\0Meta\0\0\0\0\0\0\0\0'
 
-    data = fp.read(0x28 - 16) # Skip meta
+    data = fp.read(META_SIZE - 16) # Skip meta
 
-    data = fp.read(512 + 16)
-    assert frame(data) == Frame(512 + 16, 0, 0)
-    assert data[16:] == b'a' * 512
+    data = fp.read(512 + EXTRA_SIZE)
+    assert frame(data) == Frame(512 + EXTRA_SIZE, 0, 0)
+    assert data[16:] == b'a' * 512 + b'\x80'
 
     reader.open()
 
@@ -125,18 +126,18 @@ def test_block_boundary(writer, reader, filename):
     assert reader.dcaps == reader.DCaps.Process
 
     w.post(b'b' * 512, seq=1, msgid=10)
-    assert filename.stat().st_size == 1024 + 4 + (512 + 16) * 1
+    assert filename.stat().st_size == 1024 + 5 + (512 + EXTRA_SIZE) * 1
 
     data = fp.read(16)
     assert frame(data) == Frame(-1, 0, 0)
     fp.seek(1024)
 
-    data = fp.read(4)
-    assert data == b'\x04\0\0\0'
+    data = fp.read(5)
+    assert data == b'\x05\0\0\0\x80'
 
-    data = fp.read(512 + 16)
-    assert frame(data) == Frame(512 + 16, 10, 1)
-    assert data[16:] == b'b' * 512
+    data = fp.read(512 + EXTRA_SIZE)
+    assert frame(data) == Frame(512 + EXTRA_SIZE, 10, 1)
+    assert data[16:] == b'b' * 512 + b'\x80'
 
     reader.process()
     assert [(x.seq, x.msgid, len(x.data), x.data.tobytes()) for x in reader.result] == [(1, 10, 512, b'b' * 512)]
