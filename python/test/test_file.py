@@ -3,6 +3,7 @@
 
 import collections
 import os
+import random
 import struct
 
 import pytest
@@ -192,3 +193,24 @@ def test_autoclose(context, filename, writer):
         reader.process()
     assert [m.seq for m in reader.result] == list(range(50, 101, 10))
     assert reader.state == reader.State.Closed
+
+@pytest.mark.fuzzy
+def test_fuzzy(writer, reader):
+    data = []
+    start = random.randrange(0, 10000)
+
+    writer.open()
+
+    for i in range(1000):
+        size = random.randrange(0, 512)
+        data.append(size)
+        writer.post(bytes([size % 256] * size), msgid=size, seq=start + 2 * i)
+
+    for j in range(2000 - 2):
+        i = (j + 1) // 2
+        reader.result = []
+        reader.open(seq=f'{start + j}')
+        reader.process()
+        m = reader.result[-1]
+        assert (m.seq, m.msgid, len(m.data)) == (start + 2 * i, data[i], data[i])
+        reader.close()
