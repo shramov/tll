@@ -178,6 +178,12 @@ def test_open_seq(seq, r, writer, reader):
     reader.process()
     assert [(x.seq, x.msgid, len(x.data)) for x in reader.result] == [(r, r // 10 - 1, 3 * (r // 10 - 1))]
 
+    if seq is not None:
+        reader.post(b'', type=reader.Type.Control, name='Seek', seq=seq)
+        reader.result = []
+        reader.process()
+        assert [(x.seq, x.msgid, len(x.data)) for x in reader.result] == [(r, r // 10 - 1, 3 * (r // 10 - 1))]
+
 def test_open_seq_border(writer, reader):
     writer.open()
 
@@ -244,3 +250,12 @@ def test_fuzzy(writer, reader):
         m = reader.result[-1]
         assert (m.seq, m.msgid, len(m.data)) == (start + 2 * i, data[i], data[i])
         reader.close()
+
+    reader.open()
+    for j in reversed(range(2000 - 2)):
+        i = (j + 1) // 2
+        reader.result = []
+        reader.post(b'', type=reader.Type.Control, name='Seek', seq=start + j)
+        reader.process()
+        m = reader.result[-1]
+        assert (m.seq, m.msgid, len(m.data)) == (start + 2 * i, data[i], data[i])

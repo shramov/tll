@@ -22,6 +22,12 @@ using namespace tll;
 
 using File = tll::channel::File;
 
+static constexpr std::string_view control_scheme = R"(yamls://
+- name: Seek
+  id: 10
+)";
+static constexpr int control_seek_msgid = 10;
+
 #ifdef __APPLE__
 #if MAC_OS_X_VERSION_MIN_REQUIRED <= 1010
 
@@ -65,6 +71,11 @@ int File::_init(const tll::Channel::Url &url, tll::Channel *master)
 		internal.caps |= caps::Input;
 	if ((internal.caps & caps::InOut) == caps::InOut)
 		return _log.fail(EINVAL, "file:// can be either read-only or write-only, need proper dir in parameters");
+
+	_scheme_control.reset(context().scheme_load(control_scheme));
+	if (!_scheme_control.get())
+		return _log.fail(EINVAL, "Failed to load control scheme");
+
 	return 0;
 }
 
@@ -445,8 +456,21 @@ int File::_read_seq(frame_size_t frame, tll_msg_t *msg)
 
 int File::_post(const tll_msg_t *msg, int flags)
 {
-	if (internal.caps & caps::Input)
+	if (internal.caps & caps::Input) {
+		if (msg->type == TLL_MESSAGE_CONTROL) {
+			if (msg->msgid == control_seek_msgid) {
+				if (auto r = _seek(msg->seq); r) {
+					if (r != EAGAIN)
+						_log.error("Seek failed: seq {} not found", msg->seq);
+					else
+						_log.info("Requested seq {} not available in file", msg->seq);
+					return r;
+				}
+			}
+			return 0;
+		}
 		return ENOSYS;
+	}
 
 	if (msg->type != TLL_MESSAGE_DATA)
 		return 0;
