@@ -78,7 +78,7 @@ int TcpSocket<T>::_post_data(const tll_msg_t *msg, int flags)
 template <typename T>
 int TcpSocket<T>::_post_control(const tll_msg_t *msg, int flags)
 {
-	if (msg->msgid == tcp_scheme::Disconnect<tll_msg_t>::meta_id()) {
+	if (msg->msgid == tcp_scheme::Disconnect::meta_id()) {
 		this->_log.info("Disconnect client on user request");
 		this->close();
 	}
@@ -576,8 +576,8 @@ int TcpServer<T, C>::_cb_state(const tll_channel_t *c, const tll_msg_t *msg)
 template <typename T, typename C>
 void TcpServer<T, C>::_on_child_connect(tcp_socket_t *socket, const tcp_connect_t * conn)
 {
-	std::array<char, tcp_scheme::Connect<tll_msg_t>::meta_size()> buf;
-	auto connect = tll::scheme::make_binder<tcp_scheme::Connect>(buf);
+	std::array<char, tcp_scheme::Connect::meta_size()> buf;
+	auto connect = tcp_scheme::Connect::bind(buf);
 	if (conn->addr->sa_family == AF_INET) {
 		auto in = (const sockaddr_in *) conn->addr;
 		connect.get_host().set_ipv4(in->sin_addr.s_addr);
@@ -601,7 +601,7 @@ template <typename T, typename C>
 void TcpServer<T, C>::_on_child_closing(tcp_socket_t *socket)
 {
 	tll_msg_t m = { TLL_MESSAGE_CONTROL };
-	m.msgid = tcp_scheme::Disconnect<tll_msg_t>::meta_id();
+	m.msgid = tcp_scheme::Disconnect::meta_id();
 	m.addr = socket->msg_addr();
 	this->_callback(&m);
 }
