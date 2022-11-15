@@ -246,9 +246,9 @@ def test_fuzzy(writer, reader):
         assert reader.config['info.seq-begin'] == f'{start}'
         assert reader.config['info.seq'] == f'{start + 2 * 999}'
 
-        reader.process()
-        m = reader.result[-1]
-        assert (m.seq, m.msgid, len(m.data)) == (start + 2 * i, data[i], data[i])
+        for _ in range(5):
+            reader.process()
+        assert [(m.seq, m.msgid, len(m.data)) for m in reader.result] == [(start + 2 * k, data[k], data[k]) for k in range(i, min(i + 5, len(data)))]
         reader.close()
 
     reader.open()
@@ -256,6 +256,6 @@ def test_fuzzy(writer, reader):
         i = (j + 1) // 2
         reader.result = []
         reader.post(b'', type=reader.Type.Control, name='Seek', seq=start + j)
-        reader.process()
-        m = reader.result[-1]
-        assert (m.seq, m.msgid, len(m.data)) == (start + 2 * i, data[i], data[i])
+        for _ in range(5):
+            reader.process()
+        assert [(m.seq, m.msgid, len(m.data)) for m in reader.result] == [(start + 2 * k, data[k], data[k]) for k in range(i, min(i + 5, len(data)))]
