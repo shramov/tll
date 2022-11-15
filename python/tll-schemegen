@@ -88,7 +88,10 @@ if args.channel:
     c.close()
     del c
 else:
-    scheme = S.Scheme('yaml://' + args.scheme)
+    url = args.scheme
+    if '://' not in url:
+        url = 'yaml://' + url
+    scheme = S.Scheme(url)
 data = tmpl.render(S = S, scheme=scheme, options=options)
 
 if args.output in (None, '-'):
