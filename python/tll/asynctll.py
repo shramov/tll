@@ -270,12 +270,7 @@ class Loop:
         try:
             future.send(None) # Start future
             while True:
-                c = self._loop.poll(0.01)
-                if c is not None:
-                    c.process()
-                else:
-                    if self._loop.pending:
-                        self._loop.process()
+                self._loop.step(0.01)
                 if self._ticks:
                     self.log.debug("Ticks: {}", self._ticks)
                 for _ in range(self._ticks):
