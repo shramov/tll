@@ -177,7 +177,7 @@ class Loop:
         return c
 
     def _timer_cb(self, c, m):
-        self.log.debug("Timer cb")
+        self.log.trace("Timer cb")
         self._ticks += 1
         now = time.time()
         for ts in self._timer_queue:
@@ -272,7 +272,7 @@ class Loop:
             while True:
                 self._loop.step(0.01)
                 if self._ticks:
-                    self.log.debug("Ticks: {}", self._ticks)
+                    self.log.trace("Ticks: {}", self._ticks)
                 for _ in range(self._ticks):
                     future.send(None)
                 self._ticks = 0
