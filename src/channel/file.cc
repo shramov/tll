@@ -73,6 +73,10 @@ int File::_open(const ConstConfig &props)
 	_offset = 0;
 	_block_end = _block_size = _block_init;
 
+	_seq = _seq_begin = -1;
+	_config.set_ptr("seq-begin", &_seq_begin);
+	_config.set_ptr("seq", &_seq);
+
 	auto reader = tll::make_props_reader(props);
 	if (internal.caps & caps::Input) {
 		auto fd = ::open(_filename.c_str(), O_RDONLY, 0644);
@@ -82,6 +86,9 @@ int File::_open(const ConstConfig &props)
 
 		if (auto r = _read_meta(); r)
 			return _log.fail(EINVAL, "Failed to read metadata");
+
+		if (auto r = _file_bounds(); r && r != EAGAIN)
+			return _log.fail(EINVAL, "Failed to load file bounds");
 
 		auto seq = reader.getT<long long>("seq", 0);
 		if (!reader)
@@ -129,8 +136,14 @@ int File::_open(const ConstConfig &props)
 				return _log.fail(EINVAL, "Failed to read metadata");
 		}
 
-		if (auto r = _seek(std::nullopt); r && r != EAGAIN)
-			return _log.fail(EINVAL, "Seek failed");
+		if (auto r = _file_bounds(); r && r != EAGAIN)
+			return _log.fail(EINVAL, "Failed to load file bounds");
+
+		auto size = _file_size();
+		if (size != (ssize_t) _offset) {
+			_log.warning("Trailing data in file: {} < {}", _offset, size);
+			_truncate(_offset);
+		}
 	}
 	_buf.resize(_block_size);
 	_config.setT("block", util::Size { _block_size });
@@ -142,6 +155,8 @@ int File::_close()
 	auto fd = this->_update_fd(-1);
 	if (fd != -1)
 		::close(fd);
+	_config.setT("seq-begin", _seq_begin);
+	_config.setT("seq", _seq);
 	return 0;
 }
 
@@ -257,17 +272,72 @@ int File::_shift(size_t size)
 	return 0;
 }
 
-int File::_seek(std::optional<long long> seq)
+ssize_t File::_file_size()
 {
 	struct stat stat;
 	auto r = fstat(fd(), &stat);
 	if (r < 0)
-		return _log.fail(EINVAL, "Failed to get file size: {}", strerror(errno));
+		return _log.fail(-1, "Failed to get file size: {}", strerror(errno));
+	return stat.st_size;
+}
+
+int File::_file_bounds()
+{
+	auto size = _file_size();
+	if (size < 0)
+		return EINVAL;
+
+	tll_msg_t msg;
+
+	if (auto r = _block_seq(0, &msg); r) {
+		if (r != EAGAIN)
+			return _log.fail(EINVAL, "Failed to read seq of block {}", 0);
+		return r;
+	}
+
+	_seq_begin = msg.seq;
+
+	for (auto last = size / _block_size; last > 0; last--) {
+		if (auto r = _block_seq(0, &msg); r) {
+			if (r != EAGAIN)
+				return _log.fail(EINVAL, "Failed to read seq of block {}", last);
+		}
+	}
+
+	do {
+		_seq = msg.seq;
+		frame_size_t frame;
+		if (auto r = _read_frame(&frame); r)
+			return r;
+
+		if (_offset + _block_size == _block_end) {
+			_shift(frame);
+			continue;
+		}
+
+		_log.trace("Check seq at 0x{:x}", _offset);
+		auto r = _read_seq(frame, &msg);
+		if (r == EAGAIN)
+			break;
+		else if (r)
+			return r;
+		_shift(&msg);
+	} while (true);
+
+	_log.info("First seq: {}, last seq: {}", _seq_begin, _seq);
+	return 0;
+}
+
+int File::_seek(long long seq)
+{
+	auto size = _file_size();
+	if (size < 0)
+		return EINVAL;
 
 	tll_msg_t msg;
 
 	size_t first = 0;
-	size_t last = stat.st_size / _block_size;
+	size_t last = size / _block_size;
 
 	for (; last > 0; last--) {
 		auto r = _block_seq(last, &msg);
@@ -278,22 +348,6 @@ int File::_seek(std::optional<long long> seq)
 			return _log.fail(EINVAL, "Failed to read seq of block {}", last);
 	}
 	++last;
-
-	if (!seq) { // Seek to end
-		do {
-			auto r = _read_seq(&msg);
-			if (r == EAGAIN)
-				break;
-			else if (r)
-				return r;
-			_shift(&msg);
-		} while (true);
-
-		if (stat.st_size != (off_t) _offset) {
-			_log.warning("Trailing data in file: {} < {}", _offset, stat.st_size);
-			_truncate(_offset);
-		}
-	}
 
 	if (auto r = _block_seq(0, &msg); r)
 		return r; // Error or empty file
@@ -313,9 +367,9 @@ int File::_seek(std::optional<long long> seq)
 		} else if (r)
 			return r;
 		_log.trace("Block {} seq: {}", mid, msg.seq);
-		if (msg.seq == *seq)
+		if (msg.seq == seq)
 			return 0;
-		if (msg.seq > *seq)
+		if (msg.seq > seq)
 			last = mid;
 		else
 			first = mid;
@@ -334,17 +388,17 @@ int File::_seek(std::optional<long long> seq)
 			continue;
 		}
 
-		_log.debug("Check seq at 0x{:x}", _offset);
+		_log.trace("Check seq at 0x{:x}", _offset);
 		if (auto r = _read_seq(frame, &msg); r)
 			return r;
 		_log.debug("Message {}/{} at 0x{:x}", msg.seq, msg.size, _offset);
-		if (msg.seq >= *seq)
+		if (msg.seq >= seq)
 			break;
 		_shift(&msg);
 	} while (true);
 
-	if (msg.seq > *seq)
-		_log.warning("Seek seq {}: found closest seq {}", *seq, msg.seq);
+	if (msg.seq > seq)
+		_log.warning("Seek seq {}: found closest seq {}", seq, msg.seq);
 	return 0;
 }
 
@@ -390,13 +444,22 @@ int File::_post(const tll_msg_t *msg, int flags)
 	if (msg->type != TLL_MESSAGE_DATA)
 		return 0;
 
+	if (msg->seq <= _seq)
+		return _log.fail(EINVAL, "Incorrect messsage seq: {} <= last seq {}", msg->seq, _seq);
+
 	const size_t size = sizeof(full_frame_t) + msg->size;
 
 	if (size > _block_size)
 		return _log.fail(EMSGSIZE, "Message size too large: {}, block size is {}", msg->size, _block_size);
 
 	frame_t meta = { msg };
-	return _write_datav(const_memory { &meta, sizeof(meta) }, const_memory { msg->data, msg->size });
+	auto r = _write_datav(const_memory { &meta, sizeof(meta) }, const_memory { msg->data, msg->size });
+	if (!r) {
+		_seq = msg->seq;
+		if (_seq_begin == -1)
+			_seq_begin = _seq;
+	}
+	return r;
 }
 
 int File::_write_raw(const void * data, size_t size, size_t offset)

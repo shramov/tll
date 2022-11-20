@@ -27,6 +27,9 @@ class File : public tll::channel::Base<File>
 	enum class Compression : uint8_t { None = 0, LZ4 = 1} _compression;
 	bool _autoclose = true;
 
+	long long _seq_begin;
+	long long _seq;
+
 public:
 	using frame_size_t = int32_t;
 	struct __attribute__((packed)) frame_t
@@ -59,7 +62,10 @@ private:
 	template <typename ... Args>
 	int _write_datav(Args && ... args);
 
-	int _seek(std::optional<long long> seq);
+	int _file_bounds();
+	ssize_t _file_size();
+
+	int _seek(long long seq);
 	int _block_seq(size_t block, tll_msg_t *msg);
 	int _read_seq(frame_size_t frame, tll_msg_t *msg);
 	int _read_seq(tll_msg_t *msg);
