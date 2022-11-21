@@ -22,8 +22,8 @@ class _test_tcp_base:
     TIMESTAMP = False
 
     def setup(self):
-        self.s = Accum(self.PROTO, mode='server', name='server', dump='yes', context=ctx)
-        self.c = Accum(self.PROTO, mode='client', name='client', dump='yes', context=ctx)
+        self.s = Accum(self.PROTO, mode='server', name='server', dump='yes', context=ctx, sndbuf='16kb')
+        self.c = Accum(self.PROTO, mode='client', name='client', dump='yes', context=ctx, sndbuf='16kb')
 
     def teardown(self):
         self.c = None
@@ -161,10 +161,6 @@ class _test_tcp_base:
 
     def _children_count(self): return 1
 
-class TestTcpUnix(_test_tcp_base):
-    PROTO = 'tcp://./test.sock'
-    CLEANUP = ['test.sock']
-
 class TestTcp4(_test_tcp_base):
     ADDR = ('ipv4', 0x0100007f)
     PROTO = 'tcp://127.0.0.1:{}'.format(ports.TCP4)
@@ -200,3 +196,58 @@ class TestTcpNone(_test_tcp_base):
     PROTO = 'tcp://./test.sock;frame=none'
     CLEANUP = ['./test.sock']
     FRAME = False
+
+class TestTcpUnix(_test_tcp_base):
+    PROTO = 'tcp://./test.sock'
+    CLEANUP = ['test.sock']
+
+    def test_output_pending(self):
+        s, c = self.s, self.c
+
+        s.open()
+        assert s.state == s.State.Active
+        assert len(s.children) == self._children_count()
+
+        spoll = select.poll()
+        for i in s.children:
+            spoll.register(i.fd, select.POLLIN)
+        cpoll = select.poll()
+
+        c.open()
+        if c.state == c.State.Opening:
+            assert c.state == c.State.Opening
+            assert c.dcaps == c.DCaps.Process | c.DCaps.PollOut
+            cpoll.register(c.fd, select.POLLOUT)
+
+            assert cpoll.poll(100) == [(c.fd, select.POLLOUT)]
+            c.process()
+
+        assert spoll.poll(100) != []
+        for i in s.children:
+            i.process()
+        for i in s.children[self._children_count():]:
+            spoll.register(i.fd, select.POLLIN)
+
+        assert c.state == c.State.Active
+        assert c.dcaps == c.DCaps.Process | c.DCaps.PollIn
+
+        assert [(m.type, m.msgid) for m in s.result] == [(C.Type.Control, s.scheme_control['Connect'].msgid)]
+        addr = s.result[0].addr
+
+        cpoll.register(c.fd, select.POLLIN)
+
+        for i in range(20):
+            c.post(b'0123456789abcdef' * 1024, seq=i)
+            if c.dcaps & c.DCaps.PollOut != 0:
+                break
+        assert c.dcaps & c.DCaps.PollOut != 0
+        with pytest.raises(TLLError): c.post(b'0123456789abcdef' * 1024, seq=i + 1)
+
+        s.result = []
+        assert spoll.poll(100) == [(s.children[-1].fd, select.POLLIN)]
+        for j in range(i + 1):
+            s.children[-1].process()
+        assert [(len(m.data), m.seq) for m in s.result] == [(16 * 1024, j) for j in range(i)]
+        c.process()
+        s.children[-1].process()
+        assert [(len(m.data), m.seq) for m in s.result] == [(16 * 1024, j) for j in range(i + 1)]

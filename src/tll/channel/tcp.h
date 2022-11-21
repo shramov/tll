@@ -16,6 +16,8 @@
 #include <list>
 #include <vector>
 
+struct iovec;
+
 namespace tll::channel {
 
 struct tcp_socket_addr_t
@@ -61,13 +63,14 @@ class TcpSocket : public Base<T>
 
 	size_t _roff = 0; ///< Unprocessed data offset
 	size_t _rsize = 0; ///< Received data size
+	size_t _woff = 0; ///< Pending output data offset
+	size_t _wsize = 0; ///< Pending output data size
 
 	tcp_socket_addr_t _msg_addr;
 
 	using tcp_socket_t = TcpSocket<T>;
 
  public:
-	using iov_t = std::pair<const void *, size_t>;
 	static constexpr std::string_view channel_protocol() { return "tcp"; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
@@ -90,6 +93,7 @@ class TcpSocket : public Base<T>
 	int _post_control(const tll_msg_t *msg, int flags);
 
 	int _process(long timeout, int flags);
+	int _process_output();
 
 	void bind(int fd, int seq = 0) { this->_update_fd(fd); _msg_addr = { fd, seq }; }
 	const tcp_socket_addr_t & msg_addr() const { return _msg_addr; }
@@ -100,6 +104,9 @@ class TcpSocket : public Base<T>
 	{
 		this->close();
 	}
+
+	/// Hook called when output buffer is fully sent
+	void _on_output_sent() {}
 
  protected:
 	std::chrono::nanoseconds _timestamp;
@@ -134,12 +141,11 @@ class TcpSocket : public Base<T>
 	std::optional<size_t> _recv(size_t size = 0);
 
 	template <typename ... Args>
-	int _sendv(Args ... args);
+	int _sendv(const Args & ... args);
 
-	int _send(const void * data, size_t size)
-	{
-		return _send({{data, size}});
-	}
+	int _sendmsg(const iovec * iov, size_t N);
+
+	void _store_output(const void * base, size_t size, size_t offset = 0);
 
 	std::chrono::nanoseconds _cmsg_timestamp(msghdr * msg);
 };

@@ -125,15 +125,14 @@ int FramedSocket<T, Frame>::_post_data(const tll_msg_t *msg, int flags)
 {
 	if (msg->type != TLL_MESSAGE_DATA)
 		return 0;
+	if (this->_wsize)
+		return EAGAIN;
 	this->_log.debug("Post {} + {} bytes of data", sizeof(Frame), msg->size);
 	Frame frame;
 	tll::frame::FrameT<Frame>::write(msg, &frame);
-	using iov_t = typename tll::channel::TcpSocket<T>::iov_t;
-	int r = this->template _sendv(iov_t((const void *) &frame, sizeof(frame)), iov_t(msg->data, msg->size));
-	if (r < 0)
-		return this->_log.fail(errno, "Failed to post data: {}", strerror(errno));
-	else if ((size_t) r != sizeof(frame) + msg->size)
-		return this->_log.fail(errno, "Failed to post data (truncated): {}", strerror(errno));
+	int r = this->template _sendv(tll::memory {(void *) &frame, sizeof(frame)}, *msg);
+	if (r)
+		return this->_log.fail(r, "Failed to post data");
 	return 0;
 }
 
@@ -168,6 +167,9 @@ int FramedSocket<T, Frame>::_pending()
 template <typename T, typename Frame>
 int FramedSocket<T, Frame>::_process(long timeout, int flags)
 {
+	if (auto r = this->_process_output(); r)
+		return r;
+
 	auto r = this->_pending();
 	if (r != EAGAIN)
 		return r;

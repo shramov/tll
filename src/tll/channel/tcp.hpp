@@ -32,6 +32,23 @@
 
 namespace tll::channel {
 
+namespace _ {
+
+inline size_t _fill_iovec(size_t full, struct iovec * iov)
+{
+	return full;
+}
+
+template <typename Arg, typename ... Args>
+size_t _fill_iovec(size_t full, struct iovec * iov, const Arg &arg, const Args & ... args)
+{
+	iov->iov_base = (void *) arg.data;
+	iov->iov_len = arg.size;
+	return _fill_iovec(full + arg.size, iov + 1, std::forward<const Args &>(args)...);
+}
+
+} // namespace _
+
 template <typename T>
 int TcpSocket<T>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
@@ -183,22 +200,87 @@ std::chrono::nanoseconds TcpSocket<T>::_cmsg_timestamp(msghdr * msg)
 }
 
 template <typename T>
+void TcpSocket<T>::_store_output(const void * base, size_t size, size_t offset)
+{
+	auto view = tll::make_view(_wbuf, _woff);
+	auto len = size - offset;
+	auto data = offset + (const char *) base;
+	if (view.size() < len)
+		view.resize(len);
+	memcpy(view.data(), data, len);
+	_wsize += len;
+	if (_wsize == len)
+		this->_update_dcaps(dcaps::CPOLLOUT);
+}
+
+template <typename T>
+int TcpSocket<T>::_sendmsg(const iovec * iov, size_t N)
+{
+	if (_wsize) {
+		auto old = _wsize;
+		for (unsigned i = 0; i < N; i++)
+			_store_output(iov[i].iov_base, iov[i].iov_len);
+		this->_log.debug("Stored {} bytes of pending data (now {})", _wsize - old, _wsize);
+		return 0;
+	}
+
+	size_t full = 0;
+	for (unsigned i = 0; i < N; i++)
+		full += iov[i].iov_len;
+
+	struct msghdr msg = {};
+	msg.msg_iov = (iovec *) iov;
+	msg.msg_iovlen = N;
+	auto r = sendmsg(this->fd(), &msg, MSG_NOSIGNAL | MSG_DONTWAIT);
+	if (r < 0)
+		return this->_log.fail(EINVAL, "Failed to send {} bytes of data: {}", strerror(errno));
+	if (r < (ssize_t) full) {
+		auto old = _wsize;
+		for (unsigned i = 0; i < N; i++) {
+			auto len = iov[i].iov_len;
+			if (r >= (ssize_t) len) {
+				r -= len;
+				continue;
+			}
+			_store_output(iov[i].iov_base, iov[i].iov_len, r);
+			r = 0;
+		}
+		this->_log.debug("Stored {} bytes of pending data (now {})", _wsize - old, _wsize);
+	}
+	return 0;
+}
+
+template <typename T>
 template <typename ... Args>
-int TcpSocket<T>::_sendv(Args ... args)
+int TcpSocket<T>::_sendv(const Args & ... args)
 {
 	constexpr unsigned N = sizeof...(Args);
-	std::array<iov_t, N> data({iov_t(std::forward<Args>(args))...});
-	struct iovec iov[N] = {};
-	size_t full = 0;
-	for (unsigned i = 0; i < N; i++) {
-		iov[i].iov_base = (void *) data[i].first;
-		iov[i].iov_len = data[i].second;
-		full += data[i].second;
+	struct iovec iov[N];
+	_::_fill_iovec(0, iov, std::forward<const Args &>(args)...);
+
+	return _sendmsg(iov, N);
+}
+
+template <typename T>
+int TcpSocket<T>::_process_output()
+{
+	if (!_wsize)
+		return 0;
+	auto view = tll::make_view(_wbuf, _woff);
+	auto r = ::send(this->fd(), view.data(), _wsize, MSG_NOSIGNAL | MSG_DONTWAIT);
+	if (r < 0) {
+		if (r == EAGAIN)
+			return 0;
+		return this->_log.fail(errno, "Failed to send pending data: {}", strerror(errno));
 	}
-	struct msghdr msg = {};
-	msg.msg_iov = iov;
-	msg.msg_iovlen = N;
-	return sendmsg(this->fd(), &msg, MSG_NOSIGNAL | MSG_DONTWAIT);
+	_woff += r;
+	_wsize -= r;
+	if (!_wsize) {
+		_woff = 0;
+		this->_update_dcaps(0, dcaps::CPOLLOUT);
+		this->channelT()->_on_output_sent();
+	}
+	return 0;
 }
 
 template <typename T>

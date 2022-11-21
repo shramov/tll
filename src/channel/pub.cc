@@ -194,11 +194,10 @@ int ChPubSocket::_process_open()
 		tll::pub::server_hello hello = {};
 		hello.version = tll::pub::version;
 		tll_frame_t frame = { sizeof(hello), tll::pub::server_hello::id, 0 };
-		auto r = _sendv(iov_t {(void *) &frame, sizeof(frame)}, iov_t {(void *) &hello, sizeof(hello)});
-		if (r < 0)
-			return _log.fail(EINVAL, "Failed to send hello to client: {}", strerror(errno));
-		if (r != sizeof(hello) + sizeof(frame))
-			return _log.fail(EINVAL, "Failed to send hello to client: truncated write");
+		if (_sendv(tll::memory {(void *) &frame, sizeof(frame)}, tll::memory {(void *) &hello, sizeof(hello)}))
+			return _log.fail(EINVAL, "Failed to send hello to client");
+		if (_wsize)
+			return _log.fail(EINVAL, "Failed to send hello to client: truncated write, {} bytes not sent", _wsize);
 	}
 
 	_log.debug("Handshake finished");
