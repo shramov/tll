@@ -595,7 +595,7 @@ struct tll_processor_loop_t
 		if (msg->type == TLL_MESSAGE_STATE) {
 			if (msg->msgid == tll::state::Opening)
 				return process_add(const_cast<tll::Channel *>(c), c->fd(), c->dcaps());
-			else if (msg->msgid == tll::state::Closed)
+			else if (msg->msgid == tll::state::Closed || msg->msgid == tll::state::Error)
 				return process_del(c, c->fd());
 			else if (msg->msgid == tll::state::Destroy)
 				return del(c);
