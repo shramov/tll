@@ -622,7 +622,16 @@ int tll_channel_post(tll_channel_t *c, const tll_msg_t *msg, int flags)
 namespace {
 inline void suspend(tll_channel_t *c)
 {
+	unsigned old = c->internal->dcaps;
+	if (old & dcaps::Suspend)
+		return;
 	c->internal->dcaps |= dcaps::Suspend;
+
+	tll_msg_t msg = {TLL_MESSAGE_CHANNEL, TLL_MESSAGE_CHANNEL_UPDATE};
+	msg.data = &old;
+	msg.size = sizeof(old);
+	tll_channel_callback(c->internal, &msg);
+
 	for (auto & i : tll::util::list_wrap(c->internal->children))
 		suspend(i.channel);
 }
@@ -631,7 +640,17 @@ inline void resume(tll_channel_t *c)
 {
 	if ((c->internal->dcaps & dcaps::SuspendPermanent) != 0)
 		return;
+	unsigned old = c->internal->dcaps;
+	if ((old & dcaps::Suspend) == 0)
+		return;
+
 	c->internal->dcaps &= ~dcaps::Suspend;
+
+	tll_msg_t msg = {TLL_MESSAGE_CHANNEL, TLL_MESSAGE_CHANNEL_UPDATE};
+	msg.data = &old;
+	msg.size = sizeof(old);
+	tll_channel_callback(c->internal, &msg);
+
 	for (auto & i : tll::util::list_wrap(c->internal->children))
 		resume(i.channel);
 }
