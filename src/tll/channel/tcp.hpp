@@ -202,7 +202,7 @@ std::chrono::nanoseconds TcpSocket<T>::_cmsg_timestamp(msghdr * msg)
 template <typename T>
 void TcpSocket<T>::_store_output(const void * base, size_t size, size_t offset)
 {
-	auto view = tll::make_view(_wbuf, _woff);
+	auto view = tll::make_view(_wbuf, _woff + _wsize);
 	auto len = size - offset;
 	auto data = offset + (const char *) base;
 	if (view.size() < len)
