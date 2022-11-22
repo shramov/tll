@@ -240,12 +240,12 @@ class TcpServer : public Base<T>
 	// Hooks
 	int _on_accept(tll_channel_t * c) { return 0; }
 
-	static int _cb_state(const tll_channel_t *c, const tll_msg_t *msg, void * user)
+	static int _cb_other(const tll_channel_t *c, const tll_msg_t *msg, void * user)
 	{
-		return static_cast<TcpServer<T, C> *>(user)->_cb_state(c, msg);
+		return static_cast<TcpServer<T, C> *>(user)->_cb_other(c, msg);
 	}
 
-	int _cb_state(const tll_channel_t *c, const tll_msg_t *msg);
+	int _cb_other(const tll_channel_t *c, const tll_msg_t *msg);
 
 	static int _cb_data(const tll_channel_t *c, const tll_msg_t *msg, void * user)
 	{

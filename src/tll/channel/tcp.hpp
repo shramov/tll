@@ -646,16 +646,19 @@ void TcpServer<T, C>::_cleanup(tcp_socket_t * c)
 }
 
 template <typename T, typename C>
-int TcpServer<T, C>::_cb_state(const tll_channel_t *c, const tll_msg_t *msg)
+int TcpServer<T, C>::_cb_other(const tll_channel_t *c, const tll_msg_t *msg)
 {
 	auto socket = tll::channel_cast<tcp_socket_t>(const_cast<tll_channel_t *>(c))->channelT();
-	if (msg->msgid == state::Error) {
-		this->channelT()->_on_child_error(socket);
-		_cleanup_flag = true;
-	} else if (msg->msgid == state::Closing) {
-		this->channelT()->_on_child_closing(socket);
-		_cleanup_flag = true;
-	}
+	if (msg->type == TLL_MESSAGE_STATE) {
+		if (msg->msgid == state::Error) {
+			this->channelT()->_on_child_error(socket);
+			_cleanup_flag = true;
+		} else if (msg->msgid == state::Closing) {
+			this->channelT()->_on_child_closing(socket);
+			_cleanup_flag = true;
+		}
+	} else if (msg->type == TLL_MESSAGE_CONTROL)
+		this->_callback(msg);
 	return 0;
 }
 
@@ -735,7 +738,7 @@ int TcpServer<T, C>::_cb_socket(const tll_channel_t *c, const tll_msg_t *msg)
 	//r.release();
 	client->bind(fd);
 	client->setup(_settings);
-	tll_channel_callback_add(r.get(), _cb_state, this, TLL_MESSAGE_MASK_STATE);
+	tll_channel_callback_add(r.get(), _cb_other, this, TLL_MESSAGE_MASK_STATE | TLL_MESSAGE_MASK_CONTROL);
 	tll_channel_callback_add(r.get(), _cb_data, this, TLL_MESSAGE_MASK_DATA);
 	if (this->channelT()->_on_accept(r.get())) {
 		this->_log.debug("Client channel rejected");
