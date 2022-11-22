@@ -129,6 +129,8 @@ int TcpSocket<T>::setup(const tcp_settings_t &settings)
 {
 	using namespace tll::network;
 
+	_rbuf.resize(settings.buffer_size);
+
 	if (int r = nonblock(this->fd()))
 		return this->_log.fail(EINVAL, "Failed to set nonblock: {}", strerror(r));
 
@@ -231,6 +233,7 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_settings.keepalive = reader.getT("keepalive", true);
 	_settings.sndbuf = reader.getT("sndbuf", util::Size { 0 });
 	_settings.rcvbuf = reader.getT("rcvbuf", util::Size { 0 });
+	_settings.buffer_size = reader.getT("buffer-size", util::Size { 64 * 1024 });
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -403,6 +406,7 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_settings.keepalive = reader.getT("keepalive", true);
 	_settings.sndbuf = reader.getT("sndbuf", util::Size { 0 });
 	_settings.rcvbuf = reader.getT("rcvbuf", util::Size { 0 });
+	_settings.buffer_size = reader.getT("buffer-size", util::Size { 64 * 1024 });
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
