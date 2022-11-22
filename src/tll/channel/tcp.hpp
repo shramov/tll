@@ -220,7 +220,7 @@ int TcpSocket<T>::_sendmsg(const iovec * iov, size_t N)
 		auto old = _wsize;
 		for (unsigned i = 0; i < N; i++)
 			_store_output(iov[i].iov_base, iov[i].iov_len);
-		this->_log.debug("Stored {} bytes of pending data (now {})", _wsize - old, _wsize);
+		this->_log.trace("Stored {} bytes of pending data (now {})", _wsize - old, _wsize);
 		return 0;
 	}
 
@@ -232,9 +232,13 @@ int TcpSocket<T>::_sendmsg(const iovec * iov, size_t N)
 	msg.msg_iov = (iovec *) iov;
 	msg.msg_iovlen = N;
 	auto r = sendmsg(this->fd(), &msg, MSG_NOSIGNAL | MSG_DONTWAIT);
-	if (r < 0)
-		return this->_log.fail(EINVAL, "Failed to send {} bytes of data: {}", strerror(errno));
+	if (r < 0) {
+		if (errno != EAGAIN)
+			return this->_log.fail(EINVAL, "Failed to send {} bytes of data: {}", full, strerror(errno));
+		r = 0;
+	}
 	if (r < (ssize_t) full) {
+		this->_log.trace("Partial send: {} < {}, {} bytes not sent", r, full, full - r);
 		auto old = _wsize;
 		for (unsigned i = 0; i < N; i++) {
 			auto len = iov[i].iov_len;
@@ -245,7 +249,7 @@ int TcpSocket<T>::_sendmsg(const iovec * iov, size_t N)
 			_store_output(iov[i].iov_base, iov[i].iov_len, r);
 			r = 0;
 		}
-		this->_log.debug("Stored {} bytes of pending data (now {})", _wsize - old, _wsize);
+		this->_log.trace("Stored {} bytes of pending data (now {})", _wsize - old, _wsize);
 	}
 	return 0;
 }
@@ -269,12 +273,13 @@ int TcpSocket<T>::_process_output()
 	auto view = tll::make_view(_wbuf, _woff);
 	auto r = ::send(this->fd(), view.data(), _wsize, MSG_NOSIGNAL | MSG_DONTWAIT);
 	if (r < 0) {
-		if (r == EAGAIN)
+		if (errno == EAGAIN)
 			return 0;
 		return this->_log.fail(errno, "Failed to send pending data: {}", strerror(errno));
 	}
 	_woff += r;
 	_wsize -= r;
+	this->_log.trace("Sent {} bytes of pending data, {} bytes left", r, _wsize);
 	if (!_wsize) {
 		_woff = 0;
 		this->_update_dcaps(0, dcaps::CPOLLOUT);
