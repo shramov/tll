@@ -10,6 +10,7 @@
 
 #include "tll/channel/tcp.h"
 #include "tll/channel/tcp-scheme.h"
+#include "tll/channel/tcp-client-scheme.h"
 
 #include "tll/util/conv-fmt.h"
 #include "tll/util/size.h"
@@ -100,6 +101,24 @@ int TcpSocket<T>::_post_control(const tll_msg_t *msg, int flags)
 		this->close();
 	}
 	return 0;
+}
+
+template <typename T>
+void TcpSocket<T>::_on_output_full()
+{
+	tll_msg_t msg = { TLL_MESSAGE_CONTROL };
+	msg.msgid = tcp_scheme::WriteFull::meta_id();
+	msg.addr = _msg_addr;
+	this->_callback(&msg);
+}
+
+template <typename T>
+void TcpSocket<T>::_on_output_ready()
+{
+	tll_msg_t msg = { TLL_MESSAGE_CONTROL };
+	msg.msgid = tcp_scheme::WriteReady::meta_id();
+	msg.addr = _msg_addr;
+	this->_callback(&msg);
 }
 
 template <typename T>
@@ -209,8 +228,10 @@ void TcpSocket<T>::_store_output(const void * base, size_t size, size_t offset)
 		view.resize(len);
 	memcpy(view.data(), data, len);
 	_wsize += len;
-	if (_wsize == len)
+	if (_wsize == len) {
+		this->channelT()->_on_output_full();
 		this->_update_dcaps(dcaps::CPOLLOUT);
+	}
 }
 
 template <typename T>
@@ -283,7 +304,10 @@ int TcpSocket<T>::_process_output()
 	if (!_wsize) {
 		_woff = 0;
 		this->_update_dcaps(0, dcaps::CPOLLOUT);
-		this->channelT()->_on_output_sent();
+		this->channelT()->_on_output_ready();
+	} else if (_wsize < 1024) {
+		memmove(_wbuf.data(), &_wbuf[_woff], _wsize);
+		_woff = 0;
 	}
 	return 0;
 }
@@ -336,6 +360,11 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 		this->_log.debug("Connection to {}:{}", _peer->host, _peer->port);
 	} else
 		this->_log.debug("Connection address will be provided in open parameters");
+
+	this->_scheme_control.reset(this->context().scheme_load(tcp_client_scheme::scheme_string));
+	if (!this->_scheme_control.get())
+		return this->_log.fail(EINVAL, "Failed to load control scheme");
+
 	return 0;
 }
 

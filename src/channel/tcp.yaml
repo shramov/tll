@@ -1,3 +1,6 @@
+- import:
+    - yaml://src/channel/tcp-client.yaml
+
 - name: Connect
   id: 10
   unions:

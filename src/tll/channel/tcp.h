@@ -105,8 +105,11 @@ class TcpSocket : public Base<T>
 		this->close();
 	}
 
+	/// Hook called when output buffering is started, partial send occured
+	void _on_output_full();
+
 	/// Hook called when output buffer is fully sent
-	void _on_output_sent() {}
+	void _on_output_ready();
 
  protected:
 	std::chrono::nanoseconds _timestamp;

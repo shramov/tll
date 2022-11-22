@@ -1,0 +1,5 @@
+- name: WriteFull
+  id: 30
+
+- name: WriteReady
+  id: 40

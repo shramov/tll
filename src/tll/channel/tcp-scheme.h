@@ -2,7 +2,49 @@
 
 namespace tcp_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJxdT70OgjAQ3vsUt91CE0BDTDcji5u7cVCosYleG1uMDem7WxSFut3d93cfBzrepADcaCLZOGQAqhVQ5HHoSGmyIk4AuN2tyaOA/n0VsO9HpTKPJWbgvBm2TpFblBgymOHVhJ+8k0U1x6PfM9WvMBxCTD0reW3HfP7jX7R1E//zVvjjGH13qeeQyfi3ba1skxYuc/YC6wlPgw==)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJxdjz8PgjAQxXc+xW1dIOFfiOlmNCZuxsXBOCDU2ASvBA5jQ/rdLQpC3e7u9+7evQAwfwgO7NRIEruuqpgHIEsOSegFDjyKvNQTTRd0oxBFQROKQlt0KBW23FYAbH9Yo2Yc+s+Uw7kfN2X9TJkPpOuh6yRSEjPjw4JnM79qElG25Pbey91fMXMx1vUmRVWO/sFPf1ctzfrvW+ZPU6uG3JuD55x2K9vCDRyH3hs8kmAK)";
+
+struct WriteFull
+{
+	static constexpr size_t meta_size() { return 0; }
+	static constexpr std::string_view meta_name() { return "WriteFull"; }
+	static constexpr int meta_id() { return 30; }
+
+	template <typename Buf>
+	struct binder_type : public tll::scheme::Binder<Buf>
+	{
+		using tll::scheme::Binder<Buf>::Binder;
+
+		static constexpr auto meta_size() { return WriteFull::meta_size(); }
+		static constexpr auto meta_name() { return WriteFull::meta_name(); }
+		static constexpr auto meta_id() { return WriteFull::meta_id(); }
+		void view_resize() { this->_view_resize(meta_size()); }
+	};
+
+	template <typename Buf>
+	static binder_type<Buf> bind(Buf &buf) { return binder_type<Buf>(buf); }
+};
+
+struct WriteReady
+{
+	static constexpr size_t meta_size() { return 0; }
+	static constexpr std::string_view meta_name() { return "WriteReady"; }
+	static constexpr int meta_id() { return 40; }
+
+	template <typename Buf>
+	struct binder_type : public tll::scheme::Binder<Buf>
+	{
+		using tll::scheme::Binder<Buf>::Binder;
+
+		static constexpr auto meta_size() { return WriteReady::meta_size(); }
+		static constexpr auto meta_name() { return WriteReady::meta_name(); }
+		static constexpr auto meta_id() { return WriteReady::meta_id(); }
+		void view_resize() { this->_view_resize(meta_size()); }
+	};
+
+	template <typename Buf>
+	static binder_type<Buf> bind(Buf &buf) { return binder_type<Buf>(buf); }
+};
 
 struct Connect
 {

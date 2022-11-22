@@ -236,10 +236,15 @@ class TestTcpUnix(_test_tcp_base):
 
         cpoll.register(c.fd, select.POLLIN)
 
+        FULL_MSGID = c.scheme_control['WriteFull'].msgid
+        READY_MSGID = c.scheme_control['WriteReady'].msgid
+
         for i in range(20):
             c.post(b'0123456789abcdef' * 1024, seq=i)
             if c.dcaps & c.DCaps.PollOut != 0:
                 break
+
+        assert [(m.type, m.msgid) for m in c.result[-1:]] == [(c.Type.Control, FULL_MSGID)]
         assert c.dcaps & c.DCaps.PollOut != 0
         with pytest.raises(TLLError): c.post(b'0123456789abcdef' * 1024, seq=i + 1)
 
@@ -249,5 +254,6 @@ class TestTcpUnix(_test_tcp_base):
             s.children[-1].process()
         assert [(len(m.data), m.seq) for m in s.result] == [(16 * 1024, j) for j in range(i)]
         c.process()
+        assert [(m.type, m.msgid) for m in c.result[-1:]] == [(c.Type.Control, READY_MSGID)]
         s.children[-1].process()
         assert [(len(m.data), m.seq) for m in s.result] == [(16 * 1024, j) for j in range(i + 1)]
