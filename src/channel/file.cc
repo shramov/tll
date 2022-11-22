@@ -298,17 +298,21 @@ int File::_file_bounds()
 	_seq_begin = msg.seq;
 
 	for (auto last = size / _block_size; last > 0; last--) {
-		if (auto r = _block_seq(0, &msg); r) {
-			if (r != EAGAIN)
-				return _log.fail(EINVAL, "Failed to read seq of block {}", last);
-		}
+		auto r = _block_seq(last, &msg);
+		if (r == 0)
+			break;
+		else if (r != EAGAIN)
+			return _log.fail(EINVAL, "Failed to read seq of block {}", last);
 	}
 
 	do {
 		_seq = msg.seq;
 		frame_size_t frame;
-		if (auto r = _read_frame(&frame); r)
+		if (auto r = _read_frame(&frame); r) {
+			if (r == EAGAIN)
+				break;
 			return r;
+		}
 
 		if (_offset + _block_size == _block_end) {
 			_shift(frame);
@@ -391,7 +395,7 @@ int File::_seek(long long seq)
 		_log.trace("Check seq at 0x{:x}", _offset);
 		if (auto r = _read_seq(frame, &msg); r)
 			return r;
-		_log.debug("Message {}/{} at 0x{:x}", msg.seq, msg.size, _offset);
+		_log.trace("Message {}/{} at 0x{:x}", msg.seq, msg.size, _offset);
 		if (msg.seq >= seq)
 			break;
 		_shift(&msg);
