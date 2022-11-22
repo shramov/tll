@@ -129,7 +129,8 @@ int ChPubSocket::_open(const ConstConfig &url)
 		_rbuf.resize(1024);
 		_dcaps_poll(dcaps::CPOLLIN);
 		return 0;
-	}
+	} else
+		_rbuf.resize(16);
 
 	_dcaps_poll(dcaps::CPOLLOUT);
 	state(state::Active);
@@ -187,7 +188,8 @@ int ChPubSocket::_process_open()
 	if (hello->version != tll::pub::version)
 		return _log.fail(EINVAL, "Client sent invalid version: {} (expected {})",
 				hello->version, tll::pub::version);
-	_rbuf.resize(0);
+	rdone(rsize());
+	_rbuf.resize(16);
 
 	{
 		_log.debug("Sending hello to client");
@@ -263,5 +265,11 @@ int ChPubSocket::_process(long timeout, int flags)
 {
 	if (state() == state::Opening)
 		return _process_open();
-	return _process_data(true);
+	auto r = _process_data(true);
+	if (r == EAGAIN) {
+		// Check for connection close
+		_recv(4);
+		rdone(rsize());
+	}
+	return r;
 }
