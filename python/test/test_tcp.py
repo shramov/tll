@@ -50,7 +50,7 @@ class _test_tcp_base:
             assert c.dcaps == c.DCaps.Process | c.DCaps.PollOut
             cpoll.register(c.fd, select.POLLOUT)
 
-            assert cpoll.poll(100), [(c.fd == select.POLLOUT)]
+            assert cpoll.poll(100) == [(c.fd, select.POLLOUT)]
             c.process()
 
         assert spoll.poll(100) != []
@@ -117,7 +117,7 @@ class _test_tcp_base:
             assert c.dcaps == c.DCaps.Process | c.DCaps.PollOut
             cpoll.register(c.fd, select.POLLOUT)
 
-            assert cpoll.poll(100), [(c.fd == select.POLLOUT)]
+            assert cpoll.poll(100) == [(c.fd, select.POLLOUT)]
             c.process()
 
         assert spoll.poll(100) != []
