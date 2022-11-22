@@ -521,7 +521,7 @@ struct tll_processor_loop_t
 				_poll.nofd_disable();
 		} else if (_poll_enable) {
 			_log.info("Drop channel {} from poll with fd {}", c->name(), fd);
-			_poll.poll_add(fd, c, c->dcaps());
+			_poll.poll_del(fd);
 		}
 		return 0;
 	}
