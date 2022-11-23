@@ -6,6 +6,7 @@
 from tll.templates import cpp
 %>\
 #include <tll/scheme/binder.h>
+#include <tll/util/conv.h>
 % if options.namespace:
 
 namespace ${options.namespace} {
@@ -122,6 +123,24 @@ struct ${u.name}: public tll::scheme::binder::Union<Buf, ${cpp.numeric(u.type_pt
 % endfor
 };
 </%def>\
+<%def name='enum2dump(prefix, e)'>\
+
+template <>
+struct tll::conv::dump<${prefix}${e.name}> : public to_string_from_string_buf<${prefix}${e.name}>
+{
+	template <typename Buf>
+	static inline std::string_view to_string_buf(const ${prefix}${e.name} &v, Buf &buf)
+	{
+		switch (v) {
+% for v in sorted(e.keys()):
+		case ${prefix}${e.name}::${v}: return "${v}";
+% endfor
+		default: break;
+		}
+		return tll::conv::to_string_buf<${cpp.numeric(e.type)}, Buf>((${cpp.numeric(e.type)}) v, buf);
+	}
+};
+</%def>\
 % for e in scheme.enums.values():
 
 ${cpp.declare_enum(e)}
@@ -183,3 +202,11 @@ ${field2code(msg, f)}
 
 } // namespace ${options.namespace}
 % endif
+% for e in scheme.enums.values():
+${enum2dump('::'.join(([options.namespace] if options.namespace else []) + ['']), e)}\
+% endfor
+% for msg in scheme.messages:
+% for e in msg.enums.values():
+${enum2dump('::'.join(([options.namespace] if options.namespace else []) + [msg.name, '']), e)}\
+% endfor
+% endfor
