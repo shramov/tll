@@ -193,7 +193,7 @@ int File::_read_meta()
 	if (auto r = _read_data(size, &msg); r)
 		return _log.fail(EINVAL, "Failed to read meta data");
 
-	auto meta = tll::scheme::make_binder<file_scheme::Meta>(msg);
+	auto meta = file_scheme::Meta::bind(msg);
 	if (msg.msgid != meta.meta_id())
 		return _log.fail(EINVAL, "Invalid meta id: expected {}, got {}", msg.msgid, meta.meta_id());
 	if (msg.size < meta.meta_size())
@@ -205,7 +205,7 @@ int File::_read_meta()
 	_log.info("Meta info: block size {}, compression {}", _block_size, (uint8_t) comp);
 
 	switch (comp) {
-	case decltype(comp)::None:
+	case file_scheme::Meta::Compression::None:
 		_compression = Compression::None;
 		break;
 	default:
@@ -232,10 +232,10 @@ int File::_write_meta()
 	buf.resize(sizeof(full_frame_t));
 
 	auto view = tll::make_view(buf, sizeof(full_frame_t));
-	auto meta = tll::scheme::make_binder<file_scheme::Meta>(view);
+	auto meta = file_scheme::Meta::bind(view);
 	view.resize(meta.meta_size());
 	meta.set_block(_block_size);
-	meta.set_compression((decltype(meta)::Compression)_compression);
+	meta.set_compression((file_scheme::Meta::Compression)_compression);
 
 	if (_scheme) {
 		auto s = tll_scheme_dump(_scheme.get(), nullptr);
