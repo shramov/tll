@@ -5,6 +5,8 @@
 <%!
 from tll.templates import cpp
 %>\
+#pragma once
+
 #include <tll/scheme/binder.h>
 #include <tll/util/conv.h>
 % if options.namespace:
