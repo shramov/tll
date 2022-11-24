@@ -178,9 +178,9 @@ int ChPubSocket::_process_open()
 		return _log.fail(EMSGSIZE, "Client hello size too small: {}", frame->size);
 
 	auto full = frame->size + sizeof(*frame);
-	if (full > rsize())
+	if (full > _rbuf.capacity())
 		return _log.fail(EMSGSIZE, "Client hello size too large: {}", frame->size);
-	if (_rsize < full)
+	if (full > _rbuf.size())
 		return EAGAIN;
 	auto hello = rdataT<tll::pub::client_hello>(sizeof(*frame), frame->size);
 	if (!hello)
@@ -198,8 +198,8 @@ int ChPubSocket::_process_open()
 		tll_frame_t frame = { sizeof(hello), tll::pub::server_hello::id, 0 };
 		if (_sendv(tll::memory {(void *) &frame, sizeof(frame)}, tll::memory {(void *) &hello, sizeof(hello)}))
 			return _log.fail(EINVAL, "Failed to send hello to client");
-		if (_wsize)
-			return _log.fail(EINVAL, "Failed to send hello to client: truncated write, {} bytes not sent", _wsize);
+		if (_wbuf.size())
+			return _log.fail(EINVAL, "Failed to send hello to client: truncated write, {} bytes not sent", _wbuf.size());
 	}
 
 	_log.debug("Handshake finished");

@@ -54,8 +54,8 @@ int ChPubClient::_post_hello()
 	tll_frame_t frame = { sizeof(hello), tll::pub::client_hello::id, 0 };
 	if (_sendv(tll::memory {(void *) &frame, sizeof(frame)}, tll::memory {(void *) &hello, sizeof(hello)}))
 		return _log.fail(EINVAL, "Failed to send hello to server");
-	if (_wsize)
-		return _log.fail(EINVAL, "Failed to send hello to server: truncated write, {} bytes not sent", _wsize);
+	if (_wbuf.size())
+		return _log.fail(EINVAL, "Failed to send hello to server: truncated write, {} bytes not sent", _wbuf.size());
 
 	_dcaps_poll(dcaps::CPOLLIN);
 

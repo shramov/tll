@@ -125,7 +125,7 @@ int FramedSocket<T, Frame>::_post_data(const tll_msg_t *msg, int flags)
 {
 	if (msg->type != TLL_MESSAGE_DATA)
 		return 0;
-	if (this->_wsize)
+	if (this->_wbuf.size())
 		return EAGAIN;
 	this->_log.debug("Post {} + {} bytes of data", sizeof(Frame), msg->size);
 	Frame frame;
@@ -146,7 +146,7 @@ int FramedSocket<T, Frame>::_pending()
 	// Check for pending data
 	auto data = this->template rdataT<char>(sizeof(Frame), frame->size);
 	if (!data) {
-		if (sizeof(Frame) + frame->size > this->_rbuf.size())
+		if (sizeof(Frame) + frame->size > this->_rbuf.capacity())
 			return this->_log.fail(EMSGSIZE, "Message size {} too large", frame->size);
 		this->_dcaps_pending(false);
 		return EAGAIN;
@@ -174,7 +174,7 @@ int FramedSocket<T, Frame>::_process(long timeout, int flags)
 	if (r != EAGAIN)
 		return r;
 
-	auto s = this->_recv(this->_rbuf.size() - this->_rsize);
+	auto s = this->_recv(this->_rbuf.capacity());
 	if (!s)
 		return EINVAL;
 	if (!*s)

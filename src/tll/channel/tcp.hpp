@@ -61,6 +61,8 @@ int TcpSocket<T>::_init(const tll::Channel::Url &url, tll::Channel *master)
 template <typename T>
 int TcpSocket<T>::_open(const ConstConfig &url)
 {
+	_rbuf.clear();
+	_wbuf.clear();
 	if (this->fd() == -1) {
 		auto fd = url.getT<int>("fd");
 		if (!fd)
@@ -124,15 +126,15 @@ void TcpSocket<T>::_on_output_ready()
 template <typename T>
 std::optional<size_t> TcpSocket<T>::_recv(size_t size)
 {
-	if (_rsize == _rbuf.size()) return EAGAIN;
+	auto left = _rbuf.available();
+	if (left == 0) return EAGAIN;
 
-	auto left = _rbuf.size() - _rsize;
 	if (size != 0)
 		size = std::min(size, left);
 	else
 		size = left;
 #ifdef __linux__
-	struct iovec iov = {_rbuf.data() + _rsize, _rbuf.size() - _rsize};
+	struct iovec iov = {_rbuf.end(), left};
 	msghdr mhdr = {};
 	mhdr.msg_iov = &iov;
 	mhdr.msg_iovlen = 1;
@@ -140,7 +142,7 @@ std::optional<size_t> TcpSocket<T>::_recv(size_t size)
 	mhdr.msg_controllen = _cbuf.size();
 	int r = recvmsg(this->fd(), &mhdr, MSG_NOSIGNAL | MSG_DONTWAIT);
 #else
-	int r = recv(this->fd(), _rbuf.data() + _rsize, _rbuf.size() - _rsize, MSG_NOSIGNAL | MSG_DONTWAIT);
+	int r = recv(this->fd(), _rbuf.end(), left, MSG_NOSIGNAL | MSG_DONTWAIT);
 #endif
 	if (r < 0) {
 		if (errno == EAGAIN)
@@ -155,7 +157,7 @@ std::optional<size_t> TcpSocket<T>::_recv(size_t size)
 	if (mhdr.msg_controllen)
 		_timestamp = _cmsg_timestamp(&mhdr);
 #endif
-	_rsize += r;
+	_rbuf.extend(r);
 	this->_log.trace("Got {} bytes of data", r);
 	return r;
 }
@@ -166,6 +168,7 @@ int TcpSocket<T>::setup(const tcp_settings_t &settings)
 	using namespace tll::network;
 
 	_rbuf.resize(settings.buffer_size);
+	_wbuf.resize(settings.buffer_size);
 
 	if (int r = nonblock(this->fd()))
 		return this->_log.fail(EINVAL, "Failed to set nonblock: {}", strerror(r));
@@ -221,14 +224,13 @@ std::chrono::nanoseconds TcpSocket<T>::_cmsg_timestamp(msghdr * msg)
 template <typename T>
 void TcpSocket<T>::_store_output(const void * base, size_t size, size_t offset)
 {
-	auto view = tll::make_view(_wbuf, _woff + _wsize);
 	auto len = size - offset;
 	auto data = offset + (const char *) base;
-	if (view.size() < len)
-		view.resize(len);
-	memcpy(view.data(), data, len);
-	_wsize += len;
-	if (_wsize == len) {
+	if (_wbuf.available() < len)
+		_wbuf.resize(_wbuf.size() + len);
+	memcpy(_wbuf.end(), data, len);
+	_wbuf.extend(len);
+	if (_wbuf.size() == len) {
 		this->channelT()->_on_output_full();
 		this->_update_dcaps(dcaps::CPOLLOUT);
 	}
@@ -237,11 +239,11 @@ void TcpSocket<T>::_store_output(const void * base, size_t size, size_t offset)
 template <typename T>
 int TcpSocket<T>::_sendmsg(const iovec * iov, size_t N)
 {
-	if (_wsize) {
-		auto old = _wsize;
+	if (_wbuf.size()) {
+		auto old = _wbuf.size();
 		for (unsigned i = 0; i < N; i++)
 			_store_output(iov[i].iov_base, iov[i].iov_len);
-		this->_log.trace("Stored {} bytes of pending data (now {})", _wsize - old, _wsize);
+		this->_log.trace("Stored {} bytes of pending data (now {})", _wbuf.size() - old, _wbuf.size());
 		return 0;
 	}
 
@@ -260,7 +262,7 @@ int TcpSocket<T>::_sendmsg(const iovec * iov, size_t N)
 	}
 	if (r < (ssize_t) full) {
 		this->_log.trace("Partial send: {} < {}, {} bytes not sent", r, full, full - r);
-		auto old = _wsize;
+		auto old = _wbuf.size();
 		for (unsigned i = 0; i < N; i++) {
 			auto len = iov[i].iov_len;
 			if (r >= (ssize_t) len) {
@@ -270,7 +272,7 @@ int TcpSocket<T>::_sendmsg(const iovec * iov, size_t N)
 			_store_output(iov[i].iov_base, iov[i].iov_len, r);
 			r = 0;
 		}
-		this->_log.trace("Stored {} bytes of pending data (now {})", _wsize - old, _wsize);
+		this->_log.trace("Stored {} bytes of pending data (now {})", _wbuf.size() - old, _wbuf.size());
 	}
 	return 0;
 }
@@ -289,25 +291,21 @@ int TcpSocket<T>::_sendv(const Args & ... args)
 template <typename T>
 int TcpSocket<T>::_process_output()
 {
-	if (!_wsize)
+	if (!_wbuf.size())
 		return 0;
-	auto view = tll::make_view(_wbuf, _woff);
-	auto r = ::send(this->fd(), view.data(), _wsize, MSG_NOSIGNAL | MSG_DONTWAIT);
+	auto r = ::send(this->fd(), _wbuf.data(), _wbuf.size(), MSG_NOSIGNAL | MSG_DONTWAIT);
 	if (r < 0) {
 		if (errno == EAGAIN)
 			return 0;
 		return this->_log.fail(errno, "Failed to send pending data: {}", strerror(errno));
 	}
-	_woff += r;
-	_wsize -= r;
-	this->_log.trace("Sent {} bytes of pending data, {} bytes left", r, _wsize);
-	if (!_wsize) {
-		_woff = 0;
+
+	_wbuf.done(r);
+	this->_log.trace("Sent {} bytes of pending data, {} bytes left", r, _wbuf.size());
+	_wbuf.shift();
+	if (!_wbuf.size()) {
 		this->_update_dcaps(0, dcaps::CPOLLOUT);
 		this->channelT()->_on_output_ready();
-	} else if (_wsize < 1024) {
-		memmove(_wbuf.data(), &_wbuf[_woff], _wsize);
-		_woff = 0;
 	}
 	return 0;
 }
@@ -315,7 +313,7 @@ int TcpSocket<T>::_process_output()
 template <typename T>
 int TcpSocket<T>::_process(long timeout, int flags)
 {
-	auto r = _recv(_rbuf.size());
+	auto r = _recv(_rbuf.capacity());
 	if (!r)
 		return EINVAL;
 	if (!*r)

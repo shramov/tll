@@ -52,19 +52,78 @@ struct tcp_connect_t {
 	sockaddr * addr;
 };
 
+struct PartialBuffer
+{
+	std::vector<char> buf;
+	size_t _offset = 0; ///< Unprocessed data offset
+	size_t _size = 0; ///< Unprocessed data size
+
+	size_t capacity() const { return buf.size(); }
+	size_t size() const { return _size; }
+	size_t available() const { return capacity() - (_offset + _size); }
+
+	void clear()
+	{
+		_offset = 0;
+		_size = 0;
+	}
+	void resize(size_t size) { buf.resize(_offset + size); }
+
+	const void * data() const { return buf.data() + _offset; }
+	void * data() { return buf.data() + _offset; }
+
+	const void * begin() const { return buf.data() + _offset; }
+	void * begin() { return buf.data() + _offset; }
+
+	const void * end() const { return buf.data() + _offset + _size; }
+	void * end() { return buf.data() + _offset + _size; }
+
+	template <typename D>
+	const D * dataT(size_t off = 0, size_t size = sizeof(D)) const
+	{
+		if (off + size > _size)
+			return nullptr;
+		return (const D *) (buf.data() + off + _offset);
+	}
+
+	void extend(size_t size) { _size += size; }
+	void done(size_t size)
+	{
+		_offset += size;
+		_size -= size;
+		if (size == 0)
+			_offset = 0;
+	}
+
+	/**
+	 * Shift data so more space is available at the end.
+	 *
+	 * Nothing is done if data starts in the first part of the buffer.
+	 */
+	void shift()
+	{
+		if (_offset < capacity() / 2)
+			return;
+		force_shift();
+	}
+
+	/// Shift data without any checks
+	void force_shift()
+	{
+		if (_offset == 0) return;
+		memmove(buf.data(), buf.data() + _offset, _size);
+		_offset = 0;
+	}
+};
+
 template <typename T>
 class TcpSocket : public Base<T>
 {
  protected:
 	size_t _size = 1024;
-	std::vector<char> _rbuf;
-	std::vector<char> _wbuf;
+	PartialBuffer _rbuf;
+	PartialBuffer _wbuf;
 	std::vector<char> _cbuf;
-
-	size_t _roff = 0; ///< Unprocessed data offset
-	size_t _rsize = 0; ///< Received data size
-	size_t _woff = 0; ///< Pending output data offset
-	size_t _wsize = 0; ///< Pending output data size
 
 	tcp_socket_addr_t _msg_addr;
 
@@ -113,33 +172,13 @@ class TcpSocket : public Base<T>
 
  protected:
 	std::chrono::nanoseconds _timestamp;
-	size_t rsize() const { return _rsize - _roff; }
+
+	size_t rsize() const { return _rbuf.size(); }
+	void rdone(size_t size) { return _rbuf.done(size); }
+	void rshift() { return _rbuf.shift(); }
 
 	template <typename D>
-	const D * rdataT(size_t off = 0, size_t size = sizeof(D)) const
-	{
-		off += _roff;
-		if (off + size > _rsize)
-			return nullptr;
-		return (const D *) (_rbuf.data() + off);
-	}
-
-	void rdone(size_t size)
-	{
-		_roff += size;
-		if (_roff == _rsize) {
-			_roff = 0;
-			_rsize = 0;
-		}
-	}
-
-	void rshift()
-	{
-		if (_roff == 0) return;
-		memmove(_rbuf.data(), _rbuf.data() + _roff, _rsize - _roff);
-		_rsize -= _roff;
-		_roff = 0;
-	}
+	const D * rdataT(size_t off = 0, size_t size = sizeof(D)) const { return _rbuf.dataT<D>(off, size); }
 
 	std::optional<size_t> _recv(size_t size = 0);
 
