@@ -43,9 +43,9 @@ inline size_t _fill_iovec(size_t full, struct iovec * iov)
 template <typename Arg, typename ... Args>
 size_t _fill_iovec(size_t full, struct iovec * iov, const Arg &arg, const Args & ... args)
 {
-	iov->iov_base = (void *) arg.data;
-	iov->iov_len = arg.size;
-	return _fill_iovec(full + arg.size, iov + 1, std::forward<const Args &>(args)...);
+	iov->iov_base = (void *) tll::memoryview_api<Arg>::data(arg);
+	iov->iov_len = tll::memoryview_api<Arg>::size(arg);
+	return _fill_iovec(full + tll::memoryview_api<Arg>::size(arg), iov + 1, std::forward<const Args &>(args)...);
 }
 
 } // namespace _
