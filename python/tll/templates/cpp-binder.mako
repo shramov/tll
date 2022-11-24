@@ -195,7 +195,7 @@ ${field2code(msg, f)}
 	};
 
 	template <typename Buf>
-	static binder_type<Buf> bind(Buf &buf) { return binder_type<Buf>(buf); }
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
 };
 % endfor
 % if options.namespace:
