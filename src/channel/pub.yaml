@@ -1,0 +1,14 @@
+- enums:
+    Version: {type: int16, enum: {Current: 1}}
+
+- name: Hello
+  id: 100
+  fields:
+    - {name: version, type: int16 }
+    - {name: name, type: string, options.offset-ptr-version: legacy-short }
+
+- name: HelloReply
+  id: 101
+  fields:
+    - {name: version, type: int16 }
+

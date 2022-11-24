@@ -49,10 +49,12 @@ int ChPubClient::_post_hello()
 	}
 
 	_log.debug("Sending hello to server");
-	tll::pub::client_hello hello = {};
-	hello.version = tll::pub::version;
-	tll_frame_t frame = { sizeof(hello), tll::pub::client_hello::id, 0 };
-	if (_sendv(tll::memory {(void *) &frame, sizeof(frame)}, tll::memory {(void *) &hello, sizeof(hello)}))
+	std::array<char, pub_scheme::Hello::meta_size()> buf;
+	auto hello = pub_scheme::Hello::bind(buf);
+	hello.set_version((int16_t) pub_scheme::Version::Current);
+
+	tll_frame_t frame = { hello.meta_size(), hello.meta_id(), 0 };
+	if (_sendv(tll::memory {(void *) &frame, sizeof(frame)}, hello.view()))
 		return _log.fail(EINVAL, "Failed to send hello to server");
 	if (_wbuf.size())
 		return _log.fail(EINVAL, "Failed to send hello to server: truncated write, {} bytes not sent", _wbuf.size());
@@ -76,18 +78,18 @@ int ChPubClient::_process_open()
 	auto frame = rdataT<tll_frame_t>();
 	if (!frame)
 		return EAGAIN;
-        if (frame->msgid != tll::pub::server_hello::id)
+        if (frame->msgid != pub_scheme::HelloReply::meta_id())
 		return _log.fail(EINVAL, "Invalid server hello id: {} (expected {})",
-				frame->msgid, tll::pub::server_hello::id);
-	if (frame->size < sizeof(tll::pub::server_hello))
+				frame->msgid, pub_scheme::HelloReply::meta_id());
+	if (frame->size < pub_scheme::HelloReply::meta_size())
 		return _log.fail(EMSGSIZE, "Server hello size too small: {}", frame->size);
 
-	auto hello = rdataT<tll::pub::server_hello>(sizeof(*frame), frame->size);
-	if (!hello)
+	auto hello = pub_scheme::HelloReply::bind(_rbuf, sizeof(*frame));
+	if (hello.view().size() < frame->size)
 		return EAGAIN;
-	if (hello->version != tll::pub::version)
+	if (hello.get_version() != (int) pub_scheme::Version::Current)
 		return _log.fail(EINVAL, "Server sent invalid version: {} (expected {})",
-				hello->version, tll::pub::version);
+				hello.get_version(), (int) pub_scheme::Version::Current);
 	rdone(sizeof(*frame) + frame->size);
 
 	_log.debug("Handshake finished");

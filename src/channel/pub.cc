@@ -170,11 +170,11 @@ int ChPubSocket::_process_open()
 
 	auto frame = rdataT<tll_frame_t>();
 	if (!frame)
-		return _log.fail(EAGAIN, "Not enuf data");
-        if (frame->msgid != tll::pub::client_hello::id)
+		return EAGAIN;
+        if (frame->msgid != pub_scheme::Hello::meta_id())
 		return _log.fail(EINVAL, "Invalid client hello id: {} (expected {})",
-				frame->msgid, tll::pub::client_hello::id);
-	if (frame->size < sizeof(tll::pub::client_hello))
+				frame->msgid, pub_scheme::Hello::meta_id());
+	if (frame->size < pub_scheme::Hello::meta_size())
 		return _log.fail(EMSGSIZE, "Client hello size too small: {}", frame->size);
 
 	auto full = frame->size + sizeof(*frame);
@@ -182,21 +182,20 @@ int ChPubSocket::_process_open()
 		return _log.fail(EMSGSIZE, "Client hello size too large: {}", frame->size);
 	if (full > _rbuf.size())
 		return EAGAIN;
-	auto hello = rdataT<tll::pub::client_hello>(sizeof(*frame), frame->size);
-	if (!hello)
-		return EAGAIN;
-	if (hello->version != tll::pub::version)
+	auto hello = pub_scheme::Hello::bind(_rbuf, sizeof(*frame));
+	if (hello.get_version() != (int) pub_scheme::Version::Current)
 		return _log.fail(EINVAL, "Client sent invalid version: {} (expected {})",
-				hello->version, tll::pub::version);
+				hello.get_version(), (int) pub_scheme::Version::Current);
 	rdone(rsize());
 	_rbuf.resize(16);
 
 	{
 		_log.debug("Sending hello to client");
-		tll::pub::server_hello hello = {};
-		hello.version = tll::pub::version;
-		tll_frame_t frame = { sizeof(hello), tll::pub::server_hello::id, 0 };
-		if (_sendv(tll::memory {(void *) &frame, sizeof(frame)}, tll::memory {(void *) &hello, sizeof(hello)}))
+		std::array<char, pub_scheme::HelloReply::meta_size()> data;
+		auto hello = pub_scheme::HelloReply::bind(data);
+		hello.set_version((int) pub_scheme::Version::Current);
+		tll_frame_t frame = { hello.meta_size(), hello.meta_id(), 0 };
+		if (_sendv(tll::memory {(void *) &frame, sizeof(frame)}, data))
 			return _log.fail(EINVAL, "Failed to send hello to client");
 		if (_wbuf.size())
 			return _log.fail(EINVAL, "Failed to send hello to client: truncated write, {} bytes not sent", _wbuf.size());
