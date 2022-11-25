@@ -166,6 +166,8 @@ class Tagged : public tll::channel::Base<T>
 
 	_::TaggedStorage<T, Tags...> _channels;
 
+	size_t _skipped = 0;
+
  public:
 	struct StatType : public Base::StatType
 	{
@@ -219,11 +221,31 @@ class Tagged : public tll::channel::Base<T>
 		Base::_free();
 	}
 
+	int _open(const tll::ConstConfig &cfg)
+	{
+		if (_skipped) {
+			this->_log.warning("Skipped {} messages in inactive state", _skipped);
+			_skipped = 0;
+		}
+		return Base::_open(cfg);
+	}
+
 	template <typename Tag>
 	int callback_tag_wrapper(TaggedChannel<Tag> * c, const tll_msg_t *msg)
 	{
 		if (msg->type == TLL_MESSAGE_STATE && msg->msgid == tll::state::Destroy) {
 			_channels.remove(_::TaggedHelper<Tag>::get(c));
+		}
+
+		switch (this->state()) {
+		case tll::state::Opening:
+		case tll::state::Active:
+		case tll::state::Closing:
+			break;
+		default:
+			if (msg->type == TLL_MESSAGE_DATA)
+				_skipped++;
+			return 0;
 		}
 
 		if (!this->_stat_enable)
