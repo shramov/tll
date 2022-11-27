@@ -23,10 +23,14 @@ class FramedSocket : public tll::channel::TcpSocket<T>
  public:
 	using Frame = F;
 	using FrameT = tll::frame::FrameT<Frame>;
+	using Base = tll::channel::TcpSocket<T>;
+
 	static constexpr std::string_view param_prefix() { return "tcp"; }
 
 	int _post_data(const tll_msg_t *msg, int flags);
 	int _process(long timeout, int flags);
+
+	//void _on_output_full() {};
 
  private:
 	int _pending();
@@ -145,8 +149,22 @@ int FramedSocket<T, F>::_post_data(const tll_msg_t *msg, int flags)
 {
 	if (msg->type != TLL_MESSAGE_DATA)
 		return 0;
-	if (this->_wbuf.size())
-		return EAGAIN;
+
+	if (this->_wbuf.size()) {
+		if (this->_wbuf.size() > this->_wbuf.capacity() / 2)
+			return EAGAIN;
+		this->_log.trace("Store {} + {} bytes of data", FrameT::frame_skip_size(), msg->size);
+		if constexpr (FrameT::frame_skip_size() != 0) {
+			Frame frame;
+			tll::frame::FrameT<Frame>::write(msg, &frame);
+			this->_store_output(&frame, sizeof(frame));
+		}
+		this->_store_output(msg->data, msg->size);
+		//if (this->_wbuf.size() > this->_wbuf.capacity() / 2)
+		//	Base::_on_output_full();
+		return 0;
+	}
+
 	this->_log.trace("Post {} + {} bytes of data", FrameT::frame_size(), msg->size);
 	int r = 0;
 	if constexpr (FrameT::frame_skip_size() != 0) {
