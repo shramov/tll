@@ -160,7 +160,6 @@ int FramedSocket<T, Frame>::_pending()
 	this->rdone(sizeof(Frame) + frame->size);
 	this->_dcaps_pending(this->template rdataT<Frame>());
 	this->_callback_data(&msg);
-	this->rshift();
 	return 0;
 }
 
@@ -174,6 +173,7 @@ int FramedSocket<T, Frame>::_process(long timeout, int flags)
 	if (r != EAGAIN)
 		return r;
 
+	this->_rbuf.shift();
 	auto s = this->_recv(this->_rbuf.capacity());
 	if (!s)
 		return EINVAL;
