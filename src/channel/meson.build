@@ -11,6 +11,8 @@ channel_sources = files(
 	, 'pub.cc'
 	, 'pub-client.cc'
 	, 'serial.cc'
+	, 'stream-client.cc'
+	, 'stream-server.cc'
 	, 'tcp.cc'
 	, 'timeit.cc'
 	, 'timer.cc'

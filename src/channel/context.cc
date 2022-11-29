@@ -41,6 +41,7 @@
 #include "channel/random.h"
 #include "channel/serial.h"
 #include "channel/seq-check.h"
+#include "channel/stream-server.h"
 #include "channel/tcp.h"
 #include "channel/timeit.h"
 #include "channel/timer.h"
@@ -66,6 +67,7 @@ TLL_DECLARE_IMPL(ChMem);
 TLL_DECLARE_IMPL(ChLZ4);
 TLL_DECLARE_IMPL(ChPubServer);
 TLL_DECLARE_IMPL(ChSerial);
+TLL_DECLARE_IMPL(tll::channel::StreamServer);
 TLL_DECLARE_IMPL(ChTcp);
 TLL_DECLARE_IMPL(ChTimer);
 TLL_DECLARE_IMPL(ChTimeIt);
@@ -104,6 +106,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChPubServer::impl);
 		reg(&tll::channel::Random::impl);
 		reg(&ChSerial::impl);
+		reg(&tll::channel::StreamServer::impl);
 		reg(&ChTcp::impl);
 		reg(&ChTimeIt::impl);
 		reg(&ChTimer::impl);

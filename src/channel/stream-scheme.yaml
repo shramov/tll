@@ -1,0 +1,24 @@
+- name: Attribute
+  fields:
+    - {name: attribute, type: string}
+    - {name: value, type: string}
+
+- name: Request
+  id: 10
+  fields:
+    - {name: seq, type: int64}
+    - {name: client, type: string}
+    - {name: block, type: string}
+    - {name: attributes, type: '*Attribute'}
+
+- name: Reply
+  id: 20
+  fields:
+    - {name: seq, type: int64}
+    - {name: server, type: string}
+
+- name: Error
+  id: 30
+  fields:
+    - {name: error, type: string}
+    - {name: server, type: string}
