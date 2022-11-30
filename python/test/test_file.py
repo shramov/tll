@@ -13,7 +13,7 @@ from tll.error import TLLError
 from tll.test_util import Accum
 
 EXTRA_SIZE = 4 + 12 + 1 # Size + frame + tail marker
-META_SIZE = EXTRA_SIZE + 24 # Extra + meta size
+META_SIZE = EXTRA_SIZE + 32 # Extra + meta size
 
 @pytest.fixture
 def context():

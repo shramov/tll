@@ -1,8 +1,11 @@
+#pragma once
+
 #include <tll/scheme/binder.h>
+#include <tll/util/conv.h>
 
 namespace file_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJyFkUEOgjAQRfeeYnZNjCStRqzslLVewSCO2khbQouJGu5ui4ogGnfN78u8n5kAVCIxArKwthDb0iIZAOwFZjsTuRdAALcnkjTICOwl95FxiTqQ6oM8J1n5jQpethXaxIvELgIWTqaUcRoyF6Aq5VNMYi3zAo0RWpEIbo9hpVCWj2rOZWStFbpPWlU/a0vn2hhxbRXyQ1jYr41FLetwvIelrV4NGndCnVv3ML6h/3cNiW9Mqs9Z20ynp65wMu4ZTXpE+X/tzYHMGx2+D9va/7LWvg7AKQtnMz6ngzuwHZ9V)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJyFks1OwzAQhO99ir2tVCWS3YJrcoOe4RWQk7rFIraj2EGCyu+OHdqQnyJuq9nRzCevczBCywLw0ftWlZ2XuAI4KlkfXBEngBzOF4sYLBn4zyZJLirmhGHm/BB1d8uVX9uepRepSB0KoGx7TygnjEZBmk5finFvddNK55Q1WMD5J6xTxvOs90UNX6yRcUlC+BNbx65Xp75GQCmEsiW2bPuyiY8vbNWIa7DuJ6JtfBxcIkz7SIiJGMM8q6xt9T4t3G4Wja56k/r/Zz/W4uSmYezuNk2pvMOQwTxiuPEoZ/37N0YnfOrJrzfkhLLdjj+Q1TdjobO6)";
 
 struct Attribute
 {
@@ -26,18 +29,28 @@ struct Attribute
 	};
 
 	template <typename Buf>
-	static binder_type<Buf> bind(Buf &buf) { return binder_type<Buf>(buf); }
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
 };
 
 struct Meta
 {
-	static constexpr size_t meta_size() { return 24; }
+	static constexpr size_t meta_size() { return 32; }
 	static constexpr std::string_view meta_name() { return "Meta"; }
 	static constexpr int meta_id() { return 1635018061; }
 
 	enum class Compression: uint8_t
 	{
 		None = 0,
+	};
+
+	struct Flags: public tll::scheme::Bits<uint64_t>
+	{
+		using tll::scheme::Bits<uint64_t>::Bits;
+		static std::map<std::string_view, value_type> bits_descriptor()
+		{
+			return {
+			};
+		}
 	};
 
 	template <typename Buf>
@@ -69,13 +82,17 @@ struct Meta
 		std::string_view get_scheme() const { return this->template _get_string<tll_scheme_offset_ptr_t>(8); }
 		void set_scheme(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(8, v); }
 
+		using type_flags = Flags;
+		type_flags get_flags() const { return this->template _get_scalar<type_flags>(16); }
+		void set_flags(type_flags v) { return this->template _set_scalar<type_flags>(16, v); }
+
 		using type_attributes = tll::scheme::binder::List<Buf, Attribute::binder_type<Buf>, tll_scheme_offset_ptr_t>;
-		const type_attributes get_attributes() const { return this->template _get_binder<type_attributes>(16); }
-		type_attributes get_attributes() { return this->template _get_binder<type_attributes>(16); }
+		const type_attributes get_attributes() const { return this->template _get_binder<type_attributes>(24); }
+		type_attributes get_attributes() { return this->template _get_binder<type_attributes>(24); }
 	};
 
 	template <typename Buf>
-	static binder_type<Buf> bind(Buf &buf) { return binder_type<Buf>(buf); }
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
 };
 
 struct Block
@@ -96,7 +113,21 @@ struct Block
 	};
 
 	template <typename Buf>
-	static binder_type<Buf> bind(Buf &buf) { return binder_type<Buf>(buf); }
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
 };
 
 } // namespace file_scheme
+
+template <>
+struct tll::conv::dump<file_scheme::Meta::Compression> : public to_string_from_string_buf<file_scheme::Meta::Compression>
+{
+	template <typename Buf>
+	static inline std::string_view to_string_buf(const file_scheme::Meta::Compression &v, Buf &buf)
+	{
+		switch (v) {
+		case file_scheme::Meta::Compression::None: return "None";
+		default: break;
+		}
+		return tll::conv::to_string_buf<uint8_t, Buf>((uint8_t) v, buf);
+	}
+};
