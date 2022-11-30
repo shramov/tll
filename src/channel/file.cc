@@ -234,6 +234,7 @@ int File::_write_meta()
 	auto view = tll::make_view(buf, sizeof(full_frame_t));
 	auto meta = file_scheme::Meta::bind(view);
 	view.resize(meta.meta_size());
+	meta.set_meta_size(meta.meta_size());
 	meta.set_block(_block_size);
 	meta.set_compression((file_scheme::Meta::Compression)_compression);
 
