@@ -258,3 +258,19 @@ class TestTcpUnix(_test_tcp_base):
         assert [(m.type, m.msgid) for m in c.result[-1:]] == [(c.Type.Control, READY_MSGID)]
         s.children[-1].process()
         assert [(len(m.data), m.seq) for m in s.result] == [(16 * 1024, j) for j in range(i + 1)]
+
+def test_prefix():
+    s = Accum('tcp://./tcp.sock;mode=server;socket=lz4+tcp://;socket.tcp.dump=frame;dump=frame')
+    c = Accum('lz4+tcp://./tcp.sock;mode=client')
+    s.open()
+    c.open()
+    for x in s.children:
+        x.process()
+    c.process()
+
+    assert [(m.type, m.msgid) for m in s.result] == [(C.Type.Control, s.scheme_control['Connect'].msgid)]
+
+    c.post(b'abc' * 10, msgid=10, seq=100)
+    s.children[-1].children[0].process()
+
+    assert [(m.msgid, m.seq, m.data.tobytes()) for m in s.result[1:]] == [(10, 100, b'abc' * 10)]

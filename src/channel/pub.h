@@ -53,6 +53,8 @@ class ChPubServer : public tll::channel::LastSeqTx<ChPubServer, tll::channel::Tc
 	bool _hello = true;
 
  public:
+	static constexpr auto socket_impl_policy() { return SocketImplPolicy::Fixed; }
+
 	static constexpr std::string_view channel_protocol() { return "pub+tcp"; }
 	static constexpr std::string_view param_prefix() { return "pub"; }
 

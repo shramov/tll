@@ -53,8 +53,20 @@ template <typename Frame>
 class ChTcpServer : public tll::channel::TcpServer<ChTcpServer<Frame>, ChFramedSocket<Frame>>
 {
  public:
-	static constexpr std::string_view param_prefix() { return "tcp"; }
-	static constexpr std::string_view channel_protocol() { return "tcp-server"; } // Only visible in logs
+	using Base = tll::channel::TcpServer<ChTcpServer<Frame>, ChFramedSocket<Frame>>;
+	static constexpr std::string_view channel_protocol() { return "tcp"; }
+
+	int _init(const tll::Channel::Url &url, tll::Channel *master)
+	{
+		if (auto r = Base::_init(url, master))
+			return r;
+		if constexpr (std::is_same_v<Frame, void>) {
+			this->_socket_url.set("frame", "none");
+		} else {
+			this->_socket_url.set("frame", tll::frame::FrameT<Frame>::name()[0]);
+		}
+		return 0;
+	}
 };
 
 TLL_DEFINE_IMPL(ChTcp);
@@ -81,40 +93,46 @@ TLL_DEFINE_IMPL(tll::channel::TcpServerSocket<ChTcpServer<tll_frame_tiny_t>>);
 
 std::optional<const tll_channel_impl_t *> ChTcp::_init_replace(const tll::Channel::Url &url, tll::Channel *master)
 {
+	using tll::channel::TcpChannelMode;
+
 	auto reader = channel_props_reader(url);
-	auto client = reader.getT("mode", true, {{"client", true}, {"server", false}});
+	auto mode = reader.getT("mode", TcpChannelMode::Client);
 	auto frame = reader.getT<std::string>("frame", "std");
 	if (!reader)
 		return _log.fail(std::nullopt, "Invalid url: {}", reader.error());
 
 	if (frame == "none") {
-		if (client)
-			return &ChTcpClient<void>::impl;
-		else
-			return &ChTcpServer<void>::impl;
+		switch (mode) {
+		case TcpChannelMode::Client: return &ChTcpClient<void>::impl;
+		case TcpChannelMode::Server: return &ChTcpServer<void>::impl;
+		case TcpChannelMode::Socket: return &ChFramedSocket<void>::impl;
+		}
 	}
 	for (auto & n : tll::frame::FrameT<tll_frame_t>::name()) {
 		if (n == frame) {
-			if (client)
-				return &ChTcpClient<tll_frame_t>::impl;
-			else
-				return &ChTcpServer<tll_frame_t>::impl;
+			switch (mode) {
+			case TcpChannelMode::Client: return &ChTcpClient<tll_frame_t>::impl;
+			case TcpChannelMode::Server: return &ChTcpServer<tll_frame_t>::impl;
+			case TcpChannelMode::Socket: return &ChFramedSocket<tll_frame_t>::impl;
+			}
 		}
 	}
 	for (auto & n : tll::frame::FrameT<tll_frame_short_t>::name()) {
 		if (n == frame) {
-			if (client)
-				return &ChTcpClient<tll_frame_short_t>::impl;
-			else
-				return &ChTcpServer<tll_frame_short_t>::impl;
+			switch (mode) {
+			case TcpChannelMode::Client: return &ChTcpClient<tll_frame_short_t>::impl;
+			case TcpChannelMode::Server: return &ChTcpServer<tll_frame_short_t>::impl;
+			case TcpChannelMode::Socket: return &ChFramedSocket<tll_frame_short_t>::impl;
+			}
 		}
 	}
 	for (auto & n : tll::frame::FrameT<tll_frame_tiny_t>::name()) {
 		if (n == frame) {
-			if (client)
-				return &ChTcpClient<tll_frame_tiny_t>::impl;
-			else
-				return &ChTcpServer<tll_frame_tiny_t>::impl;
+			switch (mode) {
+			case TcpChannelMode::Client: return &ChTcpClient<tll_frame_tiny_t>::impl;
+			case TcpChannelMode::Server: return &ChTcpServer<tll_frame_tiny_t>::impl;
+			case TcpChannelMode::Socket: return &ChFramedSocket<tll_frame_tiny_t>::impl;
+			}
 		}
 	}
 	return _log.fail(std::nullopt, "Unknown frame '{}", frame);

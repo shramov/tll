@@ -33,6 +33,8 @@
 
 namespace tll::channel {
 
+enum class TcpChannelMode { Client, Server, Socket };
+
 namespace _ {
 
 inline size_t _fill_iovec(size_t full, struct iovec * iov)
@@ -522,6 +524,17 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
+	{
+		_socket_url.proto(this->channelT()->channel_protocol());
+		auto r = url.getT<tll::Channel::Url>("socket", _socket_url);
+		if (!r)
+			return this->_log.fail(EINVAL, "Invalid {} socket url: {}", this->channelT()->param_prefix(), r.error());
+		_socket_url = *r;
+		this->child_url_fill(_socket_url, "0");
+		_socket_url.set("fd-mode", "yes");
+		_socket_url.set("mode", "socket");
+	}
+
 	auto host = url.host();
 	auto r = network::parse_hostport(url.host(), af);
 	if (!r)
@@ -760,11 +773,15 @@ int TcpServer<T, C>::_cb_socket(const tll_channel_t *c, const tll_msg_t *msg)
 		return 0;
 	}
 
-	auto r = this->context().channel(fmt::format("tcp://;fd-mode=yes;tll.internal=yes;name={}/{}", this->name, fd), this->self(), &tcp_socket_t::impl);
+	_socket_url.set("name", fmt::format("{}/{}", this->name, fd));
+	auto impl = this->channelT()->socket_impl_policy() == SocketImplPolicy::Fixed ? &tcp_socket_t::impl : nullptr;
+	auto r = this->context().channel(_socket_url, this->self(), impl);
 	if (!r)
 		return this->_log.fail(EINVAL, "Failed to init client socket channel");
 
 	auto client = channel_cast<tcp_socket_t>(r.get());
+	if (!client)
+		return this->_log.fail(EINVAL, "Failed to cast to tcp socket type, invalid socket protocol {}", _socket_url.proto());
 	//r.release();
 	client->bind(fd);
 	client->setup(_settings);
@@ -790,5 +807,19 @@ int TcpServer<T, C>::_cb_socket(const tll_channel_t *c, const tll_msg_t *msg)
 }
 
 } // namespace tll::channel
+
+template <>
+struct tll::conv::parse<tll::channel::TcpChannelMode>
+{
+        static result_t<tll::channel::TcpChannelMode> to_any(std::string_view s)
+        {
+		using tll::channel::TcpChannelMode;
+                return tll::conv::select(s, std::map<std::string_view, TcpChannelMode> {
+			{"client", TcpChannelMode::Client},
+			{"server", TcpChannelMode::Server},
+			{"socket", TcpChannelMode::Socket},
+		});
+        }
+};
 
 #endif//_TLL_IMPL_CHANNEL_TCP_HPP

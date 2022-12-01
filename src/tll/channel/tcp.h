@@ -265,12 +265,16 @@ class TcpServer : public Base<T>
 	std::map<int, tcp_socket_t *> _clients;
 	bool _cleanup_flag = false;
 	tcp_settings_t _settings = {};
+	tll::Channel::Url _socket_url;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "tcp"; }
 	static constexpr auto child_policy() { return Base<T>::ChildPolicy::Many; }
 	static constexpr auto open_policy() { return Base<T>::OpenPolicy::Manual; }
 	static constexpr auto process_policy() { return Base<T>::ProcessPolicy::Never; }
+
+	enum class SocketImplPolicy { Fixed, Dynamic };
+	static constexpr auto socket_impl_policy() { return SocketImplPolicy::Dynamic; }
 
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
 
