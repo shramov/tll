@@ -72,7 +72,7 @@ class TestLogic(Logic):
         super()._init(url, master)
 
         if len(self._channels.get('input', [])) != 1:
-            raise RuntimeError("Need exactly one input, got: {}".format([c.name for c in self._channels.get('output', [])]))
+            raise RuntimeError("Need exactly one input, got: {}".format([c.name for c in self._channels.get('input', [])]))
         self._input = self._channels['input'][0]
         if len(self._channels.get('output', [])) != 1:
             raise RuntimeError("Need exactly one output, got: {}".format([c.name for c in self._channels.get('output', [])]))
