@@ -29,7 +29,7 @@ struct Processor : public tll::channel::Base<Processor>
 	static constexpr auto open_policy() { return OpenPolicy::Manual; }
 	static constexpr auto close_policy() { return ClosePolicy::Long; }
 	static constexpr auto process_policy() { return ProcessPolicy::Never; }
-	static constexpr auto child_policy() { return ChildPolicy::Single; } // Set Proxy cap to access IPC child channel
+	static constexpr auto child_policy() { return ChildPolicy::Proxy; } // Set Proxy cap to access IPC child channel
 	static constexpr std::string_view channel_protocol() { return "processor"; }
 
 	struct PreObject {

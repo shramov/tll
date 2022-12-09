@@ -97,7 +97,13 @@ class Base
 	enum class ClosePolicy { Normal, Long };
 	static constexpr auto close_policy() { return ClosePolicy::Normal; }
 
-	enum class ChildPolicy { Never, Single, Many };
+	enum class ChildPolicy
+	{
+		Never, ///< Channel has no child objects
+		Proxy, ///< Channel has some child objects, first one can be casted with tll::channel_cast<SubType>
+		Many, ///< Channel has some child objects, tll::channel_cast does not check children
+		Single = Proxy, ///< Old name, alias for Proxy
+	};
 	static constexpr auto child_policy() { return ChildPolicy::Never; }
 
 	enum class SchemePolicy { Normal, Manual };
@@ -221,7 +227,7 @@ class Base
 		switch (channelT()->child_policy()) {
 		case ChildPolicy::Never:
 			break;
-		case ChildPolicy::Single:
+		case ChildPolicy::Proxy:
 			internal.caps |= caps::Parent | caps::Proxy;
 			break;
 		case ChildPolicy::Many:
