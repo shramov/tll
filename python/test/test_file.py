@@ -29,7 +29,7 @@ def writer(context, filename):
 
 @pytest.fixture
 def reader(context, filename):
-    return Accum(f'file://{filename}', name='reader', dump='frame', dir='r', context=context, autoclose='no')
+    return Accum(f'file://{filename}', name='reader', dump='frame', context=context, autoclose='no')
 
 Frame = collections.namedtuple('Frame', ('size', 'msgid', 'seq'))
 

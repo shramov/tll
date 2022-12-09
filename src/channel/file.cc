@@ -61,6 +61,8 @@ int File::_init(const tll::Channel::Url &url, tll::Channel *master)
 	if (_filename.empty())
 		return _log.fail(EINVAL, "Empty file name");
 
+	if ((internal.caps & caps::InOut) == 0) // Defaults to input
+		internal.caps |= caps::Input;
 	if ((internal.caps & caps::InOut) == caps::InOut)
 		return _log.fail(EINVAL, "file:// can be either read-only or write-only, need proper dir in parameters");
 	return 0;
