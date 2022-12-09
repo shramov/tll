@@ -29,7 +29,6 @@
 #include <set>
 
 void tll_scheme_free(tll_scheme_t *);
-void tll_scheme_bits_free(tll_scheme_bits_t *b);
 
 using namespace tll::scheme;
 using tll::util::list_wrap;

@@ -333,6 +333,7 @@ typedef struct tll_scheme_t
 
 
 void tll_scheme_option_free(tll_scheme_option_t *);
+void tll_scheme_bits_free(tll_scheme_bits_t *);
 void tll_scheme_enum_free(tll_scheme_enum_t *);
 void tll_scheme_field_free(tll_scheme_field_t *);
 void tll_scheme_message_free(tll_scheme_message_t *);
@@ -455,6 +456,7 @@ template <> struct default_delete<const tll::scheme::Scheme> { void operator ()(
 
 template <> struct default_delete<tll::scheme::Message> { void operator ()(tll::scheme::Message *ptr) const { tll_scheme_message_free(ptr); } };
 template <> struct default_delete<tll::scheme::Field> { void operator ()(tll::scheme::Field *ptr) const { tll_scheme_field_free(ptr); } };
+template <> struct default_delete<tll::scheme::BitFields> { void operator ()(tll::scheme::BitFields *ptr) const { tll_scheme_bits_free(ptr); } };
 template <> struct default_delete<tll::scheme::Enum> { void operator ()(tll::scheme::Enum *ptr) const { tll_scheme_enum_free(ptr); } };
 template <> struct default_delete<tll::scheme::Union> { void operator ()(tll::scheme::Union *ptr) const { tll_scheme_union_free(ptr); } };
 } // namespace std
