@@ -297,7 +297,15 @@ struct Bits
 	Options options;
 	size_t size = -1;
 	tll_scheme_field_type_t type = TLL_SCHEME_FIELD_INT8;
-	std::list<std::string> bitfields;
+
+	struct Bit
+	{
+		std::string name;
+		unsigned offset = 0;
+		unsigned size = 1;
+	};
+
+	std::list<Bit> bitfields;
 
 	using unique_ptr = std::unique_ptr<tll::scheme::BitFields, decltype(&tll_scheme_bits_free)>;
 
@@ -310,9 +318,8 @@ struct Bits
 		r->name = strdup(name.c_str());
 		r->options = options.finalize();
 		auto last = &r->values;
-		size_t offset = 0;
-		for (auto & f : bitfields) {
-			*last = alloc_bit_field(f, 1, offset++);
+		for (auto &v : bitfields) {
+			*last = alloc_bit_field(v.name, v.size, v.offset);
 			last = &(*last)->next;
 		}
 		return r;
@@ -339,7 +346,7 @@ struct Bits
 	{
 		Bits r;
 		r.name = name;
-		tll::Logger _log = {"tll.scheme.enum." + r.name};
+		tll::Logger _log = {"tll.scheme.bits." + r.name};
 
 		auto type = cfg.get("type");
 		if (!type)
@@ -356,10 +363,31 @@ struct Bits
 		if (!o) return _log.fail(std::nullopt, "Failed to parse options for enum {}", name);
 		std::swap(r.options, *o);
 
-		for (auto & [k, c] : cfg.browse("bits.*")) {
-			r.bitfields.emplace_back(*c.get());
-		}
+		unsigned offset = 0;
 
+		for (auto & [_, c] : cfg.browse("bits.*", true)) {
+			Bit bit;
+			auto n = c.get();
+			if (!c.value()) {
+				if (!c.has("name"))
+					return _log.fail(std::nullopt, "Invalid bit description: no name");
+				bit.name = *c.get("name");
+				auto offset = c.getT<unsigned>("offset");
+				auto size = c.getT<unsigned>("size", 1);
+				if (!offset)
+					return _log.fail(std::nullopt, "Invalid offset for bit {}: {}", bit.name, offset.error());
+				if (!size)
+					return _log.fail(std::nullopt, "Invalid size for bit {}: {}", bit.name, size.error());
+				bit.offset = *offset;
+				bit.size = *size;
+			} else {
+				bit.name = *c.get();
+				bit.offset = offset;
+				bit.size = 1;
+			}
+			offset = bit.offset + bit.size;
+			r.bitfields.push_back(std::move(bit));
+		}
 		return r;
 	}
 };
@@ -1596,6 +1624,10 @@ std::string dump_type(tll_scheme_field_type_t t, const tll::scheme::Field * f)
 		if (tll::getter::get(f->type_enum->options, "_auto").value_or("") != "inline")
 			return f->type_enum->name;
 	}
+	if (f && f->sub_type == Field::Bits) {
+		if (tll::getter::get(f->type_bits->options, "_auto").value_or("") != "inline")
+			return f->type_bits->name;
+	}
 	switch (t) {
 	case Field::Int8:  return "int8";
 	case Field::Int16: return "int16";
@@ -1654,6 +1686,20 @@ std::string dump_body(const tll::scheme::Enum * e)
 	return r;
 }
 
+std::string dump_body(const tll::scheme::BitFields * b)
+{
+	std::string r = "bits: [";
+	bool comma = false;
+	for (auto &v : list_wrap(b->values)) {
+		if (comma)
+			r += ", ";
+		comma = true;
+		r += fmt::format("{{name: '{}', offset: {}, size: {}}}", v.name, v.offset, v.size);
+	}
+	r += "]";
+	return r;
+}
+
 std::string dump_body(const tll::scheme::Union * u)
 {
 	std::string r = "union: [";
@@ -1681,6 +1727,19 @@ std::string dump(const tll::scheme::Enum * e)
 	return r;
 }
 
+std::string dump(const tll::scheme::BitFields * b)
+{
+	std::string r;
+	r += fmt::format("'{}': ", b->name);
+	r += "{";
+	r += fmt::format("type: {}, ", dump_type(b->type, nullptr));
+	r += dump_body(b);
+	if (b->options)
+		r += ", " + dump(b->options);
+	r += "}";
+	return r;
+}
+
 std::string dump_options(const tll::scheme::Field * f, bool skip=false)
 {
 	std::string r;
@@ -1697,22 +1756,6 @@ std::string dump_options(const tll::scheme::Field * f, bool skip=false)
 		if (f->options)
 			return ", " + dump(f->options);
 	}
-	return r;
-}
-
-std::string dump(const tll_scheme_bit_field_t * fields)
-{
-	if (!fields) return "";
-	std::string r;
-	r += "bits: [";
-	bool comma = false;
-	for (auto &o : list_wrap(fields)) {
-		if (comma)
-			r += ", ";
-		comma = true;
-		r += fmt::format("'{}'", o.name);
-	}
-	r += "]";
 	return r;
 }
 
@@ -1734,7 +1777,8 @@ std::string dump(const tll::scheme::Field * f)
 		//	r += ", " + dump(f->type_enum->options, "enum-options");
 	}
 	if (f->sub_type == tll::scheme::Field::Bits) {
-		r += ", " + dump(f->bitfields);
+		if (tll::getter::get(f->type_bits->options, "_auto").value_or("") == "inline")
+			r += ", " + dump_body(f->type_bits);
 	}
 	r += "}";
 	return r;
@@ -1753,7 +1797,15 @@ std::string dump(const tll::scheme::Message * m)
 		for (auto &e : list_wrap(m->enums)) {
 			if (tll::getter::get(e.options, "_auto").value_or("") == "inline")
 				continue;
-			r += "    " + dump(&e) + "\n" ;
+			r += "    " + dump(&e) + "\n";
+		}
+	}
+	if (m->bits) {
+		r += "  bits:\n";
+		for (auto &b : list_wrap(m->bits)) {
+			if (tll::getter::get(b.options, "_auto").value_or("") == "inline")
+				continue;
+			r += "    " + dump(&b) + "\n";
 		}
 	}
 	if (m->unions) {
@@ -1766,7 +1818,7 @@ std::string dump(const tll::scheme::Message * m)
 	if (m->fields) {
 		r += "  fields:\n";
 		for (auto &f : list_wrap(m->fields))
-			r += "    - " + dump(&f) + "\n" ;
+			r += "    - " + dump(&f) + "\n";
 	}
 	return r;
 }
@@ -1782,14 +1834,20 @@ char * tll_scheme_dump(const tll_scheme_t * s, const char * format)
 	if (fmt != "yamls" && fmt != "yamls+gz")
 		return nullptr;
 	std::string r;
-	if (s->options || s->enums || s->unions || s->aliases) {
+	if (s->options || s->enums || s->bits || s->unions || s->aliases) {
 		r += "- name: ''\n";
 		if (s->options)
 			r += "  " + dump(s->options) + "\n";
 		if (s->enums) {
 			r += "  enums:\n";
 			for (auto &e : list_wrap(s->enums))
-				r += "    " + dump(&e) + "\n" ;
+				r += "    " + dump(&e) + "\n";
+		}
+		if (s->bits) {
+			r += "  bits:\n";
+			for (auto &b : list_wrap(s->bits)) {
+				r += "    " + dump(&b) + "\n";
+			}
 		}
 		if (s->unions) {
 			r += "  unions:\n";
@@ -1800,7 +1858,7 @@ char * tll_scheme_dump(const tll_scheme_t * s, const char * format)
 		if (s->aliases) {
 			r += "  aliases:\n";
 			for (auto &f : list_wrap(s->aliases))
-				r += "    - " + dump(&f) + "\n" ;
+				r += "    - " + dump(&f) + "\n";
 		}
 	}
 
