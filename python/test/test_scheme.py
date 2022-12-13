@@ -557,7 +557,7 @@ def _test_bits(scheme):
 
     assert i8.name == 'i8'
     assert i8.type == msg['i8'].Type.Int8
-    assert [(x.name, x.offset, x.size) for x in i8.values()] == [('a', 0, 1), ('b', 1, 1), ('c', 2, 1)]
+    assert [(x.name, x.offset, x.size) for x in i8.values()] == [('a', 0, 1), ('b', 2, 1), ('c', 3, 1)]
     assert u32.name == 'u32'
     assert u32.type == msg['u32'].Type.UInt32
     assert [(x.name, x.offset, x.size) for x in u32.values()] == [('c', 0, 1), ('d', 1, 1), ('e', 2, 1)]
@@ -568,7 +568,7 @@ def _test_bits(scheme):
     m.i8.c = 1
     m.u32.d = 1
 
-    assert m.i8._value == 5
+    assert m.i8._value == 9
 
     assert m.i8.a == True
     assert m.i8.b == False
@@ -604,7 +604,7 @@ def test_bits_inline():
     """yamls://
 - name: msg
   fields:
-    - {name: i8, type: int8, options.type: bits, bits: [a, b, c]}
+    - {name: i8, type: int8, options.type: bits, bits: [a, {name: b, offset: 2, size: 1}, c]}
     - {name: u32, type: uint32, options.type: bits, bits: [c, d, e]}
 """)
 
@@ -613,7 +613,7 @@ def test_bits():
     """yamls://
 - name:
   bits:
-    i8: {type: int8, options.type: bits, bits: [a, b, c]}
+    i8: {type: int8, options.type: bits, bits: [a, {name: b, offset: 2, size: 1}, c]}
 - name: msg
   bits:
     u32: {type: uint32, options.type: bits, bits: [c, d, e]}
