@@ -61,7 +61,8 @@ class _test_tcp_base:
         assert c.dcaps == c.DCaps.Process | c.DCaps.PollIn
 
         assert [(m.type, m.msgid) for m in s.result] == [(C.Type.Control, s.scheme_control['Connect'].msgid)]
-        assert s.unpack(s.result[0]).as_dict()['host'] == self.ADDR
+        host = s.unpack(s.result[0]).host
+        assert host.type, host.value == self.ADDR
         addr = s.result[0].addr
         s.result = []
 

@@ -715,19 +715,19 @@ def test_union_pack():
 
     m = msg.object(pre=0xffffffff, u=('sub', {'s0': 0xbeef}), post=0xffffffff)
 
-    assert m.u[:1] == ('sub',)
-    assert m.u[1].as_dict() == {'s0': 0xbeef}
+    assert m.u.type == 'sub'
+    assert m.u.value.as_dict() == {'s0': 0xbeef}
 
-    assert m.as_dict() == {'pre':0xffffffff, 'u': ('sub', {'s0': 0xbeef}), 'post':0xffffffff}
+    assert m.as_dict() == {'pre':0xffffffff, 'u': {'sub': {'s0': 0xbeef}}, 'post':0xffffffff}
 
     data = memoryview(m.pack())
     u = msg.unpack(data)
 
     assert u.as_dict() == m.as_dict()
 
-    m.u = ('i8', 100)
+    m.u = {'i8': 100}
 
-    assert m.as_dict() == {'pre':0xffffffff, 'u': ('i8', 100), 'post':0xffffffff}
+    assert m.as_dict() == {'pre':0xffffffff, 'u': {'i8': 100}, 'post':0xffffffff}
 
 UNION_SCHEME ='''yamls://
 - name: ''

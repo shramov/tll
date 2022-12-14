@@ -87,6 +87,23 @@ cdef enum_wrap(tll_scheme_enum_t * ptr):
     r.klass = enum.Enum(r.name, r)
     return r
 
+class UnionBase:
+    __slots__ = ['type', 'value']
+
+    def __init__(self, t, v):
+        self.type = t
+        self.value = v
+
+    def __repr__(self):
+        return f"<Union {self.__class__.__name__} type={self.type} value={self.value!r}>"
+
+    def __getitem__(self, key):
+        if key == 0:
+            return self.type
+        elif key == 1:
+            return self.value
+        raise KeyError(f"Invalid key: {key}")
+
 class Union(OrderedDict):
     pass
 
@@ -103,7 +120,10 @@ cdef union_wrap(Scheme s, object m, tll_scheme_union_t * ptr):
         r[f.name] = f
         f.union_index = i
         r.fields.append(f)
-    r.klass = namedtuple('Union', ['type', 'value'])
+    class K(UnionBase):
+        pass
+    K.__name__ = r.name
+    r.klass = K
     return r
 
 class Bits(OrderedDict):
@@ -531,7 +551,7 @@ cdef class FUnion(FBase):
             items = v.items()
             if len(items) != 1:
                 raise TypeError(f"Invalid union dict: {v}")
-            k, v = items[0]
+            k, v = list(items)[0]
         elif isinstance(v, tuple):
             if len(v) != 2:
                 raise TypeError(f"Invalid union tuple: {v}")
@@ -545,7 +565,7 @@ cdef class FUnion(FBase):
 
     cdef as_dict(self, v):
         f = self.type_union[v[0]]
-        return self.type_union.klass(v[0], f.as_dict(v[1]))
+        return {v.type: f.as_dict(v.value)}
 _TYPES[Type.Union] = FUnion
 
 _SUBTYPES = {}

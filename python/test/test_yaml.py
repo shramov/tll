@@ -188,10 +188,10 @@ config:
 @pytest.mark.parametrize("data,r", [
     ('{xxx: 10}', None),
     ('{i8: xxx}', None),
-    ('{i8: 10}', ('i8', 10)),
-    ('{string: string}', ('string', 'string')),
-    ('{sub: {s0: 10}}', ('sub', {'s0': 10})),
-    ('{array: [1, 2, 3]}', ('array', [1, 2, 3]))
+    ('{i8: 10}', {'i8': 10}),
+    ('{string: string}', {'string': 'string'}),
+    ('{sub: {s0: 10}}', {'sub': {'s0': 10}}),
+    ('{array: [1, 2, 3]}', {'array': [1, 2, 3]})
 ])
 def test_union(data, r):
     scheme = '''yamls://
