@@ -21,6 +21,7 @@ def safe_write(filename, data):
         shutil.move(name, p)
     except:
         os.unlink(name)
+        raise
 
 parser = argparse.ArgumentParser(description='Generate source code from scheme')
 parser.add_argument('scheme', metavar='SCHEME', type=str,
