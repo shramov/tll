@@ -37,15 +37,22 @@ parser.add_argument('-o', '--output', dest='output', type=str,
 parser.add_argument('-T', '--template-dir', dest='template_dir', action='append',
                     default=[],
                     help='additional template directories')
-parser.add_argument('-c', '--channel', dest='channel', action='store_true',
-                    default=False,
-                    help='load scheme from channel')
-parser.add_argument('-m', '--module', dest='modules', action='append',
-                    default=[],
-                    help='additional channel modules')
 parser.add_argument('--timeout', dest='timeout', type=float,
                     default=1,
                     help='open timeout for channel')
+
+channels = parser.add_argument_group('Channel options')
+channels.add_argument('-c', '--channel', dest='channel', action='store_true',
+                    default=False,
+                    help='treat SCHEME as channel and load scheme from it')
+channels.add_argument('--control', dest='control', action='store_true',
+                    default=False,
+                    help='load scheme of control messages')
+channels.add_argument('-m', '--module', dest='modules', action='append',
+                    default=[],
+                    help='additional channel modules')
+channels.add_argument('--master', dest='master',
+                    help='master channel')
 
 args, rest = parser.parse_known_args()
 
@@ -75,17 +82,22 @@ if args.channel:
     ctx = Context()
     for m in args.modules:
         ctx.load(m, 'channel_module')
-    c = ctx.Channel(args.scheme)
+    master = ctx.Channel(args.master) if args.master else None
+    c = ctx.Channel(args.scheme, master=master)
+    if master:
+        master.open()
     c.open()
     if c.state != c.State.Active:
         loop = Loop()
+        if master:
+            loop.add(master)
         loop.add(c)
         while c.state == c.State.Opening:
             if timeout < time.time():
                 print("Timeout waiting for channel")
                 sys.exit(1)
             loop.step(1)
-    scheme = c.scheme
+    scheme = c.scheme_control if args.control else c.scheme
     c.close()
     del c
 else:
