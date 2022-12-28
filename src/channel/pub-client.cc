@@ -124,8 +124,6 @@ int ChPubClient::_process_data()
 	if (_process_pending() != EAGAIN)
 		return 0;
 
-	rshift();
-
 	_log.debug("Fetch data");
 	auto r = _recv();
 	if (!r)

@@ -173,8 +173,7 @@ int FramedSocket<T, Frame>::_process(long timeout, int flags)
 	if (r != EAGAIN)
 		return r;
 
-	this->_rbuf.shift();
-	auto s = this->_recv(this->_rbuf.capacity());
+	auto s = this->_recv();
 	if (!s)
 		return EINVAL;
 	if (!*s)

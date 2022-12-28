@@ -180,7 +180,12 @@ class TcpSocket : public Base<T>
 	template <typename D>
 	const D * rdataT(size_t off = 0, size_t size = sizeof(D)) const { return _rbuf.dataT<D>(off, size); }
 
-	std::optional<size_t> _recv(size_t size = 0);
+	std::optional<size_t> _recv(size_t size);
+	std::optional<size_t> _recv()
+	{
+		_rbuf.shift();
+		return _recv(_rbuf.available());
+	}
 
 	template <typename ... Args>
 	int _sendv(const Args & ... args);

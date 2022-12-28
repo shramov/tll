@@ -129,12 +129,10 @@ std::optional<size_t> TcpSocket<T>::_recv(size_t size)
 	auto left = _rbuf.available();
 	if (left == 0) return EAGAIN;
 
-	if (size != 0)
-		size = std::min(size, left);
-	else
-		size = left;
+	size = std::min(size, left);
+
 #ifdef __linux__
-	struct iovec iov = {_rbuf.end(), left};
+	struct iovec iov = {_rbuf.end(), size};
 	msghdr mhdr = {};
 	mhdr.msg_iov = &iov;
 	mhdr.msg_iovlen = 1;
@@ -142,7 +140,7 @@ std::optional<size_t> TcpSocket<T>::_recv(size_t size)
 	mhdr.msg_controllen = _cbuf.size();
 	int r = recvmsg(this->fd(), &mhdr, MSG_NOSIGNAL | MSG_DONTWAIT);
 #else
-	int r = recv(this->fd(), _rbuf.end(), left, MSG_NOSIGNAL | MSG_DONTWAIT);
+	int r = recv(this->fd(), _rbuf.end(), size, MSG_NOSIGNAL | MSG_DONTWAIT);
 #endif
 	if (r < 0) {
 		if (errno == EAGAIN)
@@ -313,7 +311,7 @@ int TcpSocket<T>::_process_output()
 template <typename T>
 int TcpSocket<T>::_process(long timeout, int flags)
 {
-	auto r = _recv(_rbuf.capacity());
+	auto r = _recv();
 	if (!r)
 		return EINVAL;
 	if (!*r)
