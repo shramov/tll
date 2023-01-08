@@ -88,7 +88,7 @@ int StreamServer::_open(const ConstConfig &url)
 	if (_storage->state() != tll::state::Active)
 		return _log.fail(EINVAL, "Long opening storage is not supported");
 
-	auto last = _storage->config().getT<long long>("seq");
+	auto last = _storage->config().getT<long long>("info.seq");
 	if (!last)
 		return _log.fail(EINVAL, "Storage has invalid 'seq' config value: {}", last.error());
 	_seq = *last;

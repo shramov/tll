@@ -413,6 +413,9 @@ class Base
 
 	int fd() const { return internal.fd; }
 
+	/// Subtree for channel custom info, like last seq
+	Config config_info() { return *_config.sub("info", true); } // Sub can not fail in this case
+
 	tll_state_t state() const { return internal.state; }
 	tll_state_t state(tll_state_t s)
 	{

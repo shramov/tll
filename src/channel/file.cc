@@ -76,8 +76,8 @@ int File::_open(const ConstConfig &props)
 	_block_end = _block_size = _block_init;
 
 	_seq = _seq_begin = -1;
-	_config.set_ptr("seq-begin", &_seq_begin);
-	_config.set_ptr("seq", &_seq);
+	config_info().set_ptr("seq-begin", &_seq_begin);
+	config_info().set_ptr("seq", &_seq);
 
 	auto reader = tll::make_props_reader(props);
 	if (internal.caps & caps::Input) {
@@ -148,7 +148,7 @@ int File::_open(const ConstConfig &props)
 		}
 	}
 	_buf.resize(_block_size);
-	_config.setT("block", util::Size { _block_size });
+	config_info().setT("block", util::Size { _block_size });
 	return 0;
 }
 
@@ -157,8 +157,8 @@ int File::_close()
 	auto fd = this->_update_fd(-1);
 	if (fd != -1)
 		::close(fd);
-	_config.setT("seq-begin", _seq_begin);
-	_config.setT("seq", _seq);
+	config_info().setT("seq-begin", _seq_begin);
+	config_info().setT("seq", _seq);
 	return 0;
 }
 
