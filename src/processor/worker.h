@@ -35,6 +35,8 @@ struct Worker : public tll::channel::Base<Worker>
 
 	std::unique_ptr<tll::Channel> _ipc;
 
+	unsigned long long _cpuset;
+
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
 	int _open(const tll::ConstConfig &);
 	int _close();
@@ -59,6 +61,8 @@ struct Worker : public tll::channel::Base<Worker>
 
 	friend struct tll::CallbackT<Worker>;
 	int callback(const Channel * c, const tll_msg_t * msg);
+
+	int _setaffinity();
 };
 
 } // namespace tll

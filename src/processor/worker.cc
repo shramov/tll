@@ -9,20 +9,32 @@
 #include "processor/scheme.h"
 #include "processor/worker.h"
 
+#ifdef __linux__
+#include <sched.h>
+#endif
+
 using namespace tll::processor::_;
 
 TLL_DECLARE_IMPL(Processor);
 
 int Worker::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
-	auto wname = url.getT<std::string>("worker-name", name);
-	if (!wname)
-		return _log.fail(EINVAL, "Invalid worker-name parameter", wname.error());
+	auto reader = channel_props_reader(url);
+	auto cpuset = reader.getT<std::list<unsigned>>("cpu", {});
+	auto wname = reader.getT<std::string>("worker-name", name);
+	if (!reader)
+		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
-	_log = { fmt::format("tll.processor.worker.{}", *wname) };
+	_log = { fmt::format("tll.processor.worker.{}", wname) };
+
+	for (auto i : cpuset) {
+		if (i > sizeof(_cpuset) * 8)
+			return _log.fail(EINVAL, "CPU number too large: {}, max {}", i, sizeof(_cpuset) * 8);
+		_cpuset |= (1ull << i);
+	}
 
 	auto lcfg = url.copy();
-	lcfg.set("name", fmt::format("tll.processor.worker.{}.loop", *wname));
+	lcfg.set("name", fmt::format("tll.processor.worker.{}.loop", wname));
 	if (!lcfg.has("time-cache"))
 		lcfg.set("time-cache", "yes");
 	if (loop.init(lcfg))
@@ -45,6 +57,9 @@ int Worker::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 int Worker::_open(const ConstConfig &)
 {
+	if (_setaffinity())
+		return EINVAL;
+
 	loop.stop = false;
 	if (loop.time_cache_enable)
 		tll::time::cache_enable(true);
@@ -68,6 +83,26 @@ int Worker::_close()
 		tll::time::cache_enable(false);
 
 	loop.del(self());
+	return 0;
+}
+
+int Worker::_setaffinity()
+{
+	if (_cpuset == 0)
+		return 0;
+#ifdef __linux__
+	cpu_set_t set;
+	CPU_ZERO(&set);
+	for (auto i = 0u; i < sizeof(_cpuset) * 8; i++) {
+		if (_cpuset & (1ull << i))
+			CPU_SET(i, &set);
+
+	}
+	if (sched_setaffinity(0, sizeof(set), &set))
+		return _log.fail(EINVAL, "Failed to set CPU affinity: {}", strerror(errno));
+#else
+	_log.warning("CPU affinity not supported on this platform");
+#endif
 	return 0;
 }
 
