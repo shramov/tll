@@ -567,7 +567,7 @@ def test_lz4():
     c.post(b'xxx')
     assert s.state == s.State.Error
 
-@pytest.mark.parametrize("smin,smax", [(10, 100), (300, 400)])
+@pytest.mark.parametrize("smin,smax", [(10, 100), (300, 400), (400, 400)])
 @pytest.mark.parametrize("mode,pattern", [("random", ""), ("seq", ""), ("pattern", "0x1122334455667788")])
 def test_random(smin, smax, mode, pattern):
     s = Accum(f'random+direct://;data-mode={mode};pattern={pattern};min={smin}b;max={smax}b', name='server', context=ctx)

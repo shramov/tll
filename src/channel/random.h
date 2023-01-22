@@ -42,7 +42,7 @@ class Random : public tll::channel::Prefix<Random>
 		if (!reader)
 			return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
-		if (min >= max)
+		if (min > max)
 			return _log.fail(EINVAL, "Invalid min/max values: {}/{}", (unsigned) min, (unsigned) max);
 
 		_rand_dist = std::uniform_int_distribution<unsigned> { min, max };
