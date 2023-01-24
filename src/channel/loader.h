@@ -23,7 +23,7 @@ public:
 		for (auto & p : url.browse("module.*", true)) {
 			auto m = p.second.get("module");
 			if (!m) continue;
-			if (context().load(std::string(*m), "channel_module"))
+			if (context().load(std::string(*m)))
 				return _log.fail(EINVAL, "Failed to load module {}", *m);
 		}
 		auto aliases = url.sub("alias");

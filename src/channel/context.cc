@@ -218,7 +218,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 #endif
 	}
 
-	int load(const std::string &p, const std::string &symbol)
+	int load(std::string_view p, std::string_view symbol)
 	{
 		std::string_view name = p;
 		auto sep = name.rfind('/');
@@ -243,7 +243,18 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 			return 0;
 		}
 
-		auto func = (tll_channel_module_func_t) dlsym(module.get(), symbol.c_str());
+		if (!symbol.size())
+			symbol = "tll_channel_module";
+
+		auto func = (tll_channel_module_func_t) dlsym(module.get(), symbol.data());
+
+		// XXX: Temporary code, remove when transition is finished
+		if (!func && symbol == "channel_module") {
+			func = (tll_channel_module_func_t) dlsym(module.get(), "tll_channel_module");
+		} else if (!func && symbol == "tll_channel_module") {
+			func = (tll_channel_module_func_t) dlsym(module.get(), "channel_module");
+		}
+
 		if (!func)
 			return log.fail(EINVAL, "Failed to load: {} not found", symbol);
 
@@ -485,7 +496,7 @@ int tll_channel_alias_unregister_url(tll_channel_context_t *ctx, const char *nam
 
 int tll_channel_module_load(tll_channel_context_t *ctx, const char *module, const char * symbol)
 {
-	return context(ctx)->load(module, symbol);
+	return context(ctx)->load(module, symbol ? symbol : "");
 }
 
 tll_channel_t * tll_channel_new(tll_channel_context_t * ctx, const char *str, size_t len, tll_channel_t *master, const tll_channel_impl_t *impl)
