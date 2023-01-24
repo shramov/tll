@@ -15,6 +15,7 @@ from ..logger import Logger
 
 import importlib
 import sys
+import warnings
 
 cdef class Impl:
     def __cinit__(self, object ctype):
@@ -124,9 +125,12 @@ cdef class Context:
             return None
         return Channel.wrap(c)
 
-    def load(self, path, symbol='module'):
+    def load(self, path, symbol=''):
         p = s2b(path)
         s = s2b(symbol)
+        # XXX: Temporary warning
+        if symbol == 'channel_module':
+            warnings.warn('Passing "channel_module" to load() is deprecated, omit second argument', DeprecationWarning)
         r = tll_channel_module_load(self._ptr, p, s)
         if r:
             raise TLLError("Failed to load {}:{}".format(path, symbol), r)
