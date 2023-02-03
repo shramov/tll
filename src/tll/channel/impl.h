@@ -19,7 +19,7 @@ extern "C" {
 
 struct tll_channel_impl_t
 {
-	int (*init)(tll_channel_t *, const tll_config_t * url, tll_channel_t * parent, tll_channel_context_t * ctx);
+	int (*init)(tll_channel_t *, const tll_config_t * url, tll_channel_t * master, tll_channel_context_t * ctx);
 	void (*free)(tll_channel_t *);
 	int (*open)(tll_channel_t *, const tll_config_t *);
 	int (*close)(tll_channel_t *, int);
@@ -189,14 +189,14 @@ public:
 	static VBase * _dataT(tll_channel_t * c) { return (T *) c->data; }
 	static const VBase * _dataT(const tll_channel_t * c) { return (T *) c->data; }
 
-	static int _init(tll_channel_t *c, const tll_config_t *curl, tll_channel_t * parent, tll_channel_context_t *ctx)
+	static int _init(tll_channel_t *c, const tll_config_t *curl, tll_channel_t * master, tll_channel_context_t *ctx)
 	{
 		auto ptr = new T();
 		c->data = ptr;
 		c->internal = &_dataT(c)->internal;
 		c->internal->self = c;
 		const Channel::Url url(const_cast<tll_config_t *>(curl));
-		int r = _dataT(c)->init(url, static_cast<tll::Channel *>(parent), ctx);
+		int r = _dataT(c)->init(url, static_cast<tll::Channel *>(master), ctx);
 		if (c->data != ptr) {
 			delete ptr;
 			return r;
