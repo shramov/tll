@@ -109,6 +109,13 @@ class Base
 	enum class SchemePolicy { Normal, Manual };
 	static constexpr auto scheme_policy() { return SchemePolicy::Normal; }
 
+	/// Post policy, enable or disable posting in non-active states
+	enum class PostPolicy { Disable, Enable };
+	/// Post in Opening state policy
+	static constexpr auto post_opening_policy() { return PostPolicy::Disable; }
+	/// Post in Closing state policy
+	static constexpr auto post_closing_policy() { return PostPolicy::Disable; }
+
 	tll_channel_internal_t internal = {};
 
 	using StatType = tll_channel_stat_t;
@@ -378,8 +385,15 @@ class Base
 
 	int post(const tll_msg_t *msg, int flags)
 	{
-		if (state() != state::Active)
-			return _log.fail(EINVAL, "Post in invalid state {}", tll_state_str(state()));
+		auto s = state();
+		if (s != state::Active) {
+			if (s == state::Opening && channelT()->post_opening_policy() == PostPolicy::Enable) {
+				// Post in Opening is enabled
+			} else if (s == state::Closing && channelT()->post_closing_policy() == PostPolicy::Enable) {
+				// Post in Closing is enabled
+			} else
+				return _log.fail(EINVAL, "Post in invalid state {}", tll_state_str(s));
+		}
 		_dump_msg(msg, "Post");
 		auto r = static_cast<ChannelT *>(this)->_post(msg, flags);
 		if (r)

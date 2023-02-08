@@ -34,6 +34,8 @@ public:
 	static constexpr auto close_policy() { return Base<T>::ClosePolicy::Long; }
 	static constexpr auto process_policy() { return Base<T>::ProcessPolicy::Never; }
 	static constexpr auto scheme_policy() { return Base<T>::SchemePolicy::Manual; }
+	static constexpr auto post_opening_policy() { return Base<T>::PostPolicy::Enable; }
+	static constexpr auto post_closing_policy() { return Base<T>::PostPolicy::Enable; }
 
 	const Scheme * scheme(int type) const
 	{
