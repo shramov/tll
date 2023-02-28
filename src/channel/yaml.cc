@@ -16,6 +16,16 @@ using namespace tll;
 
 TLL_DEFINE_IMPL(ChYaml);
 
+template <typename T>
+const T * lookup(const T * data, std::string_view name)
+{
+	for (auto i = data; i; i = i->next) {
+		if (i->name == name)
+			return i;
+	}
+	return nullptr;
+}
+
 int ChYaml::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	_filename = url.host();
@@ -27,6 +37,7 @@ int ChYaml::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 	auto reader = channel_props_reader(url);
 	_autoclose = reader.getT("autoclose", true);
+	_strict = reader.getT("strict", true);
 	auto control = reader.get("scheme-control");
 
 	if (!reader)
@@ -261,14 +272,17 @@ int ChYaml::_fill(View view, const tll::scheme::Message * msg, tll::ConstConfig 
 {
 	View pmap = msg->pmap ? view.view(msg->pmap->offset) : view;
 	_log.trace("Fill message {}", msg->name);
-	for (auto f = msg->fields; f; f = f->next) {
-		auto c = cfg.sub(f->name);
-		if (!c)
-			continue;
+	for (auto & [p, c] : cfg.browse("*", true)) {
+		auto f = lookup(msg->fields, p);
+		if (!f) {
+			if (!_strict)
+				continue;
+			return _log.fail(EINVAL, "Field {} not found in message {}", p, msg->name);
+		}
 		_log.trace("Fill field {}", f->name);
 		if (msg->pmap && f->index >= 0)
 			tll::scheme::pmap_set(pmap.data(), f->index);
-		if (_fill(view.view(f->offset), f, *c))
+		if (_fill(view.view(f->offset), f, c))
 			return _log.fail(EINVAL, "Failed to fill field {}", f->name);
 	}
 	return 0;

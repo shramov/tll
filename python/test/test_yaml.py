@@ -281,3 +281,38 @@ config:
     assert m.as_dict() == {'f0': 100, 'f2': 200, 'f3': 0}
     m = c.unpack(c.result[1])
     assert m.as_dict() == {'f1': 300, 'f3': 0}
+
+@pytest.mark.parametrize("strict", ["yes", "no"])
+def test_strict(strict):
+    scheme = '''yamls://
+- name: msg
+  id: 10
+  fields:
+    - {name: f0, type: int32}
+'''
+
+    url = Config.load('''yamls://
+tll.proto: yaml
+name: yaml
+dump: scheme
+config:
+  - name: msg
+    data: {f0: 100}
+  - name: msg
+    data: {f0: 200, f1: 200}
+''')
+    url['scheme'] = scheme
+    url['strict'] = strict
+    c = Accum(url)
+    c.open()
+    c.process()
+    assert [(m.type, m.msgid) for m in c.result] == [(Accum.Type.Data, 10)]
+    m = c.unpack(c.result[0])
+    assert m.as_dict() == {'f0': 100}
+
+    if strict == 'yes':
+        with pytest.raises(TLLError): c.process()
+    else:
+        c.process()
+        m = c.unpack(c.result[-1])
+        assert m.as_dict() == {'f0': 200}

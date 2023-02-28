@@ -20,6 +20,7 @@ class ChYaml : public tll::channel::Base<ChYaml>
 	std::vector<char> _buf;
 
 	bool _autoclose = false;
+	bool _strict = true;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "yaml"; }
