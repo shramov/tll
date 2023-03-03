@@ -350,7 +350,7 @@ struct Bits
 
 		auto type = cfg.get("type");
 		if (!type)
-			return _log.fail(std::nullopt, "Failed to parse enum {}: missing type", name);
+			return _log.fail(std::nullopt, "Failed to parse bits {}: missing type", name);
 		auto t = parse_type_int(*type);
 		r.type = *t;
 
@@ -453,11 +453,15 @@ struct Field
 					return EINVAL; //_log.fail(EINVAL, "Invalid decimal precision {}: {}", t.substr(5), s.error());
 				fixed_precision = *s;
 			} else if (t == "bits") {
+				if (type_bits.size()) // TODO: Drop in a while
+					return 0;
 				if (parse_bits_inline(cfg))
 					return EINVAL;
 			}
 		case Field::Double:
 			if (t == "enum") {
+				if (type_enum.size()) // TODO: Drop in a while
+					return 0;
 				if (parse_enum_inline(cfg))
 					return EINVAL;
 			} else if (t == "time_point" || t == "duration") {
@@ -927,6 +931,7 @@ int Field::lookup(std::string_view type)
 	for (auto & i : parent->enums) {
 		if (i.name == type) {
 			type_enum = type;
+			this->type = i.type;
 			this->sub_type = tll::scheme::Field::Enum;
 			return 0;
 		}
@@ -941,6 +946,7 @@ int Field::lookup(std::string_view type)
 	for (auto & i : parent->bits) {
 		if (i.name == type) {
 			type_bits = type;
+			this->type = i.type;
 			this->sub_type = tll::scheme::Field::Bits;
 			return 0;
 		}
@@ -948,6 +954,7 @@ int Field::lookup(std::string_view type)
 	for (auto & i : parent->parent->enums) {
 		if (i.name == type) {
 			type_enum = type;
+			this->type = i.type;
 			this->sub_type = tll::scheme::Field::Enum;
 			return 0;
 		}
@@ -962,6 +969,7 @@ int Field::lookup(std::string_view type)
 	for (auto & i : parent->parent->bits) {
 		if (i.name == type) {
 			type_bits = type;
+			this->type = i.type;
 			this->sub_type = tll::scheme::Field::Bits;
 			return 0;
 		}
@@ -1119,6 +1127,7 @@ int Field::parse_enum_inline(tll::Config &cfg)
 	e->options["_auto"] = "inline";
 	parent->enums.push_back(std::move(*e));
 	type_enum = name;
+	type = e->type;
 	sub_type = tll::scheme::Field::Enum;
 	return 0;
 }
@@ -1933,13 +1942,15 @@ int tll_scheme_field_fix(tll_scheme_field_t * f)
 	if (f->sub_type != Field::SubNone && !tll::getter::has(f->options, "type")) {
 		switch (f->sub_type) {
 		case Field::Bits:
-			f->options = alloc_option("type", "bits", f->options);
+			if (tll::getter::has(f->type_bits->options, "_auto"))
+				f->options = alloc_option("type", "bits", f->options);
 			break;
 		case Field::ByteString:
 			f->options = alloc_option("type", "string", f->options);
 			break;
 		case Field::Enum:
-			f->options = alloc_option("type", "enum", f->options);
+			if (tll::getter::has(f->type_enum->options, "_auto"))
+				f->options = alloc_option("type", "enum", f->options);
 			break;
 		case Field::Fixed:
 			f->options = alloc_option("type", fmt::format("fixed{}", f->fixed_precision), f->options);
