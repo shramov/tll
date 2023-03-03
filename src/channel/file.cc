@@ -83,7 +83,7 @@ int File::_open(const ConstConfig &props)
 	if (internal.caps & caps::Input) {
 		auto fd = ::open(_filename.c_str(), O_RDONLY, 0644);
 		if (fd == -1)
-			return _log.fail(EINVAL, "Failed to open file {} for writing: {}", _filename, strerror(errno));
+			return _log.fail(EINVAL, "Failed to open file {} for reading: {}", _filename, strerror(errno));
 		_update_fd(fd);
 
 		if (auto r = _read_meta(); r)
