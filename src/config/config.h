@@ -373,5 +373,57 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 		return 0;
 	}
 
+	int unlink(std::string_view path)
+	{
+		auto s = tll::split<'.'>(path);
+		auto pi = s.begin();
+		auto pe = s.end();
+		auto cfg = refptr_t<tll_config_t>(this);
+		if (pi != --pe) {
+			cfg = lookup(pi, pe);
+			if (pi != pe)
+				return ENOENT;
+		}
+		auto last = *pe;
+		auto wlock = cfg->wlock();
+		auto it = cfg->kids.find(last);
+		if (it == cfg->kids.end())
+			return ENOENT;
+		cfg->kids.erase(it);
+		return 0;
+	}
+
+	int remove(std::string_view path)
+	{
+		auto s = tll::split<'.'>(path);
+		auto pi = s.begin();
+		auto pe = s.end();
+		auto cfg = refptr_t<tll_config_t>(this);
+		if (pi != --pe) {
+			cfg = lookup(pi, pe);
+			if (pi != pe)
+				return ENOENT;
+		}
+		auto last = *pe;
+		auto wlock = cfg->wlock();
+		auto it = cfg->kids.find(last);
+		if (it == cfg->kids.end())
+			return ENOENT;
+
+		auto kcfg = _lookup_link(it->second.get());
+		if (!kcfg)
+			return ENOENT;
+		auto klock = kcfg->rlock();
+		if (kcfg->kids.empty()) {
+			cfg->kids.erase(it);
+		} else {
+			klock.unlock();
+			wlock.unlock();
+			wlock = kcfg->wlock();
+			kcfg->set();
+		}
+		return 0;
+	}
+
 	int process_imports(std::string_view path, const std::list<std::string_view> & parents = {});
 };

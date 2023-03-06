@@ -4,11 +4,18 @@
 from .config cimport *
 from .error import TLLError
 from .s2b cimport *
-from libc.errno cimport EAGAIN
+from libc.errno cimport ENOENT
 from libc.stdlib cimport malloc, free
 from .conv import getT
 
 __default_tag = object()
+
+cdef object _check_error(int r, object message):
+    if r == ENOENT:
+        raise KeyError(message)
+    elif r:
+        raise TLLError(message, r)
+    return
 
 cdef class Config:
     def __init__(self, bare=False):
@@ -135,9 +142,17 @@ cdef class Config:
     def getT(self, key, default):
         return getT(self, key, default)
 
-    def remove(self, key, recursive=False):
+    def unlink(self, key):
         k = s2b(key)
-        tll_config_del(self._ptr, k, len(k), 1 if recursive else 0)
+        _check_error(tll_config_unlink(self._ptr, k, len(k)), f'Failed to unlink "{key}"')
+
+    def unset(self, key):
+        k = s2b(key)
+        _check_error(tll_config_unset(self._ptr, k, len(k)), f'Failed to unset "{key}"')
+
+    def remove(self, key):
+        k = s2b(key)
+        _check_error(tll_config_remove(self._ptr, k, len(k)), f'Failed to remove "{key}"')
 
     def has(self, key):
         k = s2b(key)

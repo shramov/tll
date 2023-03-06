@@ -187,9 +187,21 @@ int tll_config_has(const tll_config_t *cfg, const char *path, int plen)
 
 int tll_config_del(tll_config_t *cfg, const char *path, int plen, int recursive)
 {
+	return tll_config_unlink(cfg, path, plen);
+}
+
+int tll_config_unlink(tll_config_t *cfg, const char *path, int plen)
+{
 	if (!cfg) return EINVAL;
 	if (!path) return EINVAL;
-	return ENOSYS;
+	return cfg->unlink(string_view_from_c(path, plen));
+}
+
+int tll_config_remove(tll_config_t *cfg, const char *path, int plen)
+{
+	if (!cfg) return EINVAL;
+	if (!path) return EINVAL;
+	return cfg->remove(string_view_from_c(path, plen));
 }
 
 int tll_config_set(tll_config_t *cfg, const char * path, int plen, const char * value, int vlen)

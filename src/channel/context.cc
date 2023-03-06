@@ -600,7 +600,7 @@ void tll_channel_free(tll_channel_t *c)
 
 	if ((tll_channel_caps(c) & caps::Custom) == 0) {
 		c->context->channels.erase(name);
-		tll_config_del(c->context->config, name.data(), name.size(), 0);
+		tll_config_unlink(c->context->config, name.data(), name.size());
 	}
 
 	if (c->impl)

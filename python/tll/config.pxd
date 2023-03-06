@@ -19,7 +19,9 @@ cdef extern from "tll/config.h":
 
 
     cdef int tll_config_has(const tll_config_t *, const char * path, int plen)
-    cdef int tll_config_del(tll_config_t *, const char * path, int plen, int recursive)
+    cdef int tll_config_remove(tll_config_t *, const char * path, int plen)
+    cdef int tll_config_unlink(tll_config_t *, const char * path, int plen)
+    cdef int tll_config_unset(tll_config_t *, const char * path, int plen)
     cdef int tll_config_get(const tll_config_t *, const char * path, int plen, char * value, int * vlen)
     cdef char * tll_config_get_copy(const tll_config_t *, const char * path, int plen, int * vlen)
     cdef void tll_config_value_free(char *value)

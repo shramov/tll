@@ -107,7 +107,7 @@ int tll_channel_internal_child_del(tll_channel_internal_t *ptr, const tll_channe
 	msg.size = sizeof(c);
 	tll_channel_callback(ptr, &msg);
 	if (tag && (len > 0 || strlen(tag) > 0))
-		tll_config_del(ptr->config, tag, len, 0);
+		tll_config_remove(ptr->config, tag, len);
 	tll_channel_callback_del((tll_channel_t *) c, _state_callback, ptr, TLL_MESSAGE_MASK_STATE);
 	return 0;
 }

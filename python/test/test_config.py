@@ -18,8 +18,25 @@ def test_basic():
     assert 'b.x' in cfg
     assert cfg.as_dict() == {'a': [{'x': '0', 'y': '1'}, {'x': '1', 'y': '0'}], 'b': {'x': '2', 'y': '2'}}
     assert cfg.from_dict({'a':'1', 'b.c':'2'}).as_dict() == {'a': '1', 'b': {'c': '2'}}
-    #del cfg['b.x']
-    #assert_false('b.x' in cfg)
+
+    del cfg['b.x']
+    assert 'b.x' not in cfg
+    assert 'b.y' in cfg
+    assert cfg.as_dict() == {'a': [{'x': '0', 'y': '1'}, {'x': '1', 'y': '0'}], 'b': {'y': '2'}}
+
+    cfg.unset('b.y')
+    assert 'b.y' not in cfg
+    assert cfg.as_dict() == {'a': [{'x': '0', 'y': '1'}, {'x': '1', 'y': '0'}], 'b': {'y': {}}}
+
+    cfg.remove('a')
+    assert cfg.as_dict() == {'a': [{'x': '0', 'y': '1'}, {'x': '1', 'y': '0'}], 'b': {'y': {}}}
+
+    cfg.unlink('a')
+    assert cfg.as_dict() == {'b': {'y': {}}}
+
+    with pytest.raises(KeyError): cfg.unset('a')
+    with pytest.raises(KeyError): cfg.unlink('a')
+    with pytest.raises(KeyError): cfg.remove('a')
 
 def test_copy():
     cfg = Config.load('yamls://{a: 1, b: {x: 2, y: 3}}')

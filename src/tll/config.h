@@ -42,9 +42,6 @@ int tll_config_has(const tll_config_t *, const char * path, int plen);
 tll_config_t * tll_config_sub(tll_config_t *, const char * path, int plen, int create);
 const tll_config_t * tll_config_sub_const(const tll_config_t *, const char * path, int plen);
 
-/// Delete node
-int tll_config_del(tll_config_t *, const char * path, int plen, int recursive);
-
 /// Set plain string value
 int tll_config_set(tll_config_t *cfg, const char * path, int plen, const char * value, int vlen);
 
@@ -54,8 +51,17 @@ int tll_config_set_callback(tll_config_t *, const char * path, int plen, tll_con
 /// Set config subtree link
 int tll_config_set_link(tll_config_t *, const char * path, int plen, const char * dest, int dlen);
 
-/// Unset value in config
+/// Unset value in config node, does not affect structure
 int tll_config_unset(tll_config_t *, const char * path, int plen);
+
+/// Unlink subtree in config, removes node and all it child. For links - removes link
+int tll_config_unlink(tll_config_t *, const char * path, int plen);
+
+/// Unset node value and if it has no child nodes - remove it. For links - removes link
+int tll_config_remove(tll_config_t *, const char * path, int plen);
+
+/// Delete node, deprecated variant. Always recursive
+__attribute__((deprecated)) int tll_config_del(tll_config_t *, const char * path, int plen, int recursive);
 
 /** Set config subtree
  *
@@ -357,8 +363,6 @@ class Config : public ConfigT<false>
 	static std::optional<Config> load(std::string_view path) { return ConfigT<false>::load(path); }
 	static std::optional<Config> load(std::string_view proto, std::string_view data) { return ConfigT<false>::load(proto, data); }
 
-	int del(std::string_view path, bool recursive = false) { return tll_config_del(_cfg, path.data(), path.size(), recursive); }
-
 	int set(std::string_view value) { return tll_config_set(_cfg, nullptr, 0, value.data(), value.size()); }
 	int set(tll_config_value_callback_t cb, void * user) { return tll_config_set_callback(_cfg, nullptr, 0, cb, user, nullptr); }
 
@@ -386,6 +390,10 @@ class Config : public ConfigT<false>
 
 	int unset(std::string_view path) { return tll_config_unset(_cfg, path.data(), path.size()); }
 	int unset() { return tll_config_unset(_cfg, nullptr, 0); }
+
+	int unlink(std::string_view path) { return tll_config_unlink(_cfg, path.data(), path.size()); }
+
+	int remove(std::string_view path) { return tll_config_remove(_cfg, path.data(), path.size()); }
 
 	int merge(ConfigT & cfg, bool overwrite = true) { return tll_config_merge(_cfg, cfg, overwrite); }
 	int process_imports(std::string_view path) { return tll_config_process_imports(_cfg, path.data(), path.size()); }
