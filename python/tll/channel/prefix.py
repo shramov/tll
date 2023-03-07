@@ -17,6 +17,9 @@ class Prefix(Base):
             raise ValueError("Invalid proto: no '+' found in '{}'".format(url.proto))
 
         curl = url.copy()
+        for k in ['python', 'dump', 'stat']:
+            if k in curl:
+                del curl[k]
         pproto, curl.proto = url.proto.split('+', 1)
         curl['tll.internal'] = 'yes'
         curl['name'] = '{}/{}'.format(self.name, pproto)
