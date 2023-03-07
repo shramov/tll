@@ -59,7 +59,7 @@ public:
 
 		for (auto &k : std::vector<std::string_view> { "dump", "stat" }) {
 			if (curl.has(k))
-				curl.unset(k);
+				curl.remove(k);
 		}
 
 		if (this->channelT()->_on_init(curl, url, master))
