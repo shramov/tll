@@ -150,13 +150,16 @@ def test_open_params():
     with pytest.raises(TLLError): c.open()
     assert c.state == c.State.Error
     c.close()
+    assert c.config.as_dict()['open'] == {}
 
     c.open('a=1;b=2;c=3')
     assert c.state == c.State.Active
+    assert c.config.as_dict()['open'] == {'a': '1', 'b': '2', 'c': '3'}
     c.close()
 
     c.open('c=3;b=2;a=1')
     assert c.state == c.State.Active
+    assert c.config.as_dict()['open'] == {'a': '1', 'b': '2', 'c': '3'}
     c.close()
 
     c.open('a=1;b=2', c='3')

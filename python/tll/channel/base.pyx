@@ -268,6 +268,12 @@ cdef class Base:
             self._update_dcaps(C.DCaps.Process)
 
         try:
+            self.config.unlink('open')
+        except KeyError:
+            pass
+        self.config['open'] = props.copy()
+
+        try:
             self._open(props)
         except:
             self.log.exception("Failed to open channel")
