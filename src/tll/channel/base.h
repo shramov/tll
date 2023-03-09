@@ -288,6 +288,9 @@ class Base
 			}
 			_log.info("Open channel: {}", r);
 		}
+		_config.unlink("open");
+		_config.set("open", cfg.copy());
+
 		state(state::Opening);
 		switch (ChannelT::process_policy()) {
 		case ProcessPolicy::Normal:
