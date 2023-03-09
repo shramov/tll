@@ -85,7 +85,16 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 		}
 	}
 
-	bool value() const { return !std::holds_alternative<std::monostate>(data); }
+	bool value() const
+	{
+		if (!std::holds_alternative<path_t>(data))
+			return !std::holds_alternative<std::monostate>(data);
+		auto cfg = _lookup_link(this);
+		if (!cfg)
+			return false;
+		auto lock = cfg->rlock();
+		return cfg->value();
+	}
 
 	template <typename Cfg>
 	static inline refptr_t<Cfg> _lookup_link(Cfg *cfg)
@@ -334,10 +343,11 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 		refptr_t<const tll_config_t> ptr = this;
 		for (; i != mv.end(); i++) {
 			//if (ptr->value()) return 0;
-			if (*i == "*" || *i == "**") break;
 			auto lock = ptr->rlock();
 			ptr = _lookup_link(ptr.get());
 			if (!ptr.get()) return 0;
+
+			if (*i == "*" || *i == "**") break;
 			lock = ptr->rlock();
 
 			auto di = ptr->kids.find(*i);

@@ -184,3 +184,22 @@ c: !link /b
 
     print(c.as_dict())
     assert c.as_dict() == {'a': ['100', '200'], 'b': {'a': '100', 'b': ['100', '200']}, 'c': {'a': '100', 'b': ['100', '200']}}
+
+def test_link():
+    c = Config.load('''yamls://{a.b: 100}''')
+
+    assert c.as_dict() == {'a': {'b': '100'}}
+
+    c.set_link('c', '/d')
+    assert c.as_dict() == {'a': {'b': '100'}}
+
+    sub = c.sub('c', False)
+    assert sub is not None
+
+    assert sub.as_dict() == {}
+    c['d.e'] = '200'
+
+    assert c['c.e'] == '200'
+    assert c.as_dict() == {'a': {'b': '100'}, 'c': {'e': '200'}, 'd': {'e': '200'}}
+    assert c.sub('c', False).as_dict() == {'e': '200'}
+    assert sub.as_dict() == {'e': '200'}
