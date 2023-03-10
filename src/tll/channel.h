@@ -585,8 +585,8 @@ class Context
 
 	int load(const std::string &path, const std::string &symbol = "") { return tll_channel_module_load(_ptr, path.c_str(), symbol.c_str()); }
 
-	Config config() { return Config(tll_channel_context_config(_ptr)); }
-	const Config config() const { return Config(tll_channel_context_config((tll_channel_context_t *) _ptr)); }
+	Config config() { return Config::consume(tll_channel_context_config(_ptr)); }
+	const Config config() const { return Config::consume(tll_channel_context_config((tll_channel_context_t *) _ptr)); }
 
 	Config config_defaults() { return Config::consume(tll_channel_context_config_defaults(_ptr)); }
 	const Config config_defaults() const { return Config::consume(tll_channel_context_config_defaults((tll_channel_context_t *) _ptr)); }
