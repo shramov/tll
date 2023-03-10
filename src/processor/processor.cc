@@ -383,6 +383,8 @@ void Processor::_free()
 		loop.del(_timer.get());
 		_timer.reset();
 	}
+
+	_root.unlink("sys");
 }
 
 template <typename T> int Processor::post(tll_addr_t addr, T body)
