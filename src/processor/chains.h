@@ -44,8 +44,8 @@ public:
 	int _init(const tll::Channel::Url &, tll::Channel *);
 
 	template <typename Log>
-	std::optional<Level> parse_level(Log &, tll::ConstConfig &cfg);
-	std::optional<Chain> parse_chain(std::string_view name, tll::ConstConfig &cfg);
+	std::optional<Level> parse_level(Log &, tll::Config &cfg);
+	std::optional<Chain> parse_chain(std::string_view name, tll::Config &cfg);
 };
 
 } // namespace tll::processor::_

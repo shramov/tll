@@ -29,7 +29,9 @@ int Chains::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 	std::map<std::string, Chain> chains;
 
-	for (auto & p : url.browse("processor.chain.*", true)) {
+	auto cfg = url.copy();
+
+	for (auto & p : cfg.browse("processor.chain.*", true)) {
 		auto name = p.first.substr(strlen("processor.chain."));
 		auto c = parse_chain(name, p.second);
 		if (!c)
@@ -106,7 +108,7 @@ int Chains::_init(const tll::Channel::Url &url, tll::Channel *master)
 }
 
 template <typename Log>
-std::optional<Chains::Level> Chains::parse_level(Log &l, tll::ConstConfig &cfg)
+std::optional<Chains::Level> Chains::parse_level(Log &l, tll::Config &cfg)
 {
 	Level r;
 	auto name = cfg.get("name");
@@ -136,7 +138,7 @@ std::optional<Chains::Level> Chains::parse_level(Log &l, tll::ConstConfig &cfg)
 	for (auto & p : ocfg->browse("*", true)) {
 		Object o;
 		o.name = p.first;
-		o.config = p.second.copy();
+		o.config = p.second;
 
 		auto depends = cfg.getT<std::list<std::string>>("depends", {});
 		if (!depends)
@@ -149,7 +151,7 @@ std::optional<Chains::Level> Chains::parse_level(Log &l, tll::ConstConfig &cfg)
 	return r;
 }
 
-std::optional<Chains::Chain> Chains::parse_chain(std::string_view name, tll::ConstConfig &cfg)
+std::optional<Chains::Chain> Chains::parse_chain(std::string_view name, tll::Config &cfg)
 {
 	Chain r;
 	r.name = name;
