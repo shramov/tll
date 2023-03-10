@@ -130,7 +130,7 @@ tll_config_t * tll_config_copy(const tll_config_t *cfg)
 {
 	if (cfg == nullptr)
 		return nullptr;
-	return (new tll_config_t(*cfg, 0))->ref();
+	return (new tll_config_t(*cfg, 0, cfg->parent == nullptr))->ref();
 }
 
 tll_config_t * tll_config_load(const char * path, int plen)

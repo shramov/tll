@@ -56,19 +56,26 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 	tll_config_t(tll_config_t *p = nullptr) : parent(p) { /*printf("  new %p\n", this);*/ }
 	~tll_config_t() { /*printf("  del %p\n", this);*/ }
 
-	tll_config_t(const tll_config_t &_cfg, unsigned depth)
+	tll_config_t(const tll_config_t &_cfg, unsigned depth, bool root)
 	{
 		refptr_t<const tll_config_t> cfg = &_cfg;
 		auto lock = cfg->rlock();
 		data = cfg->data;
 
 		if (std::holds_alternative<path_t>(data)) {
-			unsigned d = 0;
-			for (auto & p : std::get<path_t>(data)) {
-				if (p != "..") break;
-				d++;
+			auto path = std::get<path_t>(data);
+			bool lookup = false;
+			if (path.is_relative()) {
+				unsigned d = 0;
+				for (auto & p : path) {
+					if (p != "..") break;
+					d++;
+				}
+				lookup = d > depth;
+			} else {
+				lookup = !root;
 			}
-			if (d > depth) {
+			if (lookup) {
 				cfg = _lookup_link(cfg.get());
 				if (cfg.get()) {
 					lock = cfg->rlock();
@@ -80,7 +87,7 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 			}
 		}
 		for (auto & k : cfg->kids) {
-			auto it = kids.emplace(k.first, new tll_config_t(*k.second, depth + 1)).first;
+			auto it = kids.emplace(k.first, new tll_config_t(*k.second, depth + 1, root)).first;
 			it->second->parent = this;
 		}
 	}
@@ -106,12 +113,21 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 
 		path_t link = std::get<path_t>(r->data);
 		auto pi = link.begin();
-		for (; pi != link.end() && *pi == ".."; pi++) {
-			if (!r->parent)
-				return {};
-			r = r->parent;
-			lock.unlock();
-			lock = r->rlock();
+		if (link.is_absolute()) {
+			while (r->parent) {
+				r = r->parent;
+				lock.unlock();
+				lock = r->rlock();
+			}
+			pi++;
+		} else {
+			for (; pi != link.end() && *pi == ".."; pi++) {
+				if (!r->parent)
+					return {};
+				r = r->parent;
+				lock.unlock();
+				lock = r->rlock();
+			}
 		}
 
 		if (pi == link.end())
@@ -208,18 +224,19 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 	int set(const path_t & v)
 	{
 		auto value = tll::filesystem::lexically_normal(v);
+		auto rel = value;
 		if (value.is_absolute()) {
 			auto p = path();
 			if (!p)
 				return EINVAL;
-			auto r = tll::filesystem::relative_simple(value, *p);
+			rel = tll::filesystem::relative_simple(value, *p);
 			//fmt::print("Convert path {} to relative to {}: {}\n", value.string(), p->string(), r.string());
-			value = r;
 		}
-		auto it = value.begin();
-		if (it == value.end()) // Empty path
+		if (rel.empty()) // Empty path
 			return EINVAL;
-		if (*it != "..") // Links under itself
+		if (*rel.begin() != "..") // Links under itself
+			return EINVAL;
+		if (rel.filename() == ".." || rel.filename() == ".") // Simple loop
 			return EINVAL;
 		auto lock = wlock();
 		data = value;

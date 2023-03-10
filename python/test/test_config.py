@@ -203,3 +203,11 @@ def test_link():
     assert c.as_dict() == {'a': {'b': '100'}, 'c': {'e': '200'}, 'd': {'e': '200'}}
     assert c.sub('c', False).as_dict() == {'e': '200'}
     assert sub.as_dict() == {'e': '200'}
+
+    subcopy = sub.copy()
+    assert subcopy['e'] == '200'
+
+    copy = c.copy()
+    assert copy['c.e'] == '200'
+    copy['d.e'] = '300'
+    assert copy['c.e'] == '300'
