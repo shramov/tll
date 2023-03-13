@@ -935,12 +935,22 @@ class List(list):
 class Data(object):
     SCHEME = None
     def __init__(self, *a, **kw):
+        keys = set()
         if a:
             for k,v in zip(a, self.SCHEME.items()):
                 setattr(self, k, v)
+                keys.add(k)
         if kw:
             for k,v in kw.items():
                 setattr(self, k, v)
+                keys.add(k)
+        for f in self.SCHEME.fields_init:
+            if f.name in keys:
+                continue
+            if f.type == Type.Message:
+                setattr(self, f.name, {})
+            elif f.type in (Type.Array, Type.Pointer):
+                setattr(self, f.name, [])
 
     def pack(self):
         tail = bytearray()
@@ -1058,6 +1068,7 @@ cdef object message_wrap(Scheme s, tll_scheme_message_t * ptr):
     r.enums = OrderedDict()
     r.unions = OrderedDict()
     r.bits = OrderedDict()
+    r.fields_init = []
 
     class D(Data):
         SCHEME = r
@@ -1092,6 +1103,13 @@ cdef object message_wrap(Scheme s, tll_scheme_message_t * ptr):
         tmp = field_wrap(s, r, f)
         r[tmp.name] = tmp
         f = f.next
+        if tmp.optional:
+            pass
+        elif tmp.type == Type.Message:
+            r.fields_init.append(tmp)
+        elif tmp.type in (Type.Array, Type.Pointer):
+            if tmp.sub_type != SubType.ByteString:
+                r.fields_init.append(tmp)
 
     if ptr.pmap:
         r.pmap = r[b2s(ptr.pmap.name)]

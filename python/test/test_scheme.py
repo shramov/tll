@@ -846,3 +846,29 @@ def test_inline():
     - {name: a, type: int32}
     - {name: m, type: a, options.inline: yes}
 ''')
+
+
+def test_sub_create():
+    scheme = '''yamls://
+- name: Sub
+  fields:
+    - {name: s0, type: int16}
+- name: Msg
+  id: 10
+  fields:
+    - {name: pmap, type: uint16, options.pmap: yes}
+    - {name: f0, type: int16}
+    - {name: f1, type: Sub}
+    - {name: f2, type: Sub, options.optional: yes}
+    - {name: f3, type: '*int8'}
+    - {name: f4, type: 'int8[4]'}
+'''
+
+    scheme = S.Scheme(scheme)
+    msg = scheme.messages.Msg()
+
+    msg.f1.s0 = 10
+    assert msg.f1.s0 == 10
+    assert not hasattr(msg, 'f2')
+    assert msg.f3 == []
+    assert msg.f4 == []
