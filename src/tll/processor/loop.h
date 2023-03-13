@@ -634,6 +634,7 @@ tll_channel_t * tll_processor_loop_poll(tll_processor_loop_t *, long timeout);
 int tll_processor_loop_process(tll_processor_loop_t *);
 int tll_processor_loop_pending(tll_processor_loop_t *);
 
+int tll_processor_loop_get_fd(const tll_processor_loop_t *);
 int tll_processor_loop_stop_get(const tll_processor_loop_t *);
 int tll_processor_loop_stop_set(tll_processor_loop_t *, int flag);
 int tll_processor_loop_run(tll_processor_loop_t *, long timeout);

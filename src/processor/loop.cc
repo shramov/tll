@@ -65,6 +65,15 @@ int tll_processor_loop_run(tll_processor_loop_t *loop, long timeout)
 	return loop->run(std::chrono::milliseconds(timeout));
 }
 
+int tll_processor_loop_get_fd(const tll_processor_loop_t *loop)
+{
+#ifdef __linux__
+	return loop->_poll.fd;
+#else
+	return -1;
+#endif
+}
+
 int tll_processor_loop_stop_get(const tll_processor_loop_t *loop)
 {
 	return loop->stop;
