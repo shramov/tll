@@ -1010,6 +1010,9 @@ class Reflection(object):
         return _as_dict_msg(self.SCHEME, self)
 
 class Message(OrderedDict):
+    def __call__(self, *a, **kw):
+        return self.klass(*a, **kw)
+
     def object(self, *a, **kw):
         return self.klass(*a, **kw)
 
@@ -1097,10 +1100,16 @@ cdef object message_wrap(Scheme s, tll_scheme_message_t * ptr):
 
     return r
 
+class MessageList(list):
+    def __getattr__(self, name):
+        for m in self:
+            if m.name == name: return m
+        raise KeyError(f"Message '{name}' not found")
+
 cdef class Scheme:
     def __init__(self, uri):
         self._ptr = NULL
-        self.messages = []
+        self.messages = MessageList()
         if uri is None:
             return
         u = s2b(uri)
@@ -1181,7 +1190,7 @@ cdef class Scheme:
         self.unions = OrderedDict()
         self.bits = OrderedDict()
         self.aliases = OrderedDict()
-        self.messages = []
+        self.messages = MessageList()
 
         cdef tll_scheme_enum_t * e = ptr.enums
         while e != NULL:

@@ -116,7 +116,7 @@ def test_options_dump():
 
 def test_as_dict():
     s = S.Scheme(scheme)
-    M = s['sub'].object(s0=10, s1=[1., 2., 3.])
+    M = s.messages.sub(s0=10, s1=[1., 2., 3.])
     assert M.as_dict() == {'s0':10, 's1':[1., 2., 3.]}
     data = M.pack()
 
