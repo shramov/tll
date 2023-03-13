@@ -21,10 +21,11 @@ class AsyncChannel(C.Channel):
     LOOP_KEY = '_pytll_async_loop'
     MASK = C.MsgMask.All ^ C.MsgMask.State ^ C.MsgMask.Channel
 
-    def __init__(self, *a, **kw):
+    def __init__(self, *a, async_mask=None, **kw):
         loop = kw.pop(self.LOOP_KEY, None)
         if loop is None:
             raise ValueError("Need {} parameter".format(self.LOOP_KEY))
+        self.MASK = self.MASK if async_mask is None else async_mask
 
         C.Channel.__init__(self, *a, **kw)
         self._loop = weakref.ref(loop)

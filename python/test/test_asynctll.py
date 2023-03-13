@@ -147,3 +147,16 @@ def test_scheme_cache():
 
     assert c.scheme != None
     assert c.scheme_control != None
+
+def test_async_mask():
+    loop = asynctll.Loop(context=C.Context())
+    async def main(loop):
+        c = loop.Channel("zero://;size=1kb;name=zero", async_mask=C.MsgMask.State)
+
+        c.open()
+
+        m = await c.recv()
+        assert m.type == m.Type.State
+        assert c.State(m.msgid) == c.State.Opening
+
+    loop.run(main(loop))
