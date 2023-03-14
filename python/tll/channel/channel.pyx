@@ -385,7 +385,7 @@ cdef class Channel:
 
     @property
     def config(self):
-        return Config.wrap(tll_channel_config(self._ptr))
+        return Config.wrap_const(tll_channel_config(self._ptr))
 
     @property
     def children(self):

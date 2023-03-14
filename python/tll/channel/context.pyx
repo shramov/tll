@@ -229,7 +229,7 @@ cdef int _py_init(tll_channel_t * channel, const tll_config_t *curl, tll_channel
     if channel.impl.data == NULL: return 0
     cdef Internal intr = Internal()
     try:
-        cfg = Config.wrap(<tll_config_t *>curl, ref=True)
+        cfg = Config.wrap_const(curl, ref=True)
         url = Url()
         url.proto = cfg.get('tll.proto', '')
         url.host = cfg.get('tll.host', '')

@@ -97,6 +97,9 @@ def test():
     c = Accum("echo://;name=echo", context=ctx, dump='text')
     cfg = c.config
 
+    with pytest.raises(RuntimeError): cfg['info.a'] = 'b'
+    with pytest.raises(RuntimeError): cfg.unlink('url')
+
     pyc = C.channel_cast(c)
     assert isinstance(pyc, Echo)
 

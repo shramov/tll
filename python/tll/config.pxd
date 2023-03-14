@@ -41,8 +41,12 @@ cdef extern from "tll/config.h":
 
 cdef class Config:
     cdef tll_config_t * _ptr
+    cdef int _const
+
     @staticmethod
-    cdef Config wrap(tll_config_t * cfg, int ref = *)
+    cdef Config wrap(tll_config_t * cfg, int ref = *, int _const = *)
+    @staticmethod
+    cdef Config wrap_const(const tll_config_t * cfg, int ref = *)
 
 cdef class Url(Config):
     pass

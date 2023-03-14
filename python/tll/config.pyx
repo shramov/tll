@@ -23,6 +23,7 @@ cdef class Config:
 
     def __cinit__(self, bare=False):
         self._ptr = NULL
+        self._const = 0
         if not bare:
             self._ptr = tll_config_new()
 
@@ -32,12 +33,17 @@ cdef class Config:
         self._ptr = NULL
 
     @staticmethod
-    cdef Config wrap(tll_config_t * ptr, int ref = False):
+    cdef Config wrap(tll_config_t * ptr, int ref = False, int _const = False):
         r = Config(bare=True)
         if ref:
             tll_config_ref(ptr)
         r._ptr = ptr
+        r._const = _const
         return r
+
+    @staticmethod
+    cdef Config wrap_const(const tll_config_t * ptr, int ref = False):
+        return Config.wrap(<tll_config_t *>(ptr), ref, True)
 
     @classmethod
     def load(self, path):
@@ -57,7 +63,7 @@ cdef class Config:
         return Config.wrap(cfg)
 
     def copy(self):
-        return Config.wrap(tll_config_copy(self._ptr))
+        return Config.wrap(tll_config_copy(self._ptr), False, self._const)
 
     __copy__ = copy
     def __deepcopy__(self, memo):
@@ -70,7 +76,7 @@ cdef class Config:
             if throw:
                 raise KeyError("Sub-config {} not found".format(path))
             return
-        return Config.wrap(cfg)
+        return Config.wrap(cfg, False, self._const)
 
     def merge(self, cfg, overwrite=True):
         if not isinstance(cfg, Config):
@@ -89,6 +95,8 @@ cdef class Config:
         return bool(tll_config_value(self._ptr))
 
     def set(self, key, value):
+        if self._const:
+            raise RuntimeError("Can not modify const Config")
         if isinstance(value, Config):
             return self.set_config(key, value)
         elif callable(value):
@@ -100,6 +108,8 @@ cdef class Config:
             raise TLLError("Failed to set key {}".format(key), r)
 
     def set_link(self, key, value):
+        if self._const:
+            raise RuntimeError("Can not modify const Config")
         k = s2b(key)
         v = s2b(value)
         r = tll_config_set_link(self._ptr, k, len(k), v, len(v))
@@ -107,12 +117,16 @@ cdef class Config:
             raise TLLError("Failed to set link {} -> {}".format(key, value), r)
 
     def set_config(self, key, value):
+        if self._const:
+            raise RuntimeError("Can not modify const Config")
         k = s2b(key)
         r = tll_config_set_config(self._ptr, k, len(k), (<Config>value)._ptr, 0)
         if r:
             raise TLLError("Failed to set sub config {}".format(key), r)
 
     def set_callback(self, key, value):
+        if self._const:
+            raise RuntimeError("Can not modify const Config")
         raise NotImplemented()
 
     def _get(self, decode=True):
@@ -143,14 +157,20 @@ cdef class Config:
         return getT(self, key, default)
 
     def unlink(self, key):
+        if self._const:
+            raise RuntimeError("Can not modify const Config")
         k = s2b(key)
         _check_error(tll_config_unlink(self._ptr, k, len(k)), f'Failed to unlink "{key}"')
 
     def unset(self, key):
+        if self._const:
+            raise RuntimeError("Can not modify const Config")
         k = s2b(key)
         _check_error(tll_config_unset(self._ptr, k, len(k)), f'Failed to unset "{key}"')
 
     def remove(self, key):
+        if self._const:
+            raise RuntimeError("Can not modify const Config")
         k = s2b(key)
         _check_error(tll_config_remove(self._ptr, k, len(k)), f'Failed to remove "{key}"')
 
@@ -204,7 +224,7 @@ cdef class Config:
 
 cdef int browse_cb(const char * key, int klen, const tll_config_t *value, void * data):
     cb = <object>data
-    cfg = Config.wrap(<tll_config_t *>value, ref=True)
+    cfg = Config.wrap(<tll_config_t *>value, ref=True, _const=True)
     cb(b2s(key[:klen]), cfg)
     return 0
 
