@@ -23,6 +23,7 @@ def test_basic():
     assert 'b.x' not in cfg
     assert 'b.y' in cfg
     assert cfg.as_dict() == {'a': [{'x': '0', 'y': '1'}, {'x': '1', 'y': '0'}], 'b': {'y': '2'}}
+    assert Config.from_dict(cfg.as_dict()).as_dict() == {'a': [{'x': '0', 'y': '1'}, {'x': '1', 'y': '0'}], 'b': {'y': '2'}}
 
     cfg.unset('b.y')
     assert 'b.y' not in cfg

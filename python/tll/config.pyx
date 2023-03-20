@@ -196,6 +196,10 @@ cdef class Config:
     def from_dict(d):
         r = Config()
         for k,v in d.items():
+            if isinstance(v, dict):
+                v = Config.from_dict(v)
+            elif isinstance(v, (list, tuple)):
+                v = Config.from_dict({f'{i:04d}':x for (i, x) in enumerate(v)})
             r.set(k, v)
         return r
 
