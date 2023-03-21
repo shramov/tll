@@ -259,3 +259,22 @@ def test_fuzzy(writer, reader):
         for _ in range(5):
             reader.process()
         assert [(m.seq, m.msgid, len(m.data)) for m in reader.result] == [(start + 2 * k, data[k], data[k]) for k in range(i, min(i + 5, len(data)))]
+
+def test_open_filename(context, filename):
+    writer = context.Channel('file://', name='writer', dump='frame', dir='w', block='1kb')
+
+    writer.open(filename=str(filename))
+    for i in range(10):
+        writer.post(b'abc' * i, seq = 10 * (i + 1), msgid = i)
+
+    writer.close()
+    with pytest.raises(TLLError): writer.open()
+
+    reader = Accum('file://', name='reader', dump='frame', dir='r', context=context, autoclose='yes')
+    reader.open(filename=str(filename), seq='50')
+
+    for _ in range(10):
+        reader.process()
+
+    assert [m.seq for m in reader.result] == list(range(50, 101, 10))
+    assert reader.state == reader.State.Closed

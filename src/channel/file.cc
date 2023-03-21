@@ -64,8 +64,6 @@ int File::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_buf.resize(_block_init);
 
 	_filename = url.host();
-	if (_filename.empty())
-		return _log.fail(EINVAL, "Empty file name");
 
 	if ((internal.caps & caps::InOut) == 0) // Defaults to input
 		internal.caps |= caps::Input;
@@ -81,7 +79,16 @@ int File::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 int File::_open(const ConstConfig &props)
 {
-	_log.debug("Open file {}", _filename);
+	auto filename = _filename;
+
+	if (filename.empty()) {
+		auto fn = props.get("filename");
+		if (!fn || fn->empty())
+			return _log.fail(EINVAL, "No filename in init and no 'filename' parameter in open");
+		filename = *fn;
+	}
+
+	_log.debug("Open file {}", filename);
 
 	_offset = 0;
 	_block_end = _block_size = _block_init;
@@ -92,9 +99,9 @@ int File::_open(const ConstConfig &props)
 
 	auto reader = tll::make_props_reader(props);
 	if (internal.caps & caps::Input) {
-		auto fd = ::open(_filename.c_str(), O_RDONLY, 0644);
+		auto fd = ::open(filename.c_str(), O_RDONLY, 0644);
 		if (fd == -1)
-			return _log.fail(EINVAL, "Failed to open file {} for reading: {}", _filename, strerror(errno));
+			return _log.fail(EINVAL, "Failed to open file {} for reading: {}", filename, strerror(errno));
 		_update_fd(fd);
 
 		if (auto r = _read_meta(); r)
@@ -114,18 +121,18 @@ int File::_open(const ConstConfig &props)
 		if (!reader)
 			return _log.fail(EINVAL, "Invalid params: {}", reader.error());
 
-		if (access(_filename.c_str(), F_OK)) { // File not found, create new
+		if (access(filename.c_str(), F_OK)) { // File not found, create new
 			overwrite = true;
 		} else {
 			struct stat s;
-			auto r = ::stat(_filename.c_str(), &s);
+			auto r = ::stat(filename.c_str(), &s);
 			if (r < 0)
 				return _log.fail(EINVAL, "Failed to get file size: {}", strerror(errno));
 			if (s.st_size == 0) // Empty file
 				overwrite = true;
 		}
 
-		std::string fn(_filename);
+		std::string fn(filename);
 		if (overwrite) {
 			fn += ".XXXXXX";
 			auto fd = mkstemp(fn.data());
@@ -137,12 +144,12 @@ int File::_open(const ConstConfig &props)
 				return _log.fail(EINVAL, "Failed to write metadata");
 				unlink(fn.c_str());
 			}
-			_log.info("Rename temporary file {} to {}", fn, _filename);
-			rename(fn.c_str(), _filename.c_str());
+			_log.info("Rename temporary file {} to {}", fn, filename);
+			rename(fn.c_str(), filename.c_str());
 		} else {
 			auto fd = ::open(fn.data(), O_RDWR | O_CREAT, 0600);
 			if (fd == -1)
-				return _log.fail(EINVAL, "Failed to open file {} for writing: {}", _filename, strerror(errno));
+				return _log.fail(EINVAL, "Failed to open file {} for writing: {}", filename, strerror(errno));
 			_update_fd(fd);
 
 			if (auto r = _read_meta(); r)
