@@ -22,17 +22,19 @@ struct EventNotify
 	void swap(EventNotify &n) { std::swap(fd, n.fd); }
 };
 
-template <typename T>
-class Event : public Base<T>
+template <typename T, typename Base = tll::channel::Base<T>>
+class Event : public Base
 {
  protected:
 	int _event_notify_nocheck();
 	int _event_clear_nocheck();
 
  public:
+	static constexpr auto process_policy() { return Base::ProcessPolicy::Normal; }
+
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::ConstConfig &);
-	int _close();
+	int _close(bool force = false);
 
 	EventNotify event_detached();
 	int event_notify() { this->_log.debug("Try notify on {}", this->fd()); if (this->fd() != -1) return _event_notify_nocheck(); return 0; }

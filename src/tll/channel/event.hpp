@@ -16,8 +16,8 @@
 
 namespace tll::channel {
 
-template <typename T>
-int Event<T>::_init(const tll::Channel::Url &url, tll::Channel *master)
+template <typename T, typename Base>
+int Event<T, Base>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	if (!this->_with_fd)
 		this->_log.debug("Event notification disabled");
@@ -25,11 +25,11 @@ int Event<T>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	this->_log.debug("Event polling supported only on Linux");
 	this->_with_fd = false;
 #endif
-	return Base<T>::_init(url, master);
+	return Base::_init(url, master);
 }
 
-template <typename T>
-int Event<T>::_open(const ConstConfig &url)
+template <typename T, typename Base>
+int Event<T, Base>::_open(const ConstConfig &url)
 {
 	if (!this->_with_fd) return 0;
 #ifdef __linux__
@@ -39,18 +39,18 @@ int Event<T>::_open(const ConstConfig &url)
 	this->_update_fd(fd);
 	this->_dcaps_poll(dcaps::CPOLLIN);
 #endif
-	return Base<T>::_open(url);
+	return Base::_open(url);
 }
 
-template <typename T>
-int Event<T>::_close()
+template <typename T, typename Base>
+int Event<T, Base>::_close(bool force)
 {
 #ifdef __linux__
 	auto fd = this->_update_fd(-1);
 	if (fd != -1)
 		::close(fd);
 #endif
-	return 0;
+	return Base::_close(force);;
 }
 
 #ifdef __linux__
@@ -64,8 +64,8 @@ int _notify(int fd) {
 }
 #endif
 
-template <typename T>
-int Event<T>::_event_notify_nocheck()
+template <typename T, typename Base>
+int Event<T, Base>::_event_notify_nocheck()
 {
 #ifdef __linux__
 	if (auto r = _notify(this->fd()))
@@ -93,8 +93,8 @@ inline void EventNotify::close()
 #endif
 }
 
-template <typename T>
-int Event<T>::_event_clear_nocheck()
+template <typename T, typename Base>
+int Event<T, Base>::_event_clear_nocheck()
 {
 #ifdef __linux__
 	int64_t w = 1;
@@ -107,8 +107,8 @@ int Event<T>::_event_clear_nocheck()
 	return 0;
 }
 
-template <typename T>
-EventNotify Event<T>::event_detached()
+template <typename T, typename Base>
+EventNotify Event<T, Base>::event_detached()
 {
 #ifdef __linux__
 	return { dup(this->fd()) };
