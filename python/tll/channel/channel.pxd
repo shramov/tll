@@ -49,7 +49,6 @@ cdef extern from "tll/channel.h" nogil:
         TLL_CAPS_OUTPUT
         TLL_CAPS_INOUT
 
-        TLL_CAPS_EX_BIT
         TLL_CAPS_CUSTOM
         TLL_CAPS_PARENT
         TLL_CAPS_PROXY

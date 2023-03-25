@@ -90,15 +90,15 @@ typedef struct tll_channel_impl_t tll_channel_impl_t;
 
 /// Channel static capabilities, fixed on initialization.
 typedef enum {
-	TLL_CAPS_INPUT    = 0x4,
-	TLL_CAPS_OUTPUT   = 0x8,
+	TLL_CAPS_PARENT   = 0x1, ///< Channel can create child objects
+	TLL_CAPS_PROXY    = 0x2, ///< Proxy channel with exactly one child object
+
+	TLL_CAPS_INPUT    = 0x4, ///< Channel is providing data
+	TLL_CAPS_OUTPUT   = 0x8, ///< Channel is consuming data (messages can be posted)
 	TLL_CAPS_INOUT    = TLL_CAPS_INPUT | TLL_CAPS_OUTPUT,
 
-	TLL_CAPS_EX_BIT   = 0x800000,
-	TLL_CAPS_CUSTOM   = TLL_CAPS_EX_BIT | 0x0, ///< Runtime created subchannel
-	TLL_CAPS_PARENT   = TLL_CAPS_EX_BIT | 0x1, ///< Channel can create child objects
-	TLL_CAPS_PROXY    = TLL_CAPS_EX_BIT | 0x2, ///< Proxy channel with exactly one child object
-	TLL_CAPS_LONG_CLOSE = TLL_CAPS_EX_BIT | 0x4, ///< Channel close routine is long
+	TLL_CAPS_CUSTOM   = 0x10, ///< Runtime created subchannel, not registered in context
+	TLL_CAPS_LONG_CLOSE = 0x20, ///< Channel close routine can be long
 } tll_channel_cap_t;
 
 /// Channel dynamic capabilities, may change.
@@ -413,7 +413,6 @@ namespace caps {
 	constexpr auto Output = TLL_CAPS_OUTPUT;
 	constexpr auto InOut = TLL_CAPS_INOUT;
 
-	constexpr auto ExBit = TLL_CAPS_EX_BIT;
 	constexpr auto Custom = TLL_CAPS_CUSTOM;
 	constexpr auto Parent = TLL_CAPS_PARENT;
 	constexpr auto Proxy = TLL_CAPS_PROXY;
