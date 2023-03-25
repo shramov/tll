@@ -23,13 +23,16 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 
 	tll::Channel::Url _storage_url;
 
+	std::string _blocks_filename;
+	std::map<std::string, std::list<long long>, std::less<>> _blocks;
+
 	long long _seq = -1;
 
 	struct Client
 	{
 		Client(StreamServer * s) : parent(s) {}
 		void reset();
-		int init(const tll_msg_t * msg);
+		tll::result_t<int> init(const tll_msg_t * msg);
 
 		long long seq = -1;
 		tll_msg_t msg = {};
@@ -68,6 +71,13 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	int _open(const tll::ConstConfig &cfg);
 	int _close(bool force);
 
+	const Scheme * scheme(int type) const
+	{
+		if (type == TLL_MESSAGE_CONTROL)
+			return _scheme_control.get();
+		return Base::scheme(type);
+	}
+
 	int _post(const tll_msg_t *msg, int flags);
 
 	int _on_data(const tll_msg_t *msg) { return 0; }
@@ -100,6 +110,9 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	int _on_request_control(const tll_msg_t *msg);
 
 	int _check_state(tll_state_t s);
+	int _post_block(const tll_msg_t *msg);
+
+	int _create_block(std::string_view block, long long seq, bool store = true);
 };
 
 } // namespace tll::channel

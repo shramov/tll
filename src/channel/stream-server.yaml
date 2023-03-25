@@ -1,0 +1,4 @@
+- name: Block
+  id: 100
+  fields:
+    - {name: type, type: byte64, options.type: string}

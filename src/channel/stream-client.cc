@@ -60,11 +60,26 @@ int StreamClient::_open(const ConstConfig &url)
 	_seq = _server_seq = -1;
 
 	auto reader = channel_props_reader(url);
+
+	auto r = stream_scheme::Request::bind(_request_buf);
+	_request_buf.resize(r.meta_size());
+
+	if (_peer.size())
+		r.set_client(_peer);
+
 	if (url.has("seq")) {
 		_open_seq = reader.getT<long long>("seq");
 		if (*_open_seq < 0)
 			return _log.fail(EINVAL, "Invalid seq parameter: negative value {}", *_open_seq);
-	}
+		r.set_seq(*_open_seq);
+	} else if (url.has("block")) {
+		auto block = reader.getT<unsigned>("block");
+		auto type = reader.getT<std::string>("block-type", "default");
+		r.set_seq(block);
+		r.set_block(type);
+	} else
+		_request_buf.resize(0);
+
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid open parameters: {}", reader.error());
 
@@ -90,7 +105,7 @@ int StreamClient::_report_online()
 
 int StreamClient::_on_active()
 {
-	if (!_open_seq) {
+	if (!_request_buf.size()) {
 		_log.debug("Stream channel active, skip request channel in online-only mode");
 		_state = State::Online;
 		state(tll::state::Active);
@@ -103,23 +118,14 @@ int StreamClient::_on_active()
 int StreamClient::_on_request_error() { return 0; }
 int StreamClient::_on_request_active()
 {
-	std::vector<char> data;
-	auto r = stream_scheme::Request::bind(data);
-	data.resize(r.meta_size());
-
-	r.set_seq(*_open_seq);
-	if (_peer.size())
-		r.set_client(_peer);
-
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
-	msg.msgid = r.meta_id();
-	msg.data = data.data();
-	msg.size = data.size();
+	msg.msgid = stream_scheme::Request::meta_id();
+	msg.data = _request_buf.data();
+	msg.size = _request_buf.size();
 	if (auto r = _request->post(&msg); r)
 		return state_fail(EINVAL, "Failed to post request message");
 	_log.info("Posted request for seq {}, change state to Active", *_open_seq);
 	_state = State::Opening;
-	state(tll::state::Active);
 	return 0;
 }
 
@@ -174,7 +180,12 @@ int StreamClient::_on_request_data(const tll_msg_t *msg)
 		}
 		return 0;
 	} else if (_state == State::Opening) {
-		if (msg->msgid != stream_scheme::Reply::meta_id())
+		if (msg->msgid == stream_scheme::Error::meta_id()) {
+			auto data = stream_scheme::Error::bind(*msg);
+			if (data.meta_size() > msg->size)
+				return state_fail(0, "Invalid Error message size: {} < min {}", msg->size, data.meta_size());
+			return state_fail(0, "Server error: {}", data.get_error());
+		} else if (msg->msgid != stream_scheme::Reply::meta_id())
 			return state_fail(0, "Unknown message from server: {}", msg->msgid);
 		auto data = stream_scheme::Reply::bind(*msg);
 		if (msg->size < data.meta_size())
@@ -182,6 +193,7 @@ int StreamClient::_on_request_data(const tll_msg_t *msg)
 		_server_seq = data.get_seq();
 		_log.info("Server seq: {}", _server_seq);
 		_state = State::Connected;
+		state(tll::state::Active);
 		if (_server_seq == -1) {
 			return state_fail(0, "Server has no data for now, can not open from seq {}", *_open_seq);
 		} else if (_server_seq < *_open_seq) {

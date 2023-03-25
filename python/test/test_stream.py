@@ -3,6 +3,7 @@
 
 import decorator
 import pytest
+import yaml
 
 from tll import asynctll
 import tll.channel as C
@@ -172,3 +173,49 @@ async def test_reopen(asyncloop, tmp_path):
     m = await c.recv(0.01)
     assert m.type == m.Type.Control
     assert (m.seq, c.unpack(m).SCHEME.name) == (30, 'Online')
+
+@pytest.mark.parametrize("req,result", [
+        ('block=0', [30, 30]),
+        ('block=0;block-type=rare', [30, 30]),
+        ('block=1', [20, 30, 30]),
+        ('block=1;block-type=default', [20, 30, 30]),
+        ('block=10;block-type=rare', []),
+        ('block=0;block-type=unknown', []),
+        ])
+@asyncloop_run
+async def test_block(asyncloop, tmp_path, req, result):
+    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server;blocks={tmp_path}/blocks.yaml')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+
+    s.open()
+    assert s.state == s.State.Active # No need to wait
+
+    with pytest.raises(TLLError): s.post({'type':'default'}, name='Block', type=s.Type.Control)
+    s.post(b'aaa', msgid=10, seq=10)
+    s.post({'type':'default'}, name='Block', type=s.Type.Control)
+    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 11, 'type':'default'}]
+    s.post(b'bbb', msgid=10, seq=20)
+    s.post({'type':'default'}, name='Block', type=s.Type.Control)
+    s.post({'type':'rare'}, name='Block', type=s.Type.Control)
+    s.post(b'ccc', msgid=10, seq=30)
+
+    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 11, 'type':'default'}, {'seq': 21, 'type': 'default'}, {'seq': 21, 'type': 'rare'}]
+
+    s.close()
+    s.open()
+
+    c.open(req)
+
+    if result == []:
+        m = await c.recv_state(0.01)
+        assert m == c.State.Error
+        return
+
+    for seq in result[:-1]:
+        m = await c.recv(0.01)
+        assert (m.type, m.seq) == (m.Type.Data, seq)
+
+    m = await c.recv(0.01)
+    assert m.type == m.Type.Control
+    assert (m.seq, c.unpack(m).SCHEME.name) == (result[-1], 'Online')

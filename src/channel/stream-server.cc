@@ -9,14 +9,30 @@
 
 #include "channel/stream-client.h"
 #include "channel/stream-scheme.h"
+#include "channel/stream-control-server.h"
 
 #include "tll/util/size.h"
+
+#include <sys/fcntl.h>
+#include <unistd.h>
 
 using namespace tll;
 using namespace tll::channel;
 
 TLL_DEFINE_IMPL(StreamServer);
 TLL_DECLARE_IMPL(StreamClient);
+
+namespace {
+const tll::Scheme * merge(tll::channel::Context ctx, const tll::Scheme * client)
+{
+	if (!client)
+		return ctx.scheme_load(stream_server_control_scheme::scheme_string);
+	auto s = tll_scheme_dump(client, "yamls+gz");
+	auto merged = fmt::format("yamls://[{{name: '', import: ['{}', '{}']}}]", s, stream_server_control_scheme::scheme_string);
+	free(s);
+	return ctx.scheme_load(merged);
+}
+}
 
 std::optional<const tll_channel_impl_t *> StreamServer::_init_replace(const tll::Channel::Url &url, tll::Channel *master)
 {
@@ -37,11 +53,20 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 	if (r)
 		return _log.fail(r, "Base channel init failed");
 
+	_scheme_control.reset(merge(context(), _child->scheme(TLL_MESSAGE_CONTROL)));
+	if (!_scheme_control.get())
+		return _log.fail(EINVAL, "Failed to load control scheme");
+
 	auto reader = channel_props_reader(url);
 	//auto size = reader.getT<util::Size>("size", 128 * 1024);
 
+	_blocks_filename = reader.getT<std::string>("blocks", "");
+
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
+
+	//if (_blocks_filename.empty())
+	//	return _log.fail(EINVAL, "Need non-empty filename for data blocks");
 
 	{
 		auto curl = url.getT<tll::Channel::Url>("request");
@@ -80,6 +105,25 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 int StreamServer::_open(const ConstConfig &url)
 {
 	_seq = -1;
+	if (_blocks_filename.size() && !access(_blocks_filename.c_str(), R_OK)) {
+		_log.info("Load data blocks from {}", _blocks_filename);
+		auto cfg = Config::load("yaml", _blocks_filename);
+		if (!cfg)
+			return _log.fail(EINVAL, "Failed to load data blocks");
+		for (auto [_, c] : cfg->browse("*", true)) {
+			auto seq = c.getT<long long>("seq");
+			auto type = c.getT<std::string>("type", "default");
+			if (!seq)
+				return _log.fail(EINVAL, "Failed to load data blocks: invalid seq: {}", seq.error());
+			if (!type || type->empty())
+				return _log.fail(EINVAL, "Invalid or empty data block type for seq {}", *seq);
+			_log.debug("Create block {} at {}", *type, *seq);
+			_create_block(*type, *seq, false);
+		}
+	}
+	for (auto & [k, v] : _blocks)
+		_log.debug("Loaded {} '{}' blocks", v.size(), k);
+
 	Config sopen;
 	if (auto sub = url.sub("storage"); sub)
 		sopen = sub->copy();
@@ -106,6 +150,7 @@ int StreamServer::_close(bool force)
 		p.reset();
 	}
 	_clients.clear();
+	_blocks.clear();
 
 	if (_request->state() != tll::state::Closed)
 		_request->close(force);
@@ -189,36 +234,70 @@ int StreamServer::_on_request_data(const tll_msg_t *msg)
 	auto r = _clients.emplace(msg->addr.u64, this);
 	auto & client = r.first->second;
 
-	if (client.init(msg)) {
-		_log.error("Failed to init client");
-		if (!_control_msgid_disconnect)
-			return 0;
-		tll_msg_t m = { TLL_MESSAGE_CONTROL };
-		m.addr = msg->addr;
-		m.msgid = _control_msgid_disconnect;
-		_log.info("Disconnect client '{}' (addr {})", client.name, msg->addr.u64);
-		_request->post(&m);
-		client.reset();
-		_clients.erase(r.first);
+	if (auto error = client.init(msg); !error) {
+		_log.error("Failed to init client '{}' from {}: {}", client.name, msg->addr.u64, error.error());
+
+		std::vector<char> data;
+		auto r = stream_scheme::Error::bind(data);
+		r.view().resize(r.meta_size());
+		r.set_error(error.error());
+
+		client.msg.msgid = r.meta_id();
+		client.msg.data = r.view().data();
+		client.msg.size = r.view().size();
+		client.msg.addr = msg->addr;
+		if (auto r = _request->post(&client.msg); r)
+			_log.error("Failed to post error message");
+
+		if (_control_msgid_disconnect) {
+			tll_msg_t m = { TLL_MESSAGE_CONTROL };
+			m.addr = msg->addr;
+			m.msgid = _control_msgid_disconnect;
+			_log.info("Disconnect client '{}' (addr {})", client.name, msg->addr.u64);
+			client.reset();
+			_request->post(&m);
+		} else
+			client.reset();
+		_clients.erase(msg->addr.u64); // If request reported Disconnect - iterator is not valid
 		return 0;
 	}
 	_child_add(client.storage.get());
 	return 0;
 }
 
-int StreamServer::Client::init(const tll_msg_t *msg)
+tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
 {
 	auto & _log = parent->_log;
 
 	if (msg->msgid != stream_scheme::Request::meta_id())
-		return _log.fail(EINVAL, "Unknown message from addr {}: {}", msg->addr.u64, msg->msgid);
+		return error(fmt::format("Invalid message id: {}", msg->msgid));
 	auto req = stream_scheme::Request::bind(*msg);
 	if (msg->size < req.meta_size())
-		return _log.fail(EMSGSIZE, "Invalid request size: {} < minimum {}", msg->size, req.meta_size());
+		return error(fmt::format("Invalid request size: {} < minimum {}", msg->size, req.meta_size()));
 
 	name = req.get_client();
 	seq = req.get_seq();
-	_log.info("Request from client '{}' (addr {}) for seq {}", name, msg->addr.u64, seq);
+	auto block = req.get_block();
+	_log.info("Request from client '{}' (addr {}) for seq {}, block '{}'", name, msg->addr.u64, seq, block);
+
+	if (seq < 0)
+		return error(fmt::format("Negative seq: {}", seq));
+
+	if (block.size()) {
+		auto bit = parent->_blocks.find(block);
+		if (bit == parent->_blocks.end())
+			return error(fmt::format("Unknown block type: '{}'", block));
+		ssize_t size = bit->second.size();
+		if (size == 0)
+			return error(fmt::format("No known blocks of type '{}'", block));
+		if (seq >= size)
+			return error(fmt::format("Requested block '{}' too large: {} > max {}", block, seq, size - 1));
+		auto it = bit->second.rbegin();
+		for (; it != bit->second.rend() && seq; it++)
+			seq--;
+		seq = *it;
+		_log.info("Translated block type '{}' number {} to seq {}", block, req.get_seq(), seq);
+	}
 
 	this->msg = {};
 	this->msg.addr = msg->addr;
@@ -226,7 +305,7 @@ int StreamServer::Client::init(const tll_msg_t *msg)
 	if (!storage) {
 		auto r = parent->context().channel(parent->_storage_url, parent->_storage.get());
 		if (!r)
-			return _log.fail(EINVAL, "Failed to create storage channel");
+			return error("Failed to create storage channel");
 		r->callback_add(on_storage, this);
 		storage = std::move(r);
 	}
@@ -238,7 +317,7 @@ int StreamServer::Client::init(const tll_msg_t *msg)
 	tll::Config cfg;
 	cfg.set("seq", conv::to_string(seq));
 	if (storage->open(cfg))
-		return _log.fail(EINVAL, "Failed to open storage for client {}: seq {}", name, seq);
+		return error(fmt::format("Failed to open storage from seq {}", seq));
 
 	std::vector<char> data;
 	auto r = stream_scheme::Reply::bind(data);
@@ -250,7 +329,7 @@ int StreamServer::Client::init(const tll_msg_t *msg)
 	this->msg.data = r.view().data();
 	this->msg.size = r.view().size();
 	if (auto r = parent->_request->post(&this->msg); r)
-		return parent->_log.fail(EINVAL, "Failed to post reply message for '{}'", name);
+		return error("Failed to post reply message");
 	return 0;
 }
 
@@ -299,8 +378,48 @@ int StreamServer::Client::on_storage(const tll_msg_t * m)
 	return 0;
 }
 
+int StreamServer::_create_block(std::string_view block, long long seq, bool store)
+{
+	auto it = _blocks.find(block);
+	if (it == _blocks.end())
+		it = _blocks.emplace(block, std::list<long long>{}).first;
+	it->second.push_back(seq);
+	if (store) {
+		auto s = fmt::format("- {{seq: {}, type: '{}'}}\n", seq, block);
+		auto fd = ::open(_blocks_filename.c_str(), O_WRONLY | O_APPEND | O_CREAT, 0644);
+		if (fd == -1)
+			return _log.fail(EINVAL, "Failed to open data block file '{}': {}", _blocks_filename, strerror(errno));
+		if (write(fd, s.data(), s.size()) != (ssize_t) s.size())
+			return _log.fail(EINVAL, "Failed to write data block file '{}': {}", _blocks_filename, strerror(errno));
+		::close(fd);
+	}
+	return 0;
+}
+
+int StreamServer::_post_block(const tll_msg_t * msg)
+{
+	if (_seq == -1)
+		return _log.fail(EINVAL, "No data in storage, can not create block");
+	auto data = stream_server_control_scheme::Block::bind(*msg);
+	if (msg->size < data.meta_size())
+		return _log.fail(EINVAL, "Block message too small: {} < min {}", msg->size, data.meta_size());
+	auto type = data.get_type();
+	if (type == "")
+		type = "default";
+	if (_create_block(type, _seq + 1))
+		return state_fail(EINVAL, "Failed to create block '{}' at {}", type, _seq + 1);
+	return 0;
+}
+
 int StreamServer::_post(const tll_msg_t * msg, int flags)
 {
+	if (msg->type == TLL_MESSAGE_CONTROL) {
+		if (msg->msgid == stream_server_control_scheme::Block::meta_id())
+			return _post_block(msg);
+		if (auto r = _storage->post(msg); r)
+			return _log.fail(r, "Failed to send control message {}", msg->msgid);
+		return _child->post(msg);
+	}
 	if (msg->seq <= _seq)
 		return _log.fail(EINVAL, "Non monotonic seq: {} < last posted {}", msg->seq, _seq);
 	if (auto r = _storage->post(msg); r)
