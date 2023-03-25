@@ -138,7 +138,7 @@ async def test_recent(asyncloop, tmp_path):
     s.post(b'bbb', msgid=10, seq=20)
     s.post(b'ccc', msgid=10, seq=30)
 
-    c.open(seq='30')
+    c.open(seq='31')
 
     m = await s.recv()
     assert m.type == m.Type.Control
@@ -164,7 +164,7 @@ async def test_reopen(asyncloop, tmp_path):
     s.close()
     s.open()
 
-    c.open(seq='30')
+    c.open(seq='31')
 
     m = await s.recv()
     assert m.type == m.Type.Control
@@ -179,13 +179,14 @@ async def test_reopen(asyncloop, tmp_path):
         ('block=0;block-type=rare', [30, 30]),
         ('block=1', [20, 30, 30]),
         ('block=1;block-type=default', [20, 30, 30]),
+        ('block=0;block-type=last', [30]),
         ('block=10;block-type=rare', []),
         ('block=0;block-type=unknown', []),
         ])
 @asyncloop_run
 async def test_block(asyncloop, tmp_path, req, result):
-    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server;blocks={tmp_path}/blocks.yaml')
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;blocks={tmp_path}/blocks.yaml')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     s.open()
@@ -199,8 +200,9 @@ async def test_block(asyncloop, tmp_path, req, result):
     s.post({'type':'default'}, name='Block', type=s.Type.Control)
     s.post({'type':'rare'}, name='Block', type=s.Type.Control)
     s.post(b'ccc', msgid=10, seq=30)
+    s.post({'type':'last'}, name='Block', type=s.Type.Control)
 
-    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 11, 'type':'default'}, {'seq': 21, 'type': 'default'}, {'seq': 21, 'type': 'rare'}]
+    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 11, 'type':'default'}, {'seq': 21, 'type': 'default'}, {'seq': 21, 'type': 'rare'}, {'seq': 31, 'type':'last'}]
 
     s.close()
     s.open()

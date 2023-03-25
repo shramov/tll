@@ -14,7 +14,8 @@
 - name: Reply
   id: 20
   fields:
-    - {name: seq, type: int64}
+    - {name: last_seq, type: int64}
+    - {name: requested_seq, type: int64}
     - {name: server, type: string}
 
 - name: Error

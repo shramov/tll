@@ -1,8 +1,11 @@
+#pragma once
+
 #include <tll/scheme/binder.h>
+#include <tll/util/conv.h>
 
 namespace stream_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJzTVchLzE21UlB3LCkpykwqLUlV51JQSMtMzUkptgKyFBR0FaqhShLhSnQUSioLQELFQJG8dPVaNJVliTml2FTpwmwLSi0sTS0uAdmVmWKlYGiA09Li1EKEQZl5JWYmGLYl52Sm5pUQdFRSTn5yNkFVcE8WI5RqIQIHxQ8FOZUwHxhR5IPi1KKy1CJ8AeZaVJRfBLPMGLdlqWB1hDyJ0z4A/xacug==)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJyNkMsOgjAQRfd+xexIjCS+4oKdC3/AHzAFRtNYC8xMSYjx3wUViI8Ku2Zy0nvPDcGqC0YQbEVIx04wmAAcNZqUo/oFEML1hagOmYFUeXPi+mJPwe2DLJVxv6iwTdtj4ZClydJpBIu5N5Sx6D/SVjbrr7TEaLQyWCo2WXIepDpJ7tFpP86bQ26q1mDpNzCK5TBCg56bYDoGZqQS6d/EO6KM2norfz18cEOzePPu9xesyg==)";
 
 struct Attribute
 {
@@ -26,7 +29,7 @@ struct Attribute
 	};
 
 	template <typename Buf>
-	static binder_type<Buf> bind(Buf &buf) { return binder_type<Buf>(buf); }
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
 };
 
 struct Request
@@ -61,12 +64,12 @@ struct Request
 	};
 
 	template <typename Buf>
-	static binder_type<Buf> bind(Buf &buf) { return binder_type<Buf>(buf); }
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
 };
 
 struct Reply
 {
-	static constexpr size_t meta_size() { return 16; }
+	static constexpr size_t meta_size() { return 24; }
 	static constexpr std::string_view meta_name() { return "Reply"; }
 	static constexpr int meta_id() { return 20; }
 
@@ -80,16 +83,20 @@ struct Reply
 		static constexpr auto meta_id() { return Reply::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
 
-		using type_seq = int64_t;
-		type_seq get_seq() const { return this->template _get_scalar<type_seq>(0); }
-		void set_seq(type_seq v) { return this->template _set_scalar<type_seq>(0, v); }
+		using type_last_seq = int64_t;
+		type_last_seq get_last_seq() const { return this->template _get_scalar<type_last_seq>(0); }
+		void set_last_seq(type_last_seq v) { return this->template _set_scalar<type_last_seq>(0, v); }
 
-		std::string_view get_server() const { return this->template _get_string<tll_scheme_offset_ptr_t>(8); }
-		void set_server(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(8, v); }
+		using type_requested_seq = int64_t;
+		type_requested_seq get_requested_seq() const { return this->template _get_scalar<type_requested_seq>(8); }
+		void set_requested_seq(type_requested_seq v) { return this->template _set_scalar<type_requested_seq>(8, v); }
+
+		std::string_view get_server() const { return this->template _get_string<tll_scheme_offset_ptr_t>(16); }
+		void set_server(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(16, v); }
 	};
 
 	template <typename Buf>
-	static binder_type<Buf> bind(Buf &buf) { return binder_type<Buf>(buf); }
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
 };
 
 struct Error
@@ -116,7 +123,7 @@ struct Error
 	};
 
 	template <typename Buf>
-	static binder_type<Buf> bind(Buf &buf) { return binder_type<Buf>(buf); }
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
 };
 
 } // namespace stream_scheme

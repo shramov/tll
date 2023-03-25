@@ -190,20 +190,24 @@ int StreamClient::_on_request_data(const tll_msg_t *msg)
 		auto data = stream_scheme::Reply::bind(*msg);
 		if (msg->size < data.meta_size())
 			return state_fail(0, "Invalid reply size: {} < minimum {}", msg->size, data.meta_size());
-		_server_seq = data.get_seq();
+		_server_seq = data.get_last_seq();
 		_log.info("Server seq: {}", _server_seq);
 		_state = State::Connected;
 		state(tll::state::Active);
+		if (!_open_seq) {
+			_log.info("Translated block request to seq {}", data.get_requested_seq());
+			_open_seq = data.get_requested_seq();
+		}
 		if (_server_seq == -1) {
 			return state_fail(0, "Server has no data for now, can not open from seq {}", *_open_seq);
-		} else if (_server_seq < *_open_seq) {
-			return state_fail(0, "Invalid server seq: {} < requested {}", _server_seq, *_open_seq);
-		} else if (_server_seq == _open_seq) {
+		} else if (_server_seq + 1 == *_open_seq) {
 			_log.info("Server has no old data for us, channel is online (seq {})", _server_seq);
 			_seq = _server_seq;
 			_state = State::Online;
 			_report_online();
 			_request->close();
+		} else if (_server_seq < *_open_seq) {
+			return state_fail(0, "Invalid server seq: {} < requested {}", _server_seq, *_open_seq);
 		}
 		return 0;
 	} else if (_state != State::Overlapped)

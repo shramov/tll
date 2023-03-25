@@ -323,7 +323,8 @@ tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
 	auto r = stream_scheme::Reply::bind(data);
 	r.view().resize(r.meta_size());
 
-	r.set_seq(parent->_seq);
+	r.set_last_seq(parent->_seq);
+	r.set_requested_seq(seq);
 
 	this->msg.msgid = r.meta_id();
 	this->msg.data = r.view().data();
