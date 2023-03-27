@@ -237,14 +237,14 @@ def check_openpty():
 
 @pytest.mark.skipif(check_openpty(), reason='PTY not supported')
 class TestSerial:
-    def setup(self):
+    def setup_method(self):
         self.m, s = os.openpty()
         try:
             self.tty = os.ttyname(s)
         finally:
             os.close(s)
 
-    def teardown(self):
+    def teardown_method(self):
         os.close(self.m)
         self.m = None
 
@@ -282,11 +282,11 @@ class _test_udp_base:
     TIMESTAMP = False
     CLEANUP = []
 
-    def setup(self):
+    def setup_method(self):
         self.s = Accum(self.PROTO, mode='server', name='server', dump='yes', context=ctx)
         self.c = Accum(self.PROTO, mode='client', name='client', dump='yes', context=ctx)
 
-    def teardown(self):
+    def teardown_method(self):
         self.c.close()
         self.s.close()
         self.c = None
@@ -391,11 +391,11 @@ class TestPub:
     def server(self, size='1kb', **kw):
         return Accum(self.URL, mode='server', name='server', dump='frame', size=size, context=ctx, **kw)
 
-    def setup(self):
+    def setup_method(self):
         self.s = self.server()
         self.c = Accum(self.URL, mode='client', name='client', dump='frame', context=ctx)
 
-    def teardown(self):
+    def teardown_method(self):
         self.c.close()
         self.s.close()
         self.c = None

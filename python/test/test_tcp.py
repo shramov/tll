@@ -21,11 +21,11 @@ class _test_tcp_base:
     CLEANUP = []
     TIMESTAMP = False
 
-    def setup(self):
+    def setup_method(self):
         self.s = Accum(self.PROTO, mode='server', name='server', dump='yes', context=ctx, sndbuf='16kb')
         self.c = Accum(self.PROTO, mode='client', name='client', dump='yes', context=ctx, sndbuf='16kb')
 
-    def teardown(self):
+    def teardown_method(self):
         self.c = None
         self.s = None
         for f in self.CLEANUP:
