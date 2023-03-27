@@ -10,6 +10,7 @@ channel_sources = files(
 	, 'mem.cc'
 	, 'pub.cc'
 	, 'pub-client.cc'
+	, 'rate.cc'
 	, 'serial.cc'
 	, 'stream-client.cc'
 	, 'stream-server.cc'
