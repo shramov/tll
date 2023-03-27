@@ -54,6 +54,8 @@ class ChPubServer : public tll::channel::LastSeqTx<ChPubServer, tll::channel::Tc
 
  public:
 	static constexpr std::string_view channel_protocol() { return "pub+tcp"; }
+	static constexpr std::string_view param_prefix() { return "pub"; }
+
 	ChPubServer() {}
 
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
