@@ -221,3 +221,33 @@ async def test_block(asyncloop, tmp_path, req, result):
     m = await c.recv(0.01)
     assert m.type == m.Type.Control
     assert (m.seq, c.unpack(m).SCHEME.name) == (result[-1], 'Online')
+
+@asyncloop_run
+async def test_autoseq(asyncloop, tmp_path):
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;autoseq=yes')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+
+    s.open()
+    assert s.state == s.State.Active # No need to wait
+
+    assert s.config['info.seq'] == '-1'
+    for i in range(5):
+        s.post(b'aaa' * i, seq=100)
+    assert s.config['info.seq'] == '4'
+
+    s.close()
+    s.open()
+    assert s.config['info.seq'] == '4'
+    for i in range(5):
+        s.post(b'aaa' * i, seq=100)
+    assert s.config['info.seq'] == '9'
+
+    c.open(seq='0')
+    for i in range(10):
+        m = await c.recv(0.01)
+        assert (m.type, m.seq) == (m.Type.Data, i)
+
+    m = await c.recv(0.01)
+    assert m.type == m.Type.Control
+    assert (m.seq, c.unpack(m).SCHEME.name) == (9, 'Online')

@@ -60,6 +60,7 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 	auto reader = channel_props_reader(url);
 	//auto size = reader.getT<util::Size>("size", 128 * 1024);
 
+	_autoseq.enable = reader.getT("autoseq", false);
 	_blocks_filename = reader.getT<std::string>("blocks", "");
 
 	if (!reader)
@@ -136,6 +137,8 @@ int StreamServer::_open(const ConstConfig &url)
 	if (!last)
 		return _log.fail(EINVAL, "Storage has invalid 'seq' config value: {}", last.error());
 	_seq = *last;
+	_autoseq.reset(_seq);
+	config_info().set_ptr("seq", &_seq);
 	_log.info("Last seq in storage: {}", _seq);
 
 	if (_request->open())
@@ -146,6 +149,8 @@ int StreamServer::_open(const ConstConfig &url)
 
 int StreamServer::_close(bool force)
 {
+	config_info().setT("seq", _seq);
+
 	for (auto & [_, p] : _clients) {
 		p.reset();
 	}
@@ -421,6 +426,8 @@ int StreamServer::_post(const tll_msg_t * msg, int flags)
 			return _log.fail(r, "Failed to send control message {}", msg->msgid);
 		return _child->post(msg);
 	}
+
+	msg = _autoseq.update(msg);
 	if (msg->seq <= _seq)
 		return _log.fail(EINVAL, "Non monotonic seq: {} < last posted {}", msg->seq, _seq);
 	if (auto r = _storage->post(msg); r)

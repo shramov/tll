@@ -10,6 +10,7 @@
 
 #include "tll/channel/frame.h"
 #include "tll/channel/lastseq.h"
+#include "tll/channel/autoseq.h"
 #include "tll/channel/prefix.h"
 
 #include <list>
@@ -18,6 +19,7 @@ namespace tll::channel {
 
 class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::Prefix<StreamServer>>
 {
+	tll::channel::autoseq::AutoSeq _autoseq;
 	std::unique_ptr<Channel> _request;
 	std::unique_ptr<Channel> _storage;
 
