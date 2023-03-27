@@ -74,7 +74,7 @@ int File::_init(const tll::Channel::Url &url, tll::Channel *master)
 	if (!_scheme_control.get())
 		return _log.fail(EINVAL, "Failed to load control scheme");
 
-	return 0;
+	return Base::_init(url, master);
 }
 
 int File::_open(const ConstConfig &props)
@@ -158,6 +158,8 @@ int File::_open(const ConstConfig &props)
 
 		if (auto r = _file_bounds(); r && r != EAGAIN)
 			return _log.fail(EINVAL, "Failed to load file bounds");
+
+		_autoseq.reset(_seq);
 
 		auto size = _file_size();
 		if (size != (ssize_t) _offset) {
@@ -482,6 +484,7 @@ int File::_post(const tll_msg_t *msg, int flags)
 	if (msg->type != TLL_MESSAGE_DATA)
 		return 0;
 
+	msg = _autoseq.update(msg);
 	if (msg->seq <= _seq)
 		return _log.fail(EINVAL, "Incorrect messsage seq: {} <= last seq {}", msg->seq, _seq);
 

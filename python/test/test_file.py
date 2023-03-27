@@ -278,3 +278,28 @@ def test_open_filename(context, filename):
 
     assert [m.seq for m in reader.result] == list(range(50, 101, 10))
     assert reader.state == reader.State.Closed
+
+def test_autoseq(context, filename):
+    writer = context.Channel(f'file://{filename}', name='writer', dump='frame', dir='w', block='1kb', autoseq='yes')
+
+    writer.open()
+    for i in range(5):
+        writer.post(b'abc' * i, seq = 100)
+    assert writer.config['info.seq'] == '4'
+
+    writer.close()
+
+    writer.open()
+    assert writer.config['info.seq'] == '4'
+    for i in range(5):
+        writer.post(b'abc' * i, seq = 100)
+    assert writer.config['info.seq'] == '9'
+
+    reader = Accum(f'file://{filename}', name='reader', dump='frame', dir='r', context=context, autoclose='yes')
+
+    reader.open()
+    for _ in range(20):
+        reader.process()
+
+    assert [m.seq for m in reader.result] == list(range(10))
+    assert reader.state == reader.State.Closed

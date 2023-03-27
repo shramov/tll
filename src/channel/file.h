@@ -8,14 +8,16 @@
 #ifndef _TLL_CHANNEL_FILE_H
 #define _TLL_CHANNEL_FILE_H
 
-#include "tll/channel/base.h"
+#include "tll/channel/autoseq.h"
 
 #include "tll/util/memoryview.h"
 
 namespace tll::channel {
 
-class File : public tll::channel::Base<File>
+class File : public tll::channel::AutoSeq<File>
 {
+	using Base = tll::channel::AutoSeq<File>;
+
 	size_t _block_size = 0;
 	size_t _block_init = 0;
 	size_t _block_end = 0;
