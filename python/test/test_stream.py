@@ -251,3 +251,38 @@ async def test_autoseq(asyncloop, tmp_path):
     m = await c.recv(0.01)
     assert m.type == m.Type.Control
     assert (m.seq, c.unpack(m).SCHEME.name) == (9, 'Online')
+
+@asyncloop_run
+async def test_block_clear(asyncloop, tmp_path):
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;blocks={tmp_path}/blocks.yaml')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+
+    s.open()
+    assert s.state == s.State.Active # No need to wait
+
+    s.post(b'aaa', msgid=10, seq=10)
+    s.post({'type':'default'}, name='Block', type=s.Type.Control)
+    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 11, 'type':'default'}]
+    s.post(b'bbb', msgid=10, seq=20)
+
+
+    s.close()
+    s.open()
+
+    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 11, 'type':'default'}]
+
+    for i in range(2):
+        if i == 0:
+            c.open(block='0', **{'block-type': 'default'})
+        else:
+            c.open(seq='20')
+
+        m = await c.recv(0.01)
+        assert (m.type, m.seq) == (m.Type.Data, 20)
+
+        m = await c.recv(0.01)
+        assert m.type == m.Type.Control
+        assert (m.seq, c.unpack(m).SCHEME.name) == (20, 'Online')
+
+        c.close()

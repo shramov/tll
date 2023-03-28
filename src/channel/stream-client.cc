@@ -63,6 +63,7 @@ int StreamClient::_open(const ConstConfig &url)
 
 	auto r = stream_scheme::Request::bind(_request_buf);
 	_request_buf.resize(r.meta_size());
+	memset(_request_buf.data(), 0, _request_buf.size());
 
 	if (_peer.size())
 		r.set_client(_peer);
