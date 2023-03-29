@@ -169,7 +169,7 @@ def test_open_params():
     assert c.state == c.State.Active
     c.close()
 
-    c.open(a='1', b='2', c='3')
+    c.open({'a': '1', 'b': '2', 'c': '3'})
     assert c.state == c.State.Active
     c.close()
 

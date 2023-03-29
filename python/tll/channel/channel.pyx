@@ -278,6 +278,10 @@ cdef class Channel:
                 cfg = params.copy()
             else:
                 cfg = params
+        elif isinstance(params, dict):
+            cfg = Config()
+            for k,v in params.items():
+                cfg[k] = v
         else:
             cfg = Config()
             if params:
