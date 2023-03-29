@@ -44,7 +44,7 @@ async def test(asyncloop, tmp_path):
     with pytest.raises(TLLError): s.post(b'ddd', msgid=10, seq=25)
     with pytest.raises(TLLError): s.post(b'ddd', msgid=10, seq=30)
 
-    c.open(seq='20')
+    c.open(seq='20', mode='seq')
 
     m = await s.recv()
     assert m.type == m.Type.Control
@@ -91,7 +91,7 @@ async def test_overlapped(asyncloop, tmp_path):
     s.post(b'bbb', msgid=10, seq=20)
     s.post(b'ccc', msgid=10, seq=30)
 
-    c.open(seq='20')
+    c.open(seq='20', mode='seq')
 
     m = await s.recv()
     assert m.type == m.Type.Control
@@ -138,7 +138,7 @@ async def test_recent(asyncloop, tmp_path):
     s.post(b'bbb', msgid=10, seq=20)
     s.post(b'ccc', msgid=10, seq=30)
 
-    c.open(seq='31')
+    c.open(seq='31', mode='seq')
 
     m = await s.recv()
     assert m.type == m.Type.Control
@@ -164,7 +164,7 @@ async def test_reopen(asyncloop, tmp_path):
     s.close()
     s.open()
 
-    c.open(seq='31')
+    c.open(seq='31', mode='seq')
 
     m = await s.recv()
     assert m.type == m.Type.Control
@@ -207,7 +207,7 @@ async def test_block(asyncloop, tmp_path, req, result):
     s.close()
     s.open()
 
-    c.open(req)
+    c.open('mode=block;' + req)
 
     if result == []:
         m = await c.recv_state(0.01)
@@ -243,7 +243,7 @@ async def test_autoseq(asyncloop, tmp_path):
         s.post(b'aaa' * i, seq=100)
     assert s.config['info.seq'] == '9'
 
-    c.open(seq='0')
+    c.open(seq='0', mode='seq')
     for i in range(10):
         m = await c.recv(0.01)
         assert (m.type, m.seq) == (m.Type.Data, i)
@@ -274,9 +274,9 @@ async def test_block_clear(asyncloop, tmp_path):
 
     for i in range(2):
         if i == 0:
-            c.open(block='0', **{'block-type': 'default'})
+            c.open(mode='block', block='0', **{'block-type': 'default'})
         else:
-            c.open(seq='20')
+            c.open(mode='seq', seq='20')
 
         m = await c.recv(0.01)
         assert (m.type, m.seq) == (m.Type.Data, 20)
