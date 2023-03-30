@@ -1,0 +1,7 @@
+processor.defaults:
+  processor.shutdown-on: error # Processor defaults
+  timer.dump: frame # Channel defaults
+
+processor.objects:
+  c0.url: timer://;interval=1s
+  c1.url: timer://;interval=500ms
