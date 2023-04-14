@@ -12,6 +12,7 @@
 #include <limits>
 #include <list>
 #include <map>
+#include <optional>
 #include <string_view>
 #include <type_traits>
 #include <vector>
@@ -482,6 +483,19 @@ inline result_t<T> select(std::string_view s, const std::map<std::string_view, T
 	if (i == m.end()) return error("No matches");
 	return i->second;
 }
+
+template <typename T>
+struct parse<std::optional<T>>
+{
+	static result_t<std::optional<T>> to_any(std::string_view s)
+	{
+		if (!s.size()) return std::nullopt;
+		auto r = parse<T>::to_any(s);
+		if (!r)
+			return error(r.error());
+		return *r;
+	}
+};
 
 } // namespace tll::conv
 

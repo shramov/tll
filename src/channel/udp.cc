@@ -241,9 +241,7 @@ int UdpSocket<T, F>::_init(const Channel::Url &url, Channel *master)
 	if (_multi) {
 		_mcast_loop = reader.getT("loop", true);
 		_mcast_interface = reader.get("interface");
-		auto source = reader.get("source");
-		if (reader.has("source"))
-			_mcast_source = reader.template getT<in_addr>("source");
+		_mcast_source = reader.getT("source", std::optional<in_addr>());
 	}
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
