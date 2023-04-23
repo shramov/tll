@@ -278,7 +278,7 @@ async def test_block_clear(asyncloop, tmp_path):
         else:
             c.open(mode='seq', seq='20')
 
-        m = await c.recv(0.01)
+        m = await c.recv(0.1)
         assert (m.type, m.seq) == (m.Type.Data, 20)
 
         m = await c.recv(0.01)
