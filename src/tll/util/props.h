@@ -192,7 +192,7 @@ class PropsReaderT
 	template <typename T> T getT(std::string_view key, const T& def, const std::map<std::string_view, T> &m)
 	{
 		if (_error) return def;
-		auto v = _props.get(key);
+		auto v = get(key);
 		if (!v) return def;
 		auto r = conv::select(*v, m);
 		if (r)
