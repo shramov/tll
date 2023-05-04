@@ -17,9 +17,11 @@ class ChYaml : public tll::channel::Base<ChYaml>
 	std::optional<tll::ConstConfig> _url_config;
 	std::vector<tll::ConstConfig> _messages;
 	size_t _idx = 0;
+	long long _seq = -1;
 	std::vector<char> _buf;
 
 	bool _autoclose = false;
+	bool _autoseq = false;
 	bool _strict = true;
 
  public:

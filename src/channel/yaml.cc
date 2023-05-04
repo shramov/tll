@@ -37,6 +37,7 @@ int ChYaml::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 	auto reader = channel_props_reader(url);
 	_autoclose = reader.getT("autoclose", true);
+	_autoseq = reader.getT("autoseq", false);
 	_strict = reader.getT("strict", true);
 	auto control = reader.get("scheme-control");
 
@@ -57,6 +58,7 @@ int ChYaml::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 int ChYaml::_open(const ConstConfig &url)
 {
+	_seq = -1;
 	if (!_url_config) {
 		auto cfg = tll::Config::load(std::string("yaml://") + _filename);
 		if (!cfg)
@@ -330,6 +332,14 @@ int ChYaml::_process(long timeout, int flags)
 	msg.seq = reader.getT<long long>("seq", 0);
 	msg.addr.i64 = reader.getT<int64_t>("addr", 0);
 	msg.type = reader.getT("type", TLL_MESSAGE_DATA, {{"data", TLL_MESSAGE_DATA}, {"control", TLL_MESSAGE_CONTROL}});
+
+	if (_autoseq) {
+		if (_seq == -1)
+			_seq = msg.seq;
+		else
+			msg.seq = ++_seq;
+	}
+
 	auto data = cfg.get("data");
 
 	auto scheme = _scheme.get();

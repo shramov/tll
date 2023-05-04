@@ -316,3 +316,28 @@ config:
         c.process()
         m = c.unpack(c.result[-1])
         assert m.as_dict() == {'f0': 200}
+
+def test_autoseq():
+    url = Config.load('''yamls://
+tll.proto: yaml
+name: yaml
+dump: frame
+autoseq: yes
+config:
+  - msgid: 1
+    seq: 10
+    data: "xxx"
+  - msgid: 1
+    data: "yyy"
+  - msgid: 1
+    seq: 10
+    data: "zzz"
+''')
+    c = Accum(url)
+    c.open()
+    c.process()
+    c.process()
+    c.process()
+    c.process()
+    assert c.state == c.State.Closed
+    assert [(m.seq, m.data.tobytes()) for m in c.result] == [(10, b'xxx'), (11, b'yyy'), (12, b'zzz')]
