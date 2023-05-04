@@ -91,6 +91,11 @@ TLL_DEFINE_IMPL(ChTcpServer<tll_frame_tiny_t>);
 TLL_DEFINE_IMPL(ChFramedSocket<tll_frame_tiny_t>);
 TLL_DEFINE_IMPL(tll::channel::TcpServerSocket<ChTcpServer<tll_frame_tiny_t>>);
 
+TLL_DEFINE_IMPL(ChTcpClient<tll_frame_size32_t>);
+TLL_DEFINE_IMPL(ChTcpServer<tll_frame_size32_t>);
+TLL_DEFINE_IMPL(ChFramedSocket<tll_frame_size32_t>);
+TLL_DEFINE_IMPL(tll::channel::TcpServerSocket<ChTcpServer<tll_frame_size32_t>>);
+
 std::optional<const tll_channel_impl_t *> ChTcp::_init_replace(const tll::Channel::Url &url, tll::Channel *master)
 {
 	using tll::channel::TcpChannelMode;
@@ -132,6 +137,15 @@ std::optional<const tll_channel_impl_t *> ChTcp::_init_replace(const tll::Channe
 			case TcpChannelMode::Client: return &ChTcpClient<tll_frame_tiny_t>::impl;
 			case TcpChannelMode::Server: return &ChTcpServer<tll_frame_tiny_t>::impl;
 			case TcpChannelMode::Socket: return &ChFramedSocket<tll_frame_tiny_t>::impl;
+			}
+		}
+	}
+	for (auto & n : tll::frame::FrameT<tll_frame_size32_t>::name()) {
+		if (n == frame) {
+			switch (mode) {
+			case TcpChannelMode::Client: return &ChTcpClient<tll_frame_size32_t>::impl;
+			case TcpChannelMode::Server: return &ChTcpServer<tll_frame_size32_t>::impl;
+			case TcpChannelMode::Socket: return &ChFramedSocket<tll_frame_size32_t>::impl;
 			}
 		}
 	}

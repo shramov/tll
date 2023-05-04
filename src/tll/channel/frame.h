@@ -45,6 +45,11 @@ struct tll_frame_seq64_t
 {
 	uint64_t seq;
 };
+
+struct tll_frame_size32_t
+{
+	uint32_t size;
+};
 #pragma pack(pop)
 
 #ifdef __cplusplus
@@ -119,6 +124,15 @@ struct FrameT<tll_frame_seq64_t>
 	static std::vector<std::string_view> name() { return {"seq64", "s8"}; }
 	static void read(tll_msg_t *m, const frame_type * data) { m->seq = data->seq; }
 	static void write(const tll_msg_t *m, frame_type * data) { data->seq = m->seq; }
+};
+
+template <>
+struct FrameT<tll_frame_size32_t>
+{
+	using frame_type = tll_frame_size32_t;
+	static std::vector<std::string_view> name() { return {"size32", "l4", "bson"}; }
+	static void read(tll_msg_t *m, const frame_type * data) { m->size = data->size; }
+	static void write(const tll_msg_t *m, frame_type * data) { data->size = m->size; }
 };
 
 } // namespace tll::frame

@@ -104,6 +104,7 @@ TLL_DEFINE_IMPL(Framed);
 TLL_DEFINE_IMPL(TcpFrame<tll_frame_t>);
 TLL_DEFINE_IMPL(TcpFrame<tll_frame_short_t>);
 TLL_DEFINE_IMPL(TcpFrame<tll_frame_tiny_t>);
+TLL_DEFINE_IMPL(TcpFrame<tll_frame_size32_t>);
 
 TLL_DEFINE_IMPL(UdpFrame<tll_frame_t>);
 TLL_DEFINE_IMPL(UdpFrame<tll_frame_short_t>);
@@ -139,6 +140,13 @@ std::optional<const tll_channel_impl_t *> Framed::_init_replace(const tll::Chann
 		if (n == frame) {
 			if (tcp)
 				return &TcpFrame<tll_frame_tiny_t>::impl;
+		}
+	}
+
+	for (auto & n : tll::frame::FrameT<tll_frame_size32_t>::name()) {
+		if (n == frame) {
+			if (tcp)
+				return &TcpFrame<tll_frame_size32_t>::impl;
 		}
 	}
 
