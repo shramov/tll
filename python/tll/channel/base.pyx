@@ -168,6 +168,9 @@ cdef class Base:
     def config(self): return self.internal.config
 
     @property
+    def config_info(self): return self.internal.config.sub("info", True)
+
+    @property
     def context(self): return self.context
 
     @property

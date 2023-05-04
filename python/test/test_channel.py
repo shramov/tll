@@ -28,6 +28,7 @@ class Echo(Base):
         self._child = self.context.Channel('null://;name=child;tll.internal=yes')
         self._child_add(self._child)
         self._child_add(self.context.Channel('null://;name=orphan'))
+        self.config_info['echo'] = 'yes'
 
     def _close(self, force=False):
         try:
@@ -112,7 +113,9 @@ def test():
     assert cfg.get("state", "") == "Closed"
     assert [x.name for x in c.children] == []
 
+    assert cfg.get('info.echo', '') != 'yes'
     c.open()
+    assert cfg['info.echo'] == 'yes'
 
     assert [x.name for x in c.children] == ['child', 'orphan']
 
