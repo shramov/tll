@@ -110,6 +110,20 @@ TLL_DEFINE_IMPL(UdpFrame<tll_frame_t>);
 TLL_DEFINE_IMPL(UdpFrame<tll_frame_short_t>);
 TLL_DEFINE_IMPL(UdpFrame<tll_frame_seq32_t>);
 
+template <typename Frame, bool Tcp, bool Udp>
+const tll_channel_impl_t * _check_impl(std::string_view frame, bool tcp)
+{
+	for (auto & n : tll::frame::FrameT<Frame>::name()) {
+		if (n == frame) {
+			if (Tcp && tcp)
+				return &TcpFrame<Frame>::impl;
+			else if (Udp && !tcp)
+				return &UdpFrame<Frame>::impl;
+		}
+	}
+	return nullptr;
+}
+
 std::optional<const tll_channel_impl_t *> Framed::_init_replace(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = this->channel_props_reader(url);
@@ -118,44 +132,16 @@ std::optional<const tll_channel_impl_t *> Framed::_init_replace(const tll::Chann
 	if (!reader)
 		return this->_log.fail(std::nullopt, "Invalid url: {}", reader.error());
 
-	for (auto & n : tll::frame::FrameT<tll_frame_t>::name()) {
-		if (n == frame) {
-			if (tcp)
-				return &TcpFrame<tll_frame_t>::impl;
-			else
-				return &UdpFrame<tll_frame_t>::impl;
-		}
-	}
-
-	for (auto & n : tll::frame::FrameT<tll_frame_short_t>::name()) {
-		if (n == frame) {
-			if (tcp)
-				return &TcpFrame<tll_frame_short_t>::impl;
-			else
-				return &UdpFrame<tll_frame_short_t>::impl;
-		}
-	}
-
-	for (auto & n : tll::frame::FrameT<tll_frame_tiny_t>::name()) {
-		if (n == frame) {
-			if (tcp)
-				return &TcpFrame<tll_frame_tiny_t>::impl;
-		}
-	}
-
-	for (auto & n : tll::frame::FrameT<tll_frame_size32_t>::name()) {
-		if (n == frame) {
-			if (tcp)
-				return &TcpFrame<tll_frame_size32_t>::impl;
-		}
-	}
-
-	for (auto & n : tll::frame::FrameT<tll_frame_seq32_t>::name()) {
-		if (n == frame) {
-			if (!tcp)
-				return &UdpFrame<tll_frame_seq32_t>::impl;
-		}
-	}
+	if (auto r = _check_impl<tll_frame_t, true, true>(frame, tcp); r)
+		return r;
+	if (auto r = _check_impl<tll_frame_short_t, true, true>(frame, tcp); r)
+		return r;
+	if (auto r = _check_impl<tll_frame_tiny_t, true, false>(frame, tcp); r)
+		return r;
+	if (auto r = _check_impl<tll_frame_size32_t, true, false>(frame, tcp); r)
+		return r;
+	if (auto r = _check_impl<tll_frame_seq32_t, false, true>(frame, tcp); r)
+		return r;
 
 	return _log.fail(std::nullopt, "Unknown frame '{}' for {}", frame, tcp ? "tcp" : "udp");
 }
