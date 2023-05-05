@@ -212,3 +212,10 @@ def test_link():
     assert copy['c.e'] == '200'
     copy['d.e'] = '300'
     assert copy['c.e'] == '300'
+
+def test_overwrite():
+    cfg = Config.from_dict({'a.b': '100'})
+    assert cfg.as_dict() == {'a': {'b': '100'}}
+
+    cfg['a'] = Config.from_dict({'c': '200'})
+    assert cfg.as_dict() == {'a': {'c': '200'}}

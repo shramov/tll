@@ -258,9 +258,10 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 		auto v = find(pi, --s.end(), true);
 
 		auto lock = v->wlock();
-		if (v->kids.find(*pi) != v->kids.end()) return EEXIST;
+		auto [it, created] = v->kids.emplace(*pi, cfg);
+		if (!created)
+			it->second = cfg;
 
-		v->kids.emplace(*pi, cfg);
 		cfg->parent = v.get();
 		if (consume)
 			cfg->unref();
