@@ -26,7 +26,7 @@ def asyncloop_run(f, asyncloop, *a, **kw):
     asyncloop.run(f(asyncloop, *a, **kw))
 
 @asyncloop_run
-@pytest.mark.parametrize("frame", ['std', 'short', 'tiny', 'size32', 'l4m4s8', 'l2m2s8', 'l2m2s4', 'l4'])
+@pytest.mark.parametrize("frame", ['std', 'short', 'tiny', 'size32', 'l4m4s8', 'l2m2s8', 'l2m2s4', 'l4', 'bson'])
 async def test(asyncloop, tmp_path, frame):
     s = asyncloop.Channel(f'frame+tcp:///{tmp_path}/tcp.sock;frame.frame={frame};tcp.frame=none;dump=frame;name=server;mode=server')
     c = asyncloop.Channel(f'tcp:///{tmp_path}/tcp.sock;frame={frame};dump=frame;name=client;mode=client')
@@ -36,7 +36,10 @@ async def test(asyncloop, tmp_path, frame):
 
     result = post = [(b'xxx', 10, 100), (b'yyyy', 20, 200), (b'zzzzz', 30, 300)]
 
-    if frame in ('size32', 'l4'):
+    if frame in ('bson',):
+        result = post = [(struct.pack('=I', 4 + len(data)) + data, 0, 0) for (data, msgid, seq) in result]
+
+    if frame in ('size32', 'l4', 'bson'):
         result = [(data, 0, 0) for (data, msgid, seq) in result]
 
     for data, msgid, seq in post:
@@ -61,6 +64,7 @@ FRAMES = [
     (('short', 'l2m2s8'), 'Hhq', ('size', 'msgid', 'seq'), 'all'),
     (('tiny', 'l2m2s4'), 'Hhi', ('size', 'msgid', 'seq'), 'tcp'),
     (('size32', 'l4'), 'I', ('size',), 'tcp'),
+    (('bson',), 'I', ('size',), 'tcp'),
     (('seq32', 's4'), 'i', ('seq',), 'udp'),
 ]
 def frames():
@@ -83,7 +87,11 @@ def test_pack(type, frame, pack, fields, ftype, context):
     data = b'xxxx'
     meta = {'size': len(data), 'msgid': 0x1234, 'seq': 0x56789abc}
     meta = {k: v for k,v in meta.items() if k in fields}
+    if frame in ('bson',):
+        meta['size'] += 4
     header = struct.pack('=' + pack, *[meta[n] for n in fields])
 
     c.post(header + data)
+    if frame in ('bson',):
+        data = header + data
     assert [(m.msgid, m.seq, m.data.tobytes()) for m in s.result] == [(meta.get('msgid', 0), meta.get('seq', 0), data)]

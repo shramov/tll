@@ -50,6 +50,11 @@ struct tll_frame_size32_t
 {
 	uint32_t size;
 };
+
+struct tll_frame_bson_t
+{
+	uint32_t size;
+};
 #pragma pack(pop)
 
 #ifdef __cplusplus
@@ -66,9 +71,19 @@ struct tll_frame_size32_t
 namespace tll::frame {
 
 template <typename T>
-struct FrameFillT
+struct FrameBaseT
 {
 	using frame_type = T;
+
+	/// Size of frame
+	static constexpr size_t frame_size() { return sizeof(frame_type); }
+	/// Skip frame or it's part of data
+	static constexpr size_t frame_skip_size() { return frame_size(); }
+};
+
+template <typename T>
+struct FrameFillT : public FrameBaseT<T>
+{
 	static void read(tll_msg_t *m, const T * data)
 	{
 		m->seq = data->seq;
@@ -109,28 +124,34 @@ struct FrameT<tll_frame_tiny_t> : public FrameFillT<tll_frame_tiny_t>
 };
 
 template <>
-struct FrameT<tll_frame_seq32_t>
+struct FrameT<tll_frame_seq32_t> : public FrameBaseT<tll_frame_seq32_t>
 {
-	using frame_type = tll_frame_seq32_t;
 	static std::vector<std::string_view> name() { return {"seq32", "s4"}; }
 	static void read(tll_msg_t *m, const frame_type * data) { m->seq = data->seq; }
 	static void write(const tll_msg_t *m, frame_type * data) { data->seq = m->seq; }
 };
 
 template <>
-struct FrameT<tll_frame_seq64_t>
+struct FrameT<tll_frame_seq64_t> : public FrameBaseT<tll_frame_seq64_t>
 {
-	using frame_type = tll_frame_seq64_t;
 	static std::vector<std::string_view> name() { return {"seq64", "s8"}; }
 	static void read(tll_msg_t *m, const frame_type * data) { m->seq = data->seq; }
 	static void write(const tll_msg_t *m, frame_type * data) { data->seq = m->seq; }
 };
 
 template <>
-struct FrameT<tll_frame_size32_t>
+struct FrameT<tll_frame_size32_t> : public FrameBaseT<tll_frame_size32_t>
 {
-	using frame_type = tll_frame_size32_t;
-	static std::vector<std::string_view> name() { return {"size32", "l4", "bson"}; }
+	static std::vector<std::string_view> name() { return {"size32", "l4"}; }
+	static void read(tll_msg_t *m, const frame_type * data) { m->size = data->size; }
+	static void write(const tll_msg_t *m, frame_type * data) { data->size = m->size; }
+};
+
+template <>
+struct FrameT<tll_frame_bson_t> : public FrameBaseT<tll_frame_bson_t>
+{
+	static constexpr size_t frame_skip_size() { return 0; }
+	static std::vector<std::string_view> name() { return {"bson"}; }
 	static void read(tll_msg_t *m, const frame_type * data) { m->size = data->size; }
 	static void write(const tll_msg_t *m, frame_type * data) { data->size = m->size; }
 };

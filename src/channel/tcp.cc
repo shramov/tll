@@ -17,10 +17,12 @@
 
 using namespace tll;
 
-template <typename T, typename Frame>
+template <typename T, typename F>
 class FramedSocket : public tll::channel::TcpSocket<T>
 {
  public:
+	using Frame = F;
+	using FrameT = tll::frame::FrameT<Frame>;
 	static constexpr std::string_view param_prefix() { return "tcp"; }
 
 	int _post_data(const tll_msg_t *msg, int flags);
@@ -71,30 +73,18 @@ class ChTcpServer : public tll::channel::TcpServer<ChTcpServer<Frame>, ChFramedS
 
 TLL_DEFINE_IMPL(ChTcp);
 
-TLL_DEFINE_IMPL(ChTcpClient<void>);
-TLL_DEFINE_IMPL(ChTcpServer<void>);
-TLL_DEFINE_IMPL(ChFramedSocket<void>);
-TLL_DEFINE_IMPL(tll::channel::TcpServerSocket<ChTcpServer<void>>);
+#define TCP_DEFINE_IMPL_ALL(frame) \
+	TLL_DEFINE_IMPL(ChTcpClient<frame>); \
+	TLL_DEFINE_IMPL(ChTcpServer<frame>); \
+	TLL_DEFINE_IMPL(ChFramedSocket<frame>); \
+	TLL_DEFINE_IMPL(tll::channel::TcpServerSocket<ChTcpServer<frame>>)
 
-TLL_DEFINE_IMPL(ChTcpClient<tll_frame_t>);
-TLL_DEFINE_IMPL(ChTcpServer<tll_frame_t>);
-TLL_DEFINE_IMPL(ChFramedSocket<tll_frame_t>);
-TLL_DEFINE_IMPL(tll::channel::TcpServerSocket<ChTcpServer<tll_frame_t>>);
-
-TLL_DEFINE_IMPL(ChTcpClient<tll_frame_short_t>);
-TLL_DEFINE_IMPL(ChTcpServer<tll_frame_short_t>);
-TLL_DEFINE_IMPL(ChFramedSocket<tll_frame_short_t>);
-TLL_DEFINE_IMPL(tll::channel::TcpServerSocket<ChTcpServer<tll_frame_short_t>>);
-
-TLL_DEFINE_IMPL(ChTcpClient<tll_frame_tiny_t>);
-TLL_DEFINE_IMPL(ChTcpServer<tll_frame_tiny_t>);
-TLL_DEFINE_IMPL(ChFramedSocket<tll_frame_tiny_t>);
-TLL_DEFINE_IMPL(tll::channel::TcpServerSocket<ChTcpServer<tll_frame_tiny_t>>);
-
-TLL_DEFINE_IMPL(ChTcpClient<tll_frame_size32_t>);
-TLL_DEFINE_IMPL(ChTcpServer<tll_frame_size32_t>);
-TLL_DEFINE_IMPL(ChFramedSocket<tll_frame_size32_t>);
-TLL_DEFINE_IMPL(tll::channel::TcpServerSocket<ChTcpServer<tll_frame_size32_t>>);
+TCP_DEFINE_IMPL_ALL(void);
+TCP_DEFINE_IMPL_ALL(tll_frame_t);
+TCP_DEFINE_IMPL_ALL(tll_frame_short_t);
+TCP_DEFINE_IMPL_ALL(tll_frame_tiny_t);
+TCP_DEFINE_IMPL_ALL(tll_frame_size32_t);
+TCP_DEFINE_IMPL_ALL(tll_frame_bson_t);
 
 namespace tll::frame {
 
@@ -134,7 +124,7 @@ std::optional<const tll_channel_impl_t *> ChTcp::_init_replace(const tll::Channe
 	if (!reader)
 		return _log.fail(std::nullopt, "Invalid url: {}", reader.error());
 
-	if (auto r = _check_impl<void>(mode, frame); r)
+	if (auto r = _check_impl<void>(mode, frame); r) // Empty frame
 		return r;
 	if (auto r = _check_impl<tll_frame_t>(mode, frame); r)
 		return r;
@@ -144,48 +134,57 @@ std::optional<const tll_channel_impl_t *> ChTcp::_init_replace(const tll::Channe
 		return r;
 	if (auto r = _check_impl<tll_frame_size32_t>(mode, frame); r)
 		return r;
+	if (auto r = _check_impl<tll_frame_bson_t>(mode, frame); r)
+		return r;
 
 	return _log.fail(std::nullopt, "Unknown frame '{}", frame);
 }
 
-template <typename T, typename Frame>
-int FramedSocket<T, Frame>::_post_data(const tll_msg_t *msg, int flags)
+template <typename T, typename F>
+int FramedSocket<T, F>::_post_data(const tll_msg_t *msg, int flags)
 {
 	if (msg->type != TLL_MESSAGE_DATA)
 		return 0;
 	if (this->_wbuf.size())
 		return EAGAIN;
-	this->_log.debug("Post {} + {} bytes of data", sizeof(Frame), msg->size);
-	Frame frame;
-	tll::frame::FrameT<Frame>::write(msg, &frame);
-	int r = this->template _sendv(tll::memory {(void *) &frame, sizeof(frame)}, *msg);
+	this->_log.debug("Post {} + {} bytes of data", FrameT::frame_size(), msg->size);
+	int r = 0;
+	if constexpr (FrameT::frame_skip_size() != 0) {
+		Frame frame;
+		FrameT::write(msg, &frame);
+		r = this->template _sendv(tll::memory {(void *) &frame, sizeof(frame)}, *msg);
+		if (r)
+			return this->_log.fail(r, "Failed to post data");
+	} else {
+		r = this->template _sendv(*msg);
+	}
 	if (r)
 		return this->_log.fail(r, "Failed to post data");
 	return 0;
 }
 
 
-template <typename T, typename Frame>
-int FramedSocket<T, Frame>::_pending()
+template <typename T, typename F>
+int FramedSocket<T, F>::_pending()
 {
 	auto frame = this->template rdataT<Frame>();
 	if (!frame)
 		return EAGAIN;
 	// Check for pending data
-	auto data = this->template rdataT<char>(sizeof(Frame), frame->size);
-	if (!data) {
-		if (sizeof(Frame) + frame->size > this->_rbuf.capacity())
-			return this->_log.fail(EMSGSIZE, "Message size {} too large", frame->size);
+	const auto full_size = FrameT::frame_skip_size() + frame->size;
+	if (this->_rbuf.size() < full_size) {
+		if (full_size > this->_rbuf.capacity())
+			return this->_log.fail(EMSGSIZE, "Message size {} too large", full_size);
 		this->_dcaps_pending(false);
 		return EAGAIN;
 	}
 
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
-	tll::frame::FrameT<Frame>::read(&msg, frame);
-	msg.data = (void *) data;
+	FrameT::read(&msg, frame);
+	msg.data = this->_rbuf.template dataT<void>(FrameT::frame_skip_size(), 0);
 	msg.addr = this->_msg_addr;
 	msg.time = this->_timestamp.count();
-	this->rdone(sizeof(Frame) + frame->size);
+	this->rdone(full_size);
 	this->_dcaps_pending(this->template rdataT<Frame>());
 	this->_callback_data(&msg);
 	return 0;

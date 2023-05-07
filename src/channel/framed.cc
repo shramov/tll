@@ -8,6 +8,7 @@ template <typename T, typename Frame>
 class CommonFrame : public tll::channel::Prefix<T>
 {
 	using Base = tll::channel::Prefix<T>;
+	using FrameT = tll::frame::FrameT<Frame>;
 
  protected:
 	std::vector<char> _buf_send;
@@ -18,16 +19,20 @@ class CommonFrame : public tll::channel::Prefix<T>
 	{
 		if (msg->type != TLL_MESSAGE_DATA)
 			return this->_child->post(msg, flags);
-		auto full = msg->size + sizeof(Frame);
-		if (_buf_send.size() < full)
-			_buf_send.resize(full);
-		auto frame = (Frame *) _buf_send.data();
-		tll::frame::FrameT<Frame>::write(msg, frame);
-		memcpy(frame + 1, msg->data, msg->size);
-		_msg_send = *msg;
-		_msg_send.size = full;
-		_msg_send.data = _buf_send.data();
-		return this->_child->post(&_msg_send, flags);
+		if constexpr (FrameT::frame_skip_size() != 0) {
+			auto full = msg->size + FrameT::frame_skip_size();
+			if (_buf_send.size() < full)
+				_buf_send.resize(full);
+			auto frame = (Frame *) _buf_send.data();
+			FrameT::write(msg, frame);
+			memcpy(frame + 1, msg->data, msg->size);
+			_msg_send = *msg;
+			_msg_send.size = full;
+			_msg_send.data = _buf_send.data();
+			return this->_child->post(&_msg_send, flags);
+		} else {
+			return this->_child->post(msg, flags);
+		}
 	}
 };
 
@@ -60,7 +65,7 @@ class TcpFrame : public CommonFrame<TcpFrame<Frame>, Frame>
 		auto size = _size();
 		if (size < sizeof(Frame)) return nullptr;
 		auto frame = (const Frame *) &_buf_recv[_recv_start];
-		if (size < sizeof(Frame) + frame->size) return nullptr;
+		if (size < tll::frame::FrameT<Frame>::frame_skip_size() + frame->size) return nullptr;
 		return frame;
 	}
 
@@ -105,6 +110,7 @@ TLL_DEFINE_IMPL(TcpFrame<tll_frame_t>);
 TLL_DEFINE_IMPL(TcpFrame<tll_frame_short_t>);
 TLL_DEFINE_IMPL(TcpFrame<tll_frame_tiny_t>);
 TLL_DEFINE_IMPL(TcpFrame<tll_frame_size32_t>);
+TLL_DEFINE_IMPL(TcpFrame<tll_frame_bson_t>);
 
 TLL_DEFINE_IMPL(UdpFrame<tll_frame_t>);
 TLL_DEFINE_IMPL(UdpFrame<tll_frame_short_t>);
@@ -140,6 +146,8 @@ std::optional<const tll_channel_impl_t *> Framed::_init_replace(const tll::Chann
 		return r;
 	if (auto r = _check_impl<tll_frame_size32_t, true, false>(frame, tcp); r)
 		return r;
+	if (auto r = _check_impl<tll_frame_bson_t, true, false>(frame, tcp); r)
+		return r;
 	if (auto r = _check_impl<tll_frame_seq32_t, false, true>(frame, tcp); r)
 		return r;
 
@@ -168,8 +176,13 @@ template <typename Frame>
 void TcpFrame<Frame>::_process_data(const Frame * frame)
 {
 	tll::frame::FrameT<Frame>::read(&_msg_recv, frame);
-	_msg_recv.data = frame + 1;
-	_recv_start += sizeof(Frame) + frame->size;
+	const auto full_size = tll::frame::FrameT<Frame>::frame_skip_size() + frame->size;
+	if constexpr (tll::frame::FrameT<Frame>::frame_skip_size() != 0) {
+		_msg_recv.data = frame + 1;
+	} else {
+		_msg_recv.data = frame;
+	}
+	_recv_start += full_size;
 	if (_recv_start == _recv_end)
 		_recv_start = _recv_end = 0;
 	this->_callback_data(&_msg_recv);
