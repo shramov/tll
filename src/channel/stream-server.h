@@ -22,11 +22,10 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	tll::channel::autoseq::AutoSeq _autoseq;
 	std::unique_ptr<Channel> _request;
 	std::unique_ptr<Channel> _storage;
+	std::unique_ptr<Channel> _blocks;
 
 	tll::Channel::Url _storage_url;
-
-	std::string _blocks_filename;
-	std::map<std::string, std::list<long long>, std::less<>> _blocks;
+	tll::Channel::Url _blocks_url;
 
 	long long _seq = -1;
 
@@ -37,18 +36,29 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 		tll::result_t<int> init(const tll_msg_t * msg);
 
 		long long seq = -1;
+		long long block_end = -1;
+
 		tll_msg_t msg = {};
 		std::unique_ptr<Channel> storage;
+		std::unique_ptr<Channel> blocks;
 		std::string name;
 		StreamServer * parent = nullptr;
 		enum class State { Closed, Active, Error, Done } state = State::Closed;
 
 		int on_storage(const tll_msg_t *);
+		int on_storage_state(tll_state_t);
 
 		static int on_storage(const tll_channel_t *, const tll_msg_t * msg, void * user)
 		{
 			return static_cast<Client *>(user)->on_storage(msg);
 		}
+
+		/*
+		static int on_blocks(const tll_channel_t *, const tll_msg_t * msg, void * user)
+		{
+			return static_cast<Client *>(user)->on_blocks(msg);
+		}
+		*/
 	};
 
 	std::map<uint64_t, Client> _clients;
@@ -113,8 +123,6 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 
 	int _check_state(tll_state_t s);
 	int _post_block(const tll_msg_t *msg);
-
-	int _create_block(std::string_view block, long long seq, bool store = true);
 };
 
 } // namespace tll::channel

@@ -186,7 +186,7 @@ async def test_reopen(asyncloop, tmp_path):
 @asyncloop_run
 async def test_block(asyncloop, tmp_path, req, result):
     common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;blocks={tmp_path}/blocks.yaml')
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     s.open()
@@ -195,14 +195,14 @@ async def test_block(asyncloop, tmp_path, req, result):
     with pytest.raises(TLLError): s.post({'type':'default'}, name='Block', type=s.Type.Control)
     s.post(b'aaa', msgid=10, seq=10)
     s.post({'type':'default'}, name='Block', type=s.Type.Control)
-    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 11, 'type':'default'}]
+    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 10, 'type':'default'}]
     s.post(b'bbb', msgid=10, seq=20)
     s.post({'type':'default'}, name='Block', type=s.Type.Control)
     s.post({'type':'rare'}, name='Block', type=s.Type.Control)
     s.post(b'ccc', msgid=10, seq=30)
     s.post({'type':'last'}, name='Block', type=s.Type.Control)
 
-    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 11, 'type':'default'}, {'seq': 21, 'type': 'default'}, {'seq': 21, 'type': 'rare'}, {'seq': 31, 'type':'last'}]
+    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 10, 'type':'default'}, {'seq': 20, 'type': 'default'}, {'seq': 20, 'type': 'rare'}, {'seq': 30, 'type':'last'}]
 
     s.close()
     s.open()
@@ -255,7 +255,7 @@ async def test_autoseq(asyncloop, tmp_path):
 @asyncloop_run
 async def test_block_clear(asyncloop, tmp_path):
     common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;blocks={tmp_path}/blocks.yaml')
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     s.open()
@@ -263,14 +263,14 @@ async def test_block_clear(asyncloop, tmp_path):
 
     s.post(b'aaa', msgid=10, seq=10)
     s.post({'type':'default'}, name='Block', type=s.Type.Control)
-    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 11, 'type':'default'}]
+    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 10, 'type':'default'}]
     s.post(b'bbb', msgid=10, seq=20)
 
 
     s.close()
     s.open()
 
-    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 11, 'type':'default'}]
+    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 10, 'type':'default'}]
 
     for i in range(2):
         if i == 0:
@@ -286,3 +286,51 @@ async def test_block_clear(asyncloop, tmp_path):
         assert (m.seq, c.unpack(m).SCHEME.name) == (20, 'Online')
 
         c.close()
+
+def test_blocks_channel(context, tmp_path):
+    w = context.Channel(f'blocks://{tmp_path}/blocks.yaml;default-type=def;dir=w')
+    w.open()
+
+    w.post({'type':''}, seq=10, name='Block', type=w.Type.Control)
+    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 10, 'type':'def'}]
+
+    w.post({'type':'other'}, seq=10, name='Block', type=w.Type.Control)
+    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 10, 'type':'def'}, {'seq': 10, 'type': 'other'}]
+
+    w.close()
+    w.open()
+
+    w.post({'type':'def'}, seq=20, name='Block', type=w.Type.Control)
+    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 10, 'type':'def'}, {'seq': 10, 'type': 'other'}, {'seq': 20, 'type': 'def'}]
+
+    r = Accum('blocks://', master=w, context=context)
+    with pytest.raises(TLLError): r.open({'block': '0'}) # block-type=default
+    r.close()
+
+    with pytest.raises(TLLError): r.open({'block': '10', 'block-type':'def'})
+    r.close()
+
+    with pytest.raises(TLLError): r.open({'block': '0', 'block-type':'unknown'})
+    r.close()
+
+    r.result = []
+    r.open({'block': '0', 'block-type':'def'})
+    assert r.state == r.State.Closed
+    assert [(m.type, m.seq, r.unpack(m).as_dict()) for m in r.result] == [(r.Type.Control, 21, {'begin': 21, 'end': 21})]
+
+    r.result = []
+    r.open({'block': '1', 'block-type':'def'})
+    assert r.state == r.State.Closed
+    assert [(m.type, m.seq, r.unpack(m).as_dict()) for m in r.result] == [(r.Type.Control, 11, {'begin': 11, 'end': 11})]
+
+    r.result = []
+    r.open({'block': '0', 'block-type':'other'})
+    assert r.state == r.State.Closed
+    assert [(m.type, m.seq, r.unpack(m).as_dict()) for m in r.result] == [(r.Type.Control, 11, {'begin': 11, 'end': 11})]
+
+    r = Accum(f'blocks://{tmp_path}/blocks.yaml;dir=r', context=context)
+
+    r.result = []
+    r.open({'block': '0', 'block-type':'other'})
+    assert r.state == r.State.Closed
+    assert [(m.type, m.seq, r.unpack(m).as_dict()) for m in r.result] == [(r.Type.Control, 11, {'begin': 11, 'end': 11})]

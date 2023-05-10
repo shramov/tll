@@ -26,6 +26,7 @@
 
 #include "channel/channels.h"
 
+#include "channel/blocks.h"
 #include "channel/direct.h"
 #include "channel/ipc.h"
 #include "channel/file.h"
@@ -58,6 +59,7 @@ TLL_DEFINE_IMPL(ChNull);
 TLL_DEFINE_IMPL(tll::channel::Random);
 TLL_DEFINE_IMPL(tll::channel::SeqCheck);
 
+TLL_DECLARE_IMPL(tll::channel::Blocks);
 TLL_DECLARE_IMPL(ChIpc);
 TLL_DECLARE_IMPL(channel::File);
 TLL_DECLARE_IMPL(Framed);
@@ -94,6 +96,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 
 	tll_channel_context_t(Config defaults) : config_defaults(defaults)
 	{
+		reg(&tll::channel::Blocks::impl);
 		reg(&ChDirect::impl);
 		reg(&ChIpc::impl);
 		reg(&channel::File::impl);

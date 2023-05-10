@@ -10,6 +10,7 @@
 #include "channel/stream-client.h"
 #include "channel/stream-scheme.h"
 #include "channel/stream-control-server.h"
+#include "channel/blocks.scheme.h"
 
 #include "tll/util/size.h"
 
@@ -61,7 +62,6 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 	//auto size = reader.getT<util::Size>("size", 128 * 1024);
 
 	_autoseq.enable = reader.getT("autoseq", false);
-	_blocks_filename = reader.getT<std::string>("blocks", "");
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
@@ -97,6 +97,22 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 		_storage_url.set("name", fmt::format("{}/storage/client", name));
 	}
 
+	if (url.sub("blocks")) {
+		auto curl = url.getT<tll::Channel::Url>("blocks");
+		if (!curl)
+			return _log.fail(EINVAL, "Failed to get blocks url: {}", curl.error());
+		child_url_fill(*curl, "blocks");
+		curl->set("dir", "w");
+
+		_blocks = context().channel(*curl, master);
+		if (!_blocks)
+			return _log.fail(EINVAL, "Failed to create blocks channel");
+		_blocks_url = *curl;
+		_blocks_url.set("dir", "r");
+		_blocks_url.set("dump", "frame");
+		_blocks_url.set("name", fmt::format("{}/blocks/client", name));
+	}
+
 	_request->callback_add(_on_request, this, TLL_MESSAGE_MASK_ALL);
 	_child_add(_request.get(), "request");
 
@@ -106,24 +122,6 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 int StreamServer::_open(const ConstConfig &url)
 {
 	_seq = -1;
-	if (_blocks_filename.size() && !access(_blocks_filename.c_str(), R_OK)) {
-		_log.info("Load data blocks from {}", _blocks_filename);
-		auto cfg = Config::load("yaml", _blocks_filename);
-		if (!cfg)
-			return _log.fail(EINVAL, "Failed to load data blocks");
-		for (auto [_, c] : cfg->browse("*", true)) {
-			auto seq = c.getT<long long>("seq");
-			auto type = c.getT<std::string>("type", "default");
-			if (!seq)
-				return _log.fail(EINVAL, "Failed to load data blocks: invalid seq: {}", seq.error());
-			if (!type || type->empty())
-				return _log.fail(EINVAL, "Invalid or empty data block type for seq {}", *seq);
-			_log.debug("Create block {} at {}", *type, *seq);
-			_create_block(*type, *seq, false);
-		}
-	}
-	for (auto & [k, v] : _blocks)
-		_log.debug("Loaded {} '{}' blocks", v.size(), k);
 
 	Config sopen;
 	if (auto sub = url.sub("storage"); sub)
@@ -141,6 +139,13 @@ int StreamServer::_open(const ConstConfig &url)
 	config_info().set_ptr("seq", &_seq);
 	_log.info("Last seq in storage: {}", _seq);
 
+	if (_blocks) {
+		if (_blocks->open())
+			return _log.fail(EINVAL, "Failed to open blocks channel");
+		if (_blocks->state() != tll::state::Active)
+			return _log.fail(EINVAL, "Long opening blocks is not supported");
+	}
+
 	if (_request->open())
 		return _log.fail(EINVAL, "Failed to open request channel");
 
@@ -155,10 +160,13 @@ int StreamServer::_close(bool force)
 		p.reset();
 	}
 	_clients.clear();
-	_blocks.clear();
 
 	if (_request->state() != tll::state::Closed)
 		_request->close(force);
+	if (_blocks) {
+		if (_blocks->state() != tll::state::Closed)
+			_blocks->close(force);
+	}
 	if (_storage->state() != tll::state::Closed)
 		_storage->close(force);
 	return Base::_close(force);
@@ -289,18 +297,24 @@ tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
 		return error(fmt::format("Negative seq: {}", seq));
 
 	if (block.size()) {
-		auto bit = parent->_blocks.find(block);
-		if (bit == parent->_blocks.end())
-			return error(fmt::format("Unknown block type: '{}'", block));
-		ssize_t size = bit->second.size();
-		if (size == 0)
-			return error(fmt::format("No known blocks of type '{}'", block));
-		if (seq >= size)
-			return error(fmt::format("Requested block '{}' too large: {} > max {}", block, seq, size - 1));
-		auto it = bit->second.rbegin();
-		for (; it != bit->second.rend() && seq; it++)
-			seq--;
-		seq = *it;
+		if (!parent->_blocks)
+			return error("Requested block, but no block storage configured");
+		blocks = parent->context().channel(parent->_blocks_url, parent->_blocks.get());
+		if (!blocks)
+			return error("Failed to create blocks channel");
+		blocks->callback_add(on_storage, this);
+
+		tll::Config ocfg;
+		ocfg.set("block", tll::conv::to_string(req.get_seq()));
+		ocfg.set("block-type", block);
+
+		if (blocks->open(ocfg))
+			return error("Failed to open blocks channel");
+		if (blocks->state() != tll::state::Closed)
+			return error("Blocks with data not yet supported");
+		blocks->callback_del(on_storage, this);
+		blocks.reset();
+
 		_log.info("Translated block type '{}' number {} to seq {}", block, req.get_seq(), seq);
 	}
 
@@ -350,23 +364,18 @@ void StreamServer::Client::reset()
 int StreamServer::Client::on_storage(const tll_msg_t * m)
 {
 	if (m->type != TLL_MESSAGE_DATA) {
-		if (m->type == TLL_MESSAGE_STATE) {
-			switch ((tll_state_t) m->msgid) {
-			case TLL_STATE_ACTIVE:
-				state = State::Active;
-				break;
-			case TLL_STATE_ERROR:
-				state = State::Error;
-				break;
-			case TLL_STATE_CLOSING:
-			case TLL_STATE_CLOSED:
-				state = State::Closed;
-				break;
-			case TLL_STATE_OPENING:
-			case TLL_STATE_DESTROY:
-				break;
-			}
-		}
+		if (m->type == TLL_MESSAGE_STATE)
+			return on_storage_state((tll_state_t) m->msgid);
+		else if (m->type != TLL_MESSAGE_CONTROL)
+			return 0;
+		if (!blocks)
+			return 0;
+		if (m->msgid != blocks_scheme::BlockRange::meta_id())
+			return 0;
+		auto data = blocks_scheme::BlockRange::bind(*m);
+		seq = data.get_begin();
+		block_end = data.get_end();
+		parent->_log.info("Got BlockRange {}:{} from blocks", seq, block_end);
 		return 0;
 	}
 	msg.type = m->type;
@@ -384,44 +393,41 @@ int StreamServer::Client::on_storage(const tll_msg_t * m)
 	return 0;
 }
 
-int StreamServer::_create_block(std::string_view block, long long seq, bool store)
+int StreamServer::Client::on_storage_state(tll_state_t s)
 {
-	auto it = _blocks.find(block);
-	if (it == _blocks.end())
-		it = _blocks.emplace(block, std::list<long long>{}).first;
-	it->second.push_back(seq);
-	if (store) {
-		auto s = fmt::format("- {{seq: {}, type: '{}'}}\n", seq, block);
-		auto fd = ::open(_blocks_filename.c_str(), O_WRONLY | O_APPEND | O_CREAT, 0644);
-		if (fd == -1)
-			return _log.fail(EINVAL, "Failed to open data block file '{}': {}", _blocks_filename, strerror(errno));
-		if (write(fd, s.data(), s.size()) != (ssize_t) s.size())
-			return _log.fail(EINVAL, "Failed to write data block file '{}': {}", _blocks_filename, strerror(errno));
-		::close(fd);
+	switch (s) {
+	case TLL_STATE_ACTIVE:
+		state = State::Active;
+		break;
+	case TLL_STATE_ERROR:
+		state = State::Error;
+		break;
+	case TLL_STATE_CLOSING:
+	case TLL_STATE_CLOSED:
+		state = State::Closed;
+		break;
+	case TLL_STATE_OPENING:
+	case TLL_STATE_DESTROY:
+		break;
 	}
-	return 0;
-}
-
-int StreamServer::_post_block(const tll_msg_t * msg)
-{
-	if (_seq == -1)
-		return _log.fail(EINVAL, "No data in storage, can not create block");
-	auto data = stream_server_control_scheme::Block::bind(*msg);
-	if (msg->size < data.meta_size())
-		return _log.fail(EINVAL, "Block message too small: {} < min {}", msg->size, data.meta_size());
-	auto type = data.get_type();
-	if (type == "")
-		type = "default";
-	if (_create_block(type, _seq + 1))
-		return state_fail(EINVAL, "Failed to create block '{}' at {}", type, _seq + 1);
 	return 0;
 }
 
 int StreamServer::_post(const tll_msg_t * msg, int flags)
 {
 	if (msg->type == TLL_MESSAGE_CONTROL) {
-		if (msg->msgid == stream_server_control_scheme::Block::meta_id())
-			return _post_block(msg);
+		if (_blocks && msg->msgid == stream_server_control_scheme::Block::meta_id()) {
+			if (_seq == -1)
+				return _log.fail(EINVAL, "No data in storage, can not create block");
+
+			tll_msg_t m = *msg;
+			m.seq = _seq;
+
+			if (auto r = _blocks->post(&m); r)
+				return _log.fail(r, "Failed to send Block control message");
+			return 0;
+		}
+
 		if (auto r = _storage->post(msg); r)
 			return _log.fail(r, "Failed to send control message {}", msg->msgid);
 		return _child->post(msg);
@@ -430,6 +436,10 @@ int StreamServer::_post(const tll_msg_t * msg, int flags)
 	msg = _autoseq.update(msg);
 	if (msg->seq <= _seq)
 		return _log.fail(EINVAL, "Non monotonic seq: {} < last posted {}", msg->seq, _seq);
+	if (_blocks) {
+		if (auto r = _blocks->post(msg); r)
+			return _log.fail(r, "Failed to send Block control message");
+	}
 	if (auto r = _storage->post(msg); r)
 		return _log.fail(r, "Failed to store message {}", msg->seq);
 	_seq = msg->seq;

@@ -1,0 +1,11 @@
+- name: Block
+  id: 100
+  fields:
+    - {name: type, type: byte64, options.type: string}
+- name: BlockRange
+  id: 110
+  fields:
+    - {name: begin, type: int64}
+    - {name: end, type: int64}
+- name: EndOfData
+  id: 120
