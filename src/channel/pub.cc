@@ -237,6 +237,9 @@ int ChPubSocket::_process_data(bool pollout)
 		if (errno == EAGAIN) {
 			_dcaps_poll(dcaps::CPOLLOUT);
 			return EAGAIN;
+		} else if (errno == EPIPE) {
+			_log.warning("Send failed: {}", strerror(errno));
+			return EPIPE;
 		}
 		return _log.fail(EINVAL, "Send failed: {}", strerror(errno));
 	}
