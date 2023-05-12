@@ -54,19 +54,19 @@ async def test(asyncloop, tmp_path):
     assert c.children[0].state == c.State.Active
     assert c.state == c.State.Active
 
-    m = await c.recv(0.01)
+    m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (20, 10, b'bbb')
 
-    m = await c.recv(0.01)
+    m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (30, 10, b'ccc')
 
-    m = await c.recv(0.01)
+    m = await c.recv()
     assert m.type == m.Type.Control
     assert (m.seq, c.unpack(m).SCHEME.name) == (30, 'Online')
 
     s.post(b'ddd', msgid=10, seq=40)
 
-    m = await c.recv(0.01)
+    m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (40, 10, b'ddd')
 
     c.close()
@@ -101,28 +101,28 @@ async def test_overlapped(asyncloop, tmp_path):
     s.post(b'eee', msgid=10, seq=50)
     s.post(b'fff', msgid=10, seq=60)
 
-    m = await c.recv(0.01)
+    m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (20, 10, b'bbb')
 
-    m = await c.recv(0.01)
+    m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (30, 10, b'ccc')
 
-    m = await c.recv(0.01)
+    m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (40, 10, b'ddd')
 
-    m = await c.recv(0.01)
+    m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (50, 10, b'eee')
 
-    m = await c.recv(0.01)
+    m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (60, 10, b'fff')
 
-    m = await c.recv(0.01)
+    m = await c.recv()
     assert m.type == m.Type.Control
     assert (m.seq, c.unpack(m).SCHEME.name) == (60, 'Online')
 
     s.post(b'ggg', msgid=10, seq=70)
 
-    m = await c.recv(0.01)
+    m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (70, 10, b'ggg')
 
 @asyncloop_run
@@ -144,7 +144,7 @@ async def test_recent(asyncloop, tmp_path):
     assert m.type == m.Type.Control
     assert s.unpack(m).SCHEME.name == 'Connect'
 
-    m = await c.recv(0.01)
+    m = await c.recv()
     assert m.type == m.Type.Control
     assert (m.seq, c.unpack(m).SCHEME.name) == (30, 'Online')
 
@@ -170,7 +170,7 @@ async def test_reopen(asyncloop, tmp_path):
     assert m.type == m.Type.Control
     assert s.unpack(m).SCHEME.name == 'Connect'
 
-    m = await c.recv(0.01)
+    m = await c.recv()
     assert m.type == m.Type.Control
     assert (m.seq, c.unpack(m).SCHEME.name) == (30, 'Online')
 
@@ -210,15 +210,15 @@ async def test_block(asyncloop, tmp_path, req, result):
     c.open('mode=block;' + req)
 
     if result == []:
-        m = await c.recv_state(0.01)
+        m = await c.recv_state()
         assert m == c.State.Error
         return
 
     for seq in result[:-1]:
-        m = await c.recv(0.01)
+        m = await c.recv()
         assert (m.type, m.seq) == (m.Type.Data, seq)
 
-    m = await c.recv(0.01)
+    m = await c.recv()
     assert m.type == m.Type.Control
     assert (m.seq, c.unpack(m).SCHEME.name) == (result[-1], 'Online')
 
@@ -245,10 +245,10 @@ async def test_autoseq(asyncloop, tmp_path):
 
     c.open(seq='0', mode='seq')
     for i in range(10):
-        m = await c.recv(0.01)
+        m = await c.recv()
         assert (m.type, m.seq) == (m.Type.Data, i)
 
-    m = await c.recv(0.01)
+    m = await c.recv()
     assert m.type == m.Type.Control
     assert (m.seq, c.unpack(m).SCHEME.name) == (9, 'Online')
 
@@ -281,7 +281,7 @@ async def test_block_clear(asyncloop, tmp_path):
         m = await c.recv(0.1)
         assert (m.type, m.seq) == (m.Type.Data, 20)
 
-        m = await c.recv(0.01)
+        m = await c.recv()
         assert m.type == m.Type.Control
         assert (m.seq, c.unpack(m).SCHEME.name) == (20, 'Online')
 
