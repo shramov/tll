@@ -46,7 +46,7 @@ const tll::Scheme * merge(tll::channel::Context ctx, std::string_view s0_string,
 	tll::scheme::ConstSchemePtr s0(ctx.scheme_load(s0_string));
 	if (!s1)
 		return s0.release();
-	
+
 	if (!intersects(s0.get(), s1)) {
 		auto s1_string = tll_scheme_dump(s1, "yamls+gz");
 		auto merged = fmt::format("yamls://[{{name: '', import: ['{}', '{}']}}]", s0_string, s1_string);
@@ -93,9 +93,9 @@ int Rate::_init(const Channel::Url &url, tll::Channel *master)
 
 	if (interval.count() == 0)
 		return _log.fail(EINVAL, "Zero interval");
-	
+
 	_conf.speed /= interval.count();
-	
+
 	if (_conf.speed == 0) return _log.fail(EINVAL, "Zero speed");
 	if (_conf.limit <= 0) return _log.fail(EINVAL, "Invalid window size: {}", _conf.limit);
 
@@ -111,7 +111,7 @@ int Rate::_init(const Channel::Url &url, tll::Channel *master)
 		return this->_log.fail(EINVAL, "Failed to create timer channel");
 	_timer->callback_add([](auto * c, auto * m, void * user) { return static_cast<Rate *>(user)->_on_timer(m); }, this, TLL_MESSAGE_MASK_DATA);
 	this->_child_add(_timer.get(), "timer");
-	
+
 	return 0;
 }
 
@@ -144,7 +144,7 @@ int Rate::_post(const tll_msg_t *msg, int flags)
 
 	if (auto r = _child->post(msg, flags); r)
 		return r;
-	
+
 	_bucket.consume(size);
 
 	if (_bucket.empty()) {
