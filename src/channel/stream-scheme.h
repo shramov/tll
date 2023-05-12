@@ -5,7 +5,7 @@
 
 namespace stream_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJyVkcsOgjAQRfd+xexIjCQ+iAt2Rv0Bf8AUGE1jLTAdSIjx3wW0EB9Y3TWTk565d3zQ4owheCtmklHB6I0ADhJVYsL6BeDD5YGIDpkAV1kzMvVEH73rC1kKVXyifGvbYV6g4cYlkxBm00Gpwbz/SGpeBm+2WEnU7FwqUml8clJdSNOj476cpwyZqmyC+XACJQzvf4hB904w+QU2SCXSt4q3RCnZ9RbD62HLuWpx+9btFTapRisN/rzqDb7gwes=)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJyVkcsOgjAQRfd+xexIjCQ+iAt2Rv0Bf8AUGE1jLdAZSIjx3wW0Eh9Y3DWTk7k9d3zQ4owheCtmI6OC0RsBHCSqhML6BeDD5YGIJzIBrrJmRPVEH73rG1kKVXyjfJu2w7xA4iZLJiHMpr2hhHm3SGpeBh9psZKo2fmpSKXxyUk9JalDx105Lw6ZqqzBvN9ACeL9AA1z7wSTIXArMwQkNCWaX7fYGpMa67Ho98CWc/Xnzlu359qkGm1o8Of5b/jgziE=)";
 
 struct Attribute
 {
@@ -69,7 +69,7 @@ struct Request
 
 struct Reply
 {
-	static constexpr size_t meta_size() { return 24; }
+	static constexpr size_t meta_size() { return 32; }
 	static constexpr std::string_view meta_name() { return "Reply"; }
 	static constexpr int meta_id() { return 20; }
 
@@ -91,8 +91,12 @@ struct Reply
 		type_requested_seq get_requested_seq() const { return this->template _get_scalar<type_requested_seq>(8); }
 		void set_requested_seq(type_requested_seq v) { return this->template _set_scalar<type_requested_seq>(8, v); }
 
-		std::string_view get_server() const { return this->template _get_string<tll_scheme_offset_ptr_t>(16); }
-		void set_server(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(16, v); }
+		using type_block_seq = int64_t;
+		type_block_seq get_block_seq() const { return this->template _get_scalar<type_block_seq>(16); }
+		void set_block_seq(type_block_seq v) { return this->template _set_scalar<type_block_seq>(16, v); }
+
+		std::string_view get_server() const { return this->template _get_string<tll_scheme_offset_ptr_t>(24); }
+		void set_server(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(24, v); }
 	};
 
 	template <typename Buf>

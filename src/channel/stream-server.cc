@@ -504,6 +504,7 @@ tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
 	r.view().resize(r.meta_size());
 
 	r.set_last_seq(parent->_seq);
+	r.set_block_seq(block_end);
 	r.set_requested_seq(seq);
 
 	this->msg.msgid = r.meta_id();

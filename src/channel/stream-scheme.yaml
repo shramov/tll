@@ -16,6 +16,7 @@
   fields:
     - {name: last_seq, type: int64}
     - {name: requested_seq, type: int64}
+    - {name: block_seq, type: int64}
     - {name: server, type: string}
 
 - name: Error

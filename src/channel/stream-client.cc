@@ -229,7 +229,7 @@ int StreamClient::_on_request_data(const tll_msg_t *msg)
 		if (msg->size < data.meta_size())
 			return state_fail(0, "Invalid reply size: {} < minimum {}", msg->size, data.meta_size());
 		_server_seq = data.get_last_seq();
-		_log.info("Server seq: {}", _server_seq);
+		_log.info("Server seq: {}, block end seq: {}", _server_seq, data.get_block_seq());
 		_state = State::Connected;
 		state(tll::state::Active);
 		if (!_open_seq) {
