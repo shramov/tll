@@ -143,6 +143,7 @@ typedef enum {
 	TLL_MESSAGE_LOG_TEXT = 2,	///< Log body as ASCII text (replacing unprintable symbols)
 	TLL_MESSAGE_LOG_TEXT_HEX = 3,	///< Log body as ASCII text and hex representation
 	TLL_MESSAGE_LOG_SCHEME = 4,	///< Log decomposed body as fields from scheme
+	TLL_MESSAGE_LOG_AUTO = 5,	///< Log with scheme if it's available, text with hex otherwise
 } tll_channel_log_msg_format_t;
 
 /** Format message and write it to logger
@@ -233,6 +234,7 @@ static constexpr auto Frame = TLL_MESSAGE_LOG_FRAME;
 static constexpr auto Text = TLL_MESSAGE_LOG_TEXT;
 static constexpr auto TextHex = TLL_MESSAGE_LOG_TEXT_HEX;
 static constexpr auto Scheme = TLL_MESSAGE_LOG_SCHEME;
+static constexpr auto Auto = TLL_MESSAGE_LOG_AUTO;
 
 } // namespace channel::log_msg_format
 

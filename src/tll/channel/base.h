@@ -220,7 +220,7 @@ class Base
 		auto dir = reader.getT("dir", None, {{"r", R}, {"w", W}, {"rw", RW}, {"in", R}, {"out", W}, {"inout", RW}});
 		{
 			using namespace tll::channel::log_msg_format;
-			_dump = reader.getT("dump", Disable, {{"no", Disable}, {"yes", Text}, {"frame", Frame}, {"text", Text}, {"text+hex", TextHex}, {"scheme", Scheme}});
+			_dump = reader.getT("dump", Disable, {{"no", Disable}, {"yes", Auto}, {"frame", Frame}, {"text", Text}, {"text+hex", TextHex}, {"scheme", Scheme}, {"auto", Auto}});
 		}
 		//_log = { fmt::format("tll.channel.{}.{}", T::param_prefix(), name) };
 		if (!reader)
