@@ -56,17 +56,19 @@ class MessageLogFormat(enum.Enum):
     Text = TLL_MESSAGE_LOG_TEXT
     TextHex = TLL_MESSAGE_LOG_TEXT_HEX
     Scheme = TLL_MESSAGE_LOG_SCHEME
+    Auto = TLL_MESSAGE_LOG_AUTO
     def __int__(self): return self.value
 _MessageLogFormat = MessageLogFormat
 
 MessageLogFormatMap = {
     '': MessageLogFormat.Disable,
     'no': MessageLogFormat.Disable,
-    'yes': MessageLogFormat.Text, # Keep in sync with tll/channel/base.h
+    'yes': MessageLogFormat.Auto, # Keep in sync with tll/channel/base.h
     'frame': MessageLogFormat.Frame,
     'text': MessageLogFormat.Text,
     'text+hex': MessageLogFormat.TextHex,
     'scheme': MessageLogFormat.Scheme,
+    'auto': MessageLogFormat.Auto,
 }
 
 class Stat(stat.Base):

@@ -61,5 +61,6 @@ cdef extern from "tll/channel/impl.h":
         TLL_MESSAGE_LOG_TEXT
         TLL_MESSAGE_LOG_TEXT_HEX
         TLL_MESSAGE_LOG_SCHEME
+        TLL_MESSAGE_LOG_AUTO
 
     cdef int tll_channel_log_msg(const tll_channel_t *, const char *, tll_logger_level_t, tll_channel_log_msg_format_t, const tll_msg_t *, const char *, int)
