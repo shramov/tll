@@ -67,7 +67,7 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 			bool lookup = false;
 			if (path.is_relative()) {
 				unsigned d = 0;
-				for (auto & p : path) {
+				for (const auto & p : path) {
 					if (p != "..") break;
 					d++;
 				}
