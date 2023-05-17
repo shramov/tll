@@ -121,10 +121,13 @@ const tll_channel_impl_t * _check_impl(std::string_view frame, bool tcp)
 {
 	for (auto & n : tll::frame::FrameT<Frame>::name()) {
 		if (n == frame) {
-			if (Tcp && tcp)
-				return &TcpFrame<Frame>::impl;
-			else if (Udp && !tcp)
-				return &UdpFrame<Frame>::impl;
+			if (tcp) {
+				if constexpr (Tcp)
+					return &TcpFrame<Frame>::impl;
+			} else {
+				if constexpr (Udp)
+					return &UdpFrame<Frame>::impl;
+			}
 		}
 	}
 	return nullptr;
