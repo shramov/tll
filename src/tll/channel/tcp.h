@@ -91,7 +91,7 @@ struct PartialBuffer
 	{
 		_offset += size;
 		_size -= size;
-		if (size == 0)
+		if (_size == 0)
 			_offset = 0;
 	}
 
