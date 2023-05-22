@@ -6,7 +6,7 @@ from libc.errno cimport EINVAL, EAGAIN
 from cpython.ref cimport Py_INCREF, Py_DECREF
 from .impl cimport *
 from .channel cimport *
-from .common import State
+from .common import State, Type
 from ..config cimport Config, Url
 from ..error import TLLError
 from ..s2b cimport *
@@ -306,15 +306,12 @@ cdef const tll_scheme_t * _py_scheme(const tll_channel_t * channel, int stype) w
     if _py_bad_channel(channel): return NULL
     pyc = <object>(channel.data)
     try:
-        if stype == TLL_MESSAGE_DATA:
-            s = getattr(pyc, 'scheme', None)
-            if s is None:
-                return NULL
-            if not isinstance(s, Scheme):
-                return NULL
-            return (<Scheme>(s))._ptr
-        else:
+        s = pyc.scheme_get(Type(stype))
+        if s is None:
             return NULL
+        if not isinstance(s, Scheme):
+            return NULL
+        return (<Scheme>(s))._ptr
     except:
         try:
             log = Logger("tll.channel.python")

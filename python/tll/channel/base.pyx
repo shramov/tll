@@ -216,6 +216,13 @@ cdef class Base:
     def scheme(self, v):
         self.scheme = v
 
+    def scheme_get(self, tp):
+        """ API function """
+        if tp == C.Type.Data:
+            return self.scheme
+        elif tp == C.Type.Control:
+            return getattr(self, 'scheme_control', None)
+
     @property
     def stat(self): return self.internal.stat
 

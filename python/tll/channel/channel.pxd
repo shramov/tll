@@ -24,13 +24,6 @@ cdef extern from "tll/channel.h" nogil:
         tll_channel_t * channel
         tll_channel_list_t * next
 
-
-    ctypedef enum tll_msg_type_t:
-        TLL_MESSAGE_DATA
-        TLL_MESSAGE_CONTROL
-        TLL_MESSAGE_STATE
-        TLL_MESSAGE_CHANNEL
-
     ctypedef enum tll_message_mask_t:
         TLL_MESSAGE_MASK_ALL
         TLL_MESSAGE_MASK_DATA

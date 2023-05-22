@@ -9,3 +9,9 @@ cdef extern from "tll/channel.h":
         TLL_STATE_CLOSING
         TLL_STATE_ERROR
         TLL_STATE_DESTROY
+
+    ctypedef enum tll_msg_type_t:
+        TLL_MESSAGE_DATA
+        TLL_MESSAGE_CONTROL
+        TLL_MESSAGE_STATE
+        TLL_MESSAGE_CHANNEL

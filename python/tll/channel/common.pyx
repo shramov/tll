@@ -13,3 +13,10 @@ class State(enum.Enum):
     Error = TLL_STATE_ERROR
     Destroy = TLL_STATE_DESTROY
     def __int__(self): return self.value
+
+class Type(enum.Enum):
+    Data = TLL_MESSAGE_DATA
+    State = TLL_MESSAGE_STATE
+    Channel = TLL_MESSAGE_CHANNEL
+    Control = TLL_MESSAGE_CONTROL
+    def __int__(self): return self.value

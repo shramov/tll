@@ -22,7 +22,7 @@ class Echo(Base):
 
     def _init(self, props, master=None):
         self._child = None
-        pass
+        self.scheme_control = self.context.scheme_load('yamls://[{name: Control, id: 10}]')
 
     def _open(self, props):
         self._child = self.context.Channel('null://;name=child;tll.internal=yes')
@@ -95,7 +95,7 @@ def test():
 
     with pytest.raises(TLLError): ctx.Channel("echo://;name=echo")
     ctx.register(Echo)
-    c = Accum("echo://;name=echo", context=ctx, dump='text')
+    c = Accum("echo://;name=echo", context=ctx, dump='text', scheme='yamls://[{name: Data, id: 10}]')
     cfg = c.config
 
     with pytest.raises(RuntimeError): cfg['info.a'] = 'b'
@@ -128,6 +128,12 @@ def test():
 
     assert c.state == c.State.Active
     assert cfg.get("state", "") == "Active"
+
+    assert c.scheme != None
+    assert [(m.name, m.msgid) for m in c.scheme.messages] == [('Data', 10)]
+
+    assert c.scheme_control != None
+    assert [(m.name, m.msgid) for m in c.scheme_control.messages] == [('Control', 10)]
 
     assert c.result == []
     now = datetime.datetime.now()

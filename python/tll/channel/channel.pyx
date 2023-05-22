@@ -31,14 +31,7 @@ if not hasattr(enum, 'IntFlag'):
     enum.IntFlag = int
 
 State = common.State
-
-class Type(enum.Enum):
-    Data = TLL_MESSAGE_DATA
-    State = TLL_MESSAGE_STATE
-    Channel = TLL_MESSAGE_CHANNEL
-    Control = TLL_MESSAGE_CONTROL
-    def __int__(self): return self.value
-_Type = Type
+_Type = Type = common.Type
 
 class MsgChannel(enum.Enum):
     Update = TLL_MESSAGE_CHANNEL_UPDATE
