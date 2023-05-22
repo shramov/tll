@@ -400,6 +400,9 @@ cdef class Channel:
     def scheme_control(self):
         return self._scheme_load(Type.Control)
 
+    def scheme_load(self, stype):
+        return self._scheme_load(int(stype))
+
     @property
     def _scheme_cache(self):
         return self._scheme_cache

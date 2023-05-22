@@ -188,7 +188,7 @@ def test_prefix():
     with pytest.raises(TLLError): ctx.Channel("prefix+null://;name=channel")
     ctx.register(Echo)
     ctx.register(TestPrefix)
-    c = Accum("prefix+echo://;name=channel", context=ctx, dump='text')
+    c = Accum("prefix+echo://;name=channel", context=ctx, dump='text', scheme='yamls://[{name: Data, id: 10}]')
     cfg = c.config
 
     pyc = C.channel_cast(c)
@@ -214,6 +214,12 @@ def test_prefix():
 
     assert c.state == c.State.Active
     assert cfg.get("state", "") == "Active"
+
+    assert c.scheme != None
+    assert [(m.name, m.msgid) for m in c.scheme.messages] == [('Data', 10)]
+
+    assert c.scheme_control != None
+    assert [(m.name, m.msgid) for m in c.scheme_control.messages] == [('Control', 10)]
 
     assert c.result == []
     now = datetime.datetime.now()

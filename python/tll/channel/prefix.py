@@ -43,6 +43,9 @@ class Prefix(Base):
     def _post(self, msg, flags):
         self._child.post(msg, flags=flags)
 
+    def scheme_get(self, stype):
+        return self._child.scheme_load(stype)
+
     def _on_data(self, msg):
         self._callback(msg)
 
