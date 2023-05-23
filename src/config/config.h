@@ -382,8 +382,9 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 		auto lock = wlock();
 		auto rhs_lock = rhs->wlock();
 
-		if (rhs->value() && overwrite)
+		if (overwrite && !std::holds_alternative<std::monostate>(rhs->data)) {
 			data = rhs->data;
+		}
 
 		auto & lmap = kids;
 		auto & rmap = rhs->kids;

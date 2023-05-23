@@ -219,3 +219,19 @@ def test_overwrite():
 
     cfg['a'] = Config.from_dict({'c': '200'})
     assert cfg.as_dict() == {'a': {'c': '200'}}
+
+def test_double_import():
+    cfg = Config.load_data('yamls', 'include.inline: "yamls://{link: !link /dest}"')
+    assert cfg.get('include.inline') == 'yamls://{link: !link /dest}'
+
+    cfg.process_imports('include')
+    assert cfg.get('include.inline') == 'yamls://{link: !link /dest}'
+    assert cfg.get('link') == None
+    cfg['dest'] = 'value'
+    assert cfg.get('link') == 'value'
+
+    cfg.process_imports('include')
+
+    assert cfg.get('link') == 'value'
+    cfg['dest'] = 'other'
+    assert cfg.get('link') == 'other'
