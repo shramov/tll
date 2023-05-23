@@ -28,6 +28,7 @@ class File : public tll::channel::AutoSeq<File>
 
 	enum class Compression : uint8_t { None = 0, LZ4 = 1} _compression;
 	bool _autoclose = true;
+	bool _end_of_data = false;
 
 	long long _seq_begin;
 	long long _seq;

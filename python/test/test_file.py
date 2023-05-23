@@ -97,6 +97,10 @@ def test_basic(writer, reader, filename):
     reader.result = []
 
     reader.process()
+    assert [(x.type, x.seq, x.msgid) for x in reader.result] == [(reader.Type.Control, 0, reader.scheme_control.messages.EndOfData.msgid)]
+    reader.result = []
+
+    reader.process()
     assert [(x.seq, x.msgid, len(x.data), x.data.tobytes()) for x in reader.result] == []
     assert reader.dcaps == reader.DCaps.Process
 
@@ -139,6 +143,10 @@ def test_block_boundary(writer, reader, filename):
 
     reader.process()
     assert [(x.seq, x.msgid, len(x.data), x.data.tobytes()) for x in reader.result] == [(0, 0, 512, b'a' * 512)]
+    reader.result = []
+
+    reader.process()
+    assert [(x.type, x.seq, x.msgid) for x in reader.result] == [(reader.Type.Control, 0, reader.scheme_control.messages.EndOfData.msgid)]
     reader.result = []
 
     reader.process()

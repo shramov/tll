@@ -25,8 +25,11 @@ using File = tll::channel::File;
 static constexpr std::string_view control_scheme = R"(yamls://
 - name: Seek
   id: 10
+- name: EndOfData
+  id: 20
 )";
 static constexpr int control_seek_msgid = 10;
+static constexpr int control_eod_msgid = 20;
 
 #ifdef __APPLE__
 #if MAC_OS_X_VERSION_MIN_REQUIRED <= 1010
@@ -80,6 +83,7 @@ int File::_init(const tll::Channel::Url &url, tll::Channel *master)
 int File::_open(const ConstConfig &props)
 {
 	auto filename = _filename;
+	_end_of_data = false;
 
 	if (filename.empty()) {
 		auto fn = props.get("filename");
@@ -620,9 +624,16 @@ int File::_process(long timeout, int flags)
 	auto r = _read_frame(&frame);
 
 	if (r == EAGAIN) {
-		if (_autoclose) {
-			_log.info("All messages processed. Closing");
-			close();
+		if (!_end_of_data) {
+			if (_autoclose) {
+				_log.info("All messages processed. Closing");
+				close();
+				return EAGAIN;
+			}
+			_end_of_data = true;
+			tll_msg_t msg = { TLL_MESSAGE_CONTROL };
+			msg.msgid = control_eod_msgid;
+			_callback(&msg);
 		} else
 			_dcaps_pending(false);
 		return EAGAIN;
