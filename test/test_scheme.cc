@@ -11,7 +11,9 @@
 #include "tll/scheme/conv.h"
 #include "tll/scheme/format.h"
 #include "tll/scheme/types.h"
+#include "tll/scheme/merge.h"
 #include "tll/util/memoryview.h"
+#include "tll/util/listiter.h"
 
 #include <memory>
 
@@ -575,4 +577,79 @@ TEST(Scheme, PMapCopy)
 
 	SchemePtr copy(ptr->copy());
 	verify_pmap(copy.get());
+}
+
+TEST(Scheme, Merge)
+{
+	std::unique_ptr<Scheme> s0 { Scheme::load(R"(yamls://
+- name: M0
+  id: 10
+  fields:
+    - {name: f0, type: int32}
+)") };
+	std::unique_ptr<Scheme> s1 { Scheme::load(R"(yamls://
+- name: Sub
+  fields:
+    - {name: f0, type: int32}
+- name: M1
+  id: 11
+  fields:
+    - {name: f0, type: Sub}
+)") };
+	std::unique_ptr<Scheme> s2 { Scheme::load(R"(yamls://
+- name: M0
+  id: 10
+  fields:
+    - {name: f0, type: int32}
+- name: M2
+  id: 12
+  fields:
+    - {name: f0, type: int32}
+)") };
+
+	auto r = tll::scheme::merge({nullptr, s0.get(), nullptr, s1.get(), nullptr, s2.get()});
+	ASSERT_TRUE(r);
+
+	std::unique_ptr<Scheme> result { *r };
+
+	auto m = result->messages;
+	ASSERT_NE(m, nullptr);
+	ASSERT_STREQ(m->name, "M0"); ASSERT_EQ(m->msgid, 10);
+
+	m = m->next;
+	ASSERT_STREQ(m->name, "Sub"); ASSERT_EQ(m->msgid, 0);
+
+	m = m->next;
+	ASSERT_STREQ(m->name, "M1"); ASSERT_EQ(m->msgid, 11);
+
+	m = m->next;
+	ASSERT_STREQ(m->name, "M2"); ASSERT_EQ(m->msgid, 12);
+
+	m = m->next;
+	ASSERT_EQ(m, nullptr);
+
+	std::unique_ptr<Scheme> serr { Scheme::load(R"(yamls://
+- name: M0
+  id: 11
+  fields:
+    - {name: f0, type: int32}
+)") };
+
+	ASSERT_NE(serr.get(), nullptr);
+	r = tll::scheme::merge({s0.get(), serr.get()});
+	ASSERT_FALSE(r);
+
+	serr.reset(Scheme::load(R"(yamls://
+- name: Sub
+  fields:
+    - {name: f0, type: byte4}
+- name: M1
+  id: 11
+  fields:
+    - {name: f0, type: Sub}
+)"));
+
+	ASSERT_NE(serr.get(), nullptr);
+	r = tll::scheme::merge({s1.get(), serr.get()});
+	ASSERT_FALSE(r);
 }
