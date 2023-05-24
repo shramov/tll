@@ -41,6 +41,8 @@ def test_basic(writer, reader, filename):
     w.open()
     assert w.dcaps == w.DCaps.Zero
 
+    assert w.scheme_control is None
+
     assert w.config['info.seq-begin'] == '-1'
     assert w.config['info.seq'] == '-1'
 
@@ -84,6 +86,9 @@ def test_basic(writer, reader, filename):
 
     reader.open()
     assert reader.dcaps == reader.DCaps.Process | reader.DCaps.Pending
+
+    assert reader.scheme_control is not None
+    assert [m.name for m in reader.scheme_control.messages] == ['Seek', 'EndOfData']
 
     assert reader.config['info.seq-begin'] == '0'
     assert reader.config['info.seq'] == '1'

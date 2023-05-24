@@ -73,9 +73,11 @@ int File::_init(const tll::Channel::Url &url, tll::Channel *master)
 	if ((internal.caps & caps::InOut) == caps::InOut)
 		return _log.fail(EINVAL, "file:// can be either read-only or write-only, need proper dir in parameters");
 
-	_scheme_control.reset(context().scheme_load(control_scheme));
-	if (!_scheme_control.get())
-		return _log.fail(EINVAL, "Failed to load control scheme");
+	if (internal.caps & caps::Input) {
+		_scheme_control.reset(context().scheme_load(control_scheme));
+		if (!_scheme_control.get())
+			return _log.fail(EINVAL, "Failed to load control scheme");
+	}
 
 	return Base::_init(url, master);
 }
