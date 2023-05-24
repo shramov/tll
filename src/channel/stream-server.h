@@ -67,6 +67,11 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	int _control_msgid_ready = 0;
 	int _control_msgid_disconnect = 0;
 
+	const tll::Scheme * _control_child = nullptr;
+	const tll::Scheme * _control_request = nullptr;
+	const tll::Scheme * _control_blocks = nullptr;
+	const tll::Scheme * _control_storage = nullptr;
+
  public:
 	static constexpr std::string_view channel_protocol() { return "stream+"; }
 

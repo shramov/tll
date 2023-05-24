@@ -13,6 +13,7 @@
 #include "channel/blocks.scheme.h"
 
 #include "tll/util/size.h"
+#include "tll/scheme/merge.h"
 
 #include <sys/fcntl.h>
 #include <unistd.h>
@@ -22,18 +23,6 @@ using namespace tll::channel;
 
 TLL_DEFINE_IMPL(StreamServer);
 TLL_DECLARE_IMPL(StreamClient);
-
-namespace {
-const tll::Scheme * merge(tll::channel::Context ctx, const tll::Scheme * client)
-{
-	if (!client)
-		return ctx.scheme_load(stream_server_control_scheme::scheme_string);
-	auto s = tll_scheme_dump(client, "yamls+gz");
-	auto merged = fmt::format("yamls://[{{name: '', import: ['{}', '{}']}}]", s, stream_server_control_scheme::scheme_string);
-	free(s);
-	return ctx.scheme_load(merged);
-}
-}
 
 std::optional<const tll_channel_impl_t *> StreamServer::_init_replace(const tll::Channel::Url &url, tll::Channel *master)
 {
@@ -53,10 +42,6 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 	auto r = Base::_init(url, master);
 	if (r)
 		return _log.fail(r, "Base channel init failed");
-
-	_scheme_control.reset(merge(context(), _child->scheme(TLL_MESSAGE_CONTROL)));
-	if (!_scheme_control.get())
-		return _log.fail(EINVAL, "Failed to load control scheme");
 
 	auto reader = channel_props_reader(url);
 	//auto size = reader.getT<util::Size>("size", 128 * 1024);
@@ -112,6 +97,28 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 		_blocks_url.set("dump", "frame");
 		_blocks_url.set("name", fmt::format("{}/blocks/client", name));
 	}
+
+	if (auto s = _child->scheme(TLL_MESSAGE_CONTROL); s)
+		_control_child = s;
+	if (auto s = _request->scheme(TLL_MESSAGE_CONTROL); s) {
+		_control_request = s;
+		if (auto m = s->lookup("WriteFull"); m)
+			_control_msgid_full = m->msgid;
+		if (auto m = s->lookup("WriteReady"); m)
+			_control_msgid_ready = m->msgid;
+		if (auto m = s->lookup("Disconnect"); m)
+			_control_msgid_disconnect = m->msgid;
+	}
+	if (auto s = _storage->scheme(TLL_MESSAGE_CONTROL); s)
+		_control_storage = s;
+	if (_blocks) {
+		if (auto s = _blocks->scheme(TLL_MESSAGE_CONTROL); s)
+			_control_blocks = s;
+	}
+	auto control = tll::scheme::merge({_control_child, _control_request, _control_storage, _control_blocks});
+	if (!control)
+		return _log.fail(EINVAL, "Failed to merge control scheme: {}", control.error());
+	_scheme_control.reset(*control);
 
 	_request->callback_add(_on_request, this, TLL_MESSAGE_MASK_ALL);
 	_child_add(_request.get(), "request");
@@ -197,14 +204,6 @@ int StreamServer::_on_request_state(const tll_msg_t *msg)
 {
 	switch ((tll_state_t) msg->msgid) {
 	case tll::state::Active:
-		if (auto s = _request->scheme(TLL_MESSAGE_CONTROL); s) {
-			if (auto m = s->lookup("WriteFull"); m)
-				_control_msgid_full = m->msgid;
-			if (auto m = s->lookup("WriteReady"); m)
-				_control_msgid_ready = m->msgid;
-			if (auto m = s->lookup("Disconnect"); m)
-				_control_msgid_disconnect = m->msgid;
-		}
 		return _check_state(tll::state::Active);
 	case tll::state::Error:
 		return state_fail(0, "Request channel failed");
@@ -416,7 +415,9 @@ int StreamServer::Client::on_storage_state(tll_state_t s)
 int StreamServer::_post(const tll_msg_t * msg, int flags)
 {
 	if (msg->type == TLL_MESSAGE_CONTROL) {
-		if (_blocks && msg->msgid == stream_server_control_scheme::Block::meta_id()) {
+		if (!msg->msgid)
+			return 0;
+		if (_control_blocks && _control_blocks->lookup(msg->msgid)) {
 			if (_seq == -1)
 				return _log.fail(EINVAL, "No data in storage, can not create block");
 
@@ -428,9 +429,15 @@ int StreamServer::_post(const tll_msg_t * msg, int flags)
 			return 0;
 		}
 
-		if (auto r = _storage->post(msg); r)
-			return _log.fail(r, "Failed to send control message {}", msg->msgid);
-		return _child->post(msg);
+		if (_control_storage && _control_storage->lookup(msg->msgid)) {
+			if (auto r = _storage->post(msg); r)
+				return _log.fail(r, "Failed to send control message {}", msg->msgid);
+		}
+		if (_control_child && _control_child->lookup(msg->msgid)) {
+			if (auto r = _child->post(msg); r)
+				return _log.fail(r, "Failed to send control message {}", msg->msgid);
+		}
+		return 0;
 	}
 
 	msg = _autoseq.update(msg);
