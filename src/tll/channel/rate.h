@@ -78,4 +78,3 @@ struct Bucket
 } // namespace tll::channel::rate
 
 #endif//_TLL_CHANNEL_RATE_H
-

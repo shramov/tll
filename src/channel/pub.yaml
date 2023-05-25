@@ -11,4 +11,3 @@
   id: 101
   fields:
     - {name: version, type: int16 }
-
