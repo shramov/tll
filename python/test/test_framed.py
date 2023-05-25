@@ -54,7 +54,7 @@ async def test(asyncloop, tmp_path, frame):
 
     for data, msgid, seq in post:
         s.post(data, msgid=msgid, seq=seq, addr=m.addr)
-    
+
     for r in result:
         m = await c.recv()
         assert r == (m.data.tobytes(), m.msgid, m.seq)
