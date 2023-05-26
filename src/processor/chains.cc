@@ -71,7 +71,7 @@ int Chains::_init(const tll::Channel::Url &url, tll::Channel *master)
 			_log.debug("Dump level {} (depends on {})", c.name, depends);
 			auto lname = fmt::format("chains/{}/{}", c.name, l.name);
 			tll::Config cfg;
-			cfg.set("url", "null://");
+			cfg.set("init", "null://");
 			cfg.set("name", lname);
 
 			for (auto & j : l.join)
@@ -97,7 +97,7 @@ int Chains::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 		auto lname = fmt::format("chains/{}/{}", c.name, "_end");
 		tll::Config cfg;
-		cfg.set("url", "null://");
+		cfg.set("init", "null://");
 		cfg.set("name", lname);
 		if (depends.size())
 			cfg.set("depends", tll::conv::to_string(depends));
