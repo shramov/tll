@@ -29,6 +29,8 @@ class Random : public tll::channel::Prefix<Random>
 	enum class DataMode { Seq, Random, Pattern } _data_mode;
 	std::vector<uint64_t> _buf;
 
+	bool _validate = false;
+
  public:
 	static constexpr std::string_view channel_protocol() { return "random+"; }
 
@@ -39,8 +41,14 @@ class Random : public tll::channel::Prefix<Random>
 		auto max = reader.getT("max", tll::util::SizeT<unsigned> { 500 });
 		_data_mode = reader.getT("data-mode", DataMode::Seq, {{"seq", DataMode::Seq}, {"random", DataMode::Random}, {"pattern", DataMode::Pattern}});
 		auto pattern = reader.getT<uint64_t>("pattern", 0);
+		_validate = reader.getT("validate", false);
 		if (!reader)
 			return _log.fail(EINVAL, "Invalid url: {}", reader.error());
+
+		if (_validate && _data_mode == DataMode::Random) {
+			_log.warning("Can not validate in random mode");
+			_validate = false;
+		}
 
 		if (min > max)
 			return _log.fail(EINVAL, "Invalid min/max values: {}/{}", (unsigned) min, (unsigned) max);
@@ -78,6 +86,29 @@ class Random : public tll::channel::Prefix<Random>
 		}
 		_msg.seq++;
 		return _callback_data(&_msg);
+	}
+
+	bool _validate_msg(const tll_msg_t *msg)
+	{
+		if (_buf.size() * sizeof(_buf[0]) < msg->size)
+			return _log.fail(false, "Message size too large: {} > buf size {}", msg->size, _buf.size());
+		auto m0 = (const uint8_t *) msg->data;
+		auto m1 = (const uint8_t *) _buf.data();
+		for (auto i = 0u; i < msg->size; i++) {
+			if (m0[i] != m1[i])
+				return _log.fail(false, "Message data differs at {}: expected 0x{:02x}, got 0x{:02x}", i, m1[i], m0[i]);
+		}
+		return true;
+	}
+
+	int _post(const tll_msg_t *msg, int flags)
+	{
+		if (msg->type == TLL_MESSAGE_DATA && _validate) {
+			if (!_validate_msg(msg))
+				return _log.fail(EINVAL, "Corrupted message with seq {}", msg->seq);
+		}
+
+		return Base::_post(msg, flags);
 	}
 };
 

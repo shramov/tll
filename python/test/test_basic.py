@@ -570,7 +570,7 @@ def test_lz4():
 @pytest.mark.parametrize("smin,smax", [(10, 100), (300, 400), (400, 400)])
 @pytest.mark.parametrize("mode,pattern", [("random", ""), ("seq", ""), ("pattern", "0x1122334455667788")])
 def test_random(smin, smax, mode, pattern):
-    s = Accum(f'random+direct://;data-mode={mode};pattern={pattern};min={smin}b;max={smax}b', name='server', context=ctx)
+    s = Accum(f'random+direct://;data-mode={mode};pattern={pattern};min={smin}b;max={smax}b', name='server', context=ctx, validate='yes')
     c = Accum('direct://', name='client', master=s, context=ctx)
 
     s.open()
@@ -588,3 +588,7 @@ def test_random(smin, smax, mode, pattern):
         elif mode == 'pattern':
             p = struct.pack('Q', int(pattern, 0))
             assert m.data.tobytes() == (p * (len(m.data) // 8 + 1))[:len(m.data)]
+        assert s.post(m) == 0
+
+    if mode != 'random':
+        with pytest.raises(TLLError): s.post(b'\x88\x77XXX', seq=10)
