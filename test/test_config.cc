@@ -151,27 +151,40 @@ TEST(Config, GetUrl)
 {
 
 	auto c = tll::Config::load(R"(yamls://
-tcp:
-  url: tcp://*:8080;dump=yes
-  url:
+old: tcp://*:8080;dump=yes
+old:
     stat: yes
+
+string: tcp://*:8080;dump=yes;stat=yes
+unpacked: {tll.proto: tcp, tll.host: '*:8080', dump: yes, stat: yes}
+mixed: {url: 'tcp://*:8080;dump=yes', stat: yes}
 )");
 	ASSERT_TRUE(c);
 
-	auto r = c->getT<tll::ConfigUrl>("tcp.url");
-	ASSERT_TRUE(r);
-	ASSERT_EQ(std::string("tcp://*:8080;dump=yes;stat=yes"), tll::conv::to_string(*r));
+	for (auto &[k, _] : c->browse("*", true)) {
+		auto r = c->getT<tll::ConfigUrl>(k);
+		ASSERT_TRUE(r) << "Failed to load url from " << k << ": " << r.error();
+		ASSERT_EQ(std::string("tcp://*:8080;dump=yes;stat=yes"), tll::conv::to_string(*r));
 
-	r = c->getT<tll::ConfigUrl>("tcp.url", tll::ConfigUrl());
-	ASSERT_TRUE(r);
-	ASSERT_EQ(std::string("tcp://*:8080;dump=yes;stat=yes"), tll::conv::to_string(*r));
+		r = c->getT<tll::ConfigUrl>(k, tll::ConfigUrl());
+		ASSERT_TRUE(r) << "Failed to load url from " << k << ": " << r.error();
+		ASSERT_EQ(std::string("tcp://*:8080;dump=yes;stat=yes"), tll::conv::to_string(*r));
 
-	auto copy = r->copy();
-	ASSERT_EQ(copy.proto(), "tcp");
+		auto copy = r->copy();
+		ASSERT_EQ(copy.proto(), "tcp");
+	}
 
-	c->set("tcp.url.dump", "no");
+	c->set("old.dump", "no");
+	c->set("mixed.dump", "no");
 
-	ASSERT_FALSE(c->getT<tll::ConfigUrl>("tcp.url"));
+	ASSERT_FALSE(c->getT<tll::ConfigUrl>("old"));
+	ASSERT_FALSE(c->getT<tll::ConfigUrl>("mixed"));
+
+	c->remove("old.dump");
+	ASSERT_TRUE(c->getT<tll::ConfigUrl>("old"));
+
+	c->set("old.url", "udp://");
+	ASSERT_FALSE(c->getT<tll::ConfigUrl>("old"));
 }
 
 TEST(Config, Link)

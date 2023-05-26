@@ -498,6 +498,17 @@ public:
 	}
 };
 
+/**
+ * Get Url from config
+ *
+ *  Url can be specified in 3 different forms:
+ *   - String: key: 'proto://;params...'
+ *   - Unpacked: key: { tll.proto: proto, params... }
+ *   - Mixed: key: { url: 'proto://;params...', extra params... }
+ *
+ *  Also for transition period legacy variant is supported:
+ *    - key: 'proto://;params...', key: { extra params... }
+ */
 namespace _config {
 template <bool Const>
 result_t<ConfigUrl> _get_url(const ConfigT<Const> &cfg, std::string_view key)
@@ -506,23 +517,36 @@ result_t<ConfigUrl> _get_url(const ConfigT<Const> &cfg, std::string_view key)
 	if (!sub)
 		return tll::error("Url not found at '" + std::string(key) + "'");
 
+	if (auto proto = sub->get("tll.proto"); proto) // Unpacked variant
+		return sub->copy();
+
+	auto url = sub->get("url");
 	auto str = sub->get();
+	if (url && str)
+		return tll::error("Both " + std::string(key) + " and " + std::string(key) + ".url found");
+
 	ConfigUrl result;
-	if (str) {
+	if (url) {
+		auto r = ConfigUrl::parse(*url);
+		if (!r)
+			return tll::error(r.error());
+		result.merge(*r);
+	} else if (str) {
 		auto r = ConfigUrl::parse(*str);
 		if (!r)
 			return tll::error(r.error());
 		result.merge(*r);
 	}
 
-	for (auto & [k,_] : sub->browse("**")) {
+	for (auto & [k,c] : sub->browse("**")) {
+		auto v = c.get();
+		if (k == "url" || !v)
+			continue;
 		if (result.has(k))
 			return tll::error("Duplicate key " + std::string(k));
+		result.set(k, *v);
 	}
 
-	auto copy = sub->copy();
-	result.merge(copy, true);
-	result.unset();
 	return result;
 }
 }
@@ -543,7 +567,7 @@ result_t<T> ConfigT<Const>::getT(std::string_view key, const T& def) const
 {
 	if constexpr (std::is_same_v<T, ConfigUrl>) {
 		auto c = sub(key);
-		if (!c || !c->get())
+		if (!c)
 			return def;
 		return _config::_get_url(*this, key);
 	} else
