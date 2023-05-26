@@ -192,7 +192,7 @@ std::optional<Processor::PreObject> Processor::init_pre(std::string_view extname
 		return obj;
 	}
 
-	auto url = cfg.getT<tll::Channel::Url>("url");
+	auto url = cfg.getT<tll::Channel::Url>(cfg.has("init") ? "init" : "url");
 	if (!url)
 		return log.fail(std::nullopt, "Failed to load url: {}", url.error());
 
