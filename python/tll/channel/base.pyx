@@ -247,6 +247,12 @@ cdef class Base:
 
         self._scheme_url = url.get('scheme', None)
 
+        dir = url.get('dir', '')
+        if dir in {'r', 'rw', 'in', 'inout'}:
+            self.caps |= self.Caps.Input;
+        if dir in {'w', 'rw', 'out', 'inout'}:
+            self.caps |= self.Caps.Output
+
         dump = url.get('dump', '')
         self._dump_mode = MessageLogFormatMap.get(dump, None)
         if self._dump_mode is None:
