@@ -23,6 +23,7 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	std::unique_ptr<Channel> _request;
 	std::unique_ptr<Channel> _storage;
 	std::unique_ptr<Channel> _blocks;
+	std::unique_ptr<Channel> _storage_load;
 
 	tll::Channel::Url _storage_url;
 	tll::Channel::Url _blocks_url;
@@ -71,6 +72,8 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	const tll::Scheme * _control_request = nullptr;
 	const tll::Scheme * _control_blocks = nullptr;
 	const tll::Scheme * _control_storage = nullptr;
+
+	tll::Config _child_open;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "stream+"; }
@@ -128,6 +131,8 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 
 	int _check_state(tll_state_t s);
 	int _post_block(const tll_msg_t *msg);
+
+	int _on_storage_load(const tll_msg_t * msg);
 };
 
 } // namespace tll::channel

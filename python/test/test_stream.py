@@ -266,9 +266,19 @@ async def test_block_clear(asyncloop, tmp_path):
     assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 10, 'type':'default'}]
     s.post(b'bbb', msgid=10, seq=20)
 
-
     s.close()
     s.open()
+
+    assert s.state == s.State.Opening
+    child = s.children[-1]
+    assert child.name == 'server/storage/client'
+    child.process()
+
+    child.process()
+    assert child.state == child.State.Closed
+    assert s.state == s.State.Active
+
+    assert child.name == 'server/storage/client'
 
     assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 10, 'type':'default'}]
 
@@ -286,6 +296,9 @@ async def test_block_clear(asyncloop, tmp_path):
         assert (m.seq, c.unpack(m).SCHEME.name) == (20, 'Online')
 
         c.close()
+
+    s.post({'type': 'default'}, name='Block', type=s.Type.Control)
+    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 10, 'type': 'default'}, {'seq': 20, 'type': 'default'}]
 
 def test_blocks_channel(context, tmp_path):
     w = context.Channel(f'blocks://{tmp_path}/blocks.yaml;default-type=def;dir=w')

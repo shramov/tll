@@ -151,6 +151,26 @@ int StreamServer::_open(const ConstConfig &url)
 			return _log.fail(EINVAL, "Failed to open blocks channel");
 		if (_blocks->state() != tll::state::Active)
 			return _log.fail(EINVAL, "Long opening blocks is not supported");
+		auto seq = _blocks->config().getT<long long>("info.seq");
+		if (!seq)
+			return _log.fail(EINVAL, "Blocks channel last seq invalid: {}", seq.error());
+		if (*seq != _seq) {
+			auto url = _storage_url.copy();
+			url.set("autoclose", "yes");
+			_storage_load = context().channel(url, _storage.get());
+			if (!_storage_load)
+				return _log.fail(EINVAL, "Failed to create storage channel");
+			_storage_load->callback_add([](const tll_channel_t *, const tll_msg_t * msg, void * user) {
+					return static_cast<StreamServer *>(user)->_on_storage_load(msg);
+				}, this);
+			_child_open = tll::Config();
+			_child_open.set("seq", conv::to_string(*seq + 1));
+			if (auto r = _storage_load->open(_child_open); r)
+				return _log.fail(EINVAL, "Failed to open storage channel for reading");
+			_child_add(_storage_load.get(), "storage");
+			_child_open = url.copy();
+			return 0;
+		}
 	}
 
 	if (_request->open())
@@ -161,6 +181,9 @@ int StreamServer::_open(const ConstConfig &url)
 
 int StreamServer::_close(bool force)
 {
+	_storage_load.reset();
+	_child_open = tll::Config();
+
 	config_info().setT("seq", _seq);
 
 	for (auto & [_, p] : _clients) {
@@ -197,6 +220,32 @@ int StreamServer::_check_state(tll_state_t s)
 			state(tll::state::Closed);
 	}
 
+	return 0;
+}
+
+int StreamServer::_on_storage_load(const tll_msg_t *msg)
+{
+	if (msg->type == TLL_MESSAGE_DATA) {
+		if (auto r = _blocks->post(msg); r)
+			return state_fail(0, "Failed to forward message with seq {} to blocks channel", msg->seq);
+		return 0;
+	}
+	if (msg->type != TLL_MESSAGE_STATE)
+		return 0;
+
+	switch ((tll_state_t) msg->msgid) {
+	case tll::state::Closed:
+		if (_request->open())
+			return _log.fail(0, "Failed to open request channel");
+		if (_storage_load)
+			_child_del(_storage_load.get());
+
+		return Base::_open(_child_open);
+	case tll::state::Error:
+		return state_fail(0, "Storage channel failed");
+	default:
+		break;
+	}
 	return 0;
 }
 
@@ -418,20 +467,13 @@ int StreamServer::_post(const tll_msg_t * msg, int flags)
 		if (!msg->msgid)
 			return 0;
 		if (_control_blocks && _control_blocks->lookup(msg->msgid)) {
-			if (_seq == -1)
-				return _log.fail(EINVAL, "No data in storage, can not create block");
-
-			tll_msg_t m = *msg;
-			m.seq = _seq;
-
-			if (auto r = _blocks->post(&m); r)
-				return _log.fail(r, "Failed to send Block control message");
-			return 0;
+			if (auto r = _blocks->post(msg); r)
+				return _log.fail(r, "Failed to send control message {} to blocks", msg->msgid);
 		}
 
 		if (_control_storage && _control_storage->lookup(msg->msgid)) {
 			if (auto r = _storage->post(msg); r)
-				return _log.fail(r, "Failed to send control message {}", msg->msgid);
+				return _log.fail(r, "Failed to send control message {} to storage", msg->msgid);
 		}
 		if (_control_child && _control_child->lookup(msg->msgid)) {
 			if (auto r = _child->post(msg); r)
