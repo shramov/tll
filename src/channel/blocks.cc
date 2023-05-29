@@ -50,6 +50,8 @@ int Blocks::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 int Blocks::_open(const tll::ConstConfig &cfg)
 {
+	_seq = -1;
+
 	if (auto r = Base::_open(cfg); r)
 		return r;
 
@@ -71,6 +73,13 @@ int Blocks::_open(const tll::ConstConfig &cfg)
 		for (auto & [k, v] : _blocks)
 			_log.debug("Loaded {} '{}' blocks", v.size(), k);
 	}
+
+	for (auto & [k, v] : _blocks) {
+		for (auto & s : v)
+			_seq = std::max(_seq, s);
+	}
+
+	config_info().set_ptr("seq", &_seq);
 
 	if (internal.caps & caps::Input)
 		return _open_input(cfg);
@@ -119,18 +128,22 @@ int Blocks::_open_input(const tll::ConstConfig &cfg)
 
 int Blocks::_close()
 {
+	config_info().setT("seq", _seq);
 	return Base::_close();
 }
 
 int Blocks::_post(const tll_msg_t *msg, int flags)
 {
-	if (msg->type != TLL_MESSAGE_CONTROL)
+	if (msg->type == TLL_MESSAGE_DATA) {
+		_seq = msg->seq;
+		return 0;
+	} else if (msg->type != TLL_MESSAGE_CONTROL)
 		return 0;
 
 	if (msg->msgid != blocks_scheme::Block::meta_id())
 		return _log.fail(EINVAL, "Invalid control message {}", msg->msgid);
-	if (msg->seq < 0)
-		return _log.fail(EINVAL, "Invalid seq: {}, no data in storage", msg->seq);
+	if (_seq < 0)
+		return _log.fail(EINVAL, "Failed to make block: no data in storage", _seq);
 
 	auto data = blocks_scheme::Block::bind(*msg);
 	if (data.meta_size() > msg->size)
@@ -143,7 +156,7 @@ int Blocks::_post(const tll_msg_t *msg, int flags)
 		block = _default_type;
 	}
 
-	return _create_block(block, msg->seq, true);
+	return _create_block(block, _seq, true);
 }
 
 int Blocks::_create_block(std::string_view block, long long seq, bool store)

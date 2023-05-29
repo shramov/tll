@@ -289,9 +289,14 @@ async def test_block_clear(asyncloop, tmp_path):
 
 def test_blocks_channel(context, tmp_path):
     w = context.Channel(f'blocks://{tmp_path}/blocks.yaml;default-type=def;dir=w')
-    w.open()
+    assert w.config.get('info.seq', None) == None
 
-    w.post({'type':''}, seq=10, name='Block', type=w.Type.Control)
+    w.open()
+    assert w.config['info.seq'] == '-1'
+
+    w.post(b'', seq=10)
+    assert w.config['info.seq'] == '10'
+    w.post({'type':''}, seq=100, name='Block', type=w.Type.Control)
     assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 10, 'type':'def'}]
 
     w.post({'type':'other'}, seq=10, name='Block', type=w.Type.Control)
@@ -299,8 +304,10 @@ def test_blocks_channel(context, tmp_path):
 
     w.close()
     w.open()
+    assert w.config['info.seq'] == '10'
 
-    w.post({'type':'def'}, seq=20, name='Block', type=w.Type.Control)
+    w.post(b'', seq=20)
+    w.post({'type':'def'}, name='Block', type=w.Type.Control)
     assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 10, 'type':'def'}, {'seq': 10, 'type': 'other'}, {'seq': 20, 'type': 'def'}]
 
     r = Accum('blocks://', master=w, context=context)

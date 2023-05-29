@@ -18,6 +18,8 @@ class Blocks : public tll::channel::Base<Blocks>
 
 	Blocks * _master = nullptr;
 
+	long long _seq = -1;
+
 	std::map<std::string, std::list<long long>, std::less<>> _blocks;
 	std::string _filename;
 	std::string _default_type;
