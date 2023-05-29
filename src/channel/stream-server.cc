@@ -329,6 +329,8 @@ int StreamServer::_on_request_data(const tll_msg_t *msg)
 tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
 {
 	auto & _log = parent->_log;
+	state = State::Opening;
+	block_end = -1;
 
 	if (msg->msgid != stream_scheme::Request::meta_id())
 		return error(fmt::format("Invalid message id: {}", msg->msgid));
@@ -347,7 +349,7 @@ tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
 	if (block.size()) {
 		if (!parent->_blocks)
 			return error("Requested block, but no block storage configured");
-		blocks = parent->context().channel(parent->_blocks_url, parent->_blocks.get());
+		auto blocks = parent->context().channel(parent->_blocks_url, parent->_blocks.get());
 		if (!blocks)
 			return error("Failed to create blocks channel");
 		blocks->callback_add(on_storage, this);
@@ -358,10 +360,14 @@ tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
 
 		if (blocks->open(ocfg))
 			return error("Failed to open blocks channel");
+
+		auto bseq = blocks->config().getT<long long>("info.seq");
+		if (!bseq)
+			return error(fmt::format("Failed to get block end seq: {}", bseq.error()));
+		seq = *bseq + 1;
+
 		if (blocks->state() != tll::state::Closed)
-			return error("Blocks with data not yet supported");
-		blocks->callback_del(on_storage, this);
-		blocks.reset();
+			storage_next = std::move(blocks);
 
 		_log.info("Translated block type '{}' number {} to seq {}", block, req.get_seq(), seq);
 	}
@@ -369,22 +375,18 @@ tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
 	this->msg = {};
 	this->msg.addr = msg->addr;
 
-	if (!storage) {
-		auto r = parent->context().channel(parent->_storage_url, parent->_storage.get());
-		if (!r)
-			return error("Failed to create storage channel");
-		r->callback_add(on_storage, this);
-		storage = std::move(r);
-	}
+	storage = parent->context().channel(parent->_storage_url, parent->_storage.get());
+	if (!storage)
+		return error("Failed to create storage channel");
+	storage->callback_add(on_storage, this);
 
-	if (storage->state() != state::Closed)
-		storage->close(true); // Force close
-
-	state = State::Closed;
 	tll::Config cfg;
-	cfg.set("seq", conv::to_string(seq));
+	cfg.set("seq", conv::to_string(block_end != -1 ? block_end : seq));
 	if (storage->open(cfg))
 		return error(fmt::format("Failed to open storage from seq {}", seq));
+
+	if (storage_next)
+		std::swap(storage_next, storage);
 
 	std::vector<char> data;
 	auto r = stream_scheme::Reply::bind(data);
@@ -398,15 +400,15 @@ tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
 	this->msg.size = r.view().size();
 	if (auto r = parent->_request->post(&this->msg); r)
 		return error("Failed to post reply message");
+	state = State::Active;
 	return 0;
 }
 
 void StreamServer::Client::reset()
 {
-	if (storage)
-		storage->callback_del(on_storage, this);
-	storage.reset();
 	state = State::Closed;
+	storage.reset();
+	storage_next.reset();
 }
 
 int StreamServer::Client::on_storage(const tll_msg_t * m)
@@ -414,16 +416,6 @@ int StreamServer::Client::on_storage(const tll_msg_t * m)
 	if (m->type != TLL_MESSAGE_DATA) {
 		if (m->type == TLL_MESSAGE_STATE)
 			return on_storage_state((tll_state_t) m->msgid);
-		else if (m->type != TLL_MESSAGE_CONTROL)
-			return 0;
-		if (!blocks)
-			return 0;
-		if (m->msgid != blocks_scheme::BlockRange::meta_id())
-			return 0;
-		auto data = blocks_scheme::BlockRange::bind(*m);
-		seq = data.get_begin();
-		block_end = data.get_end();
-		parent->_log.info("Got BlockRange {}:{} from blocks", seq, block_end);
 		return 0;
 	}
 	msg.type = m->type;
@@ -443,6 +435,8 @@ int StreamServer::Client::on_storage(const tll_msg_t * m)
 
 int StreamServer::Client::on_storage_state(tll_state_t s)
 {
+	if (state != State::Active)
+		return 0;
 	switch (s) {
 	case TLL_STATE_ACTIVE:
 		state = State::Active;
@@ -451,8 +445,14 @@ int StreamServer::Client::on_storage_state(tll_state_t s)
 		state = State::Error;
 		break;
 	case TLL_STATE_CLOSING:
+		break;
 	case TLL_STATE_CLOSED:
-		state = State::Closed;
+		if (storage_next && storage_next->state() == tll::state::Active) {
+			parent->_child_del(storage.get());
+			std::swap(storage, storage_next); // Can not destroy in callback
+			parent->_child_add(storage.get());
+		} else
+			state = State::Closed;
 		break;
 	case TLL_STATE_OPENING:
 	case TLL_STATE_DESTROY:

@@ -40,11 +40,11 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 		long long block_end = -1;
 
 		tll_msg_t msg = {};
-		std::unique_ptr<Channel> storage;
-		std::unique_ptr<Channel> blocks;
+		std::unique_ptr<Channel> storage; ///< Current storage channel
+		std::unique_ptr<Channel> storage_next; ///< Next storage to process
 		std::string name;
 		StreamServer * parent = nullptr;
-		enum class State { Closed, Active, Error, Done } state = State::Closed;
+		enum class State { Closed, Opening, Active, Error, Done } state = State::Closed;
 
 		int on_storage(const tll_msg_t *);
 		int on_storage_state(tll_state_t);

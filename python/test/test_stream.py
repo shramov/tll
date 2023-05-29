@@ -7,6 +7,7 @@ import yaml
 
 from tll import asynctll
 import tll.channel as C
+from tll.channel.base import Base
 from tll.error import TLLError
 from tll.test_util import Accum
 
@@ -369,3 +370,141 @@ async def test_rotate(asyncloop, tmp_path):
     s.post({}, name='Rotate', type=s.Type.Control)
 
     assert (tmp_path / "storage.10.dat").exists()
+
+class Aggregate(Base):
+    PROTO = 'aggr'
+    SCHEME_CONTROL = '''yamls://
+- name: Block
+  id: 100
+  fields:
+    - {name: type, type: byte64, options: {type: string}}
+'''
+    STORAGE = []
+
+    def _init(self, props, master=None):
+        if self.caps & self.Caps.Output:
+            self.scheme_control = self.context.scheme_load(self.SCHEME_CONTROL)
+            self.PROCESS_POLICY = Base.ProcessPolicy.Never
+
+    def _open(self, props):
+        if self.caps & self.Caps.Output:
+            if self.STORAGE:
+                self._seq, self._data = self.STORAGE[-1]
+            else:
+                self._seq, self._data = -1, {}
+            self._data = dict(self._data)
+            self.config_info['seq'] = lambda: str(self._seq)
+            return
+        assert props.get('block-type', 'default') == 'default'
+        block = int(props.get('block'))
+
+        self._seq, self._data = self.STORAGE[-(block + 1)]
+        self.config_info['seq'] = str(self._seq)
+
+        self._data = list(sorted(self._data.items()))
+        self._seq -= len(self._data) - 1
+
+        self._update_pending(True)
+
+    def _close(self, force=False):
+        self.config_info['seq'] = str(self._seq)
+        self._data = None
+        self._seq = -1
+
+    def _process(self, timeout, flags):
+        if self.caps & self.Caps.Output:
+            return
+
+        if not self._data:
+            self.close()
+            return
+
+        msgid, data = self._data.pop(0)
+        msg = C.Message(data = data, msgid = msgid, seq=self._seq)
+        self._seq += 1
+        self._callback(msg)
+
+    def _post(self, msg, flags):
+        if self.caps & self.Caps.Input:
+            return
+        if msg.type == msg.Type.Control:
+            m = self.scheme_control.unpack(msg)
+            if m.SCHEME.name != 'Block':
+                return
+            self.STORAGE.append((self._seq, dict(self._data)))
+            return
+
+        self._seq = msg.seq
+        self._data[msg.msgid] = msg.data.tobytes()
+
+def test_aggregate(context):
+    context.register(Aggregate)
+
+    Aggregate.STORAGE = []
+
+    w = context.Channel('aggr://;dir=w')
+    w.open()
+
+    assert w.config['info.seq'] == '-1'
+
+    w.post(b'xxx', msgid=10, seq=5)
+    w.post(b'yyy', msgid=10, seq=10)
+    w.post({'type':'default'}, type=w.Type.Control, name='Block')
+
+    assert Aggregate.STORAGE == [(10, {10: b'yyy'})]
+
+    w.post(b'zzz', msgid=10, seq=15)
+    w.close()
+
+    w.open()
+    assert w.config['info.seq'] == '10'
+
+    w.post(b'zzz', msgid=20, seq=20)
+    w.post({'type':'default'}, type=w.Type.Control, name='Block')
+
+    assert Aggregate.STORAGE == [(10, {10: b'yyy'}), (20, {10: b'yyy', 20: b'zzz'})]
+
+    r = Accum('aggr://;dir=r', context=context)
+    r.open(block='0')
+    assert r.state == r.State.Active
+
+    assert r.config['info.seq'] == '20'
+
+    r.process()
+    r.process()
+    assert r.state == r.State.Active
+
+    assert [(m.msgid, m.data.tobytes()) for m in r.result] == [(10, b'yyy'), (20, b'zzz')]
+
+    r.process()
+    assert r.state == r.State.Closed
+
+@asyncloop_run
+async def test_stream_aggregate(asyncloop, context, tmp_path):
+    context.register(Aggregate)
+
+    Aggregate.STORAGE = []
+
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage;name=server;mode=server;blocks=aggr://')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+
+    s.open()
+
+    s.post(b'xxx', msgid=10, seq=0)
+    s.post(b'yyy', msgid=20, seq=10)
+    s.post({'type':'default'}, name='Block', type=s.Type.Control)
+    s.post(b'xxz', msgid=10, seq=20)
+    s.post(b'yyz', msgid=20, seq=30)
+
+    assert Aggregate.STORAGE == [(10, {10: b'xxx', 20: b'yyy'})]
+
+    c.open(block='0', mode='block')
+    m = await c.recv()
+    assert (m.seq, m.msgid, m.data.tobytes()) == (9, 10, b'xxx')
+    m = await c.recv()
+    assert (m.seq, m.msgid, m.data.tobytes()) == (10, 20, b'yyy')
+    m = await c.recv()
+    assert (m.seq, m.msgid, m.data.tobytes()) == (20, 10, b'xxz')
+    m = await c.recv()
+    assert (m.seq, m.msgid, m.data.tobytes()) == (30, 20, b'yyz')
