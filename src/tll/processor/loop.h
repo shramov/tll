@@ -454,7 +454,7 @@ struct tll_processor_loop_t
 
 	int add(tll::Channel *c)
 	{
-		_log.info("Add channel {} with fd {}", c->name(), c->fd());
+		_log.debug("Add channel {} with fd {}", c->name(), c->fd());
 		c->callback_add(this, TLL_MESSAGE_MASK_CHANNEL | TLL_MESSAGE_MASK_STATE);
 		list.push_back(c);
 
@@ -502,7 +502,7 @@ struct tll_processor_loop_t
 			if (_poll_enable)
 				_poll.nofd_enable();
 		} else if (_poll_enable) {
-			_log.info("Add channel {} to poll with fd {}", c->name(), fd);
+			_log.debug("Add channel {} to poll with fd {}", c->name(), fd);
 			_poll.poll_add(fd, c, caps);
 		}
 		return 0;
@@ -520,7 +520,7 @@ struct tll_processor_loop_t
 			if (_poll_enable)
 				_poll.nofd_disable();
 		} else if (_poll_enable) {
-			_log.info("Drop channel {} from poll with fd {}", c->name(), fd);
+			_log.debug("Drop channel {} from poll with fd {}", c->name(), fd);
 			_poll.poll_del(fd);
 		}
 		return 0;
@@ -528,7 +528,7 @@ struct tll_processor_loop_t
 
 	int del(const tll::Channel *c)
 	{
-		_log.info("Delete channel {}", c->name());
+		_log.debug("Delete channel {}", c->name());
 		for (auto i = c->children(); i; i = i->next)
 			del(static_cast<const tll::Channel *>(i->channel));
 
@@ -582,7 +582,7 @@ struct tll_processor_loop_t
 	{
 		auto fd = c->fd();
 		auto caps = c->dcaps();
-		_log.info("Update channel {} fd: {} -> {}", c->name(), old, fd);
+		_log.debug("Update channel {} fd: {} -> {}", c->name(), old, fd);
 		if (tll::dcaps::need_process(caps)) {
 			process_del(c, old);
 			process_add(c, fd, caps);
