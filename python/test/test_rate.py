@@ -16,12 +16,16 @@ def context():
 def test_post(context):
     c = Accum('rate+null://;initial=32b;max-window=128b;speed=3200b', name='rate', dump='frame', context=context)
 
+    assert [x.name for x in c.children] == ['rate/rate', 'rate/timer']
+    timer = c.children[1]
+
+    assert c.scheme_control is not None
+    assert [m.name for m in c.scheme_control.messages] == ["WriteFull", "WriteReady"]
+
     for _ in range(2):
         c.result = []
         c.open()
         c.post(b'x' * 64)
-
-        timer = c.children[1]
 
         with pytest.raises(TLLError): c.post(b'x' * 64)
         assert [(m.type, m.msgid) for m in c.result] == [(c.Type.Control, c.scheme_control.messages.WriteFull.msgid)]
@@ -39,3 +43,56 @@ def test_post(context):
         assert [(m.type, m.msgid) for m in c.result] == [(c.Type.Control, c.scheme_control.messages.WriteFull.msgid)]
 
         c.close()
+
+def test_input(context):
+    c = Accum('rate+zero://;initial=32b;max-window=128b;speed=3200b;size=64b;rate.dir=r', name='rate', dump='frame', context=context)
+
+    assert c.scheme_control is None
+
+    assert [x.name for x in c.children] == ['rate/rate', 'rate/timer']
+    child, timer = c.children
+
+    for _ in range(2):
+        c.result = []
+        c.open()
+        assert (child.dcaps & child.DCaps.Suspend) == 0
+
+        c.post(b'x' * 1024)
+        c.post(b'x' * 1024)
+
+        child.process()
+        assert [(m.type, len(m.data)) for m in c.result] == [(c.Type.Data, 64)]
+
+        assert child.dcaps & child.DCaps.Suspend
+
+        poll = select.poll()
+        poll.register(timer.fd, select.POLLIN)
+        assert poll.poll(20) != []
+        timer.process()
+
+        assert (child.dcaps & child.DCaps.Suspend) == 0
+        child.process()
+
+        assert [(m.type, len(m.data)) for m in c.result] == [(c.Type.Data, 64), (c.Type.Data, 64)]
+        assert child.dcaps & child.DCaps.Suspend
+
+        c.close()
+
+    c.open()
+    child.process()
+
+    assert child.dcaps & child.DCaps.SuspendPermanent
+    assert child.dcaps & child.DCaps.Suspend
+
+    c.suspend()
+    assert c.dcaps & child.DCaps.SuspendPermanent
+    assert c.dcaps & child.DCaps.Suspend
+
+    c.close()
+    assert (child.dcaps & child.DCaps.SuspendPermanent) == 0
+    assert child.dcaps & child.DCaps.Suspend
+
+    c.resume()
+
+    assert (child.dcaps & child.DCaps.SuspendPermanent) == 0
+    assert (child.dcaps & child.DCaps.Suspend) == 0

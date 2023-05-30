@@ -42,8 +42,16 @@ class Rate : public tll::channel::Prefix<Rate>
 	int _on_closed()
 	{
 		_timer->close(true);
+		if (!(internal.caps & tll::caps::Output) && (_child->dcaps() & tll::dcaps::SuspendPermanent)) {
+			if (internal.dcaps & tll::dcaps::Suspend) {
+				_child->internal->dcaps ^= tll::dcaps::SuspendPermanent; // Remove suspend lock
+			} else
+				_child->resume();
+		}
 		return Base::_on_closed();
 	}
+
+	int _on_data(const tll_msg_t *);
 
 	int _post(const tll_msg_t *msg, int flags);
 

@@ -45,10 +45,17 @@ int Rate::_init(const Channel::Url &url, tll::Channel *master)
 	if (_conf.speed == 0) return _log.fail(EINVAL, "Zero speed");
 	if (_conf.limit <= 0) return _log.fail(EINVAL, "Invalid window size: {}", _conf.limit);
 
-	auto r = tll::scheme::merge({context().scheme_load(tcp_client_scheme::scheme_string), _child->scheme(TLL_MESSAGE_CONTROL)});
-	if (!r)
-		return _log.fail(EINVAL, "Failed to merge control scheme: {}", r.error());
-	_scheme_control.reset(*r);
+	if ((internal.caps & tll::caps::InOut) == 0)
+		internal.caps |= tll::caps::Output;
+
+	auto cscheme = _child->scheme(TLL_MESSAGE_CONTROL);
+	if (internal.caps & tll::caps::Output) {
+		auto r = tll::scheme::merge({context().scheme_load(tcp_client_scheme::scheme_string), cscheme});
+		if (!r)
+			return _log.fail(EINVAL, "Failed to merge control scheme: {}", r.error());
+		_scheme_control.reset(*r);
+	} else
+		_scheme_control.reset(cscheme);
 
 	auto curl = this->child_url_parse("timer://;clock=realtime", "timer");
 	if (!curl)
@@ -72,14 +79,39 @@ int Rate::_on_timer(const tll_msg_t *)
 		return 0;
 	}
 
-	_callback_control(tcp_client_scheme::WriteReady::meta_id());
+	if (internal.caps & tll::caps::Output)
+		_callback_control(tcp_client_scheme::WriteReady::meta_id());
+	else
+		_child->resume();
 
 	return 0;
+}
+
+int Rate::_on_data(const tll_msg_t * msg)
+{
+	if (internal.caps & tll::caps::Output)
+		return Base::_on_data(msg);
+
+	size_t size = msg->size;
+	auto now = tll::time::now();
+	_bucket.update(_conf, now);
+
+	_bucket.consume(size);
+
+	if (_bucket.empty()) {
+		if (_rearm(_bucket.next(_conf, now)))
+			return _log.fail(EINVAL, "Failed to rearm timer");
+		_child->suspend();
+	}
+	return Base::_on_data(msg);
 }
 
 int Rate::_post(const tll_msg_t *msg, int flags)
 {
 	if (msg->type != TLL_MESSAGE_DATA)
+		return _child->post(msg, flags);
+
+	if (!(internal.caps & tll::caps::Output))
 		return _child->post(msg, flags);
 
 	size_t size = msg->size;
