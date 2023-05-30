@@ -357,7 +357,7 @@ cdef class Channel:
         error.wrap(tll_channel_suspend(self._ptr), "Suspend failed")
 
     def resume(self):
-        error.wrap(tll_channel_suspend(self._ptr), "Resume failed")
+        error.wrap(tll_channel_resume(self._ptr), "Resume failed")
 
     @property
     def state(self): return State(tll_channel_state(self._ptr))
