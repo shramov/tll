@@ -29,6 +29,8 @@ class ChZero : public tll::channel::Event<ChZero>
 		_callback(&_msg);
 		return 0;
 	}
+
+	int _post(const tll_msg_t *msg, int flags) { return 0; }
 };
 
 #endif//_TLL_CHANNEL_ZERO_H

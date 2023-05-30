@@ -112,6 +112,8 @@ def test_zero(args, caps):
         c.process()
     assert [m.seq for m in c.result] == list(range(10))
 
+    c.post(b'xxxx')
+
 def test_direct():
     s = Accum('direct://', name='server', context=ctx)
     c = Accum('direct://', name='client', master=s, context=ctx)
