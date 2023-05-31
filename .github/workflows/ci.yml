@@ -15,7 +15,9 @@ jobs:
         fetch-depth: 1
     - uses: actions/cache@v3
       with:
-        path: /home/runner/.ccache
+        path: |
+          /home/runner/.ccache
+          /home/runner/.cache/ccache
         key: ccache:${{ matrix.os }}:${{ github.sha }}
         restore-keys: 'ccache:${{ matrix.os }}:'
     - name: update
