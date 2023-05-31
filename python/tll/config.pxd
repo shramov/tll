@@ -7,6 +7,7 @@ cdef extern from "tll/config.h":
 
     ctypedef int (*tll_config_callback_t)(const char * key, int klen, const tll_config_t *value, void * data)
     ctypedef char * (*tll_config_value_callback_t)(int * len, void * data)
+    ctypedef void (*tll_config_value_callback_free_t)(tll_config_value_callback_t cb, void * data)
 
     cdef tll_config_t * tll_config_new()
     cdef tll_config_t * tll_config_copy(const tll_config_t *)
@@ -32,7 +33,7 @@ cdef extern from "tll/config.h":
     cdef int tll_config_set(tll_config_t *, const char * path, int plen, const char * value, int vlen)
     cdef int tll_config_set_link(tll_config_t *, const char * path, int plen, const char * value, int vlen)
     cdef int tll_config_set_config(tll_config_t *, const char * path, int plen, tll_config_t *, int consume)
-    cdef int tll_config_set_callback(tll_config_t *, const char * path, int plen, tll_config_value_callback_t cb, void * user)
+    cdef int tll_config_set_callback(tll_config_t *, const char * path, int plen, tll_config_value_callback_t cb, void * user, tll_config_value_callback_free_t deleter)
 
     cdef int tll_config_value(const tll_config_t *)
 

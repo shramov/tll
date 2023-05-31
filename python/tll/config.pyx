@@ -1,12 +1,17 @@
 #!/usr/bin/env python
 # vim: sts=4 sw=4 et
 
+from .buffer cimport *
 from .config cimport *
-from .error import TLLError
 from .s2b cimport *
+
+from cpython.ref cimport Py_INCREF, Py_DECREF
 from libc.errno cimport ENOENT
-from libc.stdlib cimport malloc, free
+from libc.stdlib cimport malloc
+from libc.string cimport memcpy
+
 from .conv import getT
+from .error import TLLError
 
 __default_tag = object()
 
@@ -16,6 +21,50 @@ cdef object _check_error(int r, object message):
     elif r:
         raise TLLError(message, r)
     return
+
+cdef class Callback:
+    cdef object _cb
+
+    def __init__(self, cb):
+        self._cb = cb
+
+    @property
+    def callback(self): return self._cb
+
+    def __call__(self):
+        return self._cb()
+
+cdef char * pyvalue_callback(int * length, void * data) with gil:
+    cdef object cb = <object>data
+    cdef Py_buffer * buf
+    cdef char * ptr
+    try:
+        v = cb()
+        if v is None:
+            return NULL
+        elif isinstance(v, bytes):
+            pass
+        else:
+            if not isinstance(v, str):
+                v = str(v)
+            v = v.encode('utf-8')
+        v = memoryview(v)
+
+        buf = PyMemoryView_GET_BUFFER(v)
+        ptr = <char *>malloc(buf.len)
+        memcpy(ptr, buf.buf, buf.len)
+        length[0] = buf.len
+        return ptr
+    except:
+        return NULL
+
+cdef void pyvalue_callback_free(tll_config_value_callback_t f, void * data) with gil:
+    if f != pyvalue_callback:
+        return
+    cdef cb = <object>data
+    if not isinstance(cb, Callback):
+        return
+    Py_DECREF(cb)
 
 cdef class Config:
     def __init__(self, bare=False):
@@ -127,7 +176,12 @@ cdef class Config:
     def set_callback(self, key, value):
         if self._const:
             raise RuntimeError("Can not modify const Config")
-        raise NotImplemented()
+        k = s2b(key)
+        cb = Callback(value)
+        r = tll_config_set_callback(self._ptr, k, len(k), pyvalue_callback, <void *>cb, pyvalue_callback_free)
+        if r:
+            raise TLLError(f"Failed to set callback at {key}: {value}", r)
+        Py_INCREF(cb)
 
     def _get(self, decode=True):
         if tll_config_value(self._ptr) == 0: return None

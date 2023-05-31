@@ -235,3 +235,30 @@ def test_double_import():
     assert cfg.get('link') == 'value'
     cfg['dest'] = 'other'
     assert cfg.get('link') == 'other'
+
+def test_callback():
+    cfg = Config()
+    v = 0
+    cfg.set('a', lambda: str(v))
+    assert cfg['a'] == '0'
+    v = 10
+    assert cfg['a'] == '10'
+
+    cfg.set('a', 'xxx')
+    assert cfg['a'] == 'xxx'
+
+    class Track:
+        DROP = []
+
+        def __init__(self, name):
+            self.name = name
+        def __del__(self):
+            Track.DROP.append(self.name)
+        def __call__(self):
+            return self.name
+
+    cfg.set_callback('a', Track('track'))
+    assert cfg['a'] == 'track'
+    assert Track.DROP == []
+    del cfg['a']
+    assert Track.DROP == ['track']
