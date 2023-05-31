@@ -20,9 +20,11 @@ int Blocks::_init(const tll::Channel::Url &url, tll::Channel *master)
 	if ((internal.caps & caps::InOut) == 0) // Defaults to input
 		internal.caps |= caps::Input;
 
-	_scheme_control.reset(context().scheme_load(blocks_scheme::scheme_string));
-	if (!_scheme_control.get())
-		return _log.fail(EINVAL, "Failed to load control scheme");
+	if (internal.caps & caps::Output) {
+		_scheme_control.reset(context().scheme_load(blocks_scheme::scheme_string));
+		if (!_scheme_control.get())
+			return _log.fail(EINVAL, "Failed to load control scheme");
+	}
 
 	if (master) {
 		_master = tll::channel_cast<Blocks>(master);
@@ -110,18 +112,8 @@ int Blocks::_open_input(const tll::ConstConfig &cfg)
 	for (; i != it->second.rend() && block; i++)
 		block--;
 	_log.info("Translated block type '{}' number {} to seq {}", type, block, *i);
-
-	std::array<char, blocks_scheme::BlockRange::meta_size()> buf;
-	auto data = blocks_scheme::BlockRange::bind(buf);
-	data.set_begin(*i + 1);
-	data.set_end(*i + 1);
-
-	tll_msg_t msg = { TLL_MESSAGE_CONTROL };
-	msg.msgid = data.meta_id();
-	msg.size = data.view().size();
-	msg.data = data.view().data();
-	msg.seq = *i + 1;
-	_callback(&msg);
+	_seq = *i;
+	config_info().setT("seq", _seq);
 
 	return close();
 }

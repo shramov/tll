@@ -336,24 +336,24 @@ def test_blocks_channel(context, tmp_path):
     r.result = []
     r.open({'block': '0', 'block-type':'def'})
     assert r.state == r.State.Closed
-    assert [(m.type, m.seq, r.unpack(m).as_dict()) for m in r.result] == [(r.Type.Control, 21, {'begin': 21, 'end': 21})]
+    assert r.config['info.seq'] == '20'
 
     r.result = []
     r.open({'block': '1', 'block-type':'def'})
     assert r.state == r.State.Closed
-    assert [(m.type, m.seq, r.unpack(m).as_dict()) for m in r.result] == [(r.Type.Control, 11, {'begin': 11, 'end': 11})]
+    assert r.config['info.seq'] == '10'
 
     r.result = []
     r.open({'block': '0', 'block-type':'other'})
     assert r.state == r.State.Closed
-    assert [(m.type, m.seq, r.unpack(m).as_dict()) for m in r.result] == [(r.Type.Control, 11, {'begin': 11, 'end': 11})]
+    assert r.config['info.seq'] == '10'
 
     r = Accum(f'blocks://{tmp_path}/blocks.yaml;dir=r', context=context)
 
     r.result = []
     r.open({'block': '0', 'block-type':'other'})
     assert r.state == r.State.Closed
-    assert [(m.type, m.seq, r.unpack(m).as_dict()) for m in r.result] == [(r.Type.Control, 11, {'begin': 11, 'end': 11})]
+    assert r.config['info.seq'] == '10'
 
 @asyncloop_run
 async def test_rotate(asyncloop, tmp_path):
