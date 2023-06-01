@@ -52,6 +52,7 @@ TLL_0.0.0 {
 		tll_config_del;
 		tll_config_get;
 		tll_config_get_copy;
+		tll_config_get_url;
 		tll_config_has;
 		tll_config_list;
 		tll_config_load;

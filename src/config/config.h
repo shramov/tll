@@ -103,6 +103,15 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 		return cfg->value();
 	}
 
+	tll::optional_config_string get(std::string_view key) const
+	{
+		auto lock = rlock();
+		auto cfg = find(key);
+		if (!cfg)
+			return {};
+		return cfg->get();
+	}
+
 	tll::optional_config_string get() const
 	{
 		auto lock = rlock();
@@ -245,7 +254,7 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 		return 0;
 	}
 
-	int set(const path_t & v)
+	int set_link(const path_t & v)
 	{
 		auto value = tll::filesystem::lexically_normal(v);
 		auto rel = value;

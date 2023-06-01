@@ -88,6 +88,21 @@ void tll_config_value_free(const char * value);
 /// Duplicate string, should be freed with tll_config_value_free
 char * tll_config_value_dup(const char * value, int vlen);
 
+/** Get 'url' from config
+ *
+ * Url can be specified in 3 different forms:
+ *   - String: key: 'proto://;params...'
+ *   - Unpacked: key: { tll.proto: proto, params... }
+ *   - Mixed: key: { url: 'proto://;params...', extra params... }
+ *
+ * Duplicate keys that are present in string and unpacked form are not allowed
+ *
+ * @return config object with parsed string url merged with unpacked keys.
+ *         On error config object consists of one root node with error string
+ *         Safe and fast way to check for error is to call tll_config_get_copy(result)
+ */
+tll_config_t * tll_config_get_url(const tll_config_t *, const char * path, int plen);
+
 /// List child nodes
 int tll_config_list(const tll_config_t *, tll_config_callback_t cb, void * data);
 
@@ -472,66 +487,17 @@ public:
 	}
 };
 
-/**
- * Get Url from config
- *
- *  Url can be specified in 3 different forms:
- *   - String: key: 'proto://;params...'
- *   - Unpacked: key: { tll.proto: proto, params... }
- *   - Mixed: key: { url: 'proto://;params...', extra params... }
- *
- *  Also for transition period legacy variant is supported:
- *    - key: 'proto://;params...', key: { extra params... }
- */
-namespace _config {
-template <bool Const>
-result_t<ConfigUrl> _get_url(const ConfigT<Const> &cfg, std::string_view key)
-{
-	auto sub = cfg.sub(key);
-	if (!sub)
-		return tll::error("Url not found at '" + std::string(key) + "'");
-
-	if (auto proto = sub->get("tll.proto"); proto) // Unpacked variant
-		return sub->copy();
-
-	auto url = sub->get("url");
-	auto str = sub->get();
-	if (url && str)
-		return tll::error("Both " + std::string(key) + " and " + std::string(key) + ".url found");
-
-	ConfigUrl result;
-	if (url) {
-		auto r = ConfigUrl::parse(*url);
-		if (!r)
-			return tll::error(r.error());
-		result.merge(*r);
-	} else if (str) {
-		auto r = ConfigUrl::parse(*str);
-		if (!r)
-			return tll::error(r.error());
-		result.merge(*r);
-	}
-
-	for (auto & [k,c] : sub->browse("**")) {
-		auto v = c.get();
-		if (k == "url" || !v)
-			continue;
-		if (result.has(k))
-			return tll::error("Duplicate key " + std::string(k));
-		result.set(k, *v);
-	}
-
-	return result;
-}
-}
-
 template <bool Const>
 template <typename T>
 result_t<T> ConfigT<Const>::getT(std::string_view key) const
 {
-	if constexpr (std::is_same_v<T, ConfigUrl>)
-		return _config::_get_url(*this, key);
-	else
+	if constexpr (std::is_same_v<T, ConfigUrl>) {
+		auto r = ConfigT<Const>::consume(tll_config_get_url(*this, key.data(), key.size()));
+		auto err = r.get();
+		if (err)
+			return error(*err);
+		return r;
+	} else
 		return tll::getter::getT<ConfigT<Const>, T>(*this, key);
 }
 
@@ -543,7 +509,11 @@ result_t<T> ConfigT<Const>::getT(std::string_view key, const T& def) const
 		auto c = sub(key);
 		if (!c)
 			return def;
-		return _config::_get_url(*this, key);
+		auto r = ConfigT<Const>::consume(tll_config_get_url(*c, nullptr, 0));
+		auto err = r.get();
+		if (err)
+			return error(*err);
+		return r;
 	} else
 		return tll::getter::getT<ConfigT<Const>, T>(*this, key, def);
 }

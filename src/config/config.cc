@@ -12,6 +12,7 @@
 #include "tll/logger.h"
 #include "tll/util/bin2ascii.h"
 #include "tll/util/refptr.h"
+#include "tll/util/result.h"
 #include "tll/util/string.h"
 #include "tll/util/url.h"
 #include "tll/util/zlib.h"
@@ -230,7 +231,7 @@ int tll_config_set_link(tll_config_t *cfg, const char * path, int plen, const ch
 	if (!cfg) return EINVAL;
 	auto sub = cfg->find(string_view_from_c(path, plen), 1);
 	if (!sub) return EINVAL;
-	return sub->set(std::filesystem::path(string_view_from_c(dest, dlen)));
+	return sub->set_link(std::filesystem::path(string_view_from_c(dest, dlen)));
 }
 
 int tll_config_unset(tll_config_t *cfg, const char * path, int plen)
@@ -334,6 +335,88 @@ char * tll_config_value_dup(const char * str, int len)
 	memcpy(r, s.data(), s.size());
 	r[s.size()] = 0;
 	return r;
+}
+
+
+tll::result_t<tll_config_t *> _get_url(const tll_config_t * cfg)
+{
+	if (auto proto = cfg->get("tll.proto"); proto) // Unpacked variant
+		return tll_config_copy(cfg);
+
+	auto url = cfg->get("url");
+	auto str = cfg->get();
+	if (url && str)
+		return tll::error("Both inline and 'url' values found");
+
+	refptr_t<tll_config_t> result;
+	if (url) {
+		auto r = tll::ConfigUrl::parse(*url);
+		if (!r)
+			return tll::error(r.error());
+		result.reset(*r);
+	} else if (str) {
+		auto r = tll::ConfigUrl::parse(*str);
+		if (!r)
+			return tll::error(r.error());
+		result.reset(*r);
+	} else
+		result.reset(new tll_config_t());
+
+	struct Browse {
+		tll_config_t * result;
+		std::string dup;
+	} browse = { result.get() };
+
+	cfg->browse(std::string_view("**"), [](const char * kstr, int klen, const tll_config_t * value, void *user) {
+		auto browse = static_cast<Browse *>(user);
+		std::string_view key = {kstr, (size_t) klen};
+		if (key == "url")
+			return 0;
+		auto v = value->get();
+		if (!v)
+			return 0;
+		auto rsub = browse->result->find(key, true);
+		if (rsub->get()) {
+			browse->dup = key;
+			return EEXIST;
+		}
+		rsub->set(*v);
+		return 0;
+	}, &browse);
+
+	if (browse.dup.size())
+		return tll::error("Duplicate key: " + browse.dup);
+
+	return result.release();
+}
+
+tll_config_t * tll_config_get_url(const tll_config_t *c, const char *path, int plen)
+{
+	refptr_t<tll_config_t> result = new tll_config_t;
+
+	if (!c) {
+		result->set("Null config pointer");
+		return result.release();
+	}
+
+	refptr_t<const tll_config_t> cfg(c);
+	if (path) {
+		auto key = string_view_from_c(path, plen);
+		cfg = cfg->find(key);
+
+		if (!cfg) {
+			result->set("Missing subtree");
+			return result.release();
+		}
+	}
+
+	auto r = _get_url(cfg.get());
+	if (!r) {
+		result->set(r.error());
+		return result.release();
+	}
+
+	return *r;
 }
 
 int tll_config_list(const tll_config_t * c, tll_config_callback_t cb, void *data)
