@@ -349,7 +349,7 @@ int ChYaml::_process(long timeout, int flags)
 	if (!scheme) {
 		msg.msgid = reader.getT<int>("msgid", 0);
 		if (!data)
-			return _log.fail(EINVAL, "No 'data' field for message {}", _idx);
+			return _log.fail(EINVAL, "No 'data' field for message without scheme {}", _idx);
 		msg.size = data->size();
 		msg.data = data->data();
 	} else {
