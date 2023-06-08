@@ -137,7 +137,7 @@ cdef class Base:
         memset(&cmsg, 0, sizeof(tll_msg_t))
 
         if isinstance(msg, scheme.Data):
-            cmsg.type = TLL_MESSAGE_DATA
+            cmsg.type = C.Type.Data
             cmsg.msgid = msg.SCHEME.msgid
 
             data = msg.pack()
