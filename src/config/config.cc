@@ -273,14 +273,6 @@ inline int _get_sv(std::string_view v, char * value, int * vlen)
 	*vlen = v.size();
 	return 0;
 }
-
-void * memdup(const void * ptr, size_t size)
-{
-	auto r = malloc(size);
-	if (r)
-		memcpy(r, ptr, size);
-	return r;
-}
 }
 
 int tll_config_get(const tll_config_t *c, const char *path, int plen, char *value, int * vlen)
@@ -320,24 +312,13 @@ char * tll_config_get_copy(const tll_config_t *c, const char *path, int plen, in
 	if (path != nullptr) {
 		cfg = c->find(string_view_from_c(path, plen));
 		if (!cfg.get()) return nullptr;
-	} else if (!c->value())
+	}
+	auto r = cfg->get();
+	if (!r)
 		return nullptr;
-	auto lock = cfg->rlock();
-	cfg = tll_config_t::_lookup_link(cfg.get());
-	if (!cfg.get())
-		return nullptr;
-	lock = cfg->rlock();
-	c = cfg.get();
-	if (std::holds_alternative<std::string>(c->data)) {
-		auto & v = std::get<std::string>(c->data);
-		if (vlen) *vlen = v.size();
-		return (char *) memdup(v.data(), v.size() + 1);
-	} else if (std::holds_alternative<tll_config_t::cb_pair_t>(c->data)) {
-		auto v = std::get<tll_config_t::cb_pair_t>(c->data);
-		lock.unlock();
-		return v(vlen);
-	} else
-		return nullptr;
+	if (vlen)
+		*vlen = r->size();
+	return (char *) r.release();
 }
 
 void tll_config_value_free(const char * ptr)

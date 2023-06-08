@@ -103,6 +103,30 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 		return cfg->value();
 	}
 
+	tll::optional_config_string get() const
+	{
+		auto lock = rlock();
+		if (std::holds_alternative<path_t>(data)) {
+			auto cfg = _lookup_link(this);
+			return cfg->get();
+		} else if (std::holds_alternative<std::string>(data)) {
+			auto & v = std::get<std::string>(data);
+			auto r = (char *) malloc(v.size() + 1);
+			memcpy(r, v.data(), v.size() + 1);
+			return tll::optional_config_string(r, v.size());
+		} else if (std::holds_alternative<tll_config_t::cb_pair_t>(data)) {
+			auto v = std::get<tll_config_t::cb_pair_t>(data);
+			lock.unlock();
+			int vlen = 0;
+			auto r = v(&vlen);
+			if (!r)
+				return {};
+			return tll::optional_config_string(r, vlen);
+		} else {
+			return {};
+		}
+	}
+
 	template <typename Cfg>
 	static inline refptr_t<Cfg> _lookup_link(Cfg *cfg)
 	{

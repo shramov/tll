@@ -157,7 +157,7 @@ namespace tll {
 
 class optional_config_string
 {
-	std::string_view _data = { nullptr, 0 };
+	std::string_view _data; // Default constructor sets data to nullptr
  public:
 	explicit optional_config_string(const char * data, size_t size) : _data(data, size) {}
 	optional_config_string() {}
@@ -171,6 +171,8 @@ class optional_config_string
 	operator bool () const { return _data.data() != nullptr; }
 
 	std::string_view value_or(std::string_view s) const { if (*this) return _data; return s; }
+
+	const char * release() { std::string_view tmp; tmp.swap(_data); return tmp.data(); }
 };
 
 class Config;
