@@ -27,6 +27,8 @@ cdef extern from "tll/config.h":
     cdef char * tll_config_get_copy(const tll_config_t *, const char * path, int plen, int * vlen)
     cdef void tll_config_value_free(char *value)
 
+    cdef tll_config_t * tll_config_get_url(const tll_config_t *, const char * path, int plen)
+
     cdef int tll_config_merge(tll_config_t *, tll_config_t *, int overwrite)
     cdef int tll_config_process_imports(tll_config_t *, const char * path, int plen)
 

@@ -5,7 +5,7 @@ import enum
 import copy
 import pytest
 
-from tll.config import Config
+from tll.config import Config, Url
 from tll.error import TLLError
 
 from tll.test_util import base64gz
@@ -262,3 +262,16 @@ def test_callback():
     assert Track.DROP == []
     del cfg['a']
     assert Track.DROP == ['track']
+
+def test_get_url():
+    cfg = Config.load_data('yamls', '''
+string: tcp://*:8080;dump=yes;stat=yes
+unpacked: {tll.proto: tcp, tll.host: '*:8080', dump: yes, stat: yes}
+mixed: {url: 'tcp://*:8080;dump=yes', stat: yes}
+''')
+    for k,_ in cfg.browse("*", True):
+        print(k)
+        assert isinstance(cfg.get_url(k), Url)
+        assert str(cfg.get_url(k)) == "tcp://*:8080;dump=yes;stat=yes"
+    cfg.set("mixed.dump", "no")
+    with pytest.raises(ValueError): cfg.get_url("mixed")

@@ -207,6 +207,20 @@ cdef class Config:
             return default
         return Config.wrap(cfg).get(decode=decode)
 
+    def get_url(self, key=None, default=__default_tag):
+        cdef Config sub = self
+        if key is not None:
+            sub = self.sub(key, create=False, throw=False)
+            if sub is None:
+                if default == __default_tag:
+                    raise KeyError(f"Key {key} not found")
+                return default
+        r = Config.wrap(tll_config_get_url(sub._ptr, NULL, 0))
+        error = r.get()
+        if error is not None:
+            raise ValueError(f"Invalid url at '{key}': {error}")
+        return Url(r)
+
     def getT(self, key, default):
         return getT(self, key, default)
 
