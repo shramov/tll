@@ -155,34 +155,6 @@ tll_config_t * tll_config_detach(tll_config_t *, const char * path, int plen);
 
 namespace tll {
 
-class config_string
-{
-	const char * _data = nullptr;
-	size_t _size = 0;
-public:
-	explicit config_string(const char * data) : _data(data), _size(strlen(data)) {}
-	explicit config_string(const char * data, size_t size) : _data(data), _size(size) {}
-
-	config_string(const config_string & rhs) : _data(tll_config_value_dup(rhs._data, rhs._size)), _size(rhs._size) {}
-	config_string(config_string && rhs) { std::swap(_data, rhs._data); std::swap(_size, rhs._size); }
-
-	~config_string() { tll_config_value_free(_data); }
-
-	std::string_view string() { return { _data, _size }; }
-	const std::string_view string() const { return { _data, _size }; }
-
-	operator std::string_view () { return string(); }
-	operator const std::string_view () const { return string(); }
-
-	bool operator == (std::string_view rhs) const { return string() == rhs; }
-	bool operator != (std::string_view rhs) const { return string() != rhs; }
-
-	operator std::string () const { return { _data, _size }; }
-
-	size_t size() const { return _size; }
-	const char * data() const { return _data; }
-};
-
 class optional_config_string
 {
 	std::string_view _data = { nullptr, 0 };
