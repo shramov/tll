@@ -44,6 +44,7 @@ struct tcp_settings_t {
 	size_t buffer_size = 1024;
 	bool timestamping = false;
 	bool keepalive = true;
+	bool nodelay = false;
 };
 
 struct tcp_connect_t {

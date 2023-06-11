@@ -196,6 +196,15 @@ int TcpSocket<T>::setup(const tcp_settings_t &settings)
 	if (settings.rcvbuf && setsockoptT<int>(this->fd(), SOL_SOCKET, SO_RCVBUF, settings.rcvbuf))
 		return this->_log.fail(EINVAL, "Failed to set rcvbuf to {}: {}", settings.rcvbuf, strerror(errno));
 
+	if (settings.nodelay) {
+		int af = 0;
+		socklen_t aflen = sizeof(af);
+		if (getsockopt(this->fd(), SOL_SOCKET, SO_DOMAIN, &af, &aflen))
+			return this->_log.fail(EINVAL, "Failed to get socket address family: {}", strerror(errno));
+		if (aflen == sizeof(af) && af != AF_UNIX && setsockoptT<int>(this->fd(), SOL_TCP, TCP_NODELAY, 1))
+			return this->_log.fail(EINVAL, "Failed to set nodelay: {}", strerror(errno));
+	}
+
 	return 0;
 }
 
@@ -340,6 +349,7 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	this->_size = reader.template getT<util::Size>("size", 128 * 1024);
 	_settings.timestamping = reader.getT("timestamping", false);
 	_settings.keepalive = reader.getT("keepalive", true);
+	_settings.nodelay = reader.getT("nodelay", true);
 	_settings.sndbuf = reader.getT("sndbuf", util::Size { 0 });
 	_settings.rcvbuf = reader.getT("rcvbuf", util::Size { 0 });
 	_settings.buffer_size = reader.getT("buffer-size", util::Size { 64 * 1024 });
@@ -518,6 +528,7 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	auto af = reader.getT("af", network::AddressFamily::UNSPEC);
 	_settings.timestamping = reader.getT("timestamping", false);
 	_settings.keepalive = reader.getT("keepalive", true);
+	_settings.nodelay = reader.getT("nodelay", true);
 	_settings.sndbuf = reader.getT("sndbuf", util::Size { 0 });
 	_settings.rcvbuf = reader.getT("rcvbuf", util::Size { 0 });
 	_settings.buffer_size = reader.getT("buffer-size", util::Size { 64 * 1024 });
