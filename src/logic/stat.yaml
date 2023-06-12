@@ -1,0 +1,45 @@
+- enums:
+    Unit: {type: uint8, enum: { Unknown: 0, Bytes: 1, NS: 2}}
+    Method: {type: uint8, enum: { Sum: 0, Min: 1, Max: 2, Last: 3}}
+
+- name: IValue
+  fields:
+    - {name: method, type: Method}
+    - {name: value, type: int64}
+
+- name: FValue
+  fields:
+    - {name: method, type: Method}
+    - {name: value, type: double}
+
+- name: IGroup
+  fields:
+    - {name: count, type: uint64}
+    - {name: min, type: int64}
+    - {name: max, type: int64}
+    - {name: avg, type: double}
+
+- name: FGroup
+  fields:
+    - {name: count, type: uint64}
+    - {name: min, type: double}
+    - {name: max, type: double}
+    - {name: avg, type: double}
+
+- name: Field
+  fields:
+    - {name: name, type: byte7, options.type: string}
+    - {name: unit, type: Unit}
+    - name: value
+      type: union
+      union:
+        - {name: ivalue, type: IValue}
+        - {name: fvalue, type: FValue}
+        - {name: igroup, type: IGroup}
+        - {name: fgroup, type: FGroup}
+
+- name: Page
+  id: 10
+  fields:
+    - {name: name, type: string}
+    - {name: fields, type: '*Field'}

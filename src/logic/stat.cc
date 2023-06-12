@@ -11,6 +11,8 @@
 #include "tll/util/conv.h"
 #include "tll/util/conv-fmt.h"
 
+#include "tll/scheme/logic/stat.h"
+
 #include <regex>
 
 class Stat : public tll::LogicBase<Stat>
@@ -28,8 +30,12 @@ class Stat : public tll::LogicBase<Stat>
 
 	std::list<page_rule_t> _rules;
 
+	std::vector<char> _buf;
+
  public:
 	static constexpr std::string_view channel_protocol() { return "stat"; }
+
+	static constexpr auto scheme_policy() { return SchemePolicy::Manual; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 
@@ -55,6 +61,10 @@ int Stat::_init(const tll::Channel::Url &url, tll::Channel *)
 	_secondary = reader.getT("secondary", false);
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
+
+	_scheme.reset(context().scheme_load(stat_scheme::scheme_string));
+	if (!_scheme.get())
+		return _log.fail(EINVAL, "Failed to load timer scheme");
 
 	for (auto &[_, c] : url.browse("page.*", true)) {
 		auto m = c.get("match");
@@ -126,10 +136,19 @@ int Stat::_dump(tll_stat_iter_t * iter)
 		page = tll_stat_iter_swap(iter);
 	}
 
+	auto data = stat_scheme::Page::bind(_buf);
+	_buf.resize(0);
+	_buf.resize(data.meta_size());
+	data.set_name(name);
+	auto fields = data.get_fields();
+	fields.resize(page->size);
+	auto size = 0;
+
 	std::string r = "";
 	auto ptr = static_cast<const tll::stat::Field *>(page->fields);
 	auto end = ptr + page->size;
 	for (; ptr != end; ptr++) {
+		auto field = fields[size++];
 		if (r.size())
 			r += ", ";
 		if (ptr + 3 < end && ptr->name() == "_tllgrp") {
@@ -137,16 +156,48 @@ int Stat::_dump(tll_stat_iter_t * iter)
 			auto sum = ++ptr;
 			auto min = ++ptr;
 			auto max = ++ptr;
-			if (sum->type() == TLL_STAT_FLOAT)
+			field.set_name(sum->name());
+			field.set_unit(static_cast<stat_scheme::Unit>(sum->unit()));
+			if (sum->type() == TLL_STAT_FLOAT) {
 				r += _group(sum->name(), sum->unit(), count->value, sum->fvalue, min->fvalue, max->fvalue);
-			else
+				auto group = field.get_value().set_fgroup();
+				group.set_count(count->value);
+				group.set_min(min->fvalue);
+				group.set_max(max->fvalue);
+				if (count->value)
+					group.set_avg(sum->fvalue / count->value);
+			} else {
 				r += _group(sum->name(), sum->unit(), count->value, sum->value, min->value, max->value);
+				auto group = field.get_value().set_igroup();
+				group.set_count(count->value);
+				group.set_min(min->value);
+				group.set_max(max->value);
+				if (count->value)
+					group.set_avg(sum->value / count->value);
+			}
 			continue;
+		}
+		field.set_name(ptr->name());
+		field.set_unit(static_cast<stat_scheme::Unit>(ptr->unit()));
+		if (ptr->type() == TLL_STAT_FLOAT) {
+			auto value = field.get_value().set_fvalue();
+			value.set_method(static_cast<stat_scheme::Method>(ptr->method()));
+			value.set_value(ptr->fvalue);
+		} else {
+			auto value = field.get_value().set_ivalue();
+			value.set_method(static_cast<stat_scheme::Method>(ptr->method()));
+			value.set_value(ptr->value);
 		}
 		r += _dump(*ptr);
 	}
+	fields.resize(size);
 
 	log->info("Page {}: {}", name, r);
+	tll_msg_t msg = { TLL_MESSAGE_DATA };
+	msg.msgid = data.meta_id();
+	msg.data = data.view().data();
+	msg.size = data.view().size();
+	_callback(&msg);
 	return 0;
 }
 
