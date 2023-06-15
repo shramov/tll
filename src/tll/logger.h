@@ -102,6 +102,13 @@ namespace tll {
 
 namespace logger {
 
+template <typename... Args>
+#if FMT_VERSION < 80000
+using format_string = std::string_view;
+#else
+using format_string = fmt::format_string<Args...>;
+#endif
+
 auto constexpr Trace = TLL_LOGGER_TRACE;
 auto constexpr Debug = TLL_LOGGER_DEBUG;
 auto constexpr Info = TLL_LOGGER_INFO;
@@ -153,8 +160,8 @@ template <typename T>
 struct Methods
 {
 #define DECLARE_LOG(func, level) \
-	template <typename F, typename... A> \
-	void func(F format, A && ... args) const { return static_cast<const T *>(this)->log(level, format, std::forward<A>(args)...); }
+	template <typename... A> \
+	void func(format_string<A...> format, A && ... args) const { return static_cast<const T *>(this)->log(level, format, std::forward<A>(args)...); }
 
 	DECLARE_LOG(trace, Trace)
 	DECLARE_LOG(debug, Debug)
@@ -164,9 +171,9 @@ struct Methods
 	DECLARE_LOG(critical, Critical)
 #undef  DECLARE_LOG
 
-	template <typename R, typename Fmt, typename... Args>
+	template <typename R, typename... Args>
 	[[nodiscard]]
-	R fail(R err, Fmt format, Args && ... args) const
+	R fail(R err, format_string<Args...> format, Args && ... args) const
 	{
 		error(format, std::forward<Args>(args)...);
 		return err;
@@ -175,19 +182,7 @@ struct Methods
 	template <typename... Args>
 	Prefix<T, std::string_view, Args...> prefix(std::string_view fmt, Args && ... args) const
 	{
-		return Prefix<T, std::string_view, Args...>(*static_cast<const T *>(this), fmt, std::forward<Args>(args)...);
-	}
-
-	template <typename... Args>
-	Prefix<T, std::string_view, Args...> prefix(const char * fmt, Args && ... args) const
-	{
-		return Prefix<T, std::string_view, Args...>(*static_cast<const T *>(this), std::string_view(fmt), std::forward<Args>(args)...);
-	}
-
-	template <typename... Args>
-	Prefix<T, std::string, Args...> prefix(const std::string &fmt, Args && ... args) const
-	{
-		return Prefix<T, std::string, Args...>(*static_cast<const T *>(this), fmt, std::forward<Args>(args)...);
+		return Prefix<T, std::string_view, Args...>(*static_cast<const T *>(this), std::move(fmt), std::forward<Args>(args)...);
 	}
 
 	template <typename Func>
@@ -249,8 +244,8 @@ public:
 		tll_logger_log(_log, level, data.data(), data.size());
 	}
 
-	template <typename Fmt, typename... Args>
-	void log(level_t level, Fmt format, Args && ... args) const
+	template <typename... Args>
+	void log(level_t level, logger::format_string<Args...> format, Args && ... args) const
 	{
 		auto buf = tls_buf();
 		if (_log->level > level) return;
