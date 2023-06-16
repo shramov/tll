@@ -70,7 +70,7 @@ auto timeit(size_t count, std::string_view name, F f, Args... args)
 	auto start = system_clock::now();
 	asm volatile("": : :"memory");
 	for (auto i = 0u; i < count; i++) {
-		accum ^= _reduce(f(args...));
+		accum = accum ^ _reduce(f(args...));
 		asm volatile("": : :"memory");
 	}
 	nanoseconds dt = system_clock::now() - start;
