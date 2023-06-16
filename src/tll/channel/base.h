@@ -446,9 +446,9 @@ class Base
 		return old;
 	}
 
-	template <typename R, typename Fmt, typename... Args>
+	template <typename R, typename... Args>
 	[[nodiscard]]
-	R state_fail(R err, Fmt format, Args && ... args)
+	R state_fail(R err, tll::logger::format_string<Args...> format, Args && ... args)
 	{
 		_log.error(format, std::forward<Args>(args)...);
 		state(tll::state::Error);
