@@ -1262,9 +1262,9 @@ int Field::parse_type(tll::Config &cfg, std::string_view type)
 		if (!s)
 			return _log.fail(EINVAL, "Invalid decimal precision {}: {}", type.substr(7), s.error());
 		this->fixed_precision = *s;
-		_log.warning("Deprected notation: {}, use fixed{}", type, *s);
+		_log.warning("Deprected notation: {}, use type: int64, options.type: fixed{}", type, *s);
 	} else if (type == "enum1" || type == "enum2" || type == "enum4" || type == "enum8") {
-		_log.warning("Deprected notation: {}, use options.type: enum", type);
+		_log.warning("Deprected notation: {}, use type: intX, options.type: enum", type);
 		return parse_enum_inline(cfg);
 	} else if (type == "union") {
 		this->type = tll::scheme::Field::Union;
