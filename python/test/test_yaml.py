@@ -102,6 +102,38 @@ config.0:
     assert m.f0 == m.f0.A
     assert m.f1 == m.f1.B
 
+@pytest.mark.parametrize("t,s,v", [
+    ('uint8', '0x3', 0x3),
+    ('uint16', 'A', 0x3),
+    ('int32', 'A |B', 0x3),
+    ('int64', 'A | 0x2', 0x3),
+])
+def test_bits(t, s, v):
+    scheme = f'''yamls://
+- name: msg
+  id: 10
+  bits:
+    Bits: {{type: {t}, options.type: bits, bits: [A, B, C]}}
+  fields:
+    - {{name: f0, type: Bits}}
+'''
+    url = Config.load(f'''yamls://
+tll.proto: yaml
+name: yaml
+dump: scheme
+config.0:
+  name: msg
+  data:
+    f0: {s}
+''')
+    url['scheme'] = scheme
+    c = Accum(url)
+    c.open()
+    c.process()
+    assert [(m.msgid, m.seq) for m in c.result] == [(10, 0)]
+    m = c.unpack(c.result[0])
+    m.f0._value == v
+
 @pytest.mark.parametrize("t,v", [
     ('"int32[4]"', [0, 1]),
     ('"*int32"', [0, 1, 2, 3]),

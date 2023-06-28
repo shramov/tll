@@ -78,6 +78,31 @@ int ChYaml::_open(const ConstConfig &url)
 template <typename T>
 int ChYaml::_fill_numeric(T * ptr, const tll::scheme::Field * field, std::string_view s)
 {
+	if constexpr (!std::is_same_v<T, double>) {
+		if (field->sub_type == field->Bits) {
+			*ptr = 0;
+			for (auto v : tll::split<'|'>(s)) {
+				v = tll::util::strip(v);
+
+				auto b = field->type_bits->values;
+				for (; b; b = b->next) {
+					if (v == b->name)
+						break;
+				}
+
+				if (b) {
+					*ptr |= 1ull << b->offset;
+					continue;
+				}
+
+				auto ri = tll::conv::to_any<T>(v);
+				if (!ri)
+					return _log.fail(EINVAL, "Invalid component value: {}", v);
+				*ptr |= *ri;
+			}
+			return 0;
+		}
+	}
 	if (field->sub_type == field->Enum) {
 		auto num = tll::conv::to_any<T>(s);
 		if (num) {
