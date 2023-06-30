@@ -13,6 +13,8 @@
 
 #include "tll/scheme/logic/stat.h"
 
+#include "logic/quantile.h"
+
 #include <regex>
 
 class Stat : public tll::LogicBase<Stat>
@@ -291,6 +293,7 @@ std::string Stat::_group(std::string_view name, tll_stat_unit_t unit, int64_t co
 	}
 }
 
+TLL_DEFINE_IMPL(Quantile);
 TLL_DEFINE_IMPL(Stat);
 
-TLL_DEFINE_MODULE(Stat);
+TLL_DEFINE_MODULE(Quantile, Stat);

@@ -1,0 +1,5 @@
+- name: Data
+  id: 10
+  fields:
+    - {name: name, type: byte8, options.type: string}
+    - {name: value, type: uint64}

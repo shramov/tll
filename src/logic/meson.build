@@ -5,7 +5,7 @@ shared_library('tll-logic-forward'
 	)
 
 shared_library('tll-logic-stat'
-	, ['stat.cc']
+	, ['stat.cc', 'quantile.cc']
 	, dependencies : [fmt, tll]
 	, install: true
 	)
