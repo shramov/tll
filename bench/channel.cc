@@ -25,7 +25,7 @@ class Prefix : public tll::channel::Prefix<Prefix>
 TLL_DEFINE_IMPL(Prefix);
 
 using namespace std::chrono;
-int post(tll::Channel * c, tll_msg_t * msg)
+int post(tll::Channel * c, const tll_msg_t * msg)
 {
 	return c->post(msg);
 }
@@ -59,7 +59,7 @@ std::unique_ptr<tll::Channel> prepare(tll::channel::Context &ctx, std::string_vi
 	return c;
 }
 
-int timeit_post(tll::channel::Context &ctx, std::string_view url, bool callback, unsigned count)
+int timeit_post(tll::channel::Context &ctx, std::string_view url, bool callback, unsigned count, const tll_msg_t *msg)
 {
 	size_t counter = 0;
 	auto c = prepare(ctx, url, callback, counter);
@@ -67,12 +67,7 @@ int timeit_post(tll::channel::Context &ctx, std::string_view url, bool callback,
 	if (!c.get())
 		return -1;
 
-	char data[1024] = {};
-	tll_msg_t msg = {};
-	msg.data = data;
-	msg.size = 128;
-
-	timeit(count, url, post, c.get(), &msg);
+	timeit(count, url, post, c.get(), msg);
 	if (callback && !counter)
 		fmt::print("Callback was added but not called\n");
 	return 0;
@@ -125,12 +120,16 @@ int main(int argc, char *argv[])
 	bool callback = false;
 	bool process = false;
 	unsigned count = 10000000;
+	unsigned msgsize = 1024;
+	tll_msg_t msg = { TLL_MESSAGE_DATA };
 
 	parser.add_argument({"URL"}, "channel url", &url);
 	parser.add_argument({"-m", "--module"}, "load channel modules", &modules);
 	parser.add_argument({"-c", "--callback"}, "add callback", &callback);
 	parser.add_argument({"--process"}, "run process benchmark", &process);
 	parser.add_argument({"-C", "--count"}, "number of iterations", &count);
+	parser.add_argument({"--msgid"}, "message id", &msg.msgid);
+	parser.add_argument({"--msgsize"}, "message size", &msgsize);
 	auto pr = parser.parse(argc, argv);
 	if (!pr) {
 		fmt::print("Invalid arguments: {}\nRun '{} --help' for more information\n", pr.error(), argv[0]);
@@ -139,6 +138,11 @@ int main(int argc, char *argv[])
 		fmt::print("Usage {} {}\n", argv[0], parser.format_help());
 		return 1;
 	}
+
+	std::vector<char> buf;
+	buf.resize(msgsize);
+	msg.data = buf.data();
+	msg.size = msgsize;
 
 	auto ctx = tll::channel::Context(tll::Config());
 
@@ -154,12 +158,12 @@ int main(int argc, char *argv[])
 	if (url.empty())
 		url = {"null://", "prefix+null://", "echo://", "prefix+echo://"};
 
-	timeit_post(ctx, "null://;name=prewarm", true, count);
+	timeit_post(ctx, "null://;name=prewarm", true, count, &msg);
 	for (auto & u : url) {
 		if (process)
 			timeit_process(ctx, u, callback, count);
 		else
-			timeit_post(ctx, u, callback, count);
+			timeit_post(ctx, u, callback, count, &msg);
 	}
 
 	return 0;
