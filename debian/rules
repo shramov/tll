@@ -27,4 +27,4 @@ override_dh_auto_install:
 
 override_dh_auto_test:
 	dh_auto_test --buildsystem meson
-	LD_LIBRARY_PATH=$(TLL_LIBRARY_DIR):$(LD_LIBRARY_PATH) BUILD_DIR=$(TLL_LIBRARY_DIR) dh_auto_test --buildsystem pybuild -D python
+	LD_LIBRARY_PATH=$(TLL_LIBRARY_DIR):$(LD_LIBRARY_PATH) BUILD_DIR=$(TLL_LIBRARY_DIR) SOURCE_DIR=$(shell pwd) dh_auto_test --buildsystem pybuild -D python

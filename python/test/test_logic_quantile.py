@@ -19,7 +19,7 @@ def context():
     return ctx
 
 def test(context):
-    scheme = pathlib.Path(tll.__file__).parent.parent.parent / "src/logic/quantile.yaml"
+    scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/quantile.yaml"
 
     timer = context.Channel('direct://;name=timer', dump='frame')
     tclient = context.Channel('direct://;name=timer-client', master=timer)
