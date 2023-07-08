@@ -594,3 +594,44 @@ def test_random(smin, smax, mode, pattern):
 
     if mode != 'random':
         with pytest.raises(TLLError): s.post(b'\x88\x77XXX', seq=10)
+
+def test_ipc():
+    s = Accum('ipc://', mode='server', name='server', dump='yes', context=ctx)
+    c = Accum('ipc://', mode='client', name='client', dump='yes', master=s, context=ctx)
+
+    s.open()
+    c.open()
+
+    with pytest.raises(TLLError): s.post(b'xxx', msgid=10, seq=100)
+
+    c.post(b'yyy', msgid=20, seq=200)
+    s.process()
+
+    assert [(m.msgid, m.seq, m.data.tobytes()) for m in s.result] == [(20, 200, b'yyy')]
+
+    s.post(b'zzz', msgid=30, seq=300, addr=s.result[-1].addr)
+    c.process()
+
+    assert [(m.msgid, m.seq, m.data.tobytes()) for m in c.result] == [(30, 300, b'zzz')]
+
+    c.close()
+    c.open()
+    c.result = []
+
+    with pytest.raises(TLLError): s.post(b'aaa', msgid=40, seq=400, addr=s.result[-1].addr)
+
+def test_ipc_broadcast():
+    s = Accum('ipc://', mode='server', name='server', dump='yes', broadcast='yes', context=ctx)
+    c0 = Accum('ipc://', mode='client', name='c0', dump='yes', master=s, context=ctx)
+    c1 = Accum('ipc://', mode='client', name='c1', dump='yes', master=s, context=ctx)
+
+    s.open()
+    c0.open()
+    c1.open()
+
+    s.post(b'xxx', msgid=10, seq=100)
+    c0.process()
+    c1.process()
+
+    assert [(m.msgid, m.seq, m.data.tobytes()) for m in c0.result] == [(10, 100, b'xxx')]
+    assert [(m.msgid, m.seq, m.data.tobytes()) for m in c1.result] == [(10, 100, b'xxx')]

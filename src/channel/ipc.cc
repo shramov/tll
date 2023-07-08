@@ -52,7 +52,7 @@ int ChIpc::_open(const ConstConfig &url)
 	_markers = master->_markers;
 	{
 		std::unique_lock<std::mutex> lock(master->_lock);
-		_addr = { master->_addr.u64++ };
+		_addr = { ++master->_addr.u64 };
 		master->_clients.emplace(_addr.u64, _qin);
 	}
 
@@ -102,6 +102,7 @@ int ChIpcServer::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = channel_props_reader(url);
 	_size = reader.getT<tll::util::Size>("size", 64 * 1024);
+	_broadcast = reader.getT("broadcast", false);
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -130,6 +131,17 @@ int ChIpcServer::_close()
 
 int ChIpcServer::_post(const tll_msg_t *msg, int flags)
 {
+	if (msg->type != TLL_MESSAGE_DATA)
+		return 0;
+	if (msg->addr.u64 == 0 && _broadcast) {
+		for (auto & [addr, c] : _clients) {
+			c->push(tll::util::OwnedMessage(msg));
+			if (c->event.notify())
+				_log.warning("Failed to arm event for client {}", addr);
+		}
+		return 0;
+	}
+
 	auto it = _clients.find(msg->addr.u64);
 	if (it == _clients.end()) return ENOENT;
 	it->second->push(tll::util::OwnedMessage(msg));

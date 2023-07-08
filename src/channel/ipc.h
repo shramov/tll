@@ -72,6 +72,8 @@ class ChIpcServer : public tll::channel::Event<ChIpcServer>
 	size_t _size = 1024;
 	tll_addr_t _addr = {};
 
+	bool _broadcast = false;
+
 	template <typename T> using refptr_t = tll::util::refptr_t<T>;
 	std::shared_ptr<ChIpc::marker_queue_t> _markers;
 	std::mutex _lock;
