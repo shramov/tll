@@ -14,10 +14,11 @@
 namespace tll::channel {
 
 struct Processor : public Tag<TLL_MESSAGE_MASK_ALL> { static constexpr std::string_view name() { return "processor"; } };
+struct Uplink : public Tag<TLL_MESSAGE_MASK_ALL> { static constexpr std::string_view name() { return "uplink"; } };
 
-class Control : public Tagged<Control, Input, Processor>
+class Control : public Tagged<Control, Input, Processor, Uplink>
 {
-	using Base = Tagged<Control, Input, Processor>;
+	using Base = Tagged<Control, Input, Processor, Uplink>;
 
 	std::set<std::pair<uint64_t, tll::Channel *>> _addr;
 	std::vector<char> _buf;
@@ -38,6 +39,9 @@ class Control : public Tagged<Control, Input, Processor>
 
 	int callback_tag(TaggedChannel<Input> *, const tll_msg_t *msg);
 	int callback_tag(TaggedChannel<Processor> *, const tll_msg_t *msg);
+	int callback_tag(TaggedChannel<Uplink> *, const tll_msg_t *msg);
+
+	int _on_external(tll::Channel * channel, const tll_msg_t * msg);
 
 	int _forward(const tll_msg_t * msg)
 	{
@@ -45,6 +49,12 @@ class Control : public Tagged<Control, Input, Processor>
 		for (auto & [a, c] : _addr) {
 			m.addr.u64 = a;
 			c->post(&m);
+		}
+
+		m.addr = {};
+		for (auto & c : _channels.get<Uplink>()) {
+			if (c.first->state() == tll::state::Active)
+				c.first->post(&m);
 		}
 		return 0;
 	}
@@ -96,6 +106,21 @@ int Control::callback_tag(TaggedChannel<Input> *c, const tll_msg_t *msg)
 	} else if (msg->type != TLL_MESSAGE_DATA) {
 		return 0;
 	}
+	return _on_external(c, msg);
+}
+
+int Control::callback_tag(TaggedChannel<Uplink> *c, const tll_msg_t *msg)
+{
+	if (msg->type == TLL_MESSAGE_STATE && msg->msgid == tll::state::Active) {
+		return _on_processor_active();
+	} else if (msg->type != TLL_MESSAGE_DATA) {
+		return 0;
+	}
+	return _on_external(c, msg);
+}
+
+int Control::_on_external(tll::Channel * channel, const tll_msg_t * msg)
+{
 	switch (msg->msgid) {
 	case control_scheme::ConfigGet::meta_id(): {
 		if (msg->size < control_scheme::ConfigGet::meta_size())
@@ -118,13 +143,13 @@ int Control::callback_tag(TaggedChannel<Input> *c, const tll_msg_t *msg)
 			data.set_value(*v);
 			m.data = data.view().data();
 			m.size = data.view().size();
-			c->post(&m);
+			channel->post(&m);
 		}
 
 		m.msgid = control_scheme::ConfigEnd::meta_id();
 		m.data = nullptr;
 		m.size = 0;
-		c->post(&m);
+		channel->post(&m);
 		break;
 	}
 	default:

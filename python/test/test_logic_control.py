@@ -54,3 +54,44 @@ async def test(asyncloop):
             break
         result.append((m.key, m.value))
     assert result == [('input-client.state', 'Active'), ('input.state', 'Active'), ('logic.state', 'Active'), ('processor.state', 'Closed')]
+
+@asyncloop_run
+async def test_uplink(asyncloop):
+    scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/control.yaml"
+
+    lproc = asyncloop.Channel('direct://;name=processor', scheme='yaml://' + str(scheme), dump='yes')
+    tproc = asyncloop.Channel('direct://;name=processor-client', master=lproc, scheme='yaml://' + str(scheme))
+    linput = asyncloop.Channel('direct://;name=input', scheme='yaml://' + str(scheme), dump='yes')
+    tinput = asyncloop.Channel('direct://;name=input-client', master=linput, scheme='yaml://' + str(scheme))
+
+    logic = asyncloop.Channel('control://;tll.channel.processor=processor;tll.channel.uplink=input', name='logic')
+
+    lproc.open()
+    tproc.open()
+
+    logic.open()
+
+    m = await tproc.recv()
+    assert tproc.unpack(m).SCHEME.name == 'StateDump'
+
+    tinput.open()
+    linput.open()
+
+    m = await tproc.recv()
+    assert tproc.unpack(m).SCHEME.name == 'StateDump'
+
+    tproc.post({'channel': 'test', 'state': 'Error'}, name='StateUpdate')
+    tproc.post({}, name='StateDumpEnd')
+
+    m = tinput.unpack(await tinput.recv())
+    assert m.as_dict() == {'channel': 'test', 'state': m.state.Error}
+    assert tinput.unpack(await tinput.recv()).SCHEME.name == 'StateDumpEnd'
+
+    tinput.post({'path': '*.state'}, name='ConfigGet')
+    result = []
+    for _ in range(100):
+        m = tinput.unpack(await tinput.recv())
+        if m.SCHEME.name == 'ConfigEnd':
+            break
+        result.append((m.key, m.value))
+    assert result == [('input-client.state', 'Active'), ('input.state', 'Active'), ('logic.state', 'Active'), ('processor-client.state', 'Active'), ('processor.state', 'Active')]
