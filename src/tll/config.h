@@ -139,15 +139,15 @@ void tll_config_unref(const tll_config_t *);
 
 /**
  * Get parent config object
- * @return Reference to parent config or NULL if it's top-level object
+ * @return New reference to parent config or NULL if it's top-level object
  */
-tll_config_t * tll_config_parent(tll_config_t *);
+const tll_config_t * tll_config_parent(const tll_config_t *);
 
 /**
  * Get root config object
- * @return NULL only if cfg is NULL
+ * @return New reference to root config, NULL only if cfg is NULL
  */
-tll_config_t * tll_config_root(tll_config_t *);
+const tll_config_t * tll_config_root(const tll_config_t *);
 
 /// Detach config from parent
 tll_config_t * tll_config_detach(tll_config_t *, const char * path, int plen);
@@ -226,6 +226,14 @@ class ConfigT
 	}
 
 	ConfigT & operator = (ConfigT rhs) { std::swap(_cfg, rhs._cfg); return *this; }
+
+	ConfigT<true> root() const { return ConfigT<true>::consume(tll_config_root(_cfg)); }
+	std::optional<ConfigT<true>> parent() const
+	{
+		auto c = tll_config_parent(_cfg);
+		if (!c) return std::nullopt;
+		return ConfigT<true>::consume(c);
+	}
 
 	static std::optional<ConfigT> load(std::string_view path)
 	{

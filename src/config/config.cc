@@ -258,6 +258,30 @@ int tll_config_merge(tll_config_t *c, tll_config_t *src, int overwrite)
 	return c->merge(src, overwrite);
 }
 
+const tll_config_t * tll_config_parent(const tll_config_t * c)
+{
+	if (!c)
+		return nullptr;
+	refptr_t<const tll_config_t> cfg(c);
+	auto lock = cfg->rlock();
+	return tll_config_ref(cfg->parent);
+}
+
+const tll_config_t * tll_config_root(const tll_config_t * c)
+{
+	if (!c)
+		return nullptr;
+	refptr_t<const tll_config_t> cfg(c);
+	auto lock = cfg->rlock();
+	while (cfg->parent) {
+		auto tmp = cfg;
+		cfg.reset(cfg->parent);
+		lock.unlock();
+		lock = cfg->rlock();
+	}
+	return cfg.release();
+}
+
 namespace {
 inline int _get_sv(std::string_view v, char * value, int * vlen)
 {
