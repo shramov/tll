@@ -9,6 +9,7 @@
 #include "tll/channel/tagged.h"
 
 #include "tll/processor/scheme.h"
+#include "tll/scheme/logic/control.h"
 
 namespace tll::channel {
 
@@ -20,9 +21,6 @@ class Control : public Tagged<Control, Input, Processor>
 
 	std::set<std::pair<uint64_t, tll::Channel *>> _addr;
 	std::vector<char> _buf;
-
-	int _msgid_connect = 0;
-	int _msgid_disconnect = 0;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "control"; }
@@ -97,6 +95,40 @@ int Control::callback_tag(TaggedChannel<Input> *c, const tll_msg_t *msg)
 		return 0;
 	} else if (msg->type != TLL_MESSAGE_DATA) {
 		return 0;
+	}
+	switch (msg->msgid) {
+	case control_scheme::ConfigGet::meta_id(): {
+		if (msg->size < control_scheme::ConfigGet::meta_size())
+			return _log.fail(EMSGSIZE, "Message size too small for ControlGet: {} < min {}",
+				msg->size, control_scheme::ConfigGet::meta_size());
+		auto data = control_scheme::ConfigValue::bind(_buf);
+
+		tll_msg_t m = { TLL_MESSAGE_DATA };
+		m.msgid = data.meta_id();
+		m.addr = msg->addr;
+
+		auto req = control_scheme::ConfigGet::bind(*msg);
+		for (auto & [k, cfg] : _config.root().browse(req.get_path())) {
+			auto v = cfg.get();
+			if (!v)
+				continue;
+			data.view().resize(0);
+			data.view().resize(data.meta_size());
+			data.set_key(k);
+			data.set_value(*v);
+			m.data = data.view().data();
+			m.size = data.view().size();
+			c->post(&m);
+		}
+
+		m.msgid = control_scheme::ConfigEnd::meta_id();
+		m.data = nullptr;
+		m.size = 0;
+		c->post(&m);
+		break;
+	}
+	default:
+		break;
 	}
 	return 0;
 }
