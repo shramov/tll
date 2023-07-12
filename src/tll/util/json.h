@@ -231,7 +231,7 @@ struct DataHandler : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Data
 			if (_seq_field.size() && _seq_field == str) {
 				state.field = nullptr;
 				return true;
-			} else if (_seq_field.size() && _name_field == str) {
+			} else if (_name_field.size() && _name_field == str) {
 				state.field = nullptr;
 				return true;
 			}
