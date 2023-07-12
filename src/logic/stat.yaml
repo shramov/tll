@@ -41,5 +41,6 @@
 - name: Page
   id: 10
   fields:
+    - {name: node, type: string}
     - {name: name, type: string}
     - {name: fields, type: '*Field'}

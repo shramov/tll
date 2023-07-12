@@ -22,6 +22,7 @@ class Stat : public tll::LogicBase<Stat>
 	tll_stat_list_t * _stat = nullptr;
 	tll::Channel * _timer = nullptr;
 	bool _secondary;
+	std::string _node;
 
 	struct page_rule_t
 	{
@@ -61,6 +62,7 @@ int Stat::_init(const tll::Channel::Url &url, tll::Channel *)
 
 	auto reader = channel_props_reader(url);
 	_secondary = reader.getT("secondary", false);
+	_node = reader.getT<std::string>("node", "");
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -141,6 +143,8 @@ int Stat::_dump(tll_stat_iter_t * iter)
 	auto data = stat_scheme::Page::bind(_buf);
 	_buf.resize(0);
 	_buf.resize(data.meta_size());
+	if (_node.size())
+		data.set_node(_node);
 	data.set_name(name);
 	auto fields = data.get_fields();
 	fields.resize(page->size);

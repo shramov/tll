@@ -38,7 +38,7 @@ def test(context):
 
     timer = context.Channel('direct://;name=timer')
     tclient = context.Channel('direct://;name=timer-client', master=timer)
-    stat = Accum('stat://;tll.channel.timer=timer', context=context)
+    stat = Accum('stat://;tll.channel.timer=timer', context=context, node='test-node', dump='yes')
 
     timer.open()
     tclient.open()
@@ -58,6 +58,7 @@ def test(context):
     Method = stat.scheme.enums['Method'].klass
 
     msg = stat.unpack(stat.result[0])
+    assert msg.node == 'test-node'
     assert msg.name == 'fields'
     assert [f.name for f in msg.fields] == ['sum', 'min', 'max', 'last']
     assert msg.fields[0].as_dict() == {'name': 'sum', 'unit': Unit.Unknown, 'value': {'ivalue': {'method': Method.Sum, 'value': 1}}}
@@ -66,6 +67,7 @@ def test(context):
     assert msg.fields[3].as_dict() == {'name': 'last', 'unit': Unit.Unknown, 'value': {'fvalue': {'method': Method.Last, 'value': 4}}}
 
     msg = stat.unpack(stat.result[1])
+    assert msg.node == 'test-node'
     assert msg.name == 'groups'
     assert [f.name for f in msg.fields] == ['int', 'float']
     assert msg.fields[0].as_dict() == {'name': 'int', 'unit': Unit.NS, 'value': {'igroup': {'count': 1, 'min': 10, 'max': 10, 'avg': 10}}}

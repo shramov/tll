@@ -5,7 +5,7 @@
 
 namespace stat_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJy1k8tOwzAQRff9Cu8soVQqDwHKkkVQJUBIVdkgFilxg0Uyjhq7UFX+d8aPPOQ2DQtYeRxf3zmemUwJpCWLCaUTQhioso4xIIQ+MvkhMhqTvdxVKFAc5G1kJfiNPqS1xMPLCJXpN0YXJuKA0TlGC1ViNNPamS2By0Gru51ktb/3tPBWS/gE8QXeZNpQzl/SQjHDuuasyDzslOz9eemoI+IyNa/QgWxrXVoV8lxf0V6a5F/SZEKtCtbPM7/fCFUN53kXCmRnoBrQgAbLfvCWQII9GpGk2/wUavL3qG2SE6wDmjFYg2hYFXABlvU4tVk6oxVO4g1uRSXtNRxOc4JDSGu54ZBTHYIoM9mtgZ3zkSmwSLi1a0xeGxkPdH7UddQarQNFcqDguW1S5+Ga1vcIFL6t+q1Xvec0t7PPM/wpZ7+sXVOgQOSudrIz1xo9+QEGAlK5)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJy1kz1PwzAQhvf+Cm+WUCqVDwHKyBBUCRBSVRbE4BI3WCTnqLELVeX/ztlxPuSSZIHJ5/j1e4/vLnMCrOAxoXRGCAddVDEGhNBHrj5kSmNyVIcSBVqAuo2cBL/RB1YpPLyMUMm+MbqwkQCMzjFa6QKjhTG12RqEGrS6Oyhe+XtPK2+1hk+QX+BN5g3l8oXlmlvWreB56mHn5OjPi5o6InWm5hUmkO2dS6tCnusr2kuT/EuaVOpNzvt5lvc7qcvhPO9Sg+oMdAMa0GDZT94SSLBHExK2z8ZQk79HbZOMsA5opmAtomXVICQ41t+p7dIZbXASb3ArS+Wu4XDaExxCWqmdgIyaEETbyW4N3JxPTIFDwq1bY/LayESg86NuotZoGyiSE4XIXJM6j7ppfY9A4dtq3nrVe2aZm32R4k+5GK6dTHswTYFGCzwgqv072VndPzP7Acq9XcQ=)";
 
 enum class Method: uint8_t
 {
@@ -214,7 +214,7 @@ struct Field
 
 struct Page
 {
-	static constexpr size_t meta_size() { return 16; }
+	static constexpr size_t meta_size() { return 24; }
 	static constexpr std::string_view meta_name() { return "Page"; }
 	static constexpr int meta_id() { return 10; }
 
@@ -228,12 +228,15 @@ struct Page
 		static constexpr auto meta_id() { return Page::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
 
-		std::string_view get_name() const { return this->template _get_string<tll_scheme_offset_ptr_t>(0); }
-		void set_name(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(0, v); }
+		std::string_view get_node() const { return this->template _get_string<tll_scheme_offset_ptr_t>(0); }
+		void set_node(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(0, v); }
+
+		std::string_view get_name() const { return this->template _get_string<tll_scheme_offset_ptr_t>(8); }
+		void set_name(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(8, v); }
 
 		using type_fields = tll::scheme::binder::List<Buf, Field::binder_type<Buf>, tll_scheme_offset_ptr_t>;
-		const type_fields get_fields() const { return this->template _get_binder<type_fields>(8); }
-		type_fields get_fields() { return this->template _get_binder<type_fields>(8); }
+		const type_fields get_fields() const { return this->template _get_binder<type_fields>(16); }
+		type_fields get_fields() { return this->template _get_binder<type_fields>(16); }
 	};
 
 	template <typename Buf>
