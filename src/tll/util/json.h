@@ -629,7 +629,9 @@ class JSON
 	std::optional<tll::const_memory> encode(const tll_msg_t *msg, tll_msg_t *out);
 	std::optional<tll::const_memory> encode(const Message *scheme, const tll_msg_t *msg, tll_msg_t *out);
 	std::optional<tll::const_memory> decode(const tll_msg_t *msg, tll_msg_t *out);
-	std::optional<tll::const_memory> decode(const Message *scheme, const tll_msg_t *msg, tll_msg_t *out);
+
+	template <typename Buf>
+	std::optional<tll::const_memory> decode(const Message *scheme, const Buf &msg, tll_msg_t *out);
 };
 
 template <typename W, typename Buf>
@@ -806,15 +808,16 @@ inline std::optional<const_memory> JSON::decode(const tll_msg_t *msg, tll_msg_t 
 	out->seq = handler.seq.value_or(0);
 
 	_log.debug("Lookup message {}, seq {}", message->name, out->seq);
-	return decode(message, msg, out);
+	return decode(message, *msg, out);
 }
 
-inline std::optional<const_memory> JSON::decode(const Message * message, const tll_msg_t *msg, tll_msg_t *out)
+template <typename Buf>
+inline std::optional<const_memory> JSON::decode(const Message * message, const Buf &msg, tll_msg_t *out)
 {
 	using namespace rapidjson;
 	out->msgid = message->msgid;
 
-	MemoryStream stream((const char *) msg->data, msg->size);
+	MemoryStream stream((const char *) tll::memoryview_api<Buf>::data(msg), tll::memoryview_api<Buf>::size(msg));
 	Reader reader;
 	_buffer_in.resize(message->size);
 	memset(_buffer_in.data(), 0, _buffer_in.size());
