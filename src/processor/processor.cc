@@ -467,6 +467,20 @@ int Processor::cb(const Channel * c, const tll_msg_t * msg)
 		_ipc->post(&m);
 		break;
 	}
+	case processor_scheme::MessageForward::meta_id(): {
+		auto data = processor_scheme::MessageForward::bind(*msg);
+		if (msg->size < data.meta_size())
+			return _log.fail(EMSGSIZE, "Invalid message size: {} < min {}", msg->size, data.meta_size());
+		auto name = data.get_dest();
+		auto obj = find(name);
+		if (!obj)
+			return _log.fail(ENOENT, "Object '{}' not found", name);
+
+		tll_msg_t m = *msg;
+		m.addr = obj->worker->proc.addr;
+		_ipc->post(&m);
+		break;
+	}
 	default:
 		_log.debug("Unknown message {}", msg->msgid);
 	}

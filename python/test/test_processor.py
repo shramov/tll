@@ -147,7 +147,7 @@ async def test_control(asyncloop, context):
 name: test
 processor.objects:
   object:
-    url: null://
+    url: direct://
 ''')
 
     p = Processor(cfg, context=context)
@@ -161,6 +161,9 @@ processor.objects:
     assert len(p.workers) == 1
     for w in p.workers:
         w.open()
+
+    oclient = asyncloop.Channel('direct://;name=oclient;master=object;dump=yes')
+    oclient.open()
 
     State = client.scheme.messages.StateUpdate.enums['State'].klass
     m = await client.recv()
@@ -176,3 +179,10 @@ processor.objects:
 
     m = await client.recv()
     assert client.unpack(m).SCHEME.name == 'StateDumpEnd'
+
+    client.post({'dest': 'object', 'data': {'msgid': 10, 'seq': 100, 'addr': 1000, 'type': client.Type.Control, 'data': b'xxx'}}, name='MessageForward')
+
+    m = await oclient.recv()
+
+    assert (m.type, m.msgid, m.seq, m.addr) == (oclient.Type.Control, 10, 100, 1000)
+    assert m.data.tobytes() == b'xxx'

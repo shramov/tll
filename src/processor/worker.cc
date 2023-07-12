@@ -134,6 +134,27 @@ int Worker::callback(const Channel * c, const tll_msg_t * msg)
 	}
 	case processor_scheme::StateUpdate::meta_id():
 		break;
+	case processor_scheme::MessageForward::meta_id(): {
+		auto data = processor_scheme::MessageForward::bind(*msg);
+		if (msg->size < data.meta_size())
+			return _log.fail(EMSGSIZE, "Invalid message size: {} < min {}", msg->size, data.meta_size());
+		auto name = data.get_dest();
+		auto message = data.get_data();
+		tll_msg_t m = {};
+		m.type = message.get_type();
+		m.msgid = message.get_msgid();
+		m.seq = message.get_seq();
+		m.addr.u64 = message.get_addr();
+		m.data = message.get_data().data();
+		m.size = message.get_data().size();
+		for (auto & o : objects) {
+			if (o->name() == name) {
+				(*o)->post(&m);
+				return 0;
+			}
+		}
+		break;
+	}
 	default:
 		_log.debug("Unknown message {}", msg->msgid);
 	}

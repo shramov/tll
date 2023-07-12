@@ -11,3 +11,17 @@
 
 - name: StateDumpEnd
   id: 0x1020
+
+- name: Message
+  fields:
+    - {name: type, type: int16}
+    - {name: msgid, type: int32}
+    - {name: seq, type: int64}
+    - {name: addr, type: uint64}
+    - {name: data, type: string}
+
+- name: MessageForward
+  id: 0x1050
+  fields:
+    - {name: dest, type: string}
+    - {name: data, type: Message}
