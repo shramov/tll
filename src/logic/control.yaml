@@ -12,6 +12,14 @@
 - name: ConfigEnd
   id: 30
 
+- name: Ok
+  id: 40
+
+- name: Error
+  id: 50
+  fields:
+    - {name: error, type: string}
+
 # Copy of processor.yaml
 
 - name: StateDump
@@ -27,3 +35,17 @@
 
 - name: StateDumpEnd
   id: 0x1020
+
+- name: Message
+  fields:
+    - {name: type, type: int16, options.type: enum, enum: { Data: 0, Control: 1 }}
+    - {name: name, type: string}
+    - {name: seq, type: int64}
+    - {name: addr, type: uint64}
+    - {name: data, type: string}
+
+- name: MessageForward
+  id: 0x1050
+  fields:
+    - {name: dest, type: string}
+    - {name: data, type: Message}

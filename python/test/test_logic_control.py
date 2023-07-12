@@ -95,3 +95,41 @@ async def test_uplink(asyncloop):
             break
         result.append((m.key, m.value))
     assert result == [('input-client.state', 'Active'), ('input.state', 'Active'), ('logic.state', 'Active'), ('processor-client.state', 'Active'), ('processor.state', 'Active')]
+
+@asyncloop_run
+async def test_message(asyncloop):
+    scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/control.yaml"
+    pscheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/processor/processor.yaml"
+
+    lproc = asyncloop.Channel('direct://;name=processor', scheme='yaml://' + str(pscheme), dump='yes')
+    tproc = asyncloop.Channel('direct://;name=processor-client', master=lproc, scheme='yaml://' + str(pscheme))
+    linput = asyncloop.Channel('direct://;name=input', scheme='yaml://' + str(scheme), dump='yes')
+    tinput = asyncloop.Channel('direct://;name=input-client', master=linput, scheme='yaml://' + str(scheme))
+
+    logic = asyncloop.Channel('control://;tll.channel.processor=processor;tll.channel.input=input', name='logic')
+
+    lproc.open()
+    tproc.open()
+
+    logic.open()
+
+    m = await tproc.recv()
+    assert tproc.unpack(m).SCHEME.name == 'StateDump'
+
+    tinput.open()
+    linput.open()
+
+    tinput.post({'dest': 'input', 'data': {'seq': 100, 'addr': 1000, 'type': 'Data', 'name': 'ConfigGet', 'data': b'{"path": "*.state"}'}}, name='MessageForward')
+    body = tinput.scheme.messages.ConfigGet.object(path='*.state')
+
+    m = tproc.unpack(await tproc.recv())
+    assert m.SCHEME.name == 'MessageForward'
+    assert m.as_dict() == {'dest': 'input', 'data': {'seq': 100, 'addr': 1000, 'type': 0, 'msgid': body.SCHEME.msgid, 'data': m.data.data}}
+    assert m.data.data.encode('utf-8') == body.pack()
+
+    m = tinput.unpack(await tinput.recv())
+    assert m.SCHEME.name == 'Ok'
+
+    tinput.post({'dest': 'input', 'data': {'seq': 100, 'addr': 1000, 'type': 'Data', 'name': 'xxx', 'data': b'{"path": "*.state"}'}}, name='MessageForward')
+    m = tinput.unpack(await tinput.recv())
+    assert m.SCHEME.name == 'Error'
