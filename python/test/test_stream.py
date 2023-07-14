@@ -80,6 +80,32 @@ async def test(asyncloop, tmp_path):
     assert s.state == c.State.Closed
 
 @asyncloop_run
+async def test_seq_data(asyncloop, tmp_path):
+    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+
+    s.open()
+    assert s.state == s.State.Active # No need to wait
+
+    s.post(b'aaa', msgid=10, seq=10)
+    s.post(b'bbb', msgid=10, seq=20)
+    s.post(b'ccc', msgid=10, seq=30)
+
+    c.open(seq='20', mode='seq-data')
+
+    m = await s.recv()
+    assert m.type == m.Type.Control
+    assert s.unpack(m).SCHEME.name == 'Connect'
+
+    m = await c.recv()
+    assert (m.seq, m.msgid, m.data.tobytes()) == (30, 10, b'ccc')
+
+    m = await c.recv()
+    assert m.type == m.Type.Control
+    assert (m.seq, c.unpack(m).SCHEME.name) == (30, 'Online')
+
+@asyncloop_run
 async def test_overlapped(asyncloop, tmp_path):
     common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
     s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server')

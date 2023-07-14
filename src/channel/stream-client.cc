@@ -68,8 +68,8 @@ int StreamClient::_open(const ConstConfig &url)
 	if (_peer.size())
 		r.set_client(_peer);
 
-	enum Mode { Undefined, Online, Seq, Block };
-	auto mode = reader.getT("mode", Undefined, {{"online", Online}, {"seq", Seq}, {"block", Block}});
+	enum Mode { Undefined, Online, Seq, SeqData, Block };
+	auto mode = reader.getT("mode", Undefined, {{"online", Online}, {"seq", Seq}, {"seq-data", SeqData}, {"block", Block}});
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid open parameters: {}", reader.error());
@@ -78,12 +78,14 @@ int StreamClient::_open(const ConstConfig &url)
 		return _log.fail(EINVAL, "Need mode=online/seq/block parameter");
 	} else if (mode == Online) {
 		_request_buf.resize(0);
-	} else if (mode == Seq) {
+	} else if (mode == Seq || mode == SeqData) {
 		_open_seq = reader.getT<long long>("seq");
 		if (!_open_seq)
-			return _log.fail(EINVAL, "Missing mandatory seq parameter in mode=seq mode");
+			return _log.fail(EINVAL, "Missing mandatory seq parameter in mode=seq or mode=seq-datamode");
 		if (*_open_seq < 0)
 			return _log.fail(EINVAL, "Invalid seq parameter: negative value {}", *_open_seq);
+		if (mode == SeqData)
+			++*_open_seq;
 		r.set_seq(*_open_seq);
 	}  else if (mode == Block) {
 		auto block = reader.getT<unsigned>("block");
