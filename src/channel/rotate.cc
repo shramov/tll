@@ -307,6 +307,7 @@ int Rotate::_build_map()
 	Files::Map & map = files->files;;
 	files->seq_first = &_seq_first;
 	files->seq_last = &_seq_last;
+	auto current = map.end();
 
 	for (auto & e : std::filesystem::directory_iterator { _directory }) {
 		auto filename = e.path().filename();
@@ -346,13 +347,18 @@ int Rotate::_build_map()
 		if (_seq_first == -1)
 			_seq_first = first;
 		_seq_first = std::min(first, _seq_first);
-		if (!map.emplace(first, Files::File { path, last }).second) {
+
+		auto emplace = map.emplace(first, Files::File { path, last });
+		if (!emplace.second) {
 			auto it = map.find(first);
 			return _log.fail(EINVAL, "Duplicate seq {}: files {} and {}", it->second.filename, path);
 		}
+
+		if (e.path() == _last_filename)
+			current = emplace.first;
 	}
 
-	_current_file = map.end();
+	_current_file = current;
 	_files = files;
 
 	return 0;;

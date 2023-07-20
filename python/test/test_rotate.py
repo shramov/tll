@@ -129,3 +129,23 @@ async def test_reopen_empty(asyncloop, tmp_path):
 
     assert w.config['info.seq-begin'] == '0'
     assert w.config['info.seq'] == '19'
+
+@asyncloop_run
+async def test_reopen_rotate(asyncloop, tmp_path):
+    w = asyncloop.Channel(f'rotate+file://{tmp_path}/rotate', dir='w', name='write', dump='frame')
+
+    w.open()
+    assert w.config['info.seq-begin'] == '-1'
+    assert w.config['info.seq'] == '-1'
+
+    assert os.path.exists(tmp_path / 'rotate.current.dat')
+
+    for i in range(10):
+        w.post(b'xxx' * (i % 10 + 1), seq=i)
+    w.close()
+    w.open()
+    assert w.config['info.seq-begin'] == '0'
+    assert w.config['info.seq'] == '9'
+
+    w.post({}, name='Rotate', type=w.Type.Control)
+    assert os.path.exists(tmp_path / 'rotate.0.dat')
