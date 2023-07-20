@@ -104,3 +104,28 @@ async def test_basic(asyncloop, tmp_path):
 
     m = await r.recv()
     assert (m.type, m.msgid) == (m.Type.Control, r.scheme_control.messages.EndOfData.msgid)
+
+@asyncloop_run
+async def test_reopen_empty(asyncloop, tmp_path):
+    w = asyncloop.Channel(f'rotate+file://{tmp_path}/rotate', dir='w', name='write', dump='frame')
+
+    w.open()
+    assert w.config['info.seq-begin'] == '-1'
+    assert w.config['info.seq'] == '-1'
+
+    assert os.path.exists(tmp_path / 'rotate.current.dat')
+
+    for i in range(10):
+        w.post(b'xxx' * (i % 10 + 1), seq=i)
+    w.post({}, name='Rotate', type=w.Type.Control)
+    w.close()
+
+    w.open()
+    assert w.config['info.seq-begin'] == '0'
+    assert w.config['info.seq'] == '9'
+
+    for i in range(10, 20):
+        w.post(b'xxx' * (i % 10 + 1), seq=i)
+
+    assert w.config['info.seq-begin'] == '0'
+    assert w.config['info.seq'] == '19'

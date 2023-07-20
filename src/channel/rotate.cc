@@ -333,7 +333,7 @@ int Rotate::_build_map()
 			return _log.fail(EINVAL, "Invalid seq in config: {}", reader.error());
 
 		if (first < 0 || last < 0) {
-			if (filename == _last_filename) {
+			if (e.path() == _last_filename) {
 				_log.info("Last file without data");
 				_current_empty = true;
 				continue;
