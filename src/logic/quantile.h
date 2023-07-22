@@ -50,7 +50,6 @@ class Quantile : public tll::channel::Tagged<Quantile, Input, Timer>
 	std::map<std::string, Buckets, std::less<>> _data;
 
 	size_t _skip = 1000;
-	size_t _count = 0;
 	std::vector<unsigned> _quantiles;
 
  public:
