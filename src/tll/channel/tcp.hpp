@@ -27,9 +27,15 @@
 #include <sys/ioctl.h>
 #endif
 
-#if defined(__APPLE__) && !defined(MSG_NOSIGNAL)
+#if defined(__APPLE__)
+#if !defined(MSG_NOSIGNAL)
 #  define MSG_NOSIGNAL 0
-#endif//__APPLE__
+#endif // MSG_NOSIGNAL
+
+#if !defined(SOL_TCP)
+#  define SOL_TCP IPPROTO_TCP
+#endif // SOL_TCP
+#endif // __APPLE__
 
 namespace tll::channel {
 
