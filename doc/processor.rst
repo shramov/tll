@@ -41,7 +41,7 @@ configuration would look like
     processor.chain:
       root:
         - name: logic
-          obects:
+          objects:
             logic:
               url: 'forward://'
               type: logic
