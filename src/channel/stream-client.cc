@@ -246,7 +246,7 @@ int StreamClient::_process(long timeout, int flags)
 	msg.msgid = data.frame->msgid;
 	msg.seq = data.frame->seq;
 	msg.size = data.frame->size;
-	msg.data = data.begin();
+	msg.data = data.data();
 
 	_ring.pop_front();
 
