@@ -577,3 +577,10 @@ async def test_ring(asyncloop, tmp_path):
     m = await c.recv()
     assert m.type == m.Type.Control
     assert (m.seq, c.unpack(m).SCHEME.name) == (19, 'Online')
+
+    for i in range(20, 30):
+        s.post(b'ccc', msgid=10, seq=i)
+
+    for i in range(20, 30):
+        m = await c.recv()
+        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'ccc')

@@ -110,6 +110,7 @@ int StreamClient::_close(bool force)
 int StreamClient::_report_online()
 {
 	_log.info("Stream is online on seq {}", _seq);
+	_state = State::Online;
 	tll_msg_t msg = { TLL_MESSAGE_CONTROL };
 	msg.seq = _seq;
 	msg.msgid = stream_control_scheme::Online::meta_id();
@@ -171,7 +172,6 @@ int StreamClient::_on_request_data(const tll_msg_t *msg)
 		_callback_data(msg);
 		if (_seq == _server_seq && _ring.empty()) {
 			_log.info("Reached reported server seq {}, no online data", _server_seq);
-			_state = State::Online;
 			_report_online(); // FIXME: Do it through pending, 2 messages from one process
 			_request->close();
 			return 0;
@@ -217,7 +217,6 @@ int StreamClient::_on_request_data(const tll_msg_t *msg)
 		} else if (_server_seq + 1 == *_open_seq) {
 			_log.info("Server has no old data for us, channel is online (seq {})", _server_seq);
 			_seq = _server_seq;
-			_state = State::Online;
 			_report_online();
 			_request->close();
 		} else if (_server_seq < *_open_seq) {
