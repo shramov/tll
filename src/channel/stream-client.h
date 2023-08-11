@@ -102,6 +102,7 @@ class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::
 	int _on_request_closed() { return 0; }
 
 	int _report_online();
+	int _post_done(long long seq);
 };
 
 } // namespace tll::channel

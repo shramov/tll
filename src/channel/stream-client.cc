@@ -118,6 +118,22 @@ int StreamClient::_report_online()
 	return 0;
 }
 
+int StreamClient::_post_done(long long seq)
+{
+	auto data = stream_scheme::ClientDone::bind(_request_buf);
+	data.view().resize(0);
+	data.view().resize(data.meta_size());
+	data.set_seq(seq);
+
+	tll_msg_t msg = { TLL_MESSAGE_DATA };
+	msg.msgid = data.meta_id();
+	msg.data = data.view().data();
+	msg.size = data.view().size();
+	if (auto r = _request->post(&msg); r)
+		return state_fail(EINVAL, "Failed to post online message");
+	return 0;
+}
+
 int StreamClient::_on_active()
 {
 	if (!_request_buf.size()) {
@@ -172,8 +188,8 @@ int StreamClient::_on_request_data(const tll_msg_t *msg)
 		_callback_data(msg);
 		if (_seq == _server_seq && _ring.empty()) {
 			_log.info("Reached reported server seq {}, no online data", _server_seq);
+			_post_done(msg->seq);
 			_report_online(); // FIXME: Do it through pending, 2 messages from one process
-			_request->close();
 			return 0;
 		}
 
@@ -189,6 +205,9 @@ int StreamClient::_on_request_data(const tll_msg_t *msg)
 
 		if (_ring.data_free() > _ring.data_size() / 2) {
 			_log.info("Request stream overlapping with online buffer on seq {}", msg->seq);
+
+			_post_done(msg->seq);
+
 			_update_dcaps(dcaps::Process | dcaps::Pending);
 			_state = State::Overlapped;
 		}

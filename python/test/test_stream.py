@@ -570,7 +570,13 @@ async def test_ring(asyncloop, tmp_path):
         m = await c.recv()
         assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'aaa')
 
-    for i in range(10, 20):
+    for i in range(10, 15):
+        m = await c.recv()
+        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'bbb')
+
+    assert c.children[1].state == c.State.Closed
+
+    for i in range(15, 20):
         m = await c.recv()
         assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'bbb')
 

@@ -5,7 +5,7 @@
 
 namespace stream_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJyNkMsOgjAQRfd+xexIjCS+4oKdC3/AHzAFRtNYC8xMSYjx3wUViI8Ku2Zy0nvPDcGqC0YQbEVIx04wmAAcNZqUo/oFEML1hagOmYFUeXPi+mJPwe2DLJVxv6iwTdtj4ZClydJpBIu5N5Sx6D/SVjbrr7TEaLQyWCo2WXIepDpJ7tFpP86bQ26q1mDpNzCK5TBCg56bYDoGZqQS6d/EO6KM2norfz18cEOzePPu9xesyg==)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJyVkcsOgjAQRfd+xexIjCQ+iAt2Rv0Bf8AUGE1jLTAdSIjx3wW0EB9Y3TWTk565d3zQ4owheCtmklHB6I0ADhJVYsL6BeDD5YGIDpkAV1kzMvVEH73rC1kKVXyifGvbYV6g4cYlkxBm00Gpwbz/SGpeBm+2WEnU7FwqUml8clJdSNOj476cpwyZqmyC+XACJQzvf4hB904w+QU2SCXSt4q3RCnZ9RbD62HLuWpx+9btFTapRisN/rzqDb7gwes=)";
 
 struct Attribute
 {
@@ -120,6 +120,31 @@ struct Error
 
 		std::string_view get_server() const { return this->template _get_string<tll_scheme_offset_ptr_t>(8); }
 		void set_server(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(8, v); }
+	};
+
+	template <typename Buf>
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+};
+
+struct ClientDone
+{
+	static constexpr size_t meta_size() { return 8; }
+	static constexpr std::string_view meta_name() { return "ClientDone"; }
+	static constexpr int meta_id() { return 40; }
+
+	template <typename Buf>
+	struct binder_type : public tll::scheme::Binder<Buf>
+	{
+		using tll::scheme::Binder<Buf>::Binder;
+
+		static constexpr auto meta_size() { return ClientDone::meta_size(); }
+		static constexpr auto meta_name() { return ClientDone::meta_name(); }
+		static constexpr auto meta_id() { return ClientDone::meta_id(); }
+		void view_resize() { this->_view_resize(meta_size()); }
+
+		using type_seq = int64_t;
+		type_seq get_seq() const { return this->template _get_scalar<type_seq>(0); }
+		void set_seq(type_seq v) { return this->template _set_scalar<type_seq>(0, v); }
 	};
 
 	template <typename Buf>

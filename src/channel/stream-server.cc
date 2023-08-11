@@ -292,6 +292,25 @@ int StreamServer::_on_request_control(const tll_msg_t *msg)
 
 int StreamServer::_on_request_data(const tll_msg_t *msg)
 {
+	if (msg->msgid == stream_scheme::ClientDone::meta_id()) {
+		auto it = _clients.find(msg->addr.u64);
+		if (it == _clients.end())
+			return _log.fail(0, "Client with addr {} not found", msg->addr.u64);
+
+		_log.info("Drop client '{}' (addr {})", it->second.name, msg->addr.u64);
+		it->second.reset();
+		_clients.erase(it);
+
+		if (_control_msgid_disconnect) {
+			tll_msg_t m = { TLL_MESSAGE_CONTROL };
+			m.addr = msg->addr;
+			m.msgid = _control_msgid_disconnect;
+			_request->post(&m);
+		}
+		return 0;
+	} else if (msg->msgid != stream_scheme::Request::meta_id())
+		return _log.fail(0, "Invalid message from client: {}", msg->msgid);
+
 	auto r = _clients.emplace(msg->addr.u64, this);
 	auto & client = r.first->second;
 

@@ -23,3 +23,8 @@
   fields:
     - {name: error, type: string}
     - {name: server, type: string}
+
+- name: ClientDone
+  id: 40
+  fields:
+    - {name: seq, type: int64}
