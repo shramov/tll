@@ -44,6 +44,7 @@ void Processor::decay(Object * obj, bool root)
 
 	if (obj->state == state::Closed && !obj->opening && obj->ready_close()) {
 		_log.debug("Object {} is already closed, decay not needed", obj->name());
+		obj->decay = false;
 		return;
 	}
 

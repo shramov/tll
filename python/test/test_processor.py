@@ -186,3 +186,60 @@ processor.objects:
 
     assert (m.type, m.msgid, m.seq, m.addr) == (oclient.Type.Control, 10, 100, 1000)
     assert m.data.tobytes() == b'xxx'
+
+@asyncloop_run
+async def test_reopen_closed(asyncloop, context, tmp_path):
+
+    cfg = Config.load(f'''yamls://
+name: test
+processor.objects:
+  null:
+    url: null://
+  middle:
+    url: null://
+    depends: null
+  leaf:
+    url: tcp:///dev/null;mode=client
+    depends: middle
+''')
+
+    p = Processor(cfg, context=context)
+    asyncloop._loop.add(p)
+
+    p.open()
+
+    client = asyncloop.Channel('ipc://;mode=client;dump=yes;name=client;scheme=channel://test', master=p)
+    client.open()
+
+    assert len(p.workers) == 1
+    for w in p.workers:
+        w.open()
+
+    State = client.scheme.messages.StateUpdate.enums['State'].klass
+
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Opening}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Active}
+
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Opening}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Active}
+
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Opening}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Error}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Closing}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Closed}
+
+    context.get('null').close()
+
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Closing}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Closed}
+
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Closing}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Closed}
+
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Opening}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Active}
+
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Opening}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Active}
+
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Opening}
