@@ -9,6 +9,7 @@ import pathlib
 
 import tll
 from tll import asynctll
+from tll.logger import Logger
 from tll.channel import Context
 from tll.test_util import Accum
 
@@ -133,3 +134,38 @@ async def test_message(asyncloop):
     tinput.post({'dest': 'input', 'data': {'seq': 100, 'addr': 1000, 'type': 'Data', 'name': 'xxx', 'data': b'{"path": "*.state"}'}}, name='MessageForward')
     m = tinput.unpack(await tinput.recv())
     assert m.SCHEME.name == 'Error'
+
+@asyncloop_run
+async def test_message(asyncloop):
+    scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/control.yaml"
+
+    proc = asyncloop.Channel('null://;name=processor;dump=frame')
+    linput = asyncloop.Channel('direct://;name=input', scheme='yaml://' + str(scheme), dump='yes')
+    tinput = asyncloop.Channel('direct://;name=input-client', master=linput, scheme='yaml://' + str(scheme))
+
+    logic = asyncloop.Channel('control://;tll.channel.processor=processor;tll.channel.input=input', name='logic')
+
+    proc.open()
+
+    logic.open()
+
+    tinput.open()
+    linput.open()
+
+    la = Logger('logger-test.a')
+    lb = Logger('logger-test.a.b')
+    la.level = la.Level.Debug
+    lb.level = lb.Level.Info
+
+    assert la.level == la.Level.Debug
+    assert lb.level == lb.Level.Info
+
+    tinput.post({'prefix': 'logger-test.a', 'level': 'Warning', 'recursive': 'No'}, name='SetLogLevel')
+
+    assert la.level == la.Level.Warning
+    assert lb.level == lb.Level.Info
+
+    tinput.post({'prefix': 'logger-test.a', 'level': 'Error', 'recursive': 'Yes'}, name='SetLogLevel')
+
+    assert la.level == la.Level.Error
+    assert lb.level == lb.Level.Error

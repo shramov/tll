@@ -66,6 +66,8 @@ class Control : public Tagged<Control, Input, Processor, Uplink>
 
 	tll::Channel * _processor() { return _channels.get<Processor>().front().first; }
 	tll::result_t<int> _message_forward(const tll_msg_t * msg);
+	tll::result_t<int> _set_log_level(const tll_msg_t * msg);
+	int _result_wrap(std::string_view, tll::Channel *, const tll_msg_t *, tll::result_t<int>);
 };
 
 int Control::_init(const tll::Channel::Url &url, tll::Channel * master)
@@ -156,30 +158,35 @@ int Control::_on_external(tll::Channel * channel, const tll_msg_t * msg)
 		channel->post(&m);
 		break;
 	}
-	case control_scheme::MessageForward::meta_id(): {
-		tll_msg_t reply = { TLL_MESSAGE_DATA };
-		reply.seq = msg->seq;
-		reply.addr = msg->addr;
-		if (auto r = _message_forward(msg); !r) {
-			_log.error("Failed to forward message: {}", r.error());
-			auto data = control_scheme::Error::bind(_buf);
-			data.view().resize(0);
-			data.view().resize(data.meta_size());
-			data.set_error(r.error());
-
-			reply.msgid = data.meta_id();
-			reply.data = data.view().data();
-			reply.size = data.view().size();
-		} else {
-			reply.msgid = control_scheme::Ok::meta_id();
-		}
-		channel->post(&reply);
-		break;
-	}
-
+	case control_scheme::MessageForward::meta_id():
+		return _result_wrap("forward message", channel, msg, _message_forward(msg));
+	case control_scheme::SetLogLevel::meta_id():
+		return _result_wrap("set log level", channel, msg, _set_log_level(msg));
 	default:
 		break;
 	}
+	return 0;
+}
+
+int Control::_result_wrap(std::string_view message, tll::Channel * channel, const tll_msg_t * src, tll::result_t<int> result)
+{
+	tll_msg_t reply = { TLL_MESSAGE_DATA };
+	reply.seq = src->seq;
+	reply.addr = src->addr;
+	if (!result) {
+		_log.error("Failed to {}: {}", message, result.error());
+		auto data = control_scheme::Error::bind(_buf);
+		data.view().resize(0);
+		data.view().resize(data.meta_size());
+		data.set_error(result.error());
+
+		reply.msgid = data.meta_id();
+		reply.data = data.view().data();
+		reply.size = data.view().size();
+	} else {
+		reply.msgid = control_scheme::Ok::meta_id();
+	}
+	channel->post(&reply);
 	return 0;
 }
 
@@ -231,6 +238,25 @@ tll::result_t<int> Control::_message_forward(const tll_msg_t *msg)
 	m.data = data.view().data();
 	m.size = data.view().size();
 	_processor()->post(&m);
+	return 0;
+}
+
+
+tll::result_t<int> Control::_set_log_level(const tll_msg_t *msg)
+{
+	auto data = control_scheme::SetLogLevel::bind(*msg);
+	if (msg->size < data.meta_size())
+		return error(fmt::format("Message size too small: {} < min {}", msg->size, data.meta_size()));
+
+	auto prefix = data.get_prefix();
+
+	auto level = (uint8_t) data.get_level();
+	if (level > tll::Logger::Critical)
+		return error(fmt::format("Invalid level: {}", level));
+
+	auto recursive = data.get_recursive() == control_scheme::SetLogLevel::recursive::Yes;
+
+	tll::Logger::set(prefix, (tll::Logger::level_t) level, recursive);
 	return 0;
 }
 
