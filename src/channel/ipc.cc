@@ -80,10 +80,10 @@ int ChIpc::_post(const tll_msg_t *msg, int flags)
 	if (_markers->push(_qout.get()))
 		return EAGAIN;
 	ref.release();
-	_qout->push(std::move(m));
 	_log.debug("Notify fd {}", _qout->event.fd);
 	if (_qout->event.notify())
-		return _log.fail(EINVAL, "Failed to arm event");
+		_log.error("Failed to arm event");
+	_qout->push(std::move(m));
 	return 0;
 }
 
