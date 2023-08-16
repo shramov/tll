@@ -190,16 +190,16 @@ processor.objects:
 @asyncloop_run
 async def test_reopen_closed(asyncloop, context, tmp_path):
 
-    cfg = Config.load(f'''yamls://
+    cfg = Config.load('''yamls://
 name: test
 processor.objects:
   null:
-    url: null://
+    init.url: null://
   middle:
-    url: null://
+    init: {tll.proto: null}
     depends: null
   leaf:
-    url: tcp:///dev/null;mode=client
+    init: tcp:///dev/null;mode=client
     depends: middle
 ''')
 
