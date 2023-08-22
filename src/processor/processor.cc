@@ -241,8 +241,15 @@ std::optional<Processor::PreObject> Processor::init_pre(std::string_view extname
 	}
 
 	auto master = obj.url.get("master");
-	if (master)
-		obj.depends_init.list.insert(std::string(*master));
+	if (master) {
+		auto ignore = obj.url.getT("tll.processor.ignore-master-dependency", false);
+		if (!ignore)
+			return log.fail(std::nullopt, "Invalid tll.processor.ignore-master parameter: {}", ignore.error());
+		else if (*ignore)
+			log.debug("Ignore master: {}", *master);
+		else
+			obj.depends_init.list.insert(std::string(*master));
+	}
 
 	obj.depends_init.list.erase(_ipc->name());
 	obj.depends_open.list.erase(_ipc->name());

@@ -147,8 +147,11 @@ async def test_control(asyncloop, context):
 name: test
 processor.objects:
   object:
-    url: direct://
+    url: direct://;master=object-client;tll.processor.ignore-master-dependency=yes
 ''')
+
+    oclient = asyncloop.Channel('direct://;name=object-client;dump=yes')
+    oclient.open()
 
     p = Processor(cfg, context=context)
     asyncloop._loop.add(p)
@@ -161,9 +164,6 @@ processor.objects:
     assert len(p.workers) == 1
     for w in p.workers:
         w.open()
-
-    oclient = asyncloop.Channel('direct://;name=oclient;master=object;dump=yes')
-    oclient.open()
 
     State = client.scheme.messages.StateUpdate.enums['State'].klass
     m = await client.recv()
