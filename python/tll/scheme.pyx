@@ -73,6 +73,17 @@ cdef class Options(dict):
 class Enum(OrderedDict):
     pass
 
+class EqEnum(enum.Enum):
+    def __eq__(self, rhs):
+        if type(self) == type(rhs):
+            return self.value == rhs.value
+        if isinstance(rhs, enum.Enum):
+            return self.__class__.__name__ == rhs.__class__.__name__ and self.value == rhs.value
+        return False
+
+    def __ne__(self, rhs):
+        return not self.__eq__(rhs)
+
 cdef enum_wrap(tll_scheme_enum_t * ptr):
     r = Enum()
     r.options = Options.wrap(ptr.options)
@@ -84,7 +95,7 @@ cdef enum_wrap(tll_scheme_enum_t * ptr):
     while e != NULL:
         r[b2s(e.name)] = e.value
         e = e.next
-    r.klass = enum.Enum(r.name, r)
+    r.klass = EqEnum(r.name, r)
     return r
 
 class UnionBase:

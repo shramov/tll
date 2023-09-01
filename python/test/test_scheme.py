@@ -658,6 +658,20 @@ def test_enum():
     assert m.SCHEME['e8'].from_string('1') == m.e8.A
     assert m.SCHEME['e8'].from_string('A') == m.e8.A
 
+def test_enum_eq():
+    SCHEME = """yamls://
+- enums:
+    e8: {type: uint8, enum: {A: 1, B: 2, C: 3}}
+    e64: {type: int64, enum: {A: 1, B: 2, C: 3}}
+"""
+    s0 = S.Scheme(SCHEME)
+    s1 = S.Scheme(SCHEME)
+
+    assert s0.enums['e8'].klass.A == s0.enums['e8'].klass.A
+    assert s0.enums['e8'].klass.A == s1.enums['e8'].klass.A
+    assert s0.enums['e8'].klass.A != s0.enums['e64'].klass.A
+    assert s0.enums['e8'].klass.A != s1.enums['e64'].klass.A
+
 def test_decimal128():
     scheme = S.Scheme("""yamls://
 - name: msg
