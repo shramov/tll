@@ -8,6 +8,7 @@ from tll.channel.base import Base
 from tll.channel.logic import Logic
 from tll.config import Config
 from tll.processor import Processor
+from tll.processor.mock import Mock
 
 import pytest
 
@@ -236,3 +237,35 @@ processor.objects:
     assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Active}
 
     assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Opening}
+
+@asyncloop_run
+async def test_forward_helper(asyncloop, context, tmp_path):
+    context.register(Forward)
+
+    mock = Mock(asyncloop, context, '''yamls://
+mock:
+  input: direct://
+  output: mem://
+name: processor
+processor.objects:
+  output:
+    url: !link /mock/output
+  forward:
+    url: forward://
+    depends: output
+    channels: {input: input, output: output}
+  input:
+    url: !link /mock/input
+    depends: forward
+''')
+
+
+    mock.open()
+
+    i, o = mock.io('input', 'output')
+
+    #await mock.wait('input', 'Active')
+    await mock.wait_many(input='Active', output=mock.State.Active)
+
+    mock.io('input').post(b'xxx')
+    assert (await o.recv()).data.tobytes() == b'xxx'
