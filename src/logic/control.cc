@@ -129,16 +129,17 @@ int Control::_on_external(tll::Channel * channel, const tll_msg_t * msg)
 {
 	switch (msg->msgid) {
 	case control_scheme::ConfigGet::meta_id(): {
-		auto data = control_scheme::ConfigValue::bind(_buf);
-		if (msg->size < data.meta_size())
+		auto req = control_scheme::ConfigGet::bind(*msg);
+		if (msg->size < req.meta_size())
 			return _log.fail(EMSGSIZE, "Message size too small: {} < min {}",
-				msg->size, data.meta_size());
+				msg->size, req.meta_size());
+
+		auto data = control_scheme::ConfigValue::bind(_buf);
 
 		tll_msg_t m = { TLL_MESSAGE_DATA };
 		m.msgid = data.meta_id();
 		m.addr = msg->addr;
 
-		auto req = control_scheme::ConfigGet::bind(*msg);
 		for (auto & [k, cfg] : _config.root().browse(req.get_path())) {
 			auto v = cfg.get();
 			if (!v)
