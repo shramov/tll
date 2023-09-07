@@ -59,7 +59,7 @@ channels.add_argument('--master', dest='master',
 args, rest = parser.parse_known_args()
 
 lookup = TemplateLookup(
-        args.template_dir + [pkg_resources.resource_filename('tll', 'templates')],
+        args.template_dir + [pkg_resources.resource_filename('tll', 'templates'), '/usr/share/tll/templates'],
         input_encoding='utf-8',
         output_encoding='utf-8',
         )
