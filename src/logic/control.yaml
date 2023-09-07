@@ -20,6 +20,13 @@
   fields:
     - {name: error, type: string}
 
+- name: SetLogLevel
+  id: 60
+  fields:
+    - {name: prefix, type: string}
+    - {name: level, type: uint8, options.type: enum, enum: { Trace: 0, Debug: 1, Info: 2, Warning: 3, Error: 4, Critical: 5 }}
+    - {name: recursive, type: uint8, options.type: enum, enum: { No: 0, Yes: 1 }}
+
 # Copy of processor.yaml
 
 - name: StateDump
@@ -50,9 +57,7 @@
     - {name: dest, type: string}
     - {name: data, type: Message}
 
-- name: SetLogLevel
+- name: ChannelClose
   id: 0x1060
   fields:
-    - {name: prefix, type: string}
-    - {name: level, type: uint8, options.type: enum, enum: { Trace: 0, Debug: 1, Info: 2, Warning: 3, Error: 4, Critical: 5 }}
-    - {name: recursive, type: uint8, options.type: enum, enum: { No: 0, Yes: 1 }}
+    - {name: channel, type: string}

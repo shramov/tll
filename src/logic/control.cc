@@ -67,6 +67,7 @@ class Control : public Tagged<Control, Input, Processor, Uplink>
 	tll::Channel * _processor() { return _channels.get<Processor>().front().first; }
 	tll::result_t<int> _message_forward(const tll_msg_t * msg);
 	tll::result_t<int> _set_log_level(const tll_msg_t * msg);
+	tll::result_t<int> _channel_close(const tll_msg_t * msg);
 	int _result_wrap(std::string_view, tll::Channel *, const tll_msg_t *, tll::result_t<int>);
 };
 
@@ -163,6 +164,8 @@ int Control::_on_external(tll::Channel * channel, const tll_msg_t * msg)
 		return _result_wrap("forward message", channel, msg, _message_forward(msg));
 	case control_scheme::SetLogLevel::meta_id():
 		return _result_wrap("set log level", channel, msg, _set_log_level(msg));
+	case control_scheme::ChannelClose::meta_id():
+		return _result_wrap("channel close", channel, msg, _channel_close(msg));
 	default:
 		break;
 	}
@@ -258,6 +261,21 @@ tll::result_t<int> Control::_set_log_level(const tll_msg_t *msg)
 	auto recursive = data.get_recursive() == control_scheme::SetLogLevel::recursive::Yes;
 
 	tll::Logger::set(prefix, (tll::Logger::level_t) level, recursive);
+	return 0;
+}
+
+tll::result_t<int> Control::_channel_close(const tll_msg_t *msg)
+{
+	auto data = control_scheme::ChannelClose::bind(*msg);
+	if (msg->size < data.meta_size())
+		return error(fmt::format("Message size too small: {} < min {}", msg->size, data.meta_size()));
+
+	auto name = data.get_channel();
+
+	if (context().get(name) == nullptr)
+		return error(fmt::format("Object '{}' not found", name));
+
+	_processor()->post(msg);
 	return 0;
 }
 

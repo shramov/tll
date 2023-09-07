@@ -5,7 +5,7 @@
 
 namespace control_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJydU8tOwzAQvPMVvuXSSk1aSukNUUBIPA68xNHE22CR2sF2ChXKv7NOnFebNohL641HO7Mz6yERdAVz4p1LseTRFRjviBDO5sQf4WHJIWZ6jidChuTHYRNq3r0BMZvEVtooLiIvOxq2ez3TOIWyW7C/2wdsOpq1Meu8Vy/lhWAl4XhUX95/lF8nja8XSklVXhzv1wc57gD3g6EGFukqqVlOp1vXTwnD3wrg+wEeQaQrR1egvDn5KWhSLsxskCPwm3cWGr6218EAZ42lBobFyBVWD06M1QJQntxgdTwoJ0Q6PN8nIAqcn2V7Zw3fqRAQ9+ahc7UVqhDfZUkjkYkfzGrELWhNo9yRyoZuTZajpkJf/CmWMjFcCm3NyQE2KOzjZbVpuBNoRmxHttZQQ61n2fYs9q9/YPhsaZhOdiCUscaapN0gZlUc2CVny6VUX1Q1rDuZ7vWHYea9+tu8pfnNxMDcyOgG1ph+xXoa9MeTKFjy714Bcd65Zc/sjzEqbnhIY7fUC3hLI5dpc8GvxVK6B/KoaAjufbxQ5fZ+vJO8gjBV2j6s/+i6k47iFbR7Vr/ZuozT)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJydVE1TwjAQvfsrcusFZmjFqtwcUMcZPw5+jcfYLCVjSWqSogzDf3cTUtoitQ4X2CRv3nv7dqFPBJ3DiARjKaY8vQYTHBHC2YiEAyymHDKmR1gR0icrj82pmQU9Ypa5PWmjuEiD9VG/yfVCswJKtqid7QOWe8iamIXj6pS8FKwUPB5Ujw8f5e2wdnuplFTlw0m7P3C4P7QfwdzK9BYWkJV0saUDUcwdW0uKCqb8u7P1zPFuUQUX5gyPMjdcCj0iq8C+BNYo6gXrntO192PFDU9ohm8nPRJM4L1IsQ57Ze+YB9Y3YiqxjLB8UjSxVAOsX6kS1g9Gud71pCAplOYLOMjXvfQSb6Ctn3U9S0MNTIp5Xk3sPN55fs4Zfm4BYRjVwyYehcyrjTdnrZK/SIx1vul4nEkNzPuxB9+yywsnIpc+vXpiDzn4aEIXzf75JjMqRH10LQPWzu0WtTG/L5Ladg/D6KxC3IHWNHWJdOycG8lWCnMJ43/ukhQYRubXZ0INtZn9Wgz71d0wfDY8xMNfEMqYau7WHhCzLv74XfpYrqT6oqoW3Wncmg/DmXf6b+qW4df/jDaTd7tVyZ5HB6zKD7scpTI=)";
 
 struct ConfigGet
 {
@@ -118,6 +118,54 @@ struct Error
 
 		std::string_view get_error() const { return this->template _get_string<tll_scheme_offset_ptr_t>(0); }
 		void set_error(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(0, v); }
+	};
+
+	template <typename Buf>
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+};
+
+struct SetLogLevel
+{
+	static constexpr size_t meta_size() { return 10; }
+	static constexpr std::string_view meta_name() { return "SetLogLevel"; }
+	static constexpr int meta_id() { return 60; }
+
+	enum class level: uint8_t
+	{
+		Trace = 0,
+		Debug = 1,
+		Info = 2,
+		Warning = 3,
+		Error = 4,
+		Critical = 5,
+	};
+
+	enum class recursive: uint8_t
+	{
+		No = 0,
+		Yes = 1,
+	};
+
+	template <typename Buf>
+	struct binder_type : public tll::scheme::Binder<Buf>
+	{
+		using tll::scheme::Binder<Buf>::Binder;
+
+		static constexpr auto meta_size() { return SetLogLevel::meta_size(); }
+		static constexpr auto meta_name() { return SetLogLevel::meta_name(); }
+		static constexpr auto meta_id() { return SetLogLevel::meta_id(); }
+		void view_resize() { this->_view_resize(meta_size()); }
+
+		std::string_view get_prefix() const { return this->template _get_string<tll_scheme_offset_ptr_t>(0); }
+		void set_prefix(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(0, v); }
+
+		using type_level = level;
+		type_level get_level() const { return this->template _get_scalar<type_level>(8); }
+		void set_level(type_level v) { return this->template _set_scalar<type_level>(8, v); }
+
+		using type_recursive = recursive;
+		type_recursive get_recursive() const { return this->template _get_scalar<type_recursive>(9); }
+		void set_recursive(type_recursive v) { return this->template _set_scalar<type_recursive>(9, v); }
 	};
 
 	template <typename Buf>
@@ -275,48 +323,24 @@ struct MessageForward
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
 };
 
-struct SetLogLevel
+struct ChannelClose
 {
-	static constexpr size_t meta_size() { return 10; }
-	static constexpr std::string_view meta_name() { return "SetLogLevel"; }
+	static constexpr size_t meta_size() { return 8; }
+	static constexpr std::string_view meta_name() { return "ChannelClose"; }
 	static constexpr int meta_id() { return 4192; }
-
-	enum class level: uint8_t
-	{
-		Trace = 0,
-		Debug = 1,
-		Info = 2,
-		Warning = 3,
-		Error = 4,
-		Critical = 5,
-	};
-
-	enum class recursive: uint8_t
-	{
-		No = 0,
-		Yes = 1,
-	};
 
 	template <typename Buf>
 	struct binder_type : public tll::scheme::Binder<Buf>
 	{
 		using tll::scheme::Binder<Buf>::Binder;
 
-		static constexpr auto meta_size() { return SetLogLevel::meta_size(); }
-		static constexpr auto meta_name() { return SetLogLevel::meta_name(); }
-		static constexpr auto meta_id() { return SetLogLevel::meta_id(); }
+		static constexpr auto meta_size() { return ChannelClose::meta_size(); }
+		static constexpr auto meta_name() { return ChannelClose::meta_name(); }
+		static constexpr auto meta_id() { return ChannelClose::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
 
-		std::string_view get_prefix() const { return this->template _get_string<tll_scheme_offset_ptr_t>(0); }
-		void set_prefix(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(0, v); }
-
-		using type_level = level;
-		type_level get_level() const { return this->template _get_scalar<type_level>(8); }
-		void set_level(type_level v) { return this->template _set_scalar<type_level>(8, v); }
-
-		using type_recursive = recursive;
-		type_recursive get_recursive() const { return this->template _get_scalar<type_recursive>(9); }
-		void set_recursive(type_recursive v) { return this->template _set_scalar<type_recursive>(9, v); }
+		std::string_view get_channel() const { return this->template _get_string<tll_scheme_offset_ptr_t>(0); }
+		void set_channel(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(0, v); }
 	};
 
 	template <typename Buf>
@@ -324,40 +348,6 @@ struct SetLogLevel
 };
 
 } // namespace control_scheme
-
-template <>
-struct tll::conv::dump<control_scheme::StateUpdate::State> : public to_string_from_string_buf<control_scheme::StateUpdate::State>
-{
-	template <typename Buf>
-	static inline std::string_view to_string_buf(const control_scheme::StateUpdate::State &v, Buf &buf)
-	{
-		switch (v) {
-		case control_scheme::StateUpdate::State::Active: return "Active";
-		case control_scheme::StateUpdate::State::Closed: return "Closed";
-		case control_scheme::StateUpdate::State::Closing: return "Closing";
-		case control_scheme::StateUpdate::State::Destroy: return "Destroy";
-		case control_scheme::StateUpdate::State::Error: return "Error";
-		case control_scheme::StateUpdate::State::Opening: return "Opening";
-		default: break;
-		}
-		return tll::conv::to_string_buf<uint8_t, Buf>((uint8_t) v, buf);
-	}
-};
-
-template <>
-struct tll::conv::dump<control_scheme::Message::type> : public to_string_from_string_buf<control_scheme::Message::type>
-{
-	template <typename Buf>
-	static inline std::string_view to_string_buf(const control_scheme::Message::type &v, Buf &buf)
-	{
-		switch (v) {
-		case control_scheme::Message::type::Control: return "Control";
-		case control_scheme::Message::type::Data: return "Data";
-		default: break;
-		}
-		return tll::conv::to_string_buf<int16_t, Buf>((int16_t) v, buf);
-	}
-};
 
 template <>
 struct tll::conv::dump<control_scheme::SetLogLevel::level> : public to_string_from_string_buf<control_scheme::SetLogLevel::level>
@@ -390,5 +380,39 @@ struct tll::conv::dump<control_scheme::SetLogLevel::recursive> : public to_strin
 		default: break;
 		}
 		return tll::conv::to_string_buf<uint8_t, Buf>((uint8_t) v, buf);
+	}
+};
+
+template <>
+struct tll::conv::dump<control_scheme::StateUpdate::State> : public to_string_from_string_buf<control_scheme::StateUpdate::State>
+{
+	template <typename Buf>
+	static inline std::string_view to_string_buf(const control_scheme::StateUpdate::State &v, Buf &buf)
+	{
+		switch (v) {
+		case control_scheme::StateUpdate::State::Active: return "Active";
+		case control_scheme::StateUpdate::State::Closed: return "Closed";
+		case control_scheme::StateUpdate::State::Closing: return "Closing";
+		case control_scheme::StateUpdate::State::Destroy: return "Destroy";
+		case control_scheme::StateUpdate::State::Error: return "Error";
+		case control_scheme::StateUpdate::State::Opening: return "Opening";
+		default: break;
+		}
+		return tll::conv::to_string_buf<uint8_t, Buf>((uint8_t) v, buf);
+	}
+};
+
+template <>
+struct tll::conv::dump<control_scheme::Message::type> : public to_string_from_string_buf<control_scheme::Message::type>
+{
+	template <typename Buf>
+	static inline std::string_view to_string_buf(const control_scheme::Message::type &v, Buf &buf)
+	{
+		switch (v) {
+		case control_scheme::Message::type::Control: return "Control";
+		case control_scheme::Message::type::Data: return "Data";
+		default: break;
+		}
+		return tll::conv::to_string_buf<int16_t, Buf>((int16_t) v, buf);
 	}
 };

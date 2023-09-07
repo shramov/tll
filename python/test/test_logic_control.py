@@ -56,6 +56,12 @@ async def test(asyncloop):
         result.append((m.key, m.value))
     assert result == [('input-client.state', 'Active'), ('input.state', 'Active'), ('logic.state', 'Active'), ('processor.state', 'Closed')]
 
+    tinput.post({'channel': 'xxx'}, name='ChannelClose')
+    assert tinput.unpack(await tinput.recv()).as_dict() == {'error': "Object 'xxx' not found"}
+
+    tinput.post({'channel': 'input'}, name='ChannelClose')
+    assert tinput.unpack(await tinput.recv()).SCHEME.name == 'Ok'
+
 @asyncloop_run
 async def test_uplink(asyncloop):
     scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/control.yaml"
