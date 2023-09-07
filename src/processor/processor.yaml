@@ -25,3 +25,8 @@
   fields:
     - {name: dest, type: string}
     - {name: data, type: Message}
+
+- name: ChannelClose
+  id: 0x1060
+  fields:
+    - {name: channel, type: string}

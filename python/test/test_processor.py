@@ -228,7 +228,7 @@ processor.objects:
     assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Closing}
     assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Closed}
 
-    context.get('null').close()
+    client.post({'channel': 'null'}, name='ChannelClose')
 
     assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Closing}
     assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Closed}

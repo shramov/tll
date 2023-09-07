@@ -489,6 +489,24 @@ int Processor::cb(const Channel * c, const tll_msg_t * msg)
 		_ipc->post(&m);
 		break;
 	}
+	case processor_scheme::ChannelClose::meta_id(): {
+		auto data = processor_scheme::ChannelClose::bind(*msg);
+		if (msg->size < data.meta_size())
+			return _log.fail(EMSGSIZE, "Invalid message size: {} < min {}", msg->size, data.meta_size());
+		auto name = data.get_channel();
+		auto obj = find(name);
+		if (!obj)
+			return _log.fail(ENOENT, "Object '{}' not found", name);
+
+		if (obj->state == tll::state::Closed) {
+			_log.info("Ignore close request for closed object '{}'", name);
+			return 0;
+		}
+
+		_log.info("Close object per user request {}", name);
+		post<scheme::Deactivate>(obj, { obj });
+		break;
+	}
 	default:
 		_log.debug("Unknown message {}", msg->msgid);
 	}

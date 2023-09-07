@@ -5,7 +5,7 @@
 
 namespace processor_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJyFkctugzAQRfd8xey8ASkQQlN2VZPsoiyqfoAVT6klMMQ2raLI/57h0VAeVTfWXPvYc+c6AMULTIG9WW5xVxcV8wCkSCFePSdeMDp+rwStDyAMIypR1YVJqYCeYinc7LWiW7VUduu3BO2xl7OVX81x5AN7zUuDgsSqF1JlpNakdmisLq+kNqT2Wpea6pjqU4Wq40LnqOWHxFz0zQO49V7Pn1wpzJkPnQ1GzzW33IQzrdsH1Zl3k5mbSPZKDENH24E4ojE8axNZttI8PXSgOMJkZqMwmRQjaB3NveJlhCTxDOFC6IGplyH6QL4QzHSiQ6m/uf419VPy54yCvuvfrMd9f3Jz3h2eA7ne)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJydkstugzAQRff5itl5A1JwKE3YVUm6q7qo+gFWPKWWwFDbtIoi/r3Do3F4VJW6QTP44HvnDiFoUWAK7MUJh4e6qNgKQMkU4vUuWYWj49dK0vMKRBGnEnVd2JQKGCiWwsWdK/qqVtptg46gd+zh5NRne8wDYPu8tCipWQ+N0hl1G+oOaJ0pz9TdUXc0pjRUx1Q/V6h7LmoaknxTmMtBPITL4PX0LrTGnAXQ22B0XftVM+Fs5/ZK9eabycxtJEct/dB864kntFZkXSLLVtqrvQLFESUzG4XNlBxBGz73ih8jJIlniJDSeKZehmiBYiGY6USPpfkS5mbq++TXGSWt68+sx7o/ud0I7/uldb+Fl93xf2z5G6Re0qc=)";
 
 struct StateDump
 {
@@ -147,6 +147,30 @@ struct MessageForward
 		using type_data = Message::binder_type<Buf>;
 		const type_data get_data() const { return this->template _get_binder<type_data>(8); }
 		type_data get_data() { return this->template _get_binder<type_data>(8); }
+	};
+
+	template <typename Buf>
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+};
+
+struct ChannelClose
+{
+	static constexpr size_t meta_size() { return 8; }
+	static constexpr std::string_view meta_name() { return "ChannelClose"; }
+	static constexpr int meta_id() { return 4192; }
+
+	template <typename Buf>
+	struct binder_type : public tll::scheme::Binder<Buf>
+	{
+		using tll::scheme::Binder<Buf>::Binder;
+
+		static constexpr auto meta_size() { return ChannelClose::meta_size(); }
+		static constexpr auto meta_name() { return ChannelClose::meta_name(); }
+		static constexpr auto meta_id() { return ChannelClose::meta_id(); }
+		void view_resize() { this->_view_resize(meta_size()); }
+
+		std::string_view get_channel() const { return this->template _get_string<tll_scheme_offset_ptr_t>(0); }
+		void set_channel(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(0, v); }
 	};
 
 	template <typename Buf>
