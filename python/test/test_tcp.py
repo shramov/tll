@@ -274,3 +274,15 @@ def test_prefix():
     s.children[-1].children[0].process()
 
     assert [(m.msgid, m.seq, m.data.tobytes()) for m in s.result[1:]] == [(10, 100, b'abc' * 10)]
+
+def test_open_peer():
+    s = Accum('tcp://./tcp.sock;mode=server;dump=frame')
+    c = Accum('tcp://;mode=client')
+    s.open()
+    c.open('af=unix;tcp.host=tcp.sock')
+
+    for x in s.children:
+        x.process()
+    c.process()
+
+    assert [(m.type, m.msgid) for m in s.result] == [(C.Type.Control, s.scheme_control['Connect'].msgid)]

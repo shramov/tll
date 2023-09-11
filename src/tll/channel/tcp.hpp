@@ -387,15 +387,16 @@ int TcpClient<T, S>::_open(const ConstConfig &url)
 {
 	tll::network::hostport peer;
 	if (!_peer) {
-		auto af = url.getT("af", network::AddressFamily::UNSPEC);
-		if (!af)
-			return this->_log.fail(EINVAL, "Invalid af parameter: {}", af.error());
-		auto host = url.get("host");
-		if (!host)
-			return this->_log.fail(EINVAL, "Remote address not provided in open parameters: no 'host' keyword");
-		auto r = network::parse_hostport(*host, *af);
+		auto reader = this->channelT()->channel_props_reader(url);
+		auto af = reader.template getT("af", network::AddressFamily::UNSPEC);
+		auto host = reader.template getT<std::string>("host", "");
+		if (!reader)
+			return this->_log.fail(EINVAL, "Invalid open parameters: {}", reader.error());
+		if (!host.size())
+			return this->_log.fail(EINVAL, "Remote address not provided in open parameters: missing or empty 'host' parameter");
+		auto r = network::parse_hostport(host, af);
 		if (!r)
-			return this->_log.fail(EINVAL, "Invalid host string '{}': {}", *host, r.error());
+			return this->_log.fail(EINVAL, "Invalid host string '{}': {}", host, r.error());
 		peer = std::move(*r);
 	} else
 		peer = *_peer;
