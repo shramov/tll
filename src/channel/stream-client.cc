@@ -59,6 +59,11 @@ int StreamClient::_open(const ConstConfig &url)
 	_open_seq = {};
 	_seq = _server_seq = -1;
 
+	if (auto sub = url.sub("request"); sub)
+		_request_open = sub->copy();
+	else
+		_request_open = tll::Config();
+
 	auto reader = channel_props_reader(url);
 
 	auto r = stream_scheme::Request::bind(_request_buf);
@@ -143,7 +148,7 @@ int StreamClient::_on_active()
 		return 0;
 	}
 	_log.debug("Stream channel active, open request channel from seq {}", *_open_seq);
-	return _request->open();
+	return _request->open(_request_open);
 }
 
 int StreamClient::_on_request_error() { return 0; }

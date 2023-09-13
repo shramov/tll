@@ -25,6 +25,7 @@ class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::
 
 	std::unique_ptr<Channel> _request;
 	std::vector<char> _request_buf;
+	tll::Config _request_open;
 
 	enum class State { Closed, Opening, Connected, Overlapped, Online } _state;
 
