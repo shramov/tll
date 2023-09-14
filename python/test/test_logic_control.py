@@ -142,7 +142,7 @@ async def test_message(asyncloop):
     assert m.SCHEME.name == 'Error'
 
 @asyncloop_run
-async def test_message(asyncloop):
+async def test_log_level(asyncloop):
     scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/control.yaml"
 
     proc = asyncloop.Channel('null://;name=processor;dump=frame')
