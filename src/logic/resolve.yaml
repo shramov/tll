@@ -1,0 +1,43 @@
+- name: KeyValue
+  fields:
+    - {name: key, type: string}
+    - {name: value, type: string}
+
+- name: ExportService
+  id: 10
+  fields:
+    - {name: service, type: string}
+    - {name: tags, type: '*string'}
+    - {name: host, type: string}
+
+- name: DropService
+  id: 30
+  fields:
+    - {name: service, type: string}
+
+- name: ExportChannel
+  id: 40
+  fields:
+    - {name: service, type: string}
+    - {name: channel, type: string}
+    - {name: host, type: string} # Empty in normal exports, non empty in responses
+    - {name: config, type: '*KeyValue'}
+
+- name: DropChannel
+  id: 50
+  fields:
+    - {name: service, type: string}
+    - {name: channel, type: string}
+
+- name: Request
+  id: 60
+  fields:
+    - {name: service, type: string}
+    - {name: channel, type: string}
+#    - {name: subscribe, type: uint8, options.type: enum, enum: {No: 0, Yes: 1}}
+
+- name: Unsubscribe
+  id: 80
+  fields:
+    - {name: service, type: string}
+    - {name: channel, type: string}

@@ -41,6 +41,7 @@
 #include "channel/pub.h"
 #include "channel/random.h"
 #include "channel/rate.h"
+#include "channel/resolve.h"
 #include "channel/rotate.h"
 #include "channel/serial.h"
 #include "channel/seq-check.h"
@@ -73,6 +74,7 @@ TLL_DECLARE_IMPL(ChPubServer);
 TLL_DECLARE_IMPL(ChSerial);
 TLL_DECLARE_IMPL(tll::channel::StreamServer);
 TLL_DECLARE_IMPL(tll::channel::Rate);
+TLL_DECLARE_IMPL(tll::channel::Resolve);
 TLL_DECLARE_IMPL(tll::channel::Rotate);
 TLL_DECLARE_IMPL(ChTcp);
 TLL_DECLARE_IMPL(ChTimer);
@@ -113,6 +115,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChPubServer::impl);
 		reg(&tll::channel::Random::impl);
 		reg(&tll::channel::Rate::impl);
+		reg(&tll::channel::Resolve::impl);
 		reg(&tll::channel::Rotate::impl);
 		reg(&ChSerial::impl);
 		reg(&tll::channel::StreamServer::impl);

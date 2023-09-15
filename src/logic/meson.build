@@ -1,6 +1,7 @@
 logic_scheme = files(
 	[ 'control.yaml'
 	, 'stat.yaml'
+	, 'resolve.yaml'
 	, 'quantile.yaml'
 	])
 
