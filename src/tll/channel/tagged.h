@@ -178,6 +178,22 @@ class Tagged : public tll::channel::Base<T>
 
 	static constexpr auto process_policy() { return Base::ProcessPolicy::Never; }
 
+	template <typename Tag>
+	int check_channels_size(ssize_t min, ssize_t max)
+	{
+		ssize_t size = _channels.template get<Tag>().size();
+		if (min >= 0 && min == max) {
+			if (size != min)
+				return this->_log.fail(ERANGE, "Need exactly {} '{}' channels, got {}", min, Tag::name(), size);
+			return 0;
+		}
+		if (min >= 0 && size < min)
+			return this->_log.fail(ERANGE, "Need more then {} '{}' channels, got {}", min, Tag::name(), size);
+		if (max >= 0 && size > max)
+			return this->_log.fail(ERANGE, "Need less then {} '{}' channels, got {}", max, Tag::name(), size);
+		return 0;
+	}
+
 	int init(const tll::Channel::Url &url, tll::Channel *master, tll_channel_context_t *ctx)
 	{
 		std::vector<std::string_view> tags = {Tags::name()...};

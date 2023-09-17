@@ -17,11 +17,8 @@ int Quantile::_init(const tll::Channel::Url &url, tll::Channel *master)
 			return _log.fail(EINVAL, "Invalid quantile {}: must be in (0, 100] range", q);
 	}
 
-	if (auto count = _channels.get<Input>().size(); count != 1)
-		return _log.fail(EINVAL, "Need exactly one input, got {}", count);
-
-	if (auto count = _channels.get<Timer>().size(); count != 1)
-		return _log.fail(EINVAL, "Need exactly one timer, got {}", count);
+	check_channels_size<Input>(1, 1);
+	check_channels_size<Timer>(1, 1);
 
 	return Base::_init(url, master);
 }
