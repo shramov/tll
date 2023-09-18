@@ -8,6 +8,8 @@ from tll.asynctll import asyncloop_run
 from tll.logger import Logger
 from tll.channel import Context
 from tll.channel.mock import Mock
+from tll.config import Config
+from tll.test_util import ports
 
 @pytest.fixture
 def context(path_builddir):
@@ -150,3 +152,46 @@ channel: control://;tll.channel.processor=processor;tll.channel.input=input;name
 
     assert la.level == la.Level.Error
     assert lb.level == lb.Level.Error
+
+@asyncloop_run
+async def test_resolve(asyncloop, path_srcdir):
+    scheme = path_srcdir / "src/logic/resolve.yaml"
+    pscheme = path_srcdir / "src/processor/processor.yaml"
+
+    mock = Mock(asyncloop, f'''yamls://
+mock:
+  processor: direct://;scheme=yaml://{pscheme}
+  resolve: direct://;scheme=yaml://{scheme}
+channel:
+  url: control://;tll.channel.processor=processor;tll.channel.resolve=resolve;name=logic
+  service: test
+  hostname: host
+  service-tags: 'a,b'
+''')
+
+    mock.open(skip=['resolve'])
+    mock.inner('resolve').open()
+
+    tproc, tinput = mock.io('processor', 'resolve')
+
+    tcp = asyncloop.Channel(f'tcp://::1:{ports.TCP6};mode=server;name=tcp;tll.resolve.export=yes')
+    tcp.open()
+
+    m = await tinput.recv()
+    assert tinput.unpack(m).as_dict() == {'service': 'test', 'tags': ['a', 'b'], 'host': 'host'}
+
+    tproc.post({'channel': 'tcp', 'state': 'Active'}, name='StateUpdate')
+    m = await tinput.recv(0.001)
+    m = tinput.unpack(m)
+    assert (m.service, m.channel) == ('test', 'tcp')
+
+    cfg = Config.from_dict({x.key: x.value for x in m.config})
+    assert cfg['tll.proto'] == 'tcp'
+    client = asyncloop.Channel(cfg, name='client')
+    client.open()
+
+    m = await tcp.recv()
+    assert tcp.unpack(m).SCHEME.name == 'Connect'
+
+    client.post(b'xxx')
+    assert (await tcp.recv()).data.tobytes() == b'xxx'

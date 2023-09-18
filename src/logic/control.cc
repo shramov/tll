@@ -11,20 +11,38 @@
 
 #include "tll/processor/scheme.h"
 #include "tll/scheme/logic/control.h"
+#include "tll/scheme/logic/resolve.h"
+
+#include <sys/param.h>
+#include <unistd.h>
 
 namespace tll::channel {
 
 struct Processor : public Tag<TLL_MESSAGE_MASK_ALL> { static constexpr std::string_view name() { return "processor"; } };
 struct Uplink : public Tag<TLL_MESSAGE_MASK_ALL> { static constexpr std::string_view name() { return "uplink"; } };
+struct Resolve : public Tag<TLL_MESSAGE_MASK_ALL> { static constexpr std::string_view name() { return "resolve"; } };
 
-class Control : public Tagged<Control, Input, Processor, Uplink>
+class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
 {
-	using Base = Tagged<Control, Input, Processor, Uplink>;
+	using Base = Tagged<Control, Input, Processor, Uplink, Resolve>;
 
 	std::set<std::pair<uint64_t, tll::Channel *>> _addr;
 	std::vector<char> _buf;
 
 	tll::json::JSON _json = { _log };
+
+	tll::Channel * _resolve = nullptr;
+	std::string _service;
+	std::string _hostname;
+	std::vector<std::string> _service_tags;
+
+	struct ChannelExport {
+		std::string name;
+		std::string export_name = "";
+		tll::ConstConfig config;
+	};
+
+	std::map<std::string, ChannelExport, std::less<>> _exports;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "control"; }
@@ -40,11 +58,34 @@ class Control : public Tagged<Control, Input, Processor, Uplink>
 		return _processor()->post(&msg);
 	}
 
+	int _on_resolve_active()
+	{
+		if (!_resolve)
+			return 0;
+		_log.debug("Export service {}", _service);
+		tll_msg_t msg = { TLL_MESSAGE_DATA };
+		auto data = resolve_scheme::ExportService::bind(_buf);
+		data.view().resize(0);
+		data.view().resize(data.meta_size());
+		data.set_service(_service);
+		data.set_host(_hostname);
+		data.get_tags().resize(_service_tags.size());
+		for (auto i = 0u; i < _service_tags.size(); i++)
+			data.get_tags()[i] = _service_tags[i];
+
+		msg.msgid = data.meta_id();
+		msg.data = data.view().data();
+		msg.size = data.view().size();
+		return _resolve->post(&msg);
+	}
+
 	int callback_tag(TaggedChannel<Input> *, const tll_msg_t *msg);
 	int callback_tag(TaggedChannel<Processor> *, const tll_msg_t *msg);
 	int callback_tag(TaggedChannel<Uplink> *, const tll_msg_t *msg);
+	int callback_tag(TaggedChannel<Resolve> *, const tll_msg_t *msg);
 
 	int _on_external(tll::Channel * channel, const tll_msg_t * msg);
+	int _on_state_update(std::string_view name, tll_state_t state);
 
 	int _forward(const tll_msg_t * msg)
 	{
@@ -76,15 +117,46 @@ int Control::_init(const tll::Channel::Url &url, tll::Channel * master)
 	if (auto r = Base::_init(url, master); r)
 		return _log.fail(EINVAL, "Base init failed");
 
-	auto control = _channels.get<Processor>();
-	if (control.size() != 1)
-		return _log.fail(EINVAL, "Need exactly one 'processor', got {}", control.size());
+	check_channels_size<Processor>(1, 1);
+	check_channels_size<Resolve>(0, 1);
+
+	auto resolve = _channels.get<Resolve>().size() > 0;
+
+	auto reader = channel_props_reader(url);
+	if (resolve) {
+		_service = reader.getT<std::string>("service");
+		_hostname = reader.getT<std::string>("hostname", "");
+		_service_tags = reader.getT("service-tags", std::vector<std::string>());
+	}
+	if (!reader)
+		return _log.fail(EINVAL, "Invalid parameters: {}", reader.error());
+
+	if (_hostname.empty()) {
+		char hostbuf[HOST_NAME_MAX];
+		if (gethostname(hostbuf, sizeof(hostbuf)))
+			return _log.fail(EINVAL, "Failed to get host name: {}", strerror(errno));
+		char domainbuf[HOST_NAME_MAX];
+		if (getdomainname(domainbuf, sizeof(domainbuf)))
+			return _log.fail(EINVAL, "Failed to get domain name: {}", strerror(errno));
+		std::string_view host = hostbuf, domain = domainbuf;
+		if (domain.size())
+			_hostname = fmt::format("{}.{}", host, domain);
+		else
+			_hostname = host;
+		_log.info("Service hostname: {}", _hostname);
+	}
 
 	return 0;
 }
 
 int Control::_open(const tll::ConstConfig &)
 {
+	if (auto & list = _channels.get<Resolve>(); list.size()) {
+		auto c = list.front().first;
+		if (c->state() == tll::state::Active)
+			_resolve = c;
+		_on_resolve_active();
+	}
 	if (_processor()->state() == tll::state::Active) {
 		return _on_processor_active();
 	}
@@ -290,8 +362,12 @@ int Control::callback_tag(TaggedChannel<Processor> *, const tll_msg_t *msg)
 	switch (msg->msgid) {
 	case processor_scheme::StateUpdate::meta_id(): {
 		auto data = processor_scheme::StateUpdate::bind(*msg);
+		if (msg->size < data.meta_size())
+			return _log.fail(EMSGSIZE, "Message size too small: {} < min {}",
+				msg->size, data.meta_size());
 		_log.debug("Channel {} state {}", data.get_channel(), data.get_state());
 		_forward(msg);
+		_on_state_update(data.get_channel(), (tll_state_t) data.get_state());
 		break;
 	}
 	case processor_scheme::StateDumpEnd::meta_id():
@@ -300,6 +376,80 @@ int Control::callback_tag(TaggedChannel<Processor> *, const tll_msg_t *msg)
 	default:
 		break;
 	}
+	return 0;
+}
+
+int Control::callback_tag(TaggedChannel<Resolve> * channel, const tll_msg_t *msg)
+{
+	if (msg->type != TLL_MESSAGE_STATE)
+		return 0;
+	switch ((tll_state_t) msg->msgid) {
+	case tll::state::Active:
+		_resolve = channel;
+		_on_resolve_active();
+		_on_processor_active();
+		break;
+	case tll::state::Error:
+	case tll::state::Closing:
+		_resolve = nullptr;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+int Control::_on_state_update(std::string_view name, tll_state_t state)
+{
+	if (!_resolve)
+		return 0;
+	if (state == tll::state::Destroy) {
+		_exports.erase(std::string(name));
+		return 0;
+	} else if (state != tll::state::Active)
+		return 0;
+	auto it = _exports.find(name);
+	if (it == _exports.end()) {
+		it = _exports.emplace(name, ChannelExport { std::string(name) }).first;
+		auto channel = context().get(name);
+		if (!channel)
+			return _log.fail(EINVAL, "State update for unknown channel {}", name);
+		auto config = it->second.config = channel->config();
+
+		auto reader = tll::make_props_reader(config);
+		auto exp = reader.getT("url.tll.resolve.export", false);
+		if (exp)
+			it->second.export_name = reader.getT("url.tll.resolve.export-name", std::string(name));
+		if (!reader)
+			return _log.fail(EINVAL, "Invalid export parameters in url: {}", reader.error());
+	}
+	if (!it->second.export_name.size())
+		return 0;
+	auto config = it->second.config;
+	auto client = config.sub("client");
+	if (!client)
+		return 0;
+	auto data = resolve_scheme::ExportChannel::bind(_buf);
+	data.view().resize(0);
+	data.view().resize(data.meta_size());
+	data.set_service(_service);
+	data.set_channel(it->second.export_name);
+	auto curl = client->browse("**");
+	data.get_config().resize(curl.size());
+	auto di = data.get_config().begin();
+	for (auto & [name, cfg] : curl) {
+		di->set_key(name);
+		auto value = cfg.get();
+		if (value)
+			di->set_value(*value);
+		di++;
+	}
+	tll_msg_t msg = {};
+	msg.msgid = data.meta_id();
+	msg.size = data.view().size();
+	msg.data = data.view().data();
+	_resolve->post(&msg);
 	return 0;
 }
 
