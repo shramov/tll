@@ -251,6 +251,8 @@ class String : public List<Buf, char, Ptr>
 	using iterator = typename pointer_type::iterator;
 	using const_iterator = typename pointer_type::const_iterator;
 
+	static constexpr size_t meta_size() { return sizeof(Ptr); }
+
 	String(view_type view) : List<Buf, char, Ptr>(view) {}
 
 	size_t size() const { return std::max(this->optr()->size, 1u) - 1; }
