@@ -253,6 +253,23 @@ struct parse<tll::network::AddressFamily>
 };
 
 template <>
+struct dump<tll::network::AddressFamily> : public to_string_from_string_buf<tll::network::AddressFamily>
+{
+	template <typename Buf>
+	static std::string_view to_string_buf(const tll::network::AddressFamily &v, Buf &buf)
+        {
+		using tll::network::AddressFamily;
+		switch (v) {
+		case AddressFamily::UNSPEC: return "any";
+		case AddressFamily::INET: return "ipv4";
+		case AddressFamily::INET6: return "ipv6";
+		case AddressFamily::UNIX: return "unix";
+		}
+		return "UNKNOWN";
+        }
+};
+
+template <>
 struct dump<sockaddr_un> : public to_string_from_string_buf<sockaddr_un>
 {
 	template <typename Buf>
