@@ -267,6 +267,7 @@ class TcpServer : public Base<T>
 	bool _cleanup_flag = false;
 	tcp_settings_t _settings = {};
 	tll::Channel::Url _socket_url;
+	tll::Channel::Url _client_url;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "tcp"; }

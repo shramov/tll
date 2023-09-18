@@ -565,6 +565,9 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	if (!this->_scheme_control.get())
 		return this->_log.fail(EINVAL, "Failed to load control scheme");
 
+	_client_url.set("tll.proto", url.proto());
+	_client_url.set("mode", "client");
+
 	this->_log.debug("Listen on {}:{}", _host, _port);
 	return 0;
 }
@@ -578,6 +581,13 @@ int TcpServer<T, C>::_open(const ConstConfig &url)
 	auto addr = tll::network::resolve(_af, SOCK_STREAM, _host.c_str(), _port);
 	if (!addr)
 		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _host, addr.error());
+
+	auto af = static_cast<network::AddressFamily>(addr->front()->sa_family);
+	_client_url.set("af", tll::conv::to_string(af));
+	if (af == network::AddressFamily::UNIX || _host != "*") {
+		_client_url.host(tll::conv::to_string(addr->front()));
+		this->_config.set("client", _client_url);
+	}
 
 	for (auto & a : *addr) {
 		if (this->_bind(a))
@@ -650,6 +660,7 @@ int TcpServer<T, C>::_close()
 		tll_channel_free(*c.second);
 	_clients.clear();
 	_sockets.clear();
+	this->_config.remove("client");
 	return 0;
 }
 

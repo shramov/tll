@@ -286,3 +286,24 @@ def test_open_peer():
     c.process()
 
     assert [(m.type, m.msgid) for m in s.result] == [(C.Type.Control, s.scheme_control['Connect'].msgid)]
+
+
+@pytest.mark.parametrize("host,af",
+        [ ("./tcp.sock", "unix")
+        , (f"127.0.0.1:{ports.TCP4}", "ipv4")
+        , (f"::1:{ports.TCP6}", "ipv6")
+        , ((f"localhost:{ports.TCP6}", f"{localhost[0][4][0]}:{ports.TCP6}"), "ipv6" if localhost_af == socket.AF_INET6 else "ipv4")
+        ])
+def test_client(host, af):
+    if isinstance(host, tuple):
+        host, result = host
+    else:
+        result = host
+    s = Accum(f'tcp://{host};mode=server;dump=frame')
+
+    s.open()
+
+    assert s.config.sub('client').as_dict() == {'tll': {'proto': 'tcp', 'host': result}, 'af': af, 'mode': 'client'}
+
+    c = Accum(s.config.sub('client'), name='client')
+    c.open()
