@@ -151,7 +151,15 @@ public:
 	}
 
 	/// Channel is ready to enter Active state
-	int _on_active() { this->state(tll::state::Active); return 0; }
+	int _on_active()
+	{
+		if (auto client = _child->config().sub("client"); client) {
+			if (this->channelT()->_on_client_export(*client))
+				return this->_log.fail(EINVAL, "Failed to export client parameters");
+		}
+		this->state(tll::state::Active);
+		return 0;
+	}
 	/// Channel is broken and needs to enter Error state
 	int _on_error() { this->state(tll::state::Error); return 0; }
 	/// Channel starts closing
@@ -168,6 +176,18 @@ public:
 	{
 		if (this->state() == tll::state::Closing)
 			Base<T>::_close();
+		return 0;
+	}
+
+	int _on_client_export(const tll::ConstConfig &cfg)
+	{
+		auto proto = cfg.get("tll.proto");
+		if (!proto) {
+			this->_log.warning("Client parameters without tll.proto");
+			return 0;
+		}
+		this->_config.set("client", cfg.copy());
+		this->_config.set("client.tll.proto", fmt::format("{}{}", this->channelT()->channel_protocol(), *proto));
 		return 0;
 	}
 };
