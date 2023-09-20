@@ -312,6 +312,15 @@ T<Buf> make_binder(Buf & buf)
 	return T<Buf>(buf);
 }
 
+template <template <typename B> typename T, typename Buf>
+T<Buf> make_binder_reset(Buf & buf)
+{
+	auto r = make_binder<T, Buf>(buf);
+	r.view().resize(0);
+	r.view().resize(r.meta_size());
+	return r;
+}
+
 }
 
 } // namespace tll
