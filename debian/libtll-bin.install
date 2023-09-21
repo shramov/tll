@@ -1,2 +1,3 @@
 /usr/bin/tll-processor
 /usr/lib/*/libtll-logic*.so
+/usr/share/tll/scheme/tll/logic
