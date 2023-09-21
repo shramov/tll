@@ -1,3 +1,11 @@
+logic_scheme = files(
+	[ 'control.yaml'
+	, 'stat.yaml'
+	, 'quantile.yaml'
+	])
+
+install_data(logic_scheme, install_dir: get_option('datadir') / 'tll/scheme/tll/logic')
+
 shared_library('tll-logic-forward'
 	, ['forward.cc']
 	, dependencies : [fmt, tll]
