@@ -53,6 +53,28 @@ class Mock:
 
         self._channel.open()
 
+    def close(self):
+        self._channel.close()
+
+        for c in self._inner.values():
+            c.close()
+
+        for c in self._channels.values():
+            c.close()
+
+    def destroy(self):
+        self.close()
+
+        self._channel.free()
+
+        for c in self._inner.values():
+            c.free()
+        self._inner = {}
+
+        for c in self._channels.values():
+            c.free()
+        self._channels = {}
+
     @property
     def channel(self):
         return self._channel
