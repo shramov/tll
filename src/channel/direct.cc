@@ -48,6 +48,8 @@ int ChDirect::_init(const tll::Channel::Url &url, tll::Channel * master)
 	_sibling = tll::channel_cast<ChDirect>(master);
 	if (!_sibling)
 		return _log.fail(EINVAL, "Parent {} must be direct:// channel", master->name());
+	if (_sibling->_sub)
+		return _log.fail(EINVAL, "Master {} has it's own master, can not bind", _sibling->name);
 	_log.debug("Init child of master {}", _sibling->name);
 	return 0;
 }
