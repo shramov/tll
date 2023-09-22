@@ -3,12 +3,14 @@
 
 import pytest
 
+import decorator
 import os
 import pathlib
 
 import tll
+from tll import asynctll
 from tll.channel import Context
-from tll.test_util import Accum
+from tll.channel.mock import Mock
 
 @pytest.fixture
 def context():
@@ -18,31 +20,40 @@ def context():
     ctx.load(str(path / 'logic/tll-logic-stat'))
     return ctx
 
-def test(context):
+@pytest.fixture
+def asyncloop(context):
+    loop = asynctll.Loop(context)
+    yield loop
+    loop.destroy()
+    loop = None
+
+@decorator.decorator
+def asyncloop_run(f, asyncloop, *a, **kw):
+    asyncloop.run(f(asyncloop, *a, **kw))
+
+@asyncloop_run
+async def test(asyncloop, context):
     scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/quantile.yaml"
 
-    timer = context.Channel('direct://;name=timer', dump='frame')
-    tclient = context.Channel('direct://;name=timer-client', master=timer)
-    ci = context.Channel('direct://;name=input', scheme='yaml://' + str(scheme), dump='yes')
-    ciclient = context.Channel('direct://;name=input-client', master=ci, scheme='yaml://' + str(scheme))
+    config = f'''yamls://
+mock:
+  timer: direct://
+  input: direct://;scheme=yaml://{scheme}
+channel:
+  url: 'quantile://;tll.channel.timer=timer;tll.channel.input=input'
+  skip: 1
+  quantile: '95,50,75'
+'''
 
-    logic = context.Channel('quantile://;tll.channel.timer=timer;tll.channel.input=input', skip='1', name='logic', quantile='95,50,75')
+    mock = Mock(asyncloop, config)
+    mock.open()
 
-    timer.open()
-    tclient.open()
+    ci = mock.io('input')
 
-    ci.open()
-    ciclient.open()
+    ci.post({'value': 4}, name='Data')
+    mock.io('timer').post(b'')
 
-    logic.open()
+    for i in range(4, 0, -1):
+        ci.post({'value': i}, name='Data')
 
-    ciclient.post({'value': 4}, name='Data')
-
-    tclient.post(b'')
-
-    ciclient.post({'value': 4}, name='Data')
-    ciclient.post({'value': 3}, name='Data')
-    ciclient.post({'value': 2}, name='Data')
-    ciclient.post({'value': 1}, name='Data')
-
-    tclient.post(b'')
+    mock.io('timer').post(b'')

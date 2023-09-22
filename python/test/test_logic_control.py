@@ -11,7 +11,7 @@ import tll
 from tll import asynctll
 from tll.logger import Logger
 from tll.channel import Context
-from tll.test_util import Accum
+from tll.channel.mock import Mock
 
 @pytest.fixture
 def context():
@@ -36,53 +36,51 @@ def asyncloop_run(f, asyncloop, *a, **kw):
 async def test(asyncloop):
     scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/control.yaml"
 
-    processor = asyncloop.Channel('null://;name=processor', dump='frame')
-    linput = asyncloop.Channel('direct://;name=input', scheme='yaml://' + str(scheme), dump='yes')
-    tinput = asyncloop.Channel('direct://;name=input-client', master=linput, scheme='yaml://' + str(scheme))
+    mock = Mock(asyncloop, f'''yamls://
+mock:
+  processor: null://
+  input: direct://;scheme=yaml://{scheme}
+channel: control://;tll.channel.processor=processor;tll.channel.input=input;name=logic
+''')
 
-    logic = asyncloop.Channel('control://;tll.channel.processor=processor;tll.channel.input=input', name='logic')
+    mock.open(skip=['processor'])
 
-    logic.open()
+    ci = mock.io('input')
 
-    tinput.open()
-    linput.open()
-
-    tinput.post({'path': '*.state'}, name='ConfigGet')
+    ci.post({'path': '*.state'}, name='ConfigGet')
     result = []
     for _ in range(100):
-        m = tinput.unpack(await tinput.recv())
+        m = ci.unpack(await ci.recv())
         if m.SCHEME.name == 'ConfigEnd':
             break
         result.append((m.key, m.value))
-    assert result == [('input-client.state', 'Active'), ('input.state', 'Active'), ('logic.state', 'Active'), ('processor.state', 'Closed')]
+    assert result == [('_mock_master_input.state', 'Active'), ('input.state', 'Active'), ('logic.state', 'Active'), ('processor.state', 'Closed')]
 
-    tinput.post({'channel': 'xxx'}, name='ChannelClose')
-    assert tinput.unpack(await tinput.recv()).as_dict() == {'error': "Object 'xxx' not found"}
+    ci.post({'channel': 'xxx'}, name='ChannelClose')
+    assert ci.unpack(await ci.recv()).as_dict() == {'error': "Object 'xxx' not found"}
 
-    tinput.post({'channel': 'input'}, name='ChannelClose')
-    assert tinput.unpack(await tinput.recv()).SCHEME.name == 'Ok'
+    ci.post({'channel': 'input'}, name='ChannelClose')
+    assert ci.unpack(await ci.recv()).SCHEME.name == 'Ok'
 
 @asyncloop_run
 async def test_uplink(asyncloop):
     scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/control.yaml"
 
-    lproc = asyncloop.Channel('direct://;name=processor', scheme='yaml://' + str(scheme), dump='yes')
-    tproc = asyncloop.Channel('direct://;name=processor-client', master=lproc, scheme='yaml://' + str(scheme))
-    linput = asyncloop.Channel('direct://;name=input', scheme='yaml://' + str(scheme), dump='yes')
-    tinput = asyncloop.Channel('direct://;name=input-client', master=linput, scheme='yaml://' + str(scheme))
+    mock = Mock(asyncloop, f'''yamls://
+mock:
+  processor: direct://;scheme=yaml://{scheme}
+  uplink: direct://;scheme=yaml://{scheme}
+channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;name=logic
+''')
 
-    logic = asyncloop.Channel('control://;tll.channel.processor=processor;tll.channel.uplink=input', name='logic')
+    mock.open(skip=['uplink'])
 
-    lproc.open()
-    tproc.open()
-
-    logic.open()
+    tproc, tinput = mock.io('processor', 'uplink')
 
     m = await tproc.recv()
     assert tproc.unpack(m).SCHEME.name == 'StateDump'
 
-    tinput.open()
-    linput.open()
+    mock.inner('uplink').open()
 
     m = await tproc.recv()
     assert tproc.unpack(m).SCHEME.name == 'StateDump'
@@ -101,30 +99,26 @@ async def test_uplink(asyncloop):
         if m.SCHEME.name == 'ConfigEnd':
             break
         result.append((m.key, m.value))
-    assert result == [('input-client.state', 'Active'), ('input.state', 'Active'), ('logic.state', 'Active'), ('processor-client.state', 'Active'), ('processor.state', 'Active')]
+    assert sorted(result) == [(f'{x}.state', 'Active') for x in sorted(['_mock_master_uplink', 'uplink', 'logic', '_mock_master_processor', 'processor'])]
 
 @asyncloop_run
 async def test_message(asyncloop):
     scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/control.yaml"
     pscheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/processor/processor.yaml"
 
-    lproc = asyncloop.Channel('direct://;name=processor', scheme='yaml://' + str(pscheme), dump='yes')
-    tproc = asyncloop.Channel('direct://;name=processor-client', master=lproc, scheme='yaml://' + str(pscheme))
-    linput = asyncloop.Channel('direct://;name=input', scheme='yaml://' + str(scheme), dump='yes')
-    tinput = asyncloop.Channel('direct://;name=input-client', master=linput, scheme='yaml://' + str(scheme))
+    mock = Mock(asyncloop, f'''yamls://
+mock:
+  processor: direct://;scheme=yaml://{pscheme}
+  input: direct://;scheme=yaml://{scheme}
+channel: control://;tll.channel.processor=processor;tll.channel.input=input;name=logic
+''')
 
-    logic = asyncloop.Channel('control://;tll.channel.processor=processor;tll.channel.input=input', name='logic')
+    mock.open()
 
-    lproc.open()
-    tproc.open()
-
-    logic.open()
+    tproc, tinput = mock.io('processor', 'input')
 
     m = await tproc.recv()
     assert tproc.unpack(m).SCHEME.name == 'StateDump'
-
-    tinput.open()
-    linput.open()
 
     tinput.post({'dest': 'input', 'data': {'seq': 100, 'addr': 1000, 'type': 'Data', 'name': 'ConfigGet', 'data': b'{"path": "*.state"}'}}, name='MessageForward')
     body = tinput.scheme.messages.ConfigGet.object(path='*.state')
@@ -145,18 +139,16 @@ async def test_message(asyncloop):
 async def test_log_level(asyncloop):
     scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/control.yaml"
 
-    proc = asyncloop.Channel('null://;name=processor;dump=frame')
-    linput = asyncloop.Channel('direct://;name=input', scheme='yaml://' + str(scheme), dump='yes')
-    tinput = asyncloop.Channel('direct://;name=input-client', master=linput, scheme='yaml://' + str(scheme))
+    mock = Mock(asyncloop, f'''yamls://
+mock:
+  processor: null://
+  input: direct://;scheme=yaml://{scheme}
+channel: control://;tll.channel.processor=processor;tll.channel.input=input;name=logic
+''')
 
-    logic = asyncloop.Channel('control://;tll.channel.processor=processor;tll.channel.input=input', name='logic')
+    mock.open()
 
-    proc.open()
-
-    logic.open()
-
-    tinput.open()
-    linput.open()
+    tinput = mock.io('input')
 
     la = Logger('logger-test.a')
     lb = Logger('logger-test.a.b')

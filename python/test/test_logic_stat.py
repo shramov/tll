@@ -3,12 +3,14 @@
 
 import pytest
 
+import decorator
 import os
 import pathlib
 
+from tll import asynctll
 import tll.stat as S
 from tll.channel import Context
-from tll.test_util import Accum
+from tll.channel.mock import Mock
 
 @pytest.fixture
 def context():
@@ -17,6 +19,17 @@ def context():
     ctx = Context()
     ctx.load(str(path / 'logic/tll-logic-stat'))
     return ctx
+
+@pytest.fixture
+def asyncloop(context):
+    loop = asynctll.Loop(context)
+    yield loop
+    loop.destroy()
+    loop = None
+
+@decorator.decorator
+def asyncloop_run(f, asyncloop, *a, **kw):
+    asyncloop.run(f(asyncloop, *a, **kw))
 
 class Fields(S.Base):
     FIELDS = [S.Integer('sum', S.Method.Sum)
@@ -30,34 +43,39 @@ class Groups(S.Base):
              ,S.Group('float', type=float)
              ]
 
-def test(context):
+@asyncloop_run
+async def test(asyncloop, context):
     fields = Fields('fields')
     groups = Groups('groups')
     context.stat_list.add(fields)
     context.stat_list.add(groups)
 
-    timer = context.Channel('direct://;name=timer')
-    tclient = context.Channel('direct://;name=timer-client', master=timer)
-    stat = Accum('stat://;tll.channel.timer=timer', context=context, node='test-node', dump='yes')
+    mock = Mock(asyncloop, f'''yamls://
+mock:
+  timer: direct://
+channel: stat://;tll.channel.timer=timer;node=test-node
+''')
 
-    timer.open()
-    tclient.open()
+    mock.open()
 
-    stat.open()
+    timer = mock.io('timer')
+    stat = mock.channel
+
     assert stat.scheme != None
     assert [(m.name, m.msgid) for m in stat.scheme.messages if m.msgid] == [('Page', 10)]
 
     fields.update(sum=1, min=2, max=3, last=4)
     groups.update(int=10, float=0.5)
     groups.update(float=0.1)
-    tclient.post(b'')
+    timer.post(b'')
     
-    assert [(m.type, m.msgid) for m in stat.result] == [(stat.Type.Data, 10), (stat.Type.Data, 10)]
-
     Unit = stat.scheme.enums['Unit'].klass
     Method = stat.scheme.enums['Method'].klass
 
-    msg = stat.unpack(stat.result[0])
+    m = await stat.recv()
+    assert (m.type, m.msgid) == (stat.Type.Data, 10)
+
+    msg = stat.unpack(m)
     assert msg.node == 'test-node'
     assert msg.name == 'fields'
     assert [f.name for f in msg.fields] == ['sum', 'min', 'max', 'last']
@@ -66,7 +84,10 @@ def test(context):
     assert msg.fields[2].as_dict() == {'name': 'max', 'unit': Unit.NS, 'value': {'ivalue': {'method': Method.Max, 'value': 3}}}
     assert msg.fields[3].as_dict() == {'name': 'last', 'unit': Unit.Unknown, 'value': {'fvalue': {'method': Method.Last, 'value': 4}}}
 
-    msg = stat.unpack(stat.result[1])
+    m = await stat.recv()
+    assert (m.type, m.msgid) == (stat.Type.Data, 10)
+
+    msg = stat.unpack(m)
     assert msg.node == 'test-node'
     assert msg.name == 'groups'
     assert [f.name for f in msg.fields] == ['int', 'float']
