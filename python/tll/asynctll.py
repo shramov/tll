@@ -6,6 +6,7 @@ from tll.processor import Loop as PLoop
 import tll.channel as C
 
 import collections
+import decorator
 import heapq
 import queue
 import time
@@ -293,3 +294,7 @@ class Loop:
         entry = self.channels.get(channel, None)
         if entry:
             entry.queue.put(msg.clone())
+
+@decorator.decorator
+def asyncloop_run(f, asyncloop, *a, **kw):
+    asyncloop.run(f(asyncloop, *a, **kw))

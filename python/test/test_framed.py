@@ -1,29 +1,17 @@
 #!/usr/bin/env python3
 # vim: sts=4 sw=4 et
 
-import decorator
 import pytest
 
 import struct
 
-from tll import asynctll
+from tll.asynctll import asyncloop_run
 import tll.channel as C
 from tll.test_util import Accum
 
 @pytest.fixture
 def context():
     return C.Context()
-
-@pytest.fixture
-def asyncloop(context):
-    loop = asynctll.Loop(context)
-    yield loop
-    loop.destroy()
-    loop = None
-
-@decorator.decorator
-def asyncloop_run(f, asyncloop, *a, **kw):
-    asyncloop.run(f(asyncloop, *a, **kw))
 
 @asyncloop_run
 @pytest.mark.parametrize("frame", ['std', 'short', 'tiny', 'size32', 'l4m4s8', 'l2m2s8', 'l2m2s4', 'l4', 'bson'])

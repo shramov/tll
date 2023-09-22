@@ -4,28 +4,14 @@
 import os
 
 import pytest
-import decorator
 
+from tll.asynctll import asyncloop_run
 from tll.channel import Context
 from tll.error import TLLError
-from tll import asynctll, logger
-
-logger.configure({'levels': {'tll.python.asynctll*':'info', 'tll.channel.asynctll':'info'}})
 
 @pytest.fixture
 def context():
     return Context()
-
-@pytest.fixture
-def asyncloop(context):
-    loop = asynctll.Loop(context)
-    yield loop
-    loop.destroy()
-    loop = None
-
-@decorator.decorator
-def asyncloop_run(f, asyncloop, *a, **kw):
-    asyncloop.run(f(asyncloop, *a, **kw))
 
 @asyncloop_run
 async def test_basic(asyncloop, tmp_path):

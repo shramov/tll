@@ -3,11 +3,10 @@
 
 import pytest
 
-import decorator
 import os
 import pathlib
 
-from tll import asynctll
+from tll.asynctll import asyncloop_run
 import tll.stat as S
 from tll.channel import Context
 from tll.channel.mock import Mock
@@ -19,17 +18,6 @@ def context():
     ctx = Context()
     ctx.load(str(path / 'logic/tll-logic-stat'))
     return ctx
-
-@pytest.fixture
-def asyncloop(context):
-    loop = asynctll.Loop(context)
-    yield loop
-    loop.destroy()
-    loop = None
-
-@decorator.decorator
-def asyncloop_run(f, asyncloop, *a, **kw):
-    asyncloop.run(f(asyncloop, *a, **kw))
 
 class Fields(S.Base):
     FIELDS = [S.Integer('sum', S.Method.Sum)

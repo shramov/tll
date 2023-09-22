@@ -2,6 +2,7 @@
 # vim: sts=4 sw=4 et
 
 from tll import asynctll
+from tll.asynctll import asyncloop_run
 from tll.channel import Context
 from tll.channel.base import Base
 from tll.channel.logic import Logic
@@ -9,22 +10,10 @@ from tll.config import Config
 from tll.processor import Processor
 
 import pytest
-import decorator
 
 @pytest.fixture
 def context():
     return Context()
-
-@pytest.fixture
-def asyncloop(context):
-    loop = asynctll.Loop(context)
-    yield loop
-    loop.destroy()
-    loop = None
-
-@decorator.decorator
-def asyncloop_run(f, asyncloop, *a, **kw):
-    asyncloop.run(f(asyncloop, *a, **kw))
 
 class OpenTest(Base):
     PROTO = "open-test"
