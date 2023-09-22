@@ -148,6 +148,24 @@ def test_direct():
     assert c.result == []
     assert s.result == []
 
+def test_direct_state():
+    control = 'yamls://[{name: Test, id: 10}]'
+    s = Accum(f'direct://;notify-state=yes;scheme-control={control}', name='server', context=ctx)
+    c = Accum('direct://;notify-state=xxx', name='client', master=s, context=ctx)
+
+    assert s.scheme_control != None
+    assert {m.name: m.msgid for m in s.scheme_control.messages} == {'Test': 10, 'DirectStateUpdate': 0x7f000001}
+
+    s.open()
+    assert s.result == []
+
+    c.open()
+    assert [s.unpack(m).as_dict() for m in s.result] == [{'state': s.State.Opening}, {'state': s.State.Active}]
+    s.result = []
+
+    c.close()
+    assert [s.unpack(m).as_dict() for m in s.result] == [{'state': s.State.Closing}, {'state': s.State.Closed}]
+
 def test_mem(fd=True, **kw):
     s = Accum('mem://;size=1kb', name='server', context=ctx, fd='yes' if fd else 'no', **kw)
 

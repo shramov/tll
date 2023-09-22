@@ -14,48 +14,33 @@ class ChDirect : public tll::channel::Base<ChDirect>
 {
 	ChDirect * _sibling = nullptr;
 	bool _sub = false;
+	bool _notify_state = false;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "direct"; }
 	static constexpr auto process_policy() { return ProcessPolicy::Never; }
+	static constexpr auto open_policy() { return OpenPolicy::Manual; }
 
-	int _init(const tll::Channel::Url &url, tll::Channel * master)
-	{
-		auto reader = channel_props_reader(url);
-		auto control = reader.get("scheme-control");
-		if (!reader)
-			return _log.fail(EINVAL, "Invalid url: {}", reader.error());
-
-		if (control) {
-			_log.debug("Loading control scheme from {}...", control->substr(0, 64));
-			_scheme_control.reset(context().scheme_load(*control));
-			if (!_scheme_control)
-				return _log.fail(EINVAL, "Failed to load control scheme from {}...", control->substr(0, 64));
-		}
-
-		if (!master)
-			return 0;
-
-		_sub = true;
-		_sibling = tll::channel_cast<ChDirect>(master);
-		if (!_sibling)
-			return _log.fail(EINVAL, "Parent {} must be direct:// channel", master->name());
-		_log.debug("Init child of master {}", _sibling->name);
-		return 0;
-	}
-
+	int _init(const tll::Channel::Url &url, tll::Channel * master);
 	int _open(const tll::ConstConfig &)
 	{
-		if (_sub)
-			_sibling->_sibling = this;
-		state(TLL_STATE_ACTIVE);
+		if (!_sub) {
+			state(tll::state::Active);
+			return 0;
+		}
+		_update_state(tll::state::Opening);
+		_sibling->_sibling = this;
+		_update_state(tll::state::Active);
 		return 0;
 	}
 
 	int _close()
 	{
-		if (_sub)
-			_sibling->_sibling = nullptr;
+		if (!_sub)
+			return 0;
+		_update_state(tll::state::Closing);
+		_sibling->_sibling = nullptr;
+		_update_state(tll::state::Closed);
 		return 0;
 	}
 
@@ -67,6 +52,8 @@ class ChDirect : public tll::channel::Base<ChDirect>
 	}
 
 	int _process(long timeout, int flags) { return EAGAIN; }
+
+	void _update_state(tll_state_t state);
 };
 
 #endif//_TLL_CHANNEL_DIRECT_H

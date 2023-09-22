@@ -1,0 +1,6 @@
+- name: DirectStateUpdate
+  id: 0x7f000001
+  enums:
+    State: {type: uint8, enum: {Closed: 0, Opening: 1, Active: 2, Closing: 3, Error: 4, Destroy: 5}}
+  fields:
+    - {name: state, type: State}

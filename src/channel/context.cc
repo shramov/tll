@@ -54,13 +54,13 @@
 
 using namespace tll;
 
-TLL_DEFINE_IMPL(ChDirect);
 TLL_DEFINE_IMPL(ChLoader);
 TLL_DEFINE_IMPL(ChNull);
 TLL_DEFINE_IMPL(tll::channel::Random);
 TLL_DEFINE_IMPL(tll::channel::SeqCheck);
 
 TLL_DECLARE_IMPL(tll::channel::Blocks);
+TLL_DECLARE_IMPL(ChDirect);
 TLL_DECLARE_IMPL(ChIpc);
 TLL_DECLARE_IMPL(channel::File);
 TLL_DECLARE_IMPL(Framed);
