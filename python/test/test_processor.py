@@ -113,9 +113,13 @@ processor.objects:
         ci = loop.Channel('mem://;master=input')
         co = loop.Channel('mem://;master=output')
 
-        await loop.sleep(0.01)
-
         pi = ctx.get('input')
+
+        for i in range(10):
+            await loop.sleep(0.01)
+            if pi.state == pi.State.Active:
+                break
+
         assert pi.state == pi.State.Active
 
         ci.open()
