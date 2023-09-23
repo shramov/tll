@@ -167,6 +167,19 @@ def test_direct_state():
     c.close()
     assert [s.unpack(m).as_dict() for m in s.result] == [{'state': s.State.Closing}, {'state': s.State.Closed}]
 
+@pytest.mark.parametrize("name,messages", [("stream-client", ["Online"]), ("tcp-client", ["WriteFull", "WriteReady"])])
+@pytest.mark.parametrize("state", ["yes", "no"])
+@pytest.mark.parametrize("external", [True, False])
+def test_direct_emulate(name, messages, state, external):
+    control = 'yamls://[{name: Test, id: 10000}]'
+    s = ctx.Channel(f'direct://;notify-state={state};scheme-control={control if external else ""};emulate-control={name}', name='server')
+    assert s.scheme_control != None
+    if external:
+        messages = messages + ["Test"]
+    if state == 'yes':
+        messages = messages + ["DirectStateUpdate"]
+    assert sorted([m.name for m in s.scheme_control.messages]) == sorted(messages)
+
 def test_mem(fd=True, **kw):
     s = Accum('mem://;size=1kb', name='server', context=ctx, fd='yes' if fd else 'no', **kw)
 

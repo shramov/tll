@@ -54,6 +54,8 @@ class ChDirect : public tll::channel::Base<ChDirect>
 	int _process(long timeout, int flags) { return EAGAIN; }
 
 	void _update_state(tll_state_t state);
+
+	int _merge_control(std::string_view scheme, std::string_view name);
 };
 
 #endif//_TLL_CHANNEL_DIRECT_H
