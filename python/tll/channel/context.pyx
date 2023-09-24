@@ -14,6 +14,7 @@ from ..stat cimport List as StatList
 from ..logger import Logger
 
 import importlib
+import pathlib
 import sys
 import warnings
 
@@ -126,6 +127,8 @@ cdef class Context:
         return Channel.wrap(c)
 
     def load(self, path, symbol=''):
+        if isinstance(path, pathlib.Path):
+            path = str(path)
         p = s2b(path)
         s = s2b(symbol)
         # XXX: Temporary warning
