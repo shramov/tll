@@ -3,25 +3,20 @@
 
 import pytest
 
-import os
-import pathlib
-
 import tll
 from tll.asynctll import asyncloop_run
 from tll.channel import Context
 from tll.channel.mock import Mock
 
 @pytest.fixture
-def context():
-    path = pathlib.Path(tll.__file__).parent.parent.parent / "build/src/"
-    path = pathlib.Path(os.environ.get("BUILD_DIR", path))
+def context(path_builddir):
     ctx = Context()
-    ctx.load(str(path / 'logic/tll-logic-stat'))
+    ctx.load(path_builddir / 'logic/tll-logic-stat')
     return ctx
 
 @asyncloop_run
-async def test(asyncloop, context):
-    scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/quantile.yaml"
+async def test(asyncloop, context, path_srcdir):
+    scheme = path_srcdir / "src/logic/quantile.yaml"
 
     config = f'''yamls://
 mock:

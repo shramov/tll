@@ -3,9 +3,6 @@
 
 import pytest
 
-import os
-import pathlib
-
 import tll
 from tll.asynctll import asyncloop_run
 from tll.logger import Logger
@@ -13,16 +10,14 @@ from tll.channel import Context
 from tll.channel.mock import Mock
 
 @pytest.fixture
-def context():
-    path = pathlib.Path(tll.__file__).parent.parent.parent / "build/src/"
-    path = pathlib.Path(os.environ.get("BUILD_DIR", path))
+def context(path_builddir):
     ctx = Context()
-    ctx.load(str(path / 'logic/tll-logic-control'))
+    ctx.load(path_builddir / 'logic/tll-logic-control')
     return ctx
 
 @asyncloop_run
-async def test(asyncloop):
-    scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/control.yaml"
+async def test(asyncloop, path_srcdir):
+    scheme = path_srcdir / "src/logic/control.yaml"
 
     mock = Mock(asyncloop, f'''yamls://
 mock:
@@ -51,8 +46,8 @@ channel: control://;tll.channel.processor=processor;tll.channel.input=input;name
     assert ci.unpack(await ci.recv()).SCHEME.name == 'Ok'
 
 @asyncloop_run
-async def test_uplink(asyncloop):
-    scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/control.yaml"
+async def test_uplink(asyncloop, path_srcdir):
+    scheme = path_srcdir / "src/logic/control.yaml"
 
     mock = Mock(asyncloop, f'''yamls://
 mock:
@@ -90,9 +85,9 @@ channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;na
     assert sorted(result) == [(f'{x}.state', 'Active') for x in sorted(['_mock_master_uplink', 'uplink', 'logic', '_mock_master_processor', 'processor'])]
 
 @asyncloop_run
-async def test_message(asyncloop):
-    scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/control.yaml"
-    pscheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/processor/processor.yaml"
+async def test_message(asyncloop, path_srcdir):
+    scheme = path_srcdir / "src/logic/control.yaml"
+    pscheme = path_srcdir / "src/processor/processor.yaml"
 
     mock = Mock(asyncloop, f'''yamls://
 mock:
@@ -124,8 +119,8 @@ channel: control://;tll.channel.processor=processor;tll.channel.input=input;name
     assert m.SCHEME.name == 'Error'
 
 @asyncloop_run
-async def test_log_level(asyncloop):
-    scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/control.yaml"
+async def test_log_level(asyncloop, path_srcdir):
+    scheme = path_srcdir / "src/logic/control.yaml"
 
     mock = Mock(asyncloop, f'''yamls://
 mock:

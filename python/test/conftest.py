@@ -3,6 +3,7 @@
 
 import pytest
 
+import os
 import pathlib
 import tempfile
 
@@ -27,3 +28,13 @@ def asyncloop(context):
     yield loop
     loop.destroy()
     loop = None
+
+@pytest.fixture
+def path_builddir():
+    path = pathlib.Path(tll.logger.__file__).parent.parent.parent / "build/src"
+    return pathlib.Path(os.environ.get("BUILD_DIR", path))
+
+@pytest.fixture
+def path_srcdir():
+    path = pathlib.Path(tll.__file__).parent.parent.parent
+    return pathlib.Path(os.environ.get("SOURCE_DIR", path))
