@@ -8,7 +8,9 @@ from tll.asynctll import asyncloop_run
 from tll.logger import Logger
 from tll.channel import Context
 from tll.channel.mock import Mock
+from tll.channel.prefix import Prefix
 from tll.config import Config
+from tll.processor.mock import Mock as ProcessorMock
 from tll.test_util import ports
 
 @pytest.fixture
@@ -195,3 +197,50 @@ channel:
 
     client.post(b'xxx')
     assert (await tcp.recv()).data.tobytes() == b'xxx'
+
+class Echo(Prefix):
+    PROTO = "echo+"
+
+    def _on_data(self, msg):
+        self._child.post(msg)
+
+@asyncloop_run
+async def test_resolve_processor(asyncloop, path_srcdir):
+    asyncloop.context.register(Echo)
+    scheme = path_srcdir / "src/logic/resolve.yaml"
+    mock = ProcessorMock(asyncloop, asyncloop.context, f'''yamls://
+name: processor
+processor.objects:
+  resolve:
+    init: python://;python=tll.channel.resolve:Resolve
+    channels: {{ input: _tll_resolve_master }}
+  _tll_resolve_master:
+    init: ipc://;mode=server;scheme=yaml://{scheme};dump=yes
+    depends: resolve
+  control:
+    init:
+      tll.proto: control
+      service: test
+      hostname: host
+      service-tags: 'a,b'
+    channels: {{resolve: control-resolve, processor: control-processor}}
+  control-resolve:
+    init: ipc://;mode=client;master=_tll_resolve_master
+    depends: control
+  control-processor:
+    init: ipc://;mode=client;master=processor/ipc;scheme=channel://processor;dump=yes
+    depends: control
+  tcp:
+    init: echo+tcp://::1:{ports.TCP6};mode=server;tll.resolve.export=yes;dump=yes
+''')
+
+    mock.open()
+
+    await mock.wait('_tll_resolve_master', 'Active')
+
+    client = asyncloop.Channel(f'resolve://;resolve.service=test;resolve.channel=tcp;name=client')
+    client.open()
+
+    await client.recv_state() == client.State.Active
+    client.post(b'xxx')
+    assert (await client.recv()).data.tobytes() == b'xxx'
