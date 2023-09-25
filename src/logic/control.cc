@@ -298,13 +298,18 @@ tll::result_t<int> Control::_message_forward(const tll_msg_t *msg)
 	if (!message)
 		return error(fmt::format("Message '{}' not found", reqm.get_name()));
 
-	_json.init_scheme(scheme);
+	auto body = reqm.get_data();
+	if (body.empty()) {
+		datam.set_data(std::string(message->size, '\0'));
+	} else {
+		_json.init_scheme(scheme);
 
-	tll_msg_t out = {};
-	if (auto r = _json.decode(message, reqm.get_data(), &out); r)
-		datam.set_data(std::string_view((const char *) r->data, r->size));
-	else
-		return error("Failed to decode JSON body");
+		tll_msg_t out = {};
+		if (auto r = _json.decode(message, body, &out); r)
+			datam.set_data(std::string_view((const char *) r->data, r->size));
+		else
+			return error("Failed to decode JSON body");
+	}
 
 	datam.set_type(type);
 	datam.set_msgid(message->msgid);

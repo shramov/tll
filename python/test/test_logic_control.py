@@ -115,8 +115,14 @@ channel: control://;tll.channel.processor=processor;tll.channel.input=input;name
     assert m.as_dict() == {'dest': 'input', 'data': {'seq': 100, 'addr': 1000, 'type': 0, 'msgid': body.SCHEME.msgid, 'data': m.data.data}}
     assert m.data.data.encode('utf-8') == body.pack()
 
-    m = tinput.unpack(await tinput.recv())
-    assert m.SCHEME.name == 'Ok'
+    assert tinput.unpack(await tinput.recv()).SCHEME.name == 'Ok'
+
+    tinput.post({'dest': 'input', 'data': {'seq': 200, 'addr': 2000, 'type': 'Data', 'name': 'Error'}}, name='MessageForward')
+
+    m = tproc.unpack(await tproc.recv())
+    assert m.as_dict() == {'dest': 'input', 'data': {'seq': 200, 'addr': 2000, 'type': 0, 'msgid': 50 , 'data': '\0' * 8}}
+
+    assert tinput.unpack(await tinput.recv()).SCHEME.name == 'Ok'
 
     tinput.post({'dest': 'input', 'data': {'seq': 100, 'addr': 1000, 'type': 'Data', 'name': 'xxx', 'data': b'{"path": "*.state"}'}}, name='MessageForward')
     m = tinput.unpack(await tinput.recv())
