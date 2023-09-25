@@ -69,7 +69,16 @@ class Prefix(Base):
         else:
             pass
 
+    def _on_client_export(self, client):
+        proto = client.get("tll.proto", None)
+        if proto is None:
+            self.log.warning("Client parameters without tll.proto")
+            return
+        self.config.set("client", client.copy())
+
     def _on_active(self):
+        if client := self._child.config.sub("client", throw=False):
+            self._on_client_export(client)
         self.state = self.State.Active
 
     def _on_closing(self):
