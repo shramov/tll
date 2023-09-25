@@ -8,6 +8,7 @@
 #include "channel/ipc.h"
 
 #include "tll/channel/event.hpp"
+#include "tll/scheme/channel/ipc.h"
 #include "tll/util/size.h"
 
 #include <unistd.h>
@@ -56,6 +57,7 @@ int ChIpc::_open(const ConstConfig &url)
 		master->_clients.emplace(_addr.u64, _qin);
 	}
 
+	_post_control(ipc_scheme::Connect::meta_id());
 	state(TLL_STATE_ACTIVE);
 	return 0;
 }
@@ -63,6 +65,7 @@ int ChIpc::_open(const ConstConfig &url)
 int ChIpc::_close()
 {
 	{
+		_post_control(ipc_scheme::Disconnect::meta_id());
 		std::unique_lock<std::mutex> lock(master->_lock);
 		master->_clients.erase(_addr.u64);
 	}
@@ -72,7 +75,7 @@ int ChIpc::_close()
 	return Event<ChIpc>::_close();
 }
 
-int ChIpc::_post(const tll_msg_t *msg, int flags)
+int ChIpc::_post_nocheck(const tll_msg_t *msg, int flags)
 {
 	tll::util::OwnedMessage m(msg);
 	m.addr = _addr;
@@ -93,7 +96,10 @@ int ChIpc::_process(long timeout, int flags)
 	auto msg = q->pop();
 	if (!msg)
 		return EAGAIN;
-	_callback_data(*msg);
+	if (msg->type != TLL_MESSAGE_DATA) {
+		_callback(*msg);
+	} else
+		_callback_data(*msg);
 
 	return event_clear_race([&q]() -> bool { return !q->empty(); });
 }
@@ -105,6 +111,10 @@ int ChIpcServer::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_broadcast = reader.getT("broadcast", false);
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
+
+	_scheme_control.reset(this->context().scheme_load(ipc_scheme::scheme_string));
+	if (!_scheme_control.get())
+		return _log.fail(EINVAL, "Failed to load control scheme");
 
 	return Event<ChIpcServer>::_init(url, master);
 }

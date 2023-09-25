@@ -634,6 +634,10 @@ def test_ipc():
     s.open()
     c.open()
 
+    s.process()
+    assert [(m.msgid, m.type) for m in s.result] == [(10, s.Type.Control)]
+    s.result = []
+
     with pytest.raises(TLLError): s.post(b'xxx', msgid=10, seq=100)
 
     c.post(b'yyy', msgid=20, seq=200)
@@ -646,7 +650,10 @@ def test_ipc():
 
     assert [(m.msgid, m.seq, m.data.tobytes()) for m in c.result] == [(30, 300, b'zzz')]
 
+    s.result = []
     c.close()
+    s.process()
+    assert [(m.msgid, m.type) for m in s.result] == [(20, s.Type.Control)]
     c.open()
     c.result = []
 

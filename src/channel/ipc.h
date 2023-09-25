@@ -63,7 +63,20 @@ class ChIpc : public tll::channel::Event<ChIpc>
 	int _close();
 
 	int _process(long timeout, int flags);
-	int _post(const tll_msg_t *msg, int flags);
+	int _post(const tll_msg_t *msg, int flags)
+	{
+		if (msg->type != TLL_MESSAGE_DATA)
+			return _log.fail(EINVAL, "Non-data messages are not supported");
+		return _post_nocheck(msg, flags);
+	}
+
+	int _post_nocheck(const tll_msg_t *msg, int flags);
+	int _post_control(int msgid)
+	{
+		tll_msg_t msg = { TLL_MESSAGE_CONTROL };
+		msg.msgid = msgid;
+		return _post_nocheck(&msg, 0);
+	}
 };
 
 class ChIpcServer : public tll::channel::Event<ChIpcServer>
