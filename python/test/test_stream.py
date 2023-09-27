@@ -578,3 +578,17 @@ async def test_ring(asyncloop, tmp_path):
     for i in range(20, 30):
         m = await c.recv()
         assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'ccc')
+
+@asyncloop_run
+async def test_export_client(asyncloop, tmp_path):
+    server = asyncloop.Channel(f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame;storage=file:///{tmp_path}/storage.dat;name=server;mode=server')
+    server.open()
+    server.post(b'xxx', seq=100)
+
+    url = server.config.get_url('client')
+    assert url.proto == 'stream+pub+tcp'
+
+    c = asyncloop.Channel(url, name='client')
+    c.open(mode='seq', seq='100')
+    assert await c.recv_state() == c.State.Active
+    assert (await c.recv()).seq == 100

@@ -185,6 +185,7 @@ int StreamServer::_close(bool force)
 	_child_open = tll::Config();
 
 	config_info().setT("seq", _seq);
+	_config.remove("client");
 
 	for (auto & [_, p] : _clients) {
 		p.reset();
@@ -212,8 +213,18 @@ int StreamServer::_check_state(tll_state_t s)
 		return 0;
 	if (s == tll::state::Active) {
 		_log.info("All sub channels are active");
-		if (state() == tll::state::Opening)
+		if (state() == tll::state::Opening) {
+			auto oclient = _child->config().sub("client");
+			auto rclient = _request->config().sub("client");
+			if (oclient && rclient) {
+				tll::Channel::Url client = oclient->copy();
+				client.proto(std::string("stream+") + client.proto());
+				client.set("mode", "client");
+				client.set("request", rclient->copy());
+				_config.set("client", client);
+			}
 			state(tll::state::Active);
+		}
 	} else if (s == tll::state::Closed) {
 		_log.info("All sub channels are closed");
 		if (state() == tll::state::Closing)
