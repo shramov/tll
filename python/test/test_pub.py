@@ -158,3 +158,18 @@ async def test_many(asyncloop, server, client):
         s.post(data, seq=i, msgid=10)
         m = await c.recv()
         assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, data)
+
+@asyncloop_run
+async def test_client(asyncloop, server):
+    server.open()
+
+    url = server.config.get_url('client')
+    assert url.proto == 'pub+tcp'
+
+    c = asyncloop.Channel(url, name='client')
+    c.open()
+    assert await c.recv_state() == c.State.Active
+
+    server.post(b'xxx', seq=100)
+
+    assert (await c.recv()).seq == 100
