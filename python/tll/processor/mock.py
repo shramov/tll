@@ -8,11 +8,11 @@ from ..config import Config
 class Mock:
     State = Processor.State
 
-    def __init__(self, loop, context, config):
+    def __init__(self, loop, config, context=None):
         if not isinstance(config, Config):
             config = Config.load(config)
         self._config = config
-        self._context = context or Context()
+        self._context = context or loop.context
         self._channels = {}
 
         self._mock(loop)

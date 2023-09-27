@@ -214,7 +214,7 @@ class Echo(Prefix):
 async def test_resolve_processor(asyncloop, path_srcdir):
     asyncloop.context.register(Echo)
     scheme = path_srcdir / "src/logic/resolve.yaml"
-    mock = ProcessorMock(asyncloop, asyncloop.context, f'''yamls://
+    mock = ProcessorMock(asyncloop, f'''yamls://
 name: processor
 processor.objects:
   resolve:

@@ -30,7 +30,7 @@ class OpenTest(Base):
         OpenTest.STATE_PARAM = v
         self.close()
 
-def test_open_link():
+def test_open_link(context):
     cfg = Config.load('''yamls://
 processor.objects:
   null:
@@ -42,11 +42,10 @@ processor.objects:
     depends: null
 ''')
 
-    ctx = Context()
-    ctx.register(OpenTest)
+    context.register(OpenTest)
     cfg.copy().copy()
 
-    p = Processor(cfg, context=ctx)
+    p = Processor(cfg, context=context)
     p.open()
 
     for w in p.workers:
@@ -82,7 +81,7 @@ class Forward(Logic):
             return
         self._output.post(msg)
 
-def test_forward():
+def test_forward(context):
     cfg = Config.load('''yamls://
 name: test
 processor.objects:
@@ -97,13 +96,12 @@ processor.objects:
     depends: forward
 ''')
 
-    ctx = Context()
-    ctx.register(Forward)
+    context.register(Forward)
 
-    p = Processor(cfg, context=ctx)
+    p = Processor(cfg, context=context)
     p.open()
 
-    loop = asynctll.Loop(context=ctx)
+    loop = asynctll.Loop(context=context)
     loop._loop.add(p)
 
     assert len(p.workers) == 1
@@ -114,7 +112,7 @@ processor.objects:
         ci = loop.Channel('mem://;master=input')
         co = loop.Channel('mem://;master=output')
 
-        pi = ctx.get('input')
+        pi = context.get('input')
 
         for i in range(10):
             await loop.sleep(0.01)
@@ -239,10 +237,10 @@ processor.objects:
     assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Opening}
 
 @asyncloop_run
-async def test_forward_helper(asyncloop, context, tmp_path):
-    context.register(Forward)
+async def test_forward_helper(asyncloop, tmp_path):
+    asyncloop.context.register(Forward)
 
-    mock = Mock(asyncloop, context, '''yamls://
+    mock = Mock(asyncloop, '''yamls://
 mock:
   input: direct://
   output: mem://
