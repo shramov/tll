@@ -19,6 +19,10 @@ import time
 
 ctx = C.Context()
 
+@pytest.fixture
+def context():
+    return C.Context()
+
 def test_defaults():
     defaults = Config()
     ctx = C.Context(defaults)
@@ -166,6 +170,22 @@ def test_direct_state():
 
     c.close()
     assert [s.unpack(m).as_dict() for m in s.result] == [{'state': s.State.Closing}, {'state': s.State.Closed}]
+
+def test_direct_autoseq(context):
+    s = Accum(f'direct://;autoseq=yes', name='server', dump='frame', context=context)
+    c = Accum('direct://', name='client', master=s, dump='frame', context=context)
+
+    s.open()
+    c.open()
+
+    c.post(b'10', seq=10)
+    c.post(b'20', seq=20)
+
+    s.post(b'110', seq=10)
+    s.post(b'120', seq=20)
+
+    assert [(m.data.tobytes(), m.seq) for m in s.result] == [(b'10', 10), (b'20', 20)]
+    assert [(m.data.tobytes(), m.seq) for m in c.result] == [(b'110', 0), (b'120', 1)]
 
 @pytest.mark.parametrize("name,messages", [("stream-client", ["Online"]), ("tcp-client", ["WriteFull", "WriteReady"])])
 @pytest.mark.parametrize("state", ["yes", "no"])

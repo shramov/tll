@@ -8,10 +8,11 @@
 #ifndef _TLL_CHANNEL_DIRECT_H
 #define _TLL_CHANNEL_DIRECT_H
 
-#include "tll/channel/base.h"
+#include "tll/channel/autoseq.h"
 
-class ChDirect : public tll::channel::Base<ChDirect>
+class ChDirect : public tll::channel::AutoSeq<ChDirect>
 {
+	using Base = tll::channel::AutoSeq<ChDirect>;
 	ChDirect * _sibling = nullptr;
 	bool _sub = false;
 	bool _notify_state = false;
@@ -22,8 +23,10 @@ class ChDirect : public tll::channel::Base<ChDirect>
 	static constexpr auto open_policy() { return OpenPolicy::Manual; }
 
 	int _init(const tll::Channel::Url &url, tll::Channel * master);
-	int _open(const tll::ConstConfig &)
+	int _open(const tll::ConstConfig &cfg)
 	{
+		if (auto r = Base::_open(cfg); r)
+			return _log.fail(EINVAL, "Base open failed");
 		if (!_sub) {
 			state(tll::state::Active);
 			return 0;
@@ -47,7 +50,7 @@ class ChDirect : public tll::channel::Base<ChDirect>
 	int _post(const tll_msg_t *msg, int flags)
 	{
 		if (_sibling)
-			_sibling->_callback(msg);
+			_sibling->_callback(_autoseq.update(msg));
 		return 0;
 	}
 

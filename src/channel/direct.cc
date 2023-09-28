@@ -29,6 +29,8 @@ std::optional<std::string_view> lookup_scheme(std::string_view name)
 
 int ChDirect::_init(const tll::Channel::Url &url, tll::Channel * master)
 {
+	if (auto r = Base::_init(url, master); r)
+		return _log.fail(r, "Base init failed");
 	auto reader = channel_props_reader(url);
 	auto control = reader.get("scheme-control");
 	auto emulate = reader.getT("emulate-control", std::vector<std::string>{});
