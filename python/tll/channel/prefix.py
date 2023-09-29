@@ -9,7 +9,7 @@ import weakref
 class Prefix(Base):
     OPEN_POLICY = Base.OpenPolicy.Manual
     CLOSE_POLICY = Base.ClosePolicy.Long
-    CHILD_POLICY = Base.ChildPolicy.Single
+    CHILD_POLICY = Base.ChildPolicy.Proxy
     PROCESS_POLICY = Base.ProcessPolicy.Never
 
     def _init(self, url, master = None):

@@ -38,9 +38,10 @@ class ClosePolicy(enum.Enum):
 _ClosePolicy = ClosePolicy
 
 class ChildPolicy(enum.Enum):
-    Never = enum.auto()
-    Single = enum.auto()
-    Many = enum.auto()
+    Never = enum.auto() # Channel has no child objects
+    Proxy = enum.auto() # Channel has some child objects, first one can be casted with tll::channel_cast<SubType>
+    Many = enum.auto() # Channel has some child objects, tll::channel_cast does not check children
+    Single = Proxy # Old name, alias for Proxy
 _ChildPolicy = ChildPolicy
 
 class ProcessPolicy(enum.Enum):
@@ -237,7 +238,7 @@ cdef class Base:
 
         if self.CHILD_POLICY == ChildPolicy.Never:
             pass
-        elif self.CHILD_POLICY == ChildPolicy.Single:
+        elif self.CHILD_POLICY == ChildPolicy.Proxy:
             self.caps |= self.Caps.Parent | self.Caps.Proxy;
         elif self.CHILD_POLICY == ChildPolicy.Many:
             self.caps |= self.Caps.Parent
