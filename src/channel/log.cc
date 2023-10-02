@@ -35,7 +35,7 @@ int tll_channel_log_msg(const tll_channel_t * c, const char * _log, tll_logger_l
 	}
 
 	auto scheme = tll_channel_scheme(c, msg->type);
-	auto message = scheme ? scheme->lookup(msg->msgid) : nullptr;
+	auto message = (scheme && msg->msgid) ? scheme->lookup(msg->msgid) : nullptr;
 
 	if (format == log_msg_format::Auto) {
 		if (message)
