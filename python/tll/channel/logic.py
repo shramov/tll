@@ -15,6 +15,7 @@ class Logic(Base):
     def _init(self, url, master=None):
         super()._init(url, master)
         self._channels = {}
+        self._callbacks = []
         channels_unique = set()
         for k,v in url.browse('tll.channel.**'):
             if not k.startswith('tll.channel.'):
@@ -36,9 +37,13 @@ class Logic(Base):
 
         self._callback_ref = self.logic
         for c in channels_unique:
-            c.callback_add(self.logic)
+            self._callbacks.append(c.callback_add(self._callback_ref, store=False))
 
     def _free(self):
+        for cb in self._callbacks:
+            cb.finalize()
+        self._callbacks = []
+        self._callback_ref = None
         self._channels = {}
 
     def logic(self, channel, msg):
