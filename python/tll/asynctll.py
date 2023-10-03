@@ -171,7 +171,7 @@ class Loop:
         if self.context is None:
             raise RuntimeError("Can not create channel without loop context")
         kw = dict(kw)
-        kw['context'] = self.context
+        kw.setdefault('context', self.context)
         kw[AsyncChannel.LOOP_KEY] = self
         c = AsyncChannel(*a, **kw)
         self.asyncchannels.add(c)

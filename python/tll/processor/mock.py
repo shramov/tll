@@ -21,7 +21,7 @@ class Mock:
         loop._loop.add(self._processor)
 
         name = self._config['name']
-        self._control = loop.Channel(f'ipc://;mode=client;dump=yes;name=processor-ipc-client;scheme=channel://{name}', master=self._processor)
+        self._control = loop.Channel(f'ipc://;mode=client;dump=yes;name=processor-ipc-client;scheme=channel://{name}', master=self._processor, context=self._context)
 
     def _mock(self, loop):
         if 'name' not in self._config:
