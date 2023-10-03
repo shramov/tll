@@ -92,7 +92,12 @@ class Duration(_Base):
 
     @property
     def timedelta(self):
-        return datetime.timedelta(self.seconds)
+        return datetime.timedelta(seconds=self.seconds)
+
+    def __eq__(self, other):
+        if isinstance(other, datetime.timedelta):
+            return self == Duration(other)
+        return super().__eq__(other)
 
 class TimePoint(_Base):
     def __init__(self, value = 0, resolution = Resolution.second.value, type=float):
