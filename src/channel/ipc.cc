@@ -65,7 +65,8 @@ int ChIpc::_open(const ConstConfig &url)
 int ChIpc::_close()
 {
 	{
-		_post_control(ipc_scheme::Disconnect::meta_id());
+		if (_markers)
+			_post_control(ipc_scheme::Disconnect::meta_id());
 		std::unique_lock<std::mutex> lock(master->_lock);
 		master->_clients.erase(_addr.u64);
 	}

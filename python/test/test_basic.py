@@ -529,3 +529,11 @@ def test_ipc_broadcast():
 
     assert [(m.msgid, m.seq, m.data.tobytes()) for m in c0.result] == [(10, 100, b'xxx')]
     assert [(m.msgid, m.seq, m.data.tobytes()) for m in c1.result] == [(10, 100, b'xxx')]
+
+def test_ipc_destroy():
+    s = Accum('ipc://', mode='server', name='server', dump='yes', broadcast='yes', context=ctx)
+    c = Accum('ipc://', mode='client', name='client', dump='yes', master=s, context=ctx)
+
+    with pytest.raises(TLLError): c.open()
+
+    c.close()
