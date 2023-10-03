@@ -7,7 +7,7 @@ from .processor cimport *
 from .loop cimport *
 from ..channel.channel cimport Channel
 from ..channel.context cimport Context
-from ..config cimport Config
+from ..config cimport Config, Url
 from .. import error
 from libc.errno cimport ECONNRESET
 
@@ -29,6 +29,21 @@ cdef class Processor(Channel):
             prefix = config.get('processor.format', '')
             config['tll.proto'] = 'processor' if not prefix else prefix + "+processor"
         Channel.__init__(self, config, context=self._context)
+
+    @staticmethod
+    def load_modules(context, config):
+        mcfg = config.sub("processor.module", throw=False)
+        acfg = config.sub("processor.alias", throw=False)
+        if mcfg is None and acfg is None:
+            return
+
+        lurl = Url()
+        lurl.proto = "loader"
+        lurl['tll.internal'] = 'yes'
+        if mcfg: lurl['module'] = mcfg.copy()
+        if acfg: lurl['alias'] = acfg.copy()
+        loader = context.Channel(lurl)
+        loader.free()
 
     def step(self, timeout=0.1):
         cdef int r = 0

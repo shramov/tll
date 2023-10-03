@@ -42,16 +42,7 @@ def run(cfg):
 
     context = Context(cfg.sub("processor.defaults", create=False, throw=False) or Config())
 
-    loader = None
-    mcfg = cfg.sub("processor.module", throw=False)
-    acfg = cfg.sub("processor.alias", throw=False)
-    if mcfg is not None or acfg is not None:
-        lurl = Url()
-        lurl.proto = "loader"
-        lurl['tll.internal'] = 'yes'
-        if mcfg: lurl['module'] = mcfg.copy()
-        if acfg: lurl['alias'] = acfg.copy()
-        loader = context.Channel(lurl)
+    Processor.load_modules(context, cfg)
 
     p = Processor(cfg, context=context)
     p.open()

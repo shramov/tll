@@ -17,6 +17,8 @@ class Mock:
 
         self._mock(loop)
 
+        Processor.load_modules(self._context, self._config)
+
         self._processor = Processor(self._config, context=self._context)
         loop._loop.add(self._processor)
 
