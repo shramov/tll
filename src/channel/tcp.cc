@@ -147,7 +147,7 @@ int FramedSocket<T, F>::_post_data(const tll_msg_t *msg, int flags)
 		return 0;
 	if (this->_wbuf.size())
 		return EAGAIN;
-	this->_log.debug("Post {} + {} bytes of data", FrameT::frame_size(), msg->size);
+	this->_log.trace("Post {} + {} bytes of data", FrameT::frame_size(), msg->size);
 	int r = 0;
 	if constexpr (FrameT::frame_skip_size() != 0) {
 		Frame frame;
@@ -205,6 +205,6 @@ int FramedSocket<T, Frame>::_process(long timeout, int flags)
 		return EINVAL;
 	if (!*s)
 		return EAGAIN;
-	this->_log.debug("Got {} bytes of data", *s);
+	this->_log.trace("Got {} bytes of data", *s);
 	return this->_pending();
 }

@@ -94,7 +94,7 @@ int TcpSocket<T>::_close()
 template <typename T>
 int TcpSocket<T>::_post_data(const tll_msg_t *msg, int flags)
 {
-	this->_log.debug("Post {} bytes of data", msg->size);
+	this->_log.trace("Post {} bytes of data", msg->size);
 	int r = send(this->fd(), msg->data, msg->size, MSG_NOSIGNAL | MSG_DONTWAIT);
 	if (r < 0)
 		return this->_log.fail(errno, "Failed to post data: {}", strerror(errno));
@@ -333,7 +333,7 @@ int TcpSocket<T>::_process(long timeout, int flags)
 		return EINVAL;
 	if (!*r)
 		return EAGAIN;
-	this->_log.debug("Got data: {}", *r);
+	this->_log.trace("Got data: {}", *r);
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	msg.data = _rbuf.data();
 	msg.size = *r;
