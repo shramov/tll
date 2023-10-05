@@ -262,8 +262,9 @@ processor.objects:
 
     i, o = mock.io('input', 'output')
 
-    #await mock.wait('input', 'Active')
-    await mock.wait_many(input='Active', output=mock.State.Active)
+    with pytest.raises(TimeoutError):
+        await mock.wait('input', 'Active', timeout=0.00001)
+    await mock.wait_many(timeout=1, input='Active', output=mock.State.Active)
 
     mock.io('input').post(b'xxx')
     assert (await o.recv()).data.tobytes() == b'xxx'

@@ -5,6 +5,8 @@ from .processor import Processor
 from ..channel import Context
 from ..config import Config
 
+import time
+
 class Mock:
     State = Processor.State
 
@@ -77,28 +79,32 @@ class Mock:
             return Mock.State[state]
         return state
 
-    async def wait(self, name, state):
+    async def wait(self, name, state, timeout=3):
         state = self._normalize_state(state)
         c = self._context.get(name)
         if c.state == state:
             return
-        for _ in range(100):
-            m = await self._control.recv()
+        end = time.time() + timeout
+        while (now := time.time()) < end:
+            m = await self._control.recv(timeout=end - now)
             m = self._control.unpack(m)
             if m.channel != name:
                 continue
             if m.state.name == state.name:
                 return
+        raise TimeoutError(f"Timed out waiting for object {name} state {state}")
 
-    async def wait_many(self, **objects):
-        objects = {n: self._normalize_state(s) for n, s in objects.items()}
-        states = {n: self._context.get(n).state for n in objects.keys()}
+    async def wait_many(self, timeout=3, objects={}, **okw):
+        okw.update(objects)
+        objects = {n: self._normalize_state(s) for n, s in okw.items()}
+        states = {n: self._context.get(n).state for n in okw.keys()}
 
         if sorted(objects.items()) == sorted(states.items()):
             return
 
-        for _ in range(100):
-            m = await self._control.recv()
+        end = time.time() + timeout
+        while (now := time.time()) < end:
+            m = await self._control.recv(timeout=end - now)
             m = self._control.unpack(m)
             if m.channel not in states:
                 continue
