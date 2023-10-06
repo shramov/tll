@@ -523,6 +523,10 @@ def test_ipc_broadcast():
     c0.open()
     c1.open()
 
+    s.process()
+    s.process()
+    assert [(m.type, m.msgid) for m in s.result] == [(s.Type.Control, 10)] * 2
+
     s.post(b'xxx', msgid=10, seq=100)
     c0.process()
     c1.process()
@@ -536,4 +540,13 @@ def test_ipc_destroy():
 
     with pytest.raises(TLLError): c.open()
 
+    c.close()
+
+    s.open()
+    c.open()
+
+    s.process()
+    assert [(m.type, m.msgid) for m in s.result] == [(s.Type.Control, 10)]
+
+    s.free()
     c.close()

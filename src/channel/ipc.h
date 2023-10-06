@@ -17,26 +17,28 @@
 #include "tll/util/refptr.h"
 
 #include <memory>
-#include <mutex>
+#include <atomic>
 
 class ChIpcServer;
 
-template <typename T>
-struct lqueue_ref : public lqueue<T>, public tll::util::refbase_t<lqueue_ref<T>, 0>
+struct EventQueue : public lqueue<tll::util::OwnedMessage>
 {
 	tll::channel::EventNotify event;
-	~lqueue_ref() { event.close(); }
+	~EventQueue() { event.close(); }
+};
+
+struct QueuePair : public tll::util::refbase_t<QueuePair, 0>
+{
+	EventQueue server;
+	EventQueue client;
 };
 
 class ChIpc : public tll::channel::Event<ChIpc>
 {
  public:
-	template <typename E> using queue_t = lqueue_ref<tll::util::OwnedMessage>;
-	using squeue_t = queue_t<ChIpcServer>;
-	using cqueue_t = queue_t<ChIpc>;
 	template <typename T> using refptr_t = tll::util::refptr_t<T>;
 
-	struct marker_queue_t : public MarkerQueue<squeue_t *, nullptr>
+	struct marker_queue_t : public MarkerQueue<QueuePair *, nullptr>
 	{
 		using MarkerQueue::MarkerQueue;
 		~marker_queue_t()
@@ -49,8 +51,7 @@ class ChIpc : public tll::channel::Event<ChIpc>
  private:
 	tll_addr_t _addr = {};
 
-	refptr_t<cqueue_t> _qin;
-	refptr_t<squeue_t> _qout;
+	refptr_t<QueuePair> _queue;
 	std::shared_ptr<marker_queue_t> _markers;
 	ChIpcServer * master = nullptr;
 
@@ -83,14 +84,13 @@ class ChIpcServer : public tll::channel::Event<ChIpcServer>
 {
 	friend class ChIpc;
 	size_t _size = 1024;
-	tll_addr_t _addr = {};
+	std::atomic<uint64_t> _addr = {};
 
 	bool _broadcast = false;
 
 	template <typename T> using refptr_t = tll::util::refptr_t<T>;
 	std::shared_ptr<ChIpc::marker_queue_t> _markers;
-	std::mutex _lock;
-	std::map<long long, refptr_t<ChIpc::cqueue_t>> _clients;
+	std::map<long long, refptr_t<QueuePair>> _clients;
  public:
 	static constexpr std::string_view channel_protocol() { return "ipc"; }
 
@@ -101,6 +101,8 @@ class ChIpcServer : public tll::channel::Event<ChIpcServer>
 
 	int _process(long timeout, int flags);
 	int _post(const tll_msg_t *msg, int flags);
+
+	tll_addr_t addr() { return tll_addr_t { ++_addr }; }
 };
 
 //extern template class tll::channel::Base<ChIpcServer>;

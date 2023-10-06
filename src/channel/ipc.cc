@@ -46,32 +46,21 @@ int ChIpc::_open(const ConstConfig &url)
 	if (Event<ChIpc>::_open(url))
 		return _log.fail(EINVAL, "Failed to open event parent");
 
-	_qin.reset(new cqueue_t);
-	_qout.reset(new squeue_t);
-	_qin->event = this->event_detached();;
-	_qout->event = master->event_detached();
+	_queue.reset(new QueuePair);
+	_queue->client.event = master->event_detached();;
+	_queue->server.event = this->event_detached();
 	_markers = master->_markers;
-	{
-		std::unique_lock<std::mutex> lock(master->_lock);
-		_addr = { ++master->_addr.u64 };
-		master->_clients.emplace(_addr.u64, _qin);
-	}
+	_addr = master->addr();
 
 	_post_control(ipc_scheme::Connect::meta_id());
-	state(TLL_STATE_ACTIVE);
 	return 0;
 }
 
 int ChIpc::_close()
 {
-	{
-		if (_markers)
-			_post_control(ipc_scheme::Disconnect::meta_id());
-		std::unique_lock<std::mutex> lock(master->_lock);
-		master->_clients.erase(_addr.u64);
-	}
-	_qin.reset(nullptr);
-	_qout.reset(nullptr);
+	if (_markers)
+		_post_control(ipc_scheme::Disconnect::meta_id());
+	_queue.reset(nullptr);
 	_markers.reset();
 	return Event<ChIpc>::_close();
 }
@@ -80,29 +69,27 @@ int ChIpc::_post_nocheck(const tll_msg_t *msg, int flags)
 {
 	tll::util::OwnedMessage m(msg);
 	m.addr = _addr;
-	auto ref = _qout;
-	if (_markers->push(_qout.get()))
+	auto ref = _queue;
+	if (_markers->push(ref.get()))
 		return EAGAIN;
 	ref.release();
-	_log.debug("Notify fd {}", _qout->event.fd);
-	if (_qout->event.notify())
+	_log.trace("Notify fd {}", _queue->client.event.fd);
+	if (_queue->client.event.notify())
 		_log.error("Failed to arm event");
-	_qout->push(std::move(m));
+	_queue->client.push(std::move(m));
 	return 0;
 }
 
 int ChIpc::_process(long timeout, int flags)
 {
-	auto q = _qin;
-	auto msg = q->pop();
+	auto ref = _queue;
+	auto msg = _queue->server.pop();
 	if (!msg)
 		return EAGAIN;
-	if (msg->type != TLL_MESSAGE_DATA) {
-		_callback(*msg);
-	} else
-		_callback_data(*msg);
 
-	return event_clear_race([&q]() -> bool { return !q->empty(); });
+	_callback_data(*msg);
+
+	return event_clear_race([&ref]() -> bool { return !ref->server.empty(); });
 }
 
 int ChIpcServer::_init(const tll::Channel::Url &url, tll::Channel *master)
@@ -127,7 +114,6 @@ int ChIpcServer::_open(const ConstConfig &url)
 	_markers.reset(new ChIpc::marker_queue_t(_size));
 	if (Event<ChIpcServer>::_open(url))
 		return _log.fail(EINVAL, "Failed to open event parent");
-	state(TLL_STATE_ACTIVE);
 	return 0;
 }
 
@@ -146,8 +132,8 @@ int ChIpcServer::_post(const tll_msg_t *msg, int flags)
 		return 0;
 	if (msg->addr.u64 == 0 && _broadcast) {
 		for (auto & [addr, c] : _clients) {
-			c->push(tll::util::OwnedMessage(msg));
-			if (c->event.notify())
+			c->server.push(tll::util::OwnedMessage(msg));
+			if (c->server.event.notify())
 				_log.warning("Failed to arm event for client {}", addr);
 		}
 		return 0;
@@ -155,8 +141,8 @@ int ChIpcServer::_post(const tll_msg_t *msg, int flags)
 
 	auto it = _clients.find(msg->addr.u64);
 	if (it == _clients.end()) return ENOENT;
-	it->second->push(tll::util::OwnedMessage(msg));
-	if (it->second->event.notify())
+	it->second->server.push(tll::util::OwnedMessage(msg));
+	if (it->second->server.event.notify())
 		return _log.fail(EINVAL, "Failed to arm event");
 	return 0;
 }
@@ -167,11 +153,27 @@ int ChIpcServer::_process(long timeout, int flags)
 	auto q = markers->pop();
 	if (!q)
 		return EAGAIN;
-	auto msg = q->pop();
+	auto msg = q->client.pop();
 	while (!msg) {
-		msg = q->pop();
+		msg = q->client.pop();
 	}
-	_callback_data(*msg);
+
+	if (msg->type != TLL_MESSAGE_DATA) {
+		if (msg->type == TLL_MESSAGE_CONTROL) {
+		switch (msg->msgid) {
+		case ipc_scheme::Connect::meta_id():
+			_log.info("Connected client {}", msg->addr.u64);
+			_clients.emplace(msg->addr.u64, q);
+			break;
+		case ipc_scheme::Disconnect::meta_id():
+			_log.info("Disconnected client {}", msg->addr.u64);
+			_clients.erase(msg->addr.u64);
+			break;
+		}
+		}
+		_callback(*msg);
+	} else
+		_callback_data(*msg);
 	q->unref();
 
 	return event_clear_race([&markers]() -> bool { return !markers->empty(); });
