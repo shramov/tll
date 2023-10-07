@@ -582,6 +582,12 @@ int TcpServer<T, C>::_open(const ConstConfig &url)
 	if (!addr)
 		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _host, addr.error());
 
+	if (this->_scheme) {
+		char * string = tll_scheme_dump(this->_scheme.get(), "yamls+gz");
+		_client_url.set("scheme", string);
+		::free(string);
+	}
+
 	auto af = static_cast<network::AddressFamily>(addr->front()->sa_family);
 	_client_url.set("af", tll::conv::to_string(af));
 	if (af == network::AddressFamily::UNIX || _host != "*") {

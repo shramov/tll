@@ -307,3 +307,17 @@ def test_client(host, af):
 
     c = Accum(s.config.sub('client'), name='client')
     c.open()
+
+def test_client_scheme():
+    scheme = 'yamls://[{name: Test, id: 10}]'
+    s = Accum(f'tcp://::1:{ports.TCP6};mode=server', scheme=scheme)
+
+    s.open()
+    assert [m.name for m in s.scheme.messages] == ['Test']
+
+    assert s.config.sub('client').as_dict() == {'tll': {'proto': 'tcp', 'host': f'::1:{ports.TCP6}'}, 'af': 'ipv6', 'mode': 'client', 'scheme': s.scheme.dump('yamls+gz')}
+
+    c = Accum(s.config.sub('client'), name='client')
+    c.open()
+
+    assert [m.name for m in s.scheme.messages] == ['Test']
