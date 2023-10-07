@@ -37,3 +37,6 @@ def test_duration_eq():
     assert Duration(100000, 'ns') == timedelta(microseconds=100)
     assert Duration(100100, 'ns') != timedelta(microseconds=100)
     assert Duration(100, 'ns') != timedelta(microseconds=0)
+
+    assert Duration(100, 'ns') != 100
+    with pytest.raises(TypeError): Duration(100, 'ns') < 100

@@ -75,13 +75,13 @@ class _Base:
         return cls(typ(body), _str2res[suffix], type=typ)
 
     def __eq__(self, other):
-        if not isinstance(other, self.__class__): return False
+        if not isinstance(other, self.__class__): return NotImplemented
         if self.resolution == other.resolution:
             return self.value == other.value
         return self.seconds == other.seconds
 
     def __lt__(self, other):
-        if not isinstance(other, self.__class__): return False
+        if not isinstance(other, self.__class__): return NotImplemented
         return self.seconds < v.seconds
 
 class Duration(_Base):
