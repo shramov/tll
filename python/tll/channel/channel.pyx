@@ -516,6 +516,9 @@ class Message:
     def __init__(self, msgid, data=b'', type : _Type =_Type.Data, seq : int = 0, addr : int = 0, time : TimePoint = None):
         self.type, self.msgid, self.seq, self.addr, self.data, self.time = type, msgid, seq, addr, memoryview(data), time
 
+    def __str__(self):
+        return f"<Message type={self.type} msgid={self.msgid} seq={self.seq} addr={self.addr} size={len(self.data)}>"
+
 cdef class CMessage:
     Type = _Type
 
