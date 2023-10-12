@@ -91,20 +91,12 @@ class RunGuard:
     def active(self):
         return self._active
 
-cdef ccallback_finalize(tll_channel_t * channel, void * func, unsigned int mask, object guard):
-    if guard.active:
-        tll_channel_callback_del(channel, ccallback_cb, func, mask)
-        guard.disable()
-
 cdef int ccallback_destroy_cb(const tll_channel_t * c, const tll_msg_t *msg, void * user) with gil:
     if msg.type != TLL_MESSAGE_STATE or msg.msgid != TLL_STATE_DESTROY:
         return 0
-    wr = <object>user
+    o = <object>user
     try:
-        o = wr()
-        if o is not None:
-            o.reset()
-            Py_INCREF(wr)
+        o.destroy()
     except:
         pass
     return 0
@@ -132,71 +124,67 @@ cdef class CCallback:
     cdef tll_channel_t * _channel
     cdef void * _func_ptr
     cdef object _func_ref
-    cdef object _self_ref
     cdef object _chan_ref
-    cdef object _finalize
-    cdef object _run_guard
     cdef unsigned int _mask
-    cdef object __weakref__
 
     def __cinit__(self):
+        self._reset()
+
+    def __dealloc__(self):
+        self._destroy()
+
+    cdef _reset(self):
         self._channel = NULL
         self._func_ptr = NULL
-        self._func_ref = None
+        self._chan_ref = self._func_ref = None
+
+    cdef _destroy(self):
+        if self._channel == NULL:
+            return
+
+        cdef int r0 = tll_channel_callback_del(self._channel, ccallback_cb, <void *>self, self._mask)
+        cdef int r1 = tll_channel_callback_del(self._channel, ccallback_destroy_cb, <void *>self, MsgMask.State)
+
+        self._reset()
+
+        if r0 or r1:
+            raise TLLError("Callback del failed", r0 if r0 else r1)
 
     def __init__(self, channel : Channel, func, mask = MsgMask.All):
-        self._channel = (<Channel>channel)._ptr
         self._mask = mask
-        self._func_ref = None
-        self._self_ref = None
         self._chan_ref = weakref.ref(channel)
-        self._run_guard = RunGuard(False)
-        ptr = <intptr_t>self._channel
 
         if isinstance(func, weakref.ref):
             func = func()
         if func is None:
             return
+
         self._func_ptr = <void *>func
-        self._func_ref = weakref.ref(func)
-
-        cdef tll_channel_t * c = self._channel
-        cdef void * f = <void *>self
-        cdef unsigned int m = self._mask
-        guard = self._run_guard
-
-        self._finalize = lambda _: ccallback_finalize(c, f, m, guard)
-        self._self_ref = weakref.ref(self, self._finalize)
-        self._func_ref = weakref.ref(func, self._finalize)
-
-    def reset(self):
-        self._run_guard.disable()
-        self._func_ref = None
-        self._self_ref = None
+        self._func_ref = weakref.ref(func, lambda ref: self.destroy())
 
     def add(self):
-        cdef int r = tll_channel_callback_add(self._channel, ccallback_destroy_cb, <void *>self._self_ref, self._mask)
-        if r:
-            raise TLLError("Callback add failed", r)
-        Py_INCREF(self._self_ref)
+        cdef Channel c = <Channel>(self._chan_ref())
+        self._channel = c._ptr
 
-        r = tll_channel_callback_add(self._channel, ccallback_cb, <void *>self, self._mask)
-        if r:
-            raise TLLError("Callback add failed", r)
-        self._run_guard.enable()
+        cdef int r
 
-    def remove(self):
-        cdef int r = tll_channel_callback_del(self._channel, ccallback_cb, <void *>self, self._mask)
-        if r:
-            raise TLLError("Callback del failed", r)
-        self.reset()
+        try:
+            r = tll_channel_callback_add(self._channel, ccallback_cb, <void *>self, self._mask)
+            if r:
+                raise TLLError("Callback add failed", r)
+
+            r = tll_channel_callback_add(self._channel, ccallback_destroy_cb, <void *>self, MsgMask.State)
+            if r:
+                raise TLLError("Callback add failed", r)
+        except:
+            self._reset()
+            raise
+
+    def destroy(self):
+        self._destroy()
 
     def __hash__(self):
         return hash((<intptr_t>self._func_ptr, self._mask))
-
-    @property
-    def finalize(self):
-        return self._finalize
 
 cdef class Channel:
     Caps = _Caps
@@ -250,7 +238,7 @@ cdef class Channel:
             return
         if self._callbacks != None:
             for o in self._callbacks.keys():
-                o.finalize(None)
+                o.destroy()
             self._callbacks = {}
         self._scheme_cache = None
         if self._own and self._ptr is not NULL:
@@ -351,7 +339,7 @@ cdef class Channel:
         obj, fn = self._callbacks.pop(obj, (None, None))
         if fn is None:
             return
-        obj.remove()
+        obj.destroy()
 
     def suspend(self):
         error.wrap(tll_channel_suspend(self._ptr), "Suspend failed")
