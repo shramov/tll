@@ -16,6 +16,9 @@ cdef extern from "tll/config.h":
     cdef const tll_config_t * tll_config_ref(const tll_config_t * cfg)
     cdef void tll_config_unref(const tll_config_t * cfg)
 
+    cdef const tll_config_t * tll_config_parent(const tll_config_t * cfg)
+    cdef const tll_config_t * tll_config_root(const tll_config_t * cfg)
+
     cdef tll_config_t * tll_config_sub(tll_config_t *, const char * path, int len, int create)
 
 

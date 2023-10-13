@@ -118,6 +118,16 @@ cdef class Config:
     def __deepcopy__(self, memo):
         return self.copy()
 
+    @property
+    def root(self):
+        return Config.wrap(<tll_config_t *>tll_config_root(self._ptr), False, True)
+
+    @property
+    def parent(self):
+        cdef const tll_config_t * ptr = tll_config_parent(self._ptr)
+        if ptr:
+            return Config.wrap(<tll_config_t *>ptr, False, True)
+
     def sub(self, path, create=False, throw=True):
         p = s2b(path)
         cdef tll_config_t * cfg = tll_config_sub(self._ptr, p, len(p), 1 if create else 0)

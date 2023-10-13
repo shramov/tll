@@ -275,3 +275,9 @@ mixed: {url: 'tcp://*:8080;dump=yes', stat: yes}
         assert str(cfg.get_url(k)) == "tcp://*:8080;dump=yes;stat=yes"
     cfg.set("mixed.dump", "no")
     with pytest.raises(ValueError): cfg.get_url("mixed")
+
+def test_parent():
+    cfg = Config.from_dict({'a': {'b': 'c'}})
+    assert cfg.parent == None
+    assert cfg.root.as_dict() == cfg.as_dict()
+    assert cfg.sub('a').parent.as_dict() == cfg.as_dict()
