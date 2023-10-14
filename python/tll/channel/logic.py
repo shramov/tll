@@ -47,6 +47,8 @@ class Logic(Base):
         self._channels = {}
 
     def logic(self, channel, msg):
+        if self.state not in (self.State.Opening, self.State.Active):
+            return
         try:
             stat = self.stat
             if stat is None:
