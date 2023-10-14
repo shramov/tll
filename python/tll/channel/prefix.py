@@ -27,7 +27,7 @@ class Prefix(Base):
         self._child = self.context.Channel(curl, master=master)
         self._child.callback_add(weakref.ref(self))
 
-        self._child_add(self._child)
+        self._child_add(self._child, "python")
 
     def _free(self):
         if self._child:

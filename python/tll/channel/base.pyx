@@ -385,21 +385,25 @@ cdef class Base:
 
         self.internal.callback(&msg)
 
-    def _child_add(self, c):
-        self.log.info("Add child channel '{}'", c.name)
+    def _child_add(self, c, tag=None):
+        self.log.info("Add child channel '{}' (tag {})", c.name, tag)
         cdef tll_channel_t * ptr = (<Channel>c)._ptr
 
         if c in self._children:
             raise KeyError("Channel {} is a child already".format(c.name))
 
-        error.wrap(tll_channel_internal_child_add(&self.internal.internal, ptr, NULL, 0), "Child '{}' add failed", c.name)
+        tag = s2b(tag or "")
+
+        error.wrap(tll_channel_internal_child_add(&self.internal.internal, ptr, tag, len(tag)), "Child '{}' add failed", c.name)
         self._children.add(c)
 
-    def _child_del(self, c):
-        self.log.info("Delete child channel '{}'", c.name)
+    def _child_del(self, c, tag=None):
+        self.log.info("Delete child channel '{}' (tag {})", c.name, tag)
         cdef tll_channel_t * ptr = (<Channel>c)._ptr
 
-        error.wrap(tll_channel_internal_child_del(&self.internal.internal, ptr, NULL, 0), "Child '{}' del failed", c.name)
+        tag = s2b(tag or "")
+
+        error.wrap(tll_channel_internal_child_del(&self.internal.internal, ptr, tag, len(tag)), "Child '{}' del failed", c.name)
 
         if c in self._children:
             self._children.remove(c)
