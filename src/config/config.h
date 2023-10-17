@@ -181,7 +181,12 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 			r = _lookup_link(r.get());
 			if (!r.get())
 				return r;
-			auto it = r->kids.find(*path);
+			std::string_view key;
+			if constexpr (std::is_same_v<Iter, std::filesystem::path::iterator>)
+				key = path->native();
+			else
+				key = *path;
+			auto it = r->kids.find(key);
 			if (it == r->kids.end()) return r;
 			r = it->second.get();
 		}

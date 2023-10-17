@@ -281,3 +281,15 @@ def test_parent():
     assert cfg.parent == None
     assert cfg.root.as_dict() == cfg.as_dict()
     assert cfg.sub('a').parent.as_dict() == cfg.as_dict()
+
+def test_broken_link():
+    cfg = Config()
+    cfg.set_link('li.nk', '/a/b')
+
+    assert cfg.sub('li.nk').as_dict() == {}
+    cfg.set('a.b.c', '10')
+    assert cfg.sub('a.b').as_dict() == {'c': '10'}
+
+    assert cfg.sub('li.nk').as_dict() == {'c': '10'}
+    cfg.set('a./x', 'y')
+    assert cfg.sub('li.nk').as_dict() == {'c': '10'}
