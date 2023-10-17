@@ -110,6 +110,11 @@ cdef class Context:
         return r
 
     @property
+    def config(self):
+        cdef tll_config_t * cfg = tll_channel_context_config(self._ptr)
+        return Config.wrap(cfg)
+
+    @property
     def config_defaults(self):
         cdef tll_config_t * cfg = tll_channel_context_config_defaults(self._ptr)
         return Config.wrap(cfg)
