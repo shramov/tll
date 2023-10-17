@@ -25,7 +25,7 @@ class Echo(Base):
         self.scheme_control = self.context.scheme_load('yamls://[{name: Control, id: 10}]')
 
     def _open(self, props):
-        self._child = self.context.Channel('null://;name=child;tll.internal=yes')
+        self._child = self.context.Channel(self._child_url_parse('null://', 'child'))
         self._child_add(self._child)
         self._child_add(self.context.Channel('null://;name=orphan'))
         self.config_info['echo'] = 'yes'
@@ -117,7 +117,7 @@ def test():
     c.open()
     assert cfg['info.echo'] == 'yes'
 
-    assert [x.name for x in c.children] == ['child', 'orphan']
+    assert [x.name for x in c.children] == ['echo/child', 'orphan']
 
     with pytest.raises(TypeError): C.channel_cast(c.children[0])
 

@@ -5,12 +5,11 @@
 from .impl cimport *
 from . cimport channel as C
 from . import channel as C
-from ..config cimport Config
+from ..config cimport Config, Url
 from ..scheme cimport Scheme
 from .context cimport Context, Internal
 from libc.string cimport memset
 from libc.errno cimport EINVAL
-from ..url import *
 from ..s2b import b2s, s2b
 from ..logger import Logger
 from ..logger cimport TLL_LOGGER_INFO
@@ -384,6 +383,17 @@ cdef class Base:
         msg.size = sizeof(old)
 
         self.internal.callback(&msg)
+
+    def _child_url_parse(self, url, suffix):
+        url = Url.parse(url);
+        return self._child_url_fill(url, suffix);
+
+    def _child_url_fill(self, url, suffix):
+        url.set("name", f"{self.name}/{suffix}")
+        url.set("tll.internal", "yes");
+        #if self._with_fd and 'fd' not in url:
+        #        url.set("fd", "no");
+        return url
 
     def _child_add(self, c, tag=None):
         self.log.info("Add child channel '{}' (tag {})", c.name, tag)
