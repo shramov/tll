@@ -442,6 +442,12 @@ cdef class Channel:
     def __richcmp__(Channel self, Channel other, int op):
         return bool(richcmp(<intptr_t>self._ptr, <intptr_t>other._ptr, op))
 
+    def __repr__(self):
+        ptr = <intptr_t>self._ptr
+        if self._ptr == NULL:
+            return "<Channel ptr=NULL>"
+        return f"<Channel ptr=0x{ptr:x} name={self.name}>"
+
 class Callback:
     def __init__(self, obj, func='__call__', weak=True):
         self.func = func
