@@ -598,6 +598,15 @@ cdef class FEnum(FBase):
     cdef convert(FEnum self, v):
         if isinstance(v, str):
             return self.enum_class.__members__[v]
+        elif isinstance(v, enum.Enum):
+            if isinstance(v, self.enum_class):
+                return v
+            if self.enum_class.__name__ != v.__class__.__name__:
+                raise ValueError(f"Enum name of '{v}' does not match field enum name '{self.enum_class.__name__}'")
+            r = self.enum_class.__members__.get(v.name, None)
+            if r is None:
+                raise ValueError(f"Enum {self.enum_class} has no field '{v.name}'")
+            return r
         return self.enum_class(v)
     cdef from_string(FEnum self, str s):
         v = self.enum_class.__members__.get(s, None)

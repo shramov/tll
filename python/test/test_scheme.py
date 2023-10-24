@@ -10,6 +10,7 @@ from tll.chrono import *
 import copy
 import datetime
 import decimal
+import enum
 import pytest
 import struct
 
@@ -657,6 +658,16 @@ def test_enum():
 
     assert m.SCHEME['e8'].from_string('1') == m.e8.A
     assert m.SCHEME['e8'].from_string('A') == m.e8.A
+
+    class e8(enum.Enum):
+        A = 10
+        B = 20
+        Other = 30
+
+    with pytest.raises(ValueError): m.e64 = e8.A
+    with pytest.raises(ValueError): m.e8 = e8.Other
+    m.e8 = e8.A
+    assert m.e8.name == 'A'
 
 def test_enum_eq():
     SCHEME = """yamls://
