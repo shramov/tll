@@ -678,10 +678,17 @@ def test_enum_eq():
     s0 = S.Scheme(SCHEME)
     s1 = S.Scheme(SCHEME)
 
+    class e8(enum.Enum):
+        A = 10
+        Other = 3
+
     assert s0.enums['e8'].klass.A == s0.enums['e8'].klass.A
     assert s0.enums['e8'].klass.A == s1.enums['e8'].klass.A
     assert s0.enums['e8'].klass.A != s0.enums['e64'].klass.A
     assert s0.enums['e8'].klass.A != s1.enums['e64'].klass.A
+
+    assert s0.enums['e8'].klass.A == e8.A
+    assert s0.enums['e8'].klass.C != e8.Other
 
 def test_decimal128():
     scheme = S.Scheme("""yamls://

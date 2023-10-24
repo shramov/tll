@@ -78,7 +78,7 @@ class EqEnum(enum.Enum):
         if type(self) == type(rhs):
             return self.value == rhs.value
         if isinstance(rhs, enum.Enum):
-            return self.__class__.__name__ == rhs.__class__.__name__ and self.value == rhs.value
+            return self.__class__.__name__ == rhs.__class__.__name__ and self.name == rhs.name
         return False
 
     def __ne__(self, rhs):
