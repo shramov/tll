@@ -83,7 +83,7 @@ if args.channel:
     timeout = time.time() + args.timeout
     ctx = Context()
     for m in args.modules:
-        ctx.load(m, 'channel_module')
+        ctx.load(m)
     master = ctx.Channel(args.master) if args.master else None
     c = ctx.Channel(args.scheme, master=master)
     if master:
