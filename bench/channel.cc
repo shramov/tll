@@ -117,19 +117,21 @@ int main(int argc, char *argv[])
 
 	std::vector<std::string> url;
 	std::vector<std::string> modules;
+	std::string payload_channel;
 	bool callback = false;
 	bool process = false;
 	unsigned count = 10000000;
 	unsigned msgsize = 1024;
-	tll_msg_t msg = { TLL_MESSAGE_DATA };
+	int msgid = 0;
 
 	parser.add_argument({"URL"}, "channel url", &url);
 	parser.add_argument({"-m", "--module"}, "load channel modules", &modules);
 	parser.add_argument({"-c", "--callback"}, "add callback", &callback);
 	parser.add_argument({"--process"}, "run process benchmark", &process);
 	parser.add_argument({"-C", "--count"}, "number of iterations", &count);
-	parser.add_argument({"--msgid"}, "message id", &msg.msgid);
+	parser.add_argument({"--msgid"}, "message id", &msgid);
 	parser.add_argument({"--msgsize"}, "message size", &msgsize);
+	parser.add_argument({"--payload"}, "read payload from channel", &payload_channel);
 	auto pr = parser.parse(argc, argv);
 	if (!pr) {
 		fmt::print("Invalid arguments: {}\nRun '{} --help' for more information\n", pr.error(), argv[0]);
@@ -141,8 +143,6 @@ int main(int argc, char *argv[])
 
 	std::vector<char> buf;
 	buf.resize(msgsize);
-	msg.data = buf.data();
-	msg.size = msgsize;
 
 	auto ctx = tll::channel::Context(tll::Config());
 
@@ -152,6 +152,48 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 	}
+
+	tll_msg_t msg = { TLL_MESSAGE_DATA };
+
+	if (payload_channel.size()) {
+		auto c = ctx.channel(payload_channel);
+		if (!c) {
+			fmt::print("Failed to create payload channel {}\n", payload_channel);
+			return 1;
+		}
+		buf.resize(0);
+		struct Callback
+		{
+			std::vector<char> * buf;
+			tll_msg_t * msg;
+
+			int callback(const tll::Channel *, const tll_msg_t *m)
+			{
+				buf->resize(m->size);
+				memcpy(buf->data(), m->data, m->size);
+				msg->msgid = m->msgid;
+				return 0;
+			}
+		};
+		Callback cb = { &buf, &msg };
+		c->callback_add(&cb, TLL_MESSAGE_MASK_DATA);
+		c->open();
+		for (auto i = 0; i < 10; i++) {
+			c->process();
+			if (buf.size())
+				break;
+		}
+		if (buf.empty()) {
+			fmt::print("Failed to read data from payload channel {}\n", payload_channel);
+			return 1;
+		}
+	}
+
+	msg.data = buf.data();
+	msg.size = buf.size();
+	if (msgid)
+		msg.msgid = msgid;
+
 	ctx.reg(&Echo::impl);
 	ctx.reg(&Prefix::impl);
 
