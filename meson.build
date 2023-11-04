@@ -9,6 +9,11 @@ if cc.get_id() == 'gcc' and cc.version().version_compare('< 8.0')
 	add_project_arguments('-Wno-unused-variable', language: 'cpp')
 endif
 
+if host_machine.system() == 'freebsd'
+  # On FreeBSD 12.3 fmt can not format normal (non class) enums
+  add_project_arguments('-DFMT_DEPRECATED=', language: 'cpp')
+endif
+
 cxx_fs_link_args = []
 cxx = meson.get_compiler('cpp')
 if not cxx.has_header('filesystem') or (cxx.get_id() == 'gcc' and cxx.version().version_compare('< 9.0'))
