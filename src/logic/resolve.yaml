@@ -20,6 +20,7 @@
   fields:
     - {name: service, type: string}
     - {name: channel, type: string}
+    - {name: tags, type: '*string'} # Ignored in normal exports, non empty in responses
     - {name: host, type: string} # Empty in normal exports, non empty in responses
     - {name: config, type: '*KeyValue'}
 
@@ -28,6 +29,7 @@
   fields:
     - {name: service, type: string}
     - {name: channel, type: string}
+    - {name: tags, type: '*string'} # Ignored in normal exports, non empty in responses
 
 - name: Request
   id: 60

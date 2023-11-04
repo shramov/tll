@@ -5,7 +5,7 @@
 
 namespace resolve_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJy9k00LgkAQhu/9irkJkVD07bU6dTPqbjrZku3azhpJ+N/7YLXaMKHI2y48zDPvMGMD9/bogDXHdOVFCVoNgA3DKCDn+gKw4ayJHaZWC1Qa3z6kJOOhlRnM8V7inbJzzewUC6kWKI/Mv7tY4ECnXSolTVaJlRfSA2qWUFtB6lN3Uylio7fuN70ZcSdbj3OM8pK93+P6umIVVxLYKCb4hoVP0yt2wRiNkaP/zxyF2MVDgtcUWjqoRbpI1uRLti7WYFiLdsnJFI/qzesixYJToR/Xt6uaez7j1/PJGheycmmK)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJzFkksLwjAQhO/+ir0FxILiA+lVPXlT9N7Htg3WpCZpsYj/3VrSKJEqKMXbLgzzzSzrAPOO6AJZY7n30hxJDyCimIbSrSYABy5accCSDECV2X2RSlAWk6ulKWqLV5XTYFbnjAu1RVHQoGbR0IXRsBUqtfITWHmxfIj6LaqES/Uu3VLwzMo2/iabVXeReIxh2lhOfq8baMdOz2IhOYto/GRmPsY6oNV2+v+2Jt4GTzlWXXW0WZfRDHTHZO7LQFDfPNW8S/ANQGol5A==)";
 
 struct KeyValue
 {
@@ -98,7 +98,7 @@ struct DropService
 
 struct ExportChannel
 {
-	static constexpr size_t meta_size() { return 32; }
+	static constexpr size_t meta_size() { return 40; }
 	static constexpr std::string_view meta_name() { return "ExportChannel"; }
 	static constexpr int meta_id() { return 40; }
 
@@ -118,12 +118,16 @@ struct ExportChannel
 		std::string_view get_channel() const { return this->template _get_string<tll_scheme_offset_ptr_t>(8); }
 		void set_channel(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(8, v); }
 
-		std::string_view get_host() const { return this->template _get_string<tll_scheme_offset_ptr_t>(16); }
-		void set_host(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(16, v); }
+		using type_tags = tll::scheme::binder::List<Buf, tll::scheme::binder::String<Buf, tll_scheme_offset_ptr_t>, tll_scheme_offset_ptr_t>;
+		const type_tags get_tags() const { return this->template _get_binder<type_tags>(16); }
+		type_tags get_tags() { return this->template _get_binder<type_tags>(16); }
+
+		std::string_view get_host() const { return this->template _get_string<tll_scheme_offset_ptr_t>(24); }
+		void set_host(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(24, v); }
 
 		using type_config = tll::scheme::binder::List<Buf, KeyValue::binder_type<Buf>, tll_scheme_offset_ptr_t>;
-		const type_config get_config() const { return this->template _get_binder<type_config>(24); }
-		type_config get_config() { return this->template _get_binder<type_config>(24); }
+		const type_config get_config() const { return this->template _get_binder<type_config>(32); }
+		type_config get_config() { return this->template _get_binder<type_config>(32); }
 	};
 
 	template <typename Buf>
@@ -135,7 +139,7 @@ struct ExportChannel
 
 struct DropChannel
 {
-	static constexpr size_t meta_size() { return 16; }
+	static constexpr size_t meta_size() { return 24; }
 	static constexpr std::string_view meta_name() { return "DropChannel"; }
 	static constexpr int meta_id() { return 50; }
 
@@ -154,6 +158,10 @@ struct DropChannel
 
 		std::string_view get_channel() const { return this->template _get_string<tll_scheme_offset_ptr_t>(8); }
 		void set_channel(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(8, v); }
+
+		using type_tags = tll::scheme::binder::List<Buf, tll::scheme::binder::String<Buf, tll_scheme_offset_ptr_t>, tll_scheme_offset_ptr_t>;
+		const type_tags get_tags() const { return this->template _get_binder<type_tags>(16); }
+		type_tags get_tags() { return this->template _get_binder<type_tags>(16); }
 	};
 
 	template <typename Buf>
@@ -193,36 +201,6 @@ struct Request
 	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
-struct Subscribe
-{
-	static constexpr size_t meta_size() { return 16; }
-	static constexpr std::string_view meta_name() { return "Subscribe"; }
-	static constexpr int meta_id() { return 70; }
-
-	template <typename Buf>
-	struct binder_type : public tll::scheme::Binder<Buf>
-	{
-		using tll::scheme::Binder<Buf>::Binder;
-
-		static constexpr auto meta_size() { return Subscribe::meta_size(); }
-		static constexpr auto meta_name() { return Subscribe::meta_name(); }
-		static constexpr auto meta_id() { return Subscribe::meta_id(); }
-		void view_resize() { this->_view_resize(meta_size()); }
-
-		std::string_view get_service() const { return this->template _get_string<tll_scheme_offset_ptr_t>(0); }
-		void set_service(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(0, v); }
-
-		std::string_view get_channel() const { return this->template _get_string<tll_scheme_offset_ptr_t>(8); }
-		void set_channel(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(8, v); }
-	};
-
-	template <typename Buf>
-	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
-
-	template <typename Buf>
-	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
-};
-
 struct Unsubscribe
 {
 	static constexpr size_t meta_size() { return 16; }
@@ -244,40 +222,6 @@ struct Unsubscribe
 
 		std::string_view get_channel() const { return this->template _get_string<tll_scheme_offset_ptr_t>(8); }
 		void set_channel(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(8, v); }
-	};
-
-	template <typename Buf>
-	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
-
-	template <typename Buf>
-	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
-};
-
-struct SubscribeResponse
-{
-	static constexpr size_t meta_size() { return 24; }
-	static constexpr std::string_view meta_name() { return "SubscribeResponse"; }
-	static constexpr int meta_id() { return 90; }
-
-	template <typename Buf>
-	struct binder_type : public tll::scheme::Binder<Buf>
-	{
-		using tll::scheme::Binder<Buf>::Binder;
-
-		static constexpr auto meta_size() { return SubscribeResponse::meta_size(); }
-		static constexpr auto meta_name() { return SubscribeResponse::meta_name(); }
-		static constexpr auto meta_id() { return SubscribeResponse::meta_id(); }
-		void view_resize() { this->_view_resize(meta_size()); }
-
-		std::string_view get_service() const { return this->template _get_string<tll_scheme_offset_ptr_t>(0); }
-		void set_service(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(0, v); }
-
-		std::string_view get_channel() const { return this->template _get_string<tll_scheme_offset_ptr_t>(8); }
-		void set_channel(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(8, v); }
-
-		using type_channels = tll::scheme::binder::List<Buf, ExportChannel::binder_type<Buf>, tll_scheme_offset_ptr_t>;
-		const type_channels get_channels() const { return this->template _get_binder<type_channels>(16); }
-		type_channels get_channels() { return this->template _get_binder<type_channels>(16); }
 	};
 
 	template <typename Buf>
