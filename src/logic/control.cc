@@ -132,13 +132,13 @@ int Control::_init(const tll::Channel::Url &url, tll::Channel * master)
 		return _log.fail(EINVAL, "Invalid parameters: {}", reader.error());
 
 	if (_hostname.empty()) {
-		char hostbuf[HOST_NAME_MAX];
-		if (gethostname(hostbuf, sizeof(hostbuf)))
+		auto namemax = sysconf(_SC_HOST_NAME_MAX);
+		std::vector<char> hostbuf(namemax), domainbuf(namemax);
+		if (gethostname(hostbuf.data(), hostbuf.size()))
 			return _log.fail(EINVAL, "Failed to get host name: {}", strerror(errno));
-		char domainbuf[HOST_NAME_MAX];
-		if (getdomainname(domainbuf, sizeof(domainbuf)))
+		if (getdomainname(domainbuf.data(), domainbuf.size()))
 			return _log.fail(EINVAL, "Failed to get domain name: {}", strerror(errno));
-		std::string_view host = hostbuf, domain = domainbuf;
+		std::string_view host = hostbuf.data(), domain = domainbuf.data();
 		if (domain.size())
 			_hostname = fmt::format("{}.{}", host, domain);
 		else
