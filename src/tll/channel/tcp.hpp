@@ -27,7 +27,7 @@
 #include <sys/ioctl.h>
 #endif
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__FreeBSD__)
 #if !defined(MSG_NOSIGNAL)
 #  define MSG_NOSIGNAL 0
 #endif // MSG_NOSIGNAL
