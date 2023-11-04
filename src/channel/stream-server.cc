@@ -391,15 +391,25 @@ tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
 		if (blocks->open(ocfg))
 			return error("Failed to open blocks channel");
 
-		auto bseq = blocks->config().getT<long long>("info.seq");
-		if (!bseq)
+		if (auto bseq = blocks->config().getT<long long>("info.seq-begin"); !bseq)
+			return error(fmt::format("Failed to get block begin seq: {}", bseq.error()));
+		else
+			seq = *bseq;
+
+		if (auto bseq = blocks->config().getT<long long>("info.seq"); !bseq)
 			return error(fmt::format("Failed to get block end seq: {}", bseq.error()));
-		seq = *bseq + 1;
+		else
+			block_end = *bseq + 1;
+
+		if (seq == -1) {
+			_log.info("Block without data, translated seq points to the end {}", block_end);
+			seq = block_end;
+		}
 
 		if (blocks->state() != tll::state::Closed)
 			storage_next = std::move(blocks);
 
-		_log.info("Translated block type '{}' number {} to seq {}", block, req.get_seq(), seq);
+		_log.info("Translated block type '{}' number {} to seq {}, storage seq {}", block, req.get_seq(), seq, block_end);
 	}
 
 	this->msg = {};

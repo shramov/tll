@@ -321,9 +321,11 @@ def test_blocks_channel(context, tmp_path):
 
     w.open()
     assert w.config['info.seq'] == '-1'
+    assert w.config['info.seq-begin'] == '-1'
 
     w.post(b'', seq=10)
     assert w.config['info.seq'] == '10'
+    assert w.config['info.seq-begin'] == '-1'
     w.post({'type':''}, seq=100, name='Block', type=w.Type.Control)
     assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 10, 'type':'def'}]
 
@@ -333,6 +335,7 @@ def test_blocks_channel(context, tmp_path):
     w.close()
     w.open()
     assert w.config['info.seq'] == '10'
+    assert w.config['info.seq-begin'] == '-1'
 
     w.post(b'', seq=20)
     w.post({'type':'def'}, name='Block', type=w.Type.Control)
@@ -352,16 +355,19 @@ def test_blocks_channel(context, tmp_path):
     r.open({'block': '0', 'block-type':'def'})
     assert r.state == r.State.Closed
     assert r.config['info.seq'] == '20'
+    assert r.config['info.seq-begin'] == '-1'
 
     r.result = []
     r.open({'block': '1', 'block-type':'def'})
     assert r.state == r.State.Closed
     assert r.config['info.seq'] == '10'
+    assert r.config['info.seq-begin'] == '-1'
 
     r.result = []
     r.open({'block': '0', 'block-type':'other'})
     assert r.state == r.State.Closed
     assert r.config['info.seq'] == '10'
+    assert r.config['info.seq-begin'] == '-1'
 
     r = Accum(f'blocks://{tmp_path}/blocks.yaml;dir=r', context=context)
 
@@ -369,6 +375,7 @@ def test_blocks_channel(context, tmp_path):
     r.open({'block': '0', 'block-type':'other'})
     assert r.state == r.State.Closed
     assert r.config['info.seq'] == '10'
+    assert r.config['info.seq-begin'] == '-1'
 
 @asyncloop_run
 async def test_rotate(asyncloop, tmp_path):
@@ -417,6 +424,8 @@ class Aggregate(Base):
 
         self._data = list(sorted(self._data.items()))
         self._seq -= len(self._data) - 1
+
+        self.config_info['seq-begin'] = str(self._seq)
 
         self._update_pending(True)
 
@@ -520,6 +529,15 @@ async def test_stream_aggregate(asyncloop, context, tmp_path):
     assert (m.seq, m.msgid, m.data.tobytes()) == (10, 20, b'yyy')
     m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (20, 10, b'xxz')
+    m = await c.recv()
+    assert (m.seq, m.msgid, m.data.tobytes()) == (30, 20, b'yyz')
+    c.close()
+
+    s.post({'type':'default'}, name='Block', type=s.Type.Control)
+    c.open(block='0', mode='block')
+
+    m = await c.recv()
+    assert (m.seq, m.msgid, m.data.tobytes()) == (29, 10, b'xxz')
     m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (30, 20, b'yyz')
 

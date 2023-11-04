@@ -82,6 +82,7 @@ int Blocks::_open(const tll::ConstConfig &cfg)
 	}
 
 	config_info().set_ptr("seq", &_seq);
+	config_info().set("seq-begin", "-1");
 
 	if (internal.caps & caps::Input)
 		return _open_input(cfg);
