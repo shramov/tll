@@ -85,6 +85,15 @@ class Resolve(Logic):
         self._subs = {}
         super()._open(cfg)
 
+    def  _subs_get(self, service, channel, tags):
+        r = set()
+        if sub := self._subs.get(service):
+            r = set(sub.get(channel))
+        for t in tags:
+            if sub := self._subs.get(t):
+                r.update(sub.get(channel))
+        return r
+
     def _logic(self, channel, msg):
         if channel == self._uplink:
             return self._on_uplink(channel, msg)
@@ -108,10 +117,10 @@ class Resolve(Logic):
 
         msg = channel.unpack(msg)
         if msg.SCHEME.name == 'ExportChannel':
-            sub = self._subs.get(msg.service, None)
-            if sub is None:
-                return
-            for addr in sub.get(msg.channel):
+            for addr in self._subs_get(msg.service, msg.channel, msg.tags):
+                addr[0].post(msg, addr=addr[1])
+        elif msg.SCHEME.name == 'DropChannel':
+            for addr in self._subs_get(msg.service, msg.channel, msg.tags):
                 addr[0].post(msg, addr=addr[1])
 
     def _on_input(self, channel, msg):
@@ -165,10 +174,7 @@ class Resolve(Logic):
                 self._uplink.post(msg)
                 return
 
-            sub = self._subs.get(msg.service, None)
-            if sub is None:
-                return
-            for addr in sub.get(msg.channel):
+            for addr in self._subs_get(service.service, msg.channel, service.tags):
                 self._reply(service, channel, addr)
         elif msg.SCHEME.name == 'DropChannel':
             service = self._exports.get(msg.service, None)
@@ -179,6 +185,9 @@ class Resolve(Logic):
             del service.channels[msg.channel]
             if self._uplink and self._uplink.state == self._uplink.State.Active:
                 self._uplink.post(msg)
+                return
+            for addr in self._subs_get(service.service, msg.channel, service.tags):
+                self._reply_drop(service, msg.channel, addr)
         elif msg.SCHEME.name == 'Request':
             self.log.debug(f"Request for {msg.service}/{msg.channel}")
             sub = self._subs.setdefault(msg.service, Subscription(msg.service))
@@ -189,16 +198,13 @@ class Resolve(Logic):
                 self._uplink.post(msg)
                 return
 
-            service = self._exports.get(msg.service, None)
-            if service is None:
-                self.log.debug(f"Service {msg.service} not registered")
-                return
+            for service in self._exports.values():
+                if service.service != msg.service and msg.service not in service.tags:
+                    continue
 
-            channel = service.channels.find(msg.channel, None)
-            if channel is None:
-                self.log.debug(f"Channel {msg.service}/{msg.channel} not registered")
-
-            self._reply(service, channel, addr)
+                channel = service.channels.get(msg.channel, None)
+                if channel is not None:
+                    self._reply(service, channel, addr)
 
     def _drop_service(self, key):
         self.log.info(f"Drop service {key}")
@@ -208,4 +214,8 @@ class Resolve(Logic):
 
     def _reply(self, service, channel, addr):
         self.log.info(f"Reply with channel {channel.service}/{channel.name} to {addr[0].name}:{addr[1]:x}")
-        addr[0].post({'service': service.service, 'channel': channel.name, 'host': service.host, 'config': [{'key': k, 'value': v} for k,v in channel.config.items()]}, name='ExportChannel', addr=addr[1])
+        addr[0].post({'service': service.service, 'channel': channel.name, 'tags': service.tags, 'host': service.host, 'config': [{'key': k, 'value': v} for k,v in channel.config.items()]}, name='ExportChannel', addr=addr[1])
+
+    def _reply_drop(self, service, channel, addr):
+        self.log.info(f"Reply with drop {channel.service}/{channel.name} to {addr[0].name}:{addr[1]:x}")
+        addr[0].post({'service': service.service, 'channel': channel, 'tags': service.tags}, name='DropChannel', addr=addr[1])

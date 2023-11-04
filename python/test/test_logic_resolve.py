@@ -40,18 +40,18 @@ async def test_uplink(asyncloop, resolve):
     assert cu.unpack(await cu.recv()).as_dict() == {'service': 'service', 'channel': 'a'}
     with pytest.raises(TimeoutError): await ci.recv(0.0001)
 
-    ci.post({'service': 'service', 'host': 'host'}, name='ExportService', addr=20)
-    assert cu.unpack(await cu.recv()).as_dict() == {'service': 'service', 'host': 'host', 'tags': []}
+    ci.post({'service': 'service', 'host': 'host', 'tags': ['tag']}, name='ExportService', addr=20)
+    assert cu.unpack(await cu.recv()).as_dict() == {'service': 'service', 'host': 'host', 'tags': ['tag']}
 
     ci.post({'service': 'service', 'channel': 'a', 'config': [{'key': 'tll.proto', 'value': 'a'}]}, name='ExportChannel', addr=20)
-    assert cu.unpack(await cu.recv()).as_dict() == {'service': 'service', 'channel': 'a', 'host': '', 'config': [{'key': 'tll.proto', 'value': 'a'}]}
+    assert cu.unpack(await cu.recv()).as_dict() == {'service': 'service', 'channel': 'a', 'host': '', 'tags': [], 'config': [{'key': 'tll.proto', 'value': 'a'}]}
     with pytest.raises(TimeoutError): await ci.recv(0.0001)
 
     resolve.inner('uplink').close()
     resolve.inner('uplink').open()
 
-    assert cu.unpack(await cu.recv()).as_dict() == {'service': 'service', 'host': 'host', 'tags': []}
-    assert cu.unpack(await cu.recv()).as_dict() == {'service': 'service', 'channel': 'a', 'host': '', 'config': [{'key': 'tll.proto', 'value': 'a'}]}
+    assert cu.unpack(await cu.recv()).as_dict() == {'service': 'service', 'host': 'host', 'tags': ['tag']}
+    assert cu.unpack(await cu.recv()).as_dict() == {'service': 'service', 'channel': 'a', 'host': '', 'tags': [], 'config': [{'key': 'tll.proto', 'value': 'a'}]}
     assert cu.unpack(await cu.recv()).as_dict() == {'service': 'service', 'channel': 'a'}
 
     ci.post({}, name='Disconnect', type=ci.Type.Control, addr=10)
@@ -64,7 +64,16 @@ async def test_uplink(asyncloop, resolve):
     assert cu.unpack(await cu.recv()).as_dict() == {'service': 'service', 'host': 'host', 'tags': []}
 
     ci.post({'service': 'service', 'channel': 'a', 'config': [{'key': 'tll.proto', 'value': 'a'}]}, name='ExportChannel', addr=20)
-    assert cu.unpack(await cu.recv()).as_dict() == {'service': 'service', 'channel': 'a', 'host': '', 'config': [{'key': 'tll.proto', 'value': 'a'}]}
+    assert cu.unpack(await cu.recv()).as_dict() == {'service': 'service', 'channel': 'a', 'host': '', 'tags': [], 'config': [{'key': 'tll.proto', 'value': 'a'}]}
+
+    ci.post({'service': 'tag', 'channel': 'b'}, name='Request', addr=10)
+    assert cu.unpack(await cu.recv()).as_dict() == {'service': 'tag', 'channel': 'b'}
+
+    cu.post({'service': 'other', 'channel': 'b', 'tags': ['tag']}, name='ExportChannel')
+    assert ci.unpack(await ci.recv()).as_dict() == {'service': 'other', 'channel': 'b', 'host': '', 'tags': ['tag'], 'config': []}
+
+    cu.post({'service': 'other', 'channel': 'b', 'tags': ['tag']}, name='DropChannel')
+    assert ci.unpack(await ci.recv()).as_dict() == {'service': 'other', 'channel': 'b', 'tags': ['tag']}
 
     resolve.inner('input').close()
     assert cu.unpack(await cu.recv()).as_dict() == {'service': 'service'}
@@ -78,7 +87,10 @@ async def test_standalone(asyncloop, resolve):
     ci.post({'service': 'service', 'channel': 'a'}, name='Request', addr=10)
     with pytest.raises(TimeoutError): await ci.recv(0.0001)
 
-    ci.post({'service': 'service', 'host': 'host'}, name='ExportService', addr=20)
+    ci.post({'service': 'service', 'host': 'host', 'tags': ['tag']}, name='ExportService', addr=20)
 
     ci.post({'service': 'service', 'channel': 'a', 'config': [{'key': 'tll.proto', 'value': 'a'}]}, name='ExportChannel', addr=20)
-    assert ci.unpack(await ci.recv()).as_dict() == {'service': 'service', 'channel': 'a', 'host': 'host', 'config': [{'key': 'tll.proto', 'value': 'a'}]}
+    assert ci.unpack(await ci.recv()).as_dict() == {'service': 'service', 'channel': 'a', 'host': 'host', 'tags': ['tag'], 'config': [{'key': 'tll.proto', 'value': 'a'}]}
+
+    ci.post({'service': 'tag', 'channel': 'a'}, name='Request', addr=20)
+    assert ci.unpack(await ci.recv()).as_dict() == {'service': 'service', 'channel': 'a', 'host': 'host', 'tags': ['tag'], 'config': [{'key': 'tll.proto', 'value': 'a'}]}
