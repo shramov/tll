@@ -29,7 +29,7 @@
 #include "channel/blocks.h"
 #include "channel/direct.h"
 #include "channel/ipc.h"
-#include "channel/file.h"
+#include "channel/file-init.h"
 #include "channel/framed.h"
 #ifdef WITH_RAPIDJSON
 #include "channel/json.h"
@@ -63,7 +63,7 @@ TLL_DEFINE_IMPL(tll::channel::SeqCheck);
 TLL_DECLARE_IMPL(tll::channel::Blocks);
 TLL_DECLARE_IMPL(ChDirect);
 TLL_DECLARE_IMPL(ChIpc);
-TLL_DECLARE_IMPL(channel::File);
+TLL_DECLARE_IMPL(channel::FileInit);
 TLL_DECLARE_IMPL(Framed);
 #ifdef WITH_RAPIDJSON
 TLL_DECLARE_IMPL(ChJSON);
@@ -103,7 +103,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&tll::channel::Blocks::impl);
 		reg(&ChDirect::impl);
 		reg(&ChIpc::impl);
-		reg(&channel::File::impl);
+		reg(&channel::FileInit::impl);
 		reg(&Framed::impl);
 #ifdef WITH_RAPIDJSON
 		reg(&ChJSON::impl);

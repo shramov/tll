@@ -12,18 +12,33 @@
 
 #include "tll/util/memoryview.h"
 
-namespace tll::channel {
+struct iovec;
 
-class File : public tll::channel::AutoSeq<File>
+namespace tll::file {
+
+using frame_size_t = int32_t;
+
+struct __attribute__((packed)) frame_t
 {
-	using Base = tll::channel::AutoSeq<File>;
+	frame_t() {}
+	frame_t(int32_t m, int64_t s) : msgid(m), seq(s) {}
+	frame_t(const tll_msg_t *msg) : msgid(msg->msgid), seq(msg->seq) {}
+	int32_t msgid = 0;
+	int64_t seq = 0;
+};
+
+template <typename TIO>
+class File : public tll::channel::AutoSeq<File<TIO>>
+{
+	using Base = tll::channel::AutoSeq<File<TIO>>;
+	using IO = TIO;
+
+	IO _io = {};
 
 	size_t _block_size = 0;
 	size_t _block_init = 0;
 	size_t _block_end = 0;
-	size_t _offset = 0;
 
-	std::vector<char> _buf;
 	std::string _filename;
 
 	enum class Compression : uint8_t { None = 0, LZ4 = 1} _compression;
@@ -34,17 +49,8 @@ class File : public tll::channel::AutoSeq<File>
 	long long _seq;
 
 public:
-	using frame_size_t = int32_t;
-	struct __attribute__((packed)) frame_t
-	{
-		frame_t(int32_t m, int64_t s) : msgid(m), seq(s) {}
-		frame_t(const tll_msg_t *msg) : msgid(msg->msgid), seq(msg->seq) {}
-		int32_t msgid;
-		int64_t seq;
-	};
-
 	static constexpr std::string_view channel_protocol() { return "file"; }
-	static constexpr auto process_policy() { return ProcessPolicy::Custom; }
+	static constexpr auto process_policy() { return Base::ProcessPolicy::Custom; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::ConstConfig &);
@@ -60,7 +66,10 @@ private:
 	size_t _data_size(frame_size_t frame) { return frame - sizeof(frame) - 1; }
 
 	int _write_data(const void *data, size_t size) { return _write_datav(tll::const_memory { data, size }); }
-	int _write_raw(const void *data, size_t size, size_t _offset);
+	int _write_raw(const void *data, size_t size)
+	{
+		return _check_write(size, _io.write(data, size));
+	}
 
 	template <typename ... Args>
 	int _write_datav(Args && ... args);
@@ -81,6 +90,6 @@ private:
 	int _check_write(size_t size, int r);
 };
 
-} // namespace tll::channel
+} // namespace tll::file
 
 #endif//_TLL_CHANNEL_FILE_H
