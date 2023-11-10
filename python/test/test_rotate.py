@@ -80,6 +80,7 @@ async def test_basic(asyncloop, tmp_path):
     assert w.config['info.seq'] == '49'
 
     r.open(seq='35')
+    assert (await r.recv_state()) == r.State.Active
 
     assert r.config['info.seq-begin'] == '0'
     assert r.config['info.seq'] == '49'
@@ -90,6 +91,8 @@ async def test_basic(asyncloop, tmp_path):
 
     m = await r.recv()
     assert (m.type, m.msgid) == (m.Type.Control, r.scheme_control.messages.EndOfData.msgid)
+
+    with pytest.raises(TimeoutError): await r.recv_state(0.001)
 
 @asyncloop_run
 async def test_reopen_empty(asyncloop, tmp_path):
@@ -135,3 +138,25 @@ async def test_reopen_rotate(asyncloop, tmp_path):
 
     w.post({}, name='Rotate', type=w.Type.Control)
     assert os.path.exists(tmp_path / 'rotate.0.dat')
+
+@asyncloop_run
+async def test_autoclose(asyncloop, tmp_path):
+    w = asyncloop.Channel(f'rotate+file://{tmp_path}/rotate', dir='w', name='write', dump='frame')
+
+    w.open()
+    for i in range(10):
+        w.post(b'xxx' * (i % 10 + 1), seq=i)
+        if i % 3 == 0:
+            w.post({}, name='Rotate', type=w.Type.Control)
+    w.close()
+
+    r = asyncloop.Channel(f'rotate+file://{tmp_path}/rotate;file.dump=frame;file.autoclose=no', dir='r', name='read', dump='frame', autoclose='yes')
+    r.open(seq='-1')
+    assert (await r.recv_state()) == r.State.Active
+
+    for i in range(10):
+        m = await r.recv()
+        assert m.seq == i
+        assert r.state == r.State.Active
+
+    assert (await r.recv_state()) == r.State.Closed

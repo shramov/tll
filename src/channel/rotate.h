@@ -44,6 +44,7 @@ class Rotate : public Prefix<Rotate>
 	Files::Map::const_iterator _current_file;
 	bool _current_empty = false;
 	bool _end_of_data = false;
+	bool _autoclose = false;
 
 	std::string _fileprefix;
 	std::string _directory;
@@ -52,7 +53,7 @@ class Rotate : public Prefix<Rotate>
 	tll::Config _open_cfg;
 	int _control_eod_msgid = 0;
 
-	enum class State { Closed, Build, Seek, Active } _state = State::Closed;
+	enum class State { Closed, Build, Seek, Read, Write } _state = State::Closed;
 
  public:
 	using Base = Prefix<Rotate>;

@@ -46,8 +46,13 @@ std::optional<const tll_channel_impl_t *> Rotate::_init_replace(const tll::Chann
 		*/
 }
 
-int Rotate::_on_init(tll::Channel::Url &curl, const tll::Channel::Url &, tll::Channel *master)
+int Rotate::_on_init(tll::Channel::Url &curl, const tll::Channel::Url &url, tll::Channel *master)
 {
+	auto reader = channel_props_reader(url);
+	_autoclose = reader.getT("autoclose", true);
+	if (!reader)
+		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
+
 	auto path = std::filesystem::path(curl.host());
 	_directory = path.parent_path();
 	_fileprefix = path.filename();
@@ -81,6 +86,7 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 	_seq_first = -1;
 	_seq_last = -1;
 	_open_cfg = tll::Config();
+	_state = State::Closed;
 
 	auto reader = tll::make_props_reader(cfg);
 
@@ -100,6 +106,7 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 	config_info().set_ptr("seq", _files->seq_last);
 
 	if (internal.caps & caps::Input) {
+		_state = State::Read;
 		{
 			auto lock = _files->lock();
 			if (_files->files.empty())
@@ -118,11 +125,12 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 			_open_cfg.set("filename", _current_file->second.filename);
 		}
 
-		_state = State::Active;
 		if (_seq_first != -1)
 			_open_cfg.set("seq", conv::to_string(_seq_first));
-	} else
+	} else {
 		_open_cfg.set("filename", _last_filename);
+		_state = State::Write;
+	}
 	return _child->open(_open_cfg);
 }
 
@@ -139,7 +147,10 @@ int Rotate::_close(bool force)
 	_files.reset();
 
 	_state = State::Closed;
-	return _child->close(true);
+	if (_child->state() != tll::state::Closed)
+		return _child->close(true);
+	state(tll::state::Closed);
+	return 0;
 }
 
 int Rotate::_post_rotate(const tll_msg_t *msg)
@@ -194,7 +205,7 @@ int Rotate::_seek(long long seq)
 	_current_file = it;
 	_open_cfg.set("filename", it->second.filename);
 	_open_cfg.set("seq", tll::conv::to_string(seq));
-	_state = State::Active;
+	_state = State::Read;
 	return _child->open(_open_cfg);
 }
 
@@ -248,7 +259,7 @@ int Rotate::_on_closed()
 {
 	if (_state == State::Closed)
 		return Base::_on_closed();
-	if (_state != State::Active)
+	if (_state != State::Read)
 		return 0;
 	if (_current_last()) {
 		close();
@@ -267,7 +278,7 @@ int Rotate::_on_closed()
 
 int Rotate::_on_data(const tll_msg_t *msg)
 {
-	if (_state != State::Active)
+	if (_state != State::Read)
 		return 0;
 	_seq_last = msg->seq;
 	return Base::_on_data(msg);
@@ -277,9 +288,9 @@ int Rotate::_on_other(const tll_msg_t *msg)
 {
 	if (msg->type != TLL_MESSAGE_CONTROL)
 		return 0;
-	if (_state != State::Active)
+	if (_state != State::Read)
 		return 0;
-	_log.debug("Got control message {}, eod {}", msg->msgid, _control_eod_msgid);
+	_log.trace("Got control message {}, eod {}", msg->msgid, _control_eod_msgid);
 	if (_control_eod_msgid && msg->msgid == _control_eod_msgid) {
 		// Switch to next
 		if (_current_last()) {
@@ -289,7 +300,8 @@ int Rotate::_on_other(const tll_msg_t *msg)
 				m.msgid = control_eod_msgid;
 				_callback(&m);
 			}
-			return 0;
+			if (!_autoclose)
+				return 0;
 		}
 		_child->close();
 	}
@@ -298,8 +310,8 @@ int Rotate::_on_other(const tll_msg_t *msg)
 
 int Rotate::_build_map()
 {
+	_state = State::Build;
 	_current_empty = true;
-	_log.info("Debug file map");
 
 	std::shared_ptr<Files> files(new Files);
 	Files::Map & map = files->files;;
@@ -358,6 +370,7 @@ int Rotate::_build_map()
 
 	_current_file = current;
 	_files = files;
+	_state = State::Closed;
 
 	return 0;;
 }
