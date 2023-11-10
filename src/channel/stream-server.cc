@@ -155,6 +155,7 @@ int StreamServer::_open(const ConstConfig &url)
 		if (!seq)
 			return _log.fail(EINVAL, "Blocks channel last seq invalid: {}", seq.error());
 		if (*seq != _seq) {
+			_log.info("Blocks seq is behind storage seq: {} < {}, feed from storage", *seq, _seq);
 			auto url = _storage_url.copy();
 			url.set("autoclose", "yes");
 			_storage_load = context().channel(url, _storage.get());
