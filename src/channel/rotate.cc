@@ -60,10 +60,8 @@ int Rotate::_on_init(tll::Channel::Url &curl, const tll::Channel::Url &, tll::Ch
 
 	curl.host("");
 
-	_log.debug("Read-write caps: 0x{:x} 0x{:x}", internal.caps & caps::InOut, caps::InOut);
 	if ((internal.caps & caps::InOut) == 0) // Defaults to input
 		internal.caps |= caps::Input;
-	_log.debug("Read-write caps: 0x{:x} 0x{:x}", internal.caps & caps::InOut, caps::InOut);
 	if ((internal.caps & caps::InOut) == caps::InOut)
 		return _log.fail(EINVAL, "rotate+:// can be either read-only or write-only, need proper dir in parameters");
 
