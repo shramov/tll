@@ -35,18 +35,21 @@ class File : public tll::channel::AutoSeq<File<TIO>>
 
 	IO _io = {};
 
+	long long _seq_begin;
+	long long _seq;
+
 	size_t _block_size = 0;
 	size_t _block_init = 0;
 	size_t _block_end = 0;
+	size_t _tail_extra_size = 0;
+	size_t _tail_extra_blocks = 0;
+	size_t _file_size_cache = 0;
 
 	std::string _filename;
 
 	enum class Compression : uint8_t { None = 0, LZ4 = 1} _compression;
 	bool _autoclose = true;
 	bool _end_of_data = false;
-
-	long long _seq_begin;
-	long long _seq;
 
 public:
 	static constexpr std::string_view channel_protocol() { return "file"; }
@@ -73,6 +76,8 @@ private:
 
 	template <typename ... Args>
 	int _write_datav(Args && ... args);
+
+	int _write_block(size_t offset);
 
 	int _file_bounds();
 	ssize_t _file_size();

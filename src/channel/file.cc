@@ -123,10 +123,13 @@ std::optional<const tll_channel_impl_t *> tll::channel::FileInit::_init_replace(
 template <typename TIO>
 int File<TIO>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
+	this->_log.info("Initialize file channel with {} io", _io.name());
+
 	auto reader = this->channel_props_reader(url);
 	_block_init = reader.template getT("block", util::Size {1024 * 1024});
 	_compression = reader.template getT("compress", Compression::None, {{"no", Compression::None}, {"lz4", Compression::LZ4}});
 	_autoclose = reader.template getT("autoclose", true);
+	_tail_extra_size = reader.template getT("extra-space", util::Size { 0 });
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -166,6 +169,7 @@ int File<TIO>::_open(const ConstConfig &props)
 
 	_io.offset = 0;
 	_block_end = _block_size = _block_init;
+	_file_size_cache = 0;
 
 	_seq = _seq_begin = -1;
 	this->config_info().set_ptr("seq-begin", &_seq_begin);
@@ -233,6 +237,12 @@ int File<TIO>::_open(const ConstConfig &props)
 				return this->_log.fail(EINVAL, "Failed to read metadata");
 		}
 
+		_tail_extra_blocks = 0;
+		if (_tail_extra_size) {
+			_tail_extra_blocks = (_tail_extra_size + _block_size - 1) / _block_size;
+			this->_log.info("Keep up to extra {} blocks at file end", _tail_extra_blocks);
+		}
+
 		if (_io.init(this->fd(), _block_size))
 			return this->_log.fail(EINVAL, "Failed to init io");
 
@@ -243,8 +253,17 @@ int File<TIO>::_open(const ConstConfig &props)
 
 		auto size = _file_size();
 		if (size != (ssize_t) _io.offset) {
-			this->_log.warning("Trailing data in file: {} < {}", _io.offset, size);
-			_truncate(_io.offset);
+			if (auto r = _io.read(sizeof(frame_size_t)); r.data) {
+				auto frame = *static_cast<const frame_size_t *>(r.data);
+				if (frame)
+					this->_log.warning("Trailing data in file: {} < {}, last frame: {}", _io.offset, size, frame);
+				_truncate(_io.offset);
+			}
+			size = _io.offset;
+		}
+		if (_tail_extra_blocks) {
+			this->_log.info("Extend file with {} extra blocks", _tail_extra_blocks);
+			_truncate(_block_end + _block_size * _tail_extra_blocks);
 		}
 	}
 
@@ -268,6 +287,7 @@ template <typename TIO>
 void File<TIO>::_truncate(size_t offset)
 {
 	auto r = ftruncate(this->fd(), offset);
+	_file_size_cache = offset;
 	(void) r;
 }
 
@@ -402,6 +422,7 @@ ssize_t File<TIO>::_file_size()
 	auto r = fstat(this->fd(), &stat);
 	if (r < 0)
 		return this->_log.fail(-1, "Failed to get file size: {}", strerror(errno));
+	_file_size_cache = stat.st_size;
 	return stat.st_size;
 }
 
@@ -647,10 +668,8 @@ int File<TIO>::_write_datav(Args && ... args)
 	}
 
 	if (_io.offset + _block_size == _block_end) { // Write block meta
-		static constexpr uint8_t header[5] = {5, 0, 0, 0, 0x80};
-		if (_write_raw(&header, sizeof(header)))
-			return EINVAL;
-		_io.offset += sizeof(header);
+		if (auto r = _write_block(_io.offset); r)
+			return r;
 	}
 
 	frame = size;
@@ -659,6 +678,24 @@ int File<TIO>::_write_datav(Args && ... args)
 		return EINVAL;
 
 	return _shift(size);
+}
+
+template <typename TIO>
+int File<TIO>::_write_block(size_t offset)
+{
+	static constexpr uint8_t header[5] = {5, 0, 0, 0, 0x80};
+	if (_write_raw(&header, sizeof(header)))
+		return EINVAL;
+	_io.offset = offset;
+	_block_end = offset + _block_size;
+	_io.offset += sizeof(header);
+
+	// Ensure there is always at least one empty block in the end
+	if (_tail_extra_blocks && _file_size_cache <= _block_end) {
+		this->_log.debug("Extend file with {} extra blocks", _tail_extra_blocks);
+		_truncate(_block_end + _tail_extra_blocks * _block_size);
+	}
+	return 0;
 }
 
 template <typename TIO>

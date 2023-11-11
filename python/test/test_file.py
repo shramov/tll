@@ -217,7 +217,7 @@ def test_meta(context, filename):
   fields: [{name: f0, type: int32}]
 '''
     w = context.Channel(f'file://{filename}', name='writer', dump='frame', dir='w', block='1kb', scheme=SCHEME)
-    r = context.Channel(f'file://{filename}', name='reader', dump='frame', dir='r', context='context', block='4kb')
+    r = context.Channel(f'file://{filename}', name='reader', dump='frame', dir='r', block='4kb')
 
     w.open()
     assert os.path.exists(filename)
@@ -316,3 +316,40 @@ def test_autoseq(context, filename):
 
     assert [m.seq for m in reader.result] == list(range(10))
     assert reader.state == reader.State.Closed
+
+@pytest.mark.parametrize("extra", [0, 1, 2, 4])
+def test_tail_extra(context, filename, extra):
+    writer = context.Channel(f'file://{filename}', name='writer', dump='frame', dir='w', block='1kb', autoseq='yes', **{'extra-space': f'{extra}kb'})
+
+    writer.open()
+    if extra:
+        assert filename.stat().st_size == (1 + extra) * 1024
+    else:
+        assert filename.stat().st_size < 1024
+
+    for i in range(2):
+        writer.post(b'a' * 512)
+
+    size = 1024 + 5 + 16 + 512 + 1
+    if extra == 1:
+        size = (2 + extra) * 1024
+    elif extra:
+        size = (1 + extra) * 1024
+    assert filename.stat().st_size == size
+
+    writer.close()
+    writer.open()
+
+    if extra:
+        size = (2 + extra) * 1024
+    assert filename.stat().st_size == size
+
+    for i in range(2):
+        writer.post(b'a' * 512)
+
+    r = Accum(f'file://{filename}', name='reader', dump='frame', dir='r', context=context, block='4kb')
+    r.open()
+
+    for _ in range(4):
+        r.process()
+    assert [(m.seq, len(m.data)) for m in r.result] == [(i, 512) for i in range(4)]
