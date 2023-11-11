@@ -241,7 +241,10 @@ def test_autoclose(context, filename, writer):
     assert reader.state == reader.State.Closed
 
 @pytest.mark.fuzzy
-def test_fuzzy(writer, reader):
+@pytest.mark.parametrize("io", ['posix', 'mmap'])
+def test_fuzzy(filename, io):
+    writer = Accum(f'file://{filename}', name='writer', dump='frame', context=context, dir='w', block='4kb')
+    reader = Accum(f'file://{filename}', name='reader', dump='frame', context=context, autoclose='no', io=io)
     data = []
     start = random.randrange(0, 10000)
 
@@ -348,6 +351,22 @@ def test_tail_extra(context, filename, extra):
         writer.post(b'a' * 512)
 
     r = Accum(f'file://{filename}', name='reader', dump='frame', dir='r', context=context, block='4kb')
+    r.open()
+
+    for _ in range(4):
+        r.process()
+    assert [(m.seq, len(m.data)) for m in r.result] == [(i, 512) for i in range(4)]
+
+def test_mmap_read(context, filename):
+    writer = context.Channel(f'file://{filename}', name='writer', dump='frame', dir='w', block='4kb', autoseq='yes', **{'extra-space': f'16kb'})
+    writer.open()
+
+    for i in range(4):
+        writer.post(b'a' * 512)
+
+    assert filename.stat().st_size == 20 * 1024
+
+    r = Accum(f'file://{filename}', name='reader', dump='frame', dir='r', io='mmap', context=context)
     r.open()
 
     for _ in range(4):

@@ -12,6 +12,7 @@
 #include "tll/util/size.h"
 
 #include <fcntl.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/uio.h>
@@ -54,13 +55,15 @@ struct IOBase
 {
 	int fd = -1;
 	size_t offset = 0;
+	size_t block_end = 0;
 	size_t block_size = 0;
 
-	int init(int fd, size_t block_size) { this->fd = fd; this->block_size = block_size; return 0; }
+	int init(const tll::Logger &log, int fd, size_t block_size) { this->fd = fd; this->block_size = block_size; return 0; }
 	void reset()
 	{
 		fd = -1;
 		offset = 0;
+		block_end = 0;
 		block_size = 0;
 	}
 
@@ -71,6 +74,13 @@ struct IOBase
 	int write(const void * data, size_t size) { return ENOSYS; }
 
 	tll::const_memory read(size_t size) { return { nullptr, ENOSYS }; }
+
+	int block(size_t start)
+	{
+		offset = start;
+		block_end = start + block_size;
+		return 0;
+	}
 };
 
 struct IOPosix : public IOBase
@@ -79,10 +89,10 @@ struct IOPosix : public IOBase
 
 	std::vector<char> buf;
 
-	int init(int fd, size_t block)
+	int init(const tll::Logger &log, int fd, size_t block)
 	{
 		buf.resize(block);
-		return IOBase::init(fd, block);
+		return IOBase::init(log, fd, block);
 	}
 
 	int writev(const struct iovec * iov, size_t size)
@@ -106,18 +116,64 @@ struct IOPosix : public IOBase
 	}
 };
 
+struct IOMMap : public IOBase
+{
+	static constexpr std::string_view name() { return "mmap"; }
+
+	size_t block_start = 0;
+	void * base = nullptr;
+
+	int init(const tll::Logger &log, int fd, size_t block)
+	{
+		auto page = sysconf(_SC_PAGE_SIZE);
+		if (block % page != 0)
+			return log.fail(EINVAL, "Block size {} is not multiple of the page size {}", block, page);
+		return IOBase::init(log, fd, block);
+	}
+
+	void unmap()
+	{
+		if (base)
+			munmap(base, block_size);
+		base = nullptr;
+	}
+
+	void reset()
+	{
+		unmap();
+		return IOBase::reset();
+	}
+
+	int block(size_t start)
+	{
+		unmap();
+		block_start = start;
+		if (auto r = mmap(nullptr, block_size, PROT_READ, MAP_SHARED | MAP_POPULATE, fd, block_start); r == MAP_FAILED)
+			return errno;
+		else
+			base = r;
+		return IOBase::block(start);
+	}
+
+	tll::const_memory read(size_t size, size_t off = 0)
+	{
+		return { static_cast<char *>(base) + offset - block_start + off, size };
+	}
+};
+
 TLL_DEFINE_IMPL(tll::channel::FileInit);
 TLL_DEFINE_IMPL(File<IOPosix>);
+TLL_DEFINE_IMPL(File<IOMMap>);
 
 std::optional<const tll_channel_impl_t *> tll::channel::FileInit::_init_replace(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = channel_props_reader(url);
-	auto posix = reader.getT("io", true, {{ "posix", true }});
+	auto posix = reader.getT("io", true, {{ "posix", true }, { "mmap", false}});
 	if (!reader)
 		return this->_log.fail(std::nullopt, "Invalid url: {}", reader.error());
 	if (posix)
 		return &File<IOPosix>::impl;
-	return std::nullopt;
+	return &File<IOMMap>::impl;
 }
 
 template <typename TIO>
@@ -143,6 +199,9 @@ int File<TIO>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	if ((this->internal.caps & caps::InOut) == caps::InOut)
 		return this->_log.fail(EINVAL, "file:// can be either read-only or write-only, need proper dir in parameters");
 
+	if (_io.name() == "mmap" && (this->internal.caps & caps::Output))
+		return this->_log.fail(EINVAL, "io=mmap is not supported in write mode yet");
+
 	if (this->internal.caps & caps::Input) {
 		this->_scheme_control.reset(this->context().scheme_load(control_scheme));
 		if (!this->_scheme_control.get())
@@ -167,8 +226,8 @@ int File<TIO>::_open(const ConstConfig &props)
 
 	this->_log.debug("Open file {}", filename);
 
-	_io.offset = 0;
-	_block_end = _block_size = _block_init;
+	_io.reset();
+	_block_size = _block_init;
 	_file_size_cache = 0;
 
 	_seq = _seq_begin = -1;
@@ -185,7 +244,7 @@ int File<TIO>::_open(const ConstConfig &props)
 		if (auto r = _read_meta(); r)
 			return this->_log.fail(EINVAL, "Failed to read metadata");
 
-		if (_io.init(this->fd(), _block_size))
+		if (_io.init(this->_log, this->fd(), _block_size))
 			return this->_log.fail(EINVAL, "Failed to init io");
 
 		if (auto r = _file_bounds(); r && r != EAGAIN)
@@ -243,7 +302,7 @@ int File<TIO>::_open(const ConstConfig &props)
 			this->_log.info("Keep up to extra {} blocks at file end", _tail_extra_blocks);
 		}
 
-		if (_io.init(this->fd(), _block_size))
+		if (_io.init(this->_log, this->fd(), _block_size))
 			return this->_log.fail(EINVAL, "Failed to init io");
 
 		if (auto r = _file_bounds(); r && r != EAGAIN)
@@ -263,7 +322,7 @@ int File<TIO>::_open(const ConstConfig &props)
 		}
 		if (_tail_extra_blocks) {
 			this->_log.info("Extend file with {} extra blocks", _tail_extra_blocks);
-			_truncate(_block_end + _block_size * _tail_extra_blocks);
+			_truncate(_io.block_end + _block_size * _tail_extra_blocks);
 		}
 	}
 
@@ -339,7 +398,7 @@ int File<TIO>::_read_meta()
 	if (buf.size() < meta.meta_size())
 		return this->_log.fail(EINVAL, "Invalid meta size: {} less then minimum {}", buf.size(), meta.meta_size());
 
-	_block_end = _block_size = meta.get_block();
+	_block_size = meta.get_block();
 	auto comp = meta.get_compression();
 
 	this->_log.info("Meta info: block size {}, compression {}", _block_size, (uint8_t) comp);
@@ -396,22 +455,31 @@ int File<TIO>::_write_meta()
 
 	if (auto r = _check_write(buf.size(), pwrite(this->fd(), buf.data(), buf.size(), 0)); r)
 		return r;
+
 	_shift(buf.size());
 	return 0;
 }
 
 template <typename TIO>
-int File<TIO>::_shift(size_t size)
+void File<TIO>::_shift(size_t size)
 {
 	this->_log.trace("Shift offset {} + {}", _io.offset, size);
 	_io.offset += size;
+}
 
-	if (_io.offset + sizeof(full_frame_t) + 1 > _block_end) {
-		this->_log.trace("Shift block to 0x{:x}", _block_end);
-		_io.offset = _block_end;
-		_block_end += _block_size;
-	}
+template <typename TIO>
+int File<TIO>::_shift_block(size_t offset)
+{
+	this->_log.trace("Shift block to 0x{:x}", _io.block_end);
+	if (auto r = _io.block(offset); r)
+		return this->_log.fail(r, "Failed to shift block: {}", strerror(r));
 
+	frame_size_t frame;
+	if (auto r = _read_frame_nocheck(&frame); r)
+		return r;
+	if (frame == -1)
+		return this->_log.fail(EINVAL, "Skip frame at block start 0x{:x}", _io.offset);
+	_io.shift(frame);
 	return 0;
 }
 
@@ -451,8 +519,9 @@ int File<TIO>::_file_bounds()
 			return this->_log.fail(EINVAL, "Failed to read seq of block {}", last);
 	}
 
+	_seq = msg.seq;
+
 	do {
-		_seq = msg.seq;
 		frame_size_t frame;
 		if (auto r = _read_frame(&frame); r) {
 			if (r == EAGAIN)
@@ -460,8 +529,8 @@ int File<TIO>::_file_bounds()
 			return r;
 		}
 
-		if (_io.offset + _block_size == _block_end) {
-			_shift(frame);
+		if (frame == -1) {
+			_shift_skip();
 			continue;
 		}
 
@@ -471,7 +540,8 @@ int File<TIO>::_file_bounds()
 			break;
 		else if (r)
 			return r;
-		_shift(&msg);
+		_seq = msg.seq;
+		_shift(frame);
 	} while (true);
 
 	this->_log.info("First seq: {}, last seq: {}", _seq_begin, _seq);
@@ -503,7 +573,7 @@ int File<TIO>::_seek(long long seq)
 	if (auto r = _block_seq(0, &msg); r)
 		return r; // Error or empty file
 
-	first = _block_end / _block_size - 1; // Meta fill first block
+	first = _io.block_end / _block_size - 1; // Meta fill first block
 
 	//if (*seq < msg.seq)
 	//	return this->_log.warning(EINVAL, "Seek seq {} failed: first data seq is {}", seq, msg->seq);
@@ -526,16 +596,23 @@ int File<TIO>::_seek(long long seq)
 			first = mid;
 	}
 
-	_io.offset = first * _block_size;
-	_block_end = _io.offset + _block_size;
+	if (auto r = _shift_block(first * _block_size); r)
+		return this->_log.fail(EINVAL, "Failed to prepare block {}: {}", first, strerror(r));
 
 	do {
+		if (_io.offset + _block_size == _io.block_end) {
+			if (auto r = _shift_block(_io.block_end); r) {
+				if (r == EAGAIN)
+					return EAGAIN;
+				return this->_log.fail(r, "Failed to prepare block {}: {}", _io.block_end / _block_size, strerror(r));
+			}
+		}
+
 		frame_size_t frame;
 		if (auto r = _read_frame(&frame); r)
 			return r;
-
-		if (_io.offset + _block_size == _block_end) {
-			_shift(frame);
+		if (frame == -1) {
+			_shift_skip();
 			continue;
 		}
 
@@ -545,7 +622,7 @@ int File<TIO>::_seek(long long seq)
 		this->_log.trace("Message {}/{} at 0x{:x}", msg.seq, msg.size, _io.offset);
 		if (msg.seq >= seq)
 			break;
-		_shift(&msg);
+		_shift(frame);
 	} while (true);
 
 	if (msg.seq > seq)
@@ -556,17 +633,24 @@ int File<TIO>::_seek(long long seq)
 template <typename TIO>
 int File<TIO>::_block_seq(size_t block, tll_msg_t *msg)
 {
-	_io.offset = block * _block_size;
-	_block_end = _io.offset + _block_size;
+	this->_log.debug("Check block seq at {}", block);
+	if (auto r = _io.block(block * _block_size); r) {
+		if (r == EAGAIN)
+			return r;
+		return this->_log.fail(EINVAL, "Failed to prepare block: {}", strerror(r));
+	}
 
 	// Skip metadata
 	frame_size_t frame;
 	if (auto r = _read_frame(&frame); r)
 		return r;
-	if (frame == -1)
-		return EAGAIN;
-	_shift(frame);
+	if (frame == -1) {
+		if (_io.block_end != _io.block_size) // Skip frame possible only in first block
+			return EAGAIN;
+		return _block_seq(1, msg);
+	}
 
+	_io.shift(frame);
 	return _read_seq(msg);
 }
 
@@ -657,17 +741,17 @@ int File<TIO>::_write_datav(Args && ... args)
 	if (size > _block_size)
 		return this->_log.fail(EMSGSIZE, "Full size too large: {}, block size is {}", size, _block_size);
 
-	if (_io.offset + size > _block_end) {
+	if (_io.offset + size > _io.block_end) {
 		frame_size_t frame = -1;
 
 		if (_write_raw(&frame, sizeof(frame)))
 			return EINVAL;
 
-		_io.offset = _block_end;
-		_block_end += _block_size;
+		if (auto r = _io.block(_io.block_end); r)
+			return this->_log.fail(EINVAL, "Failed to prepare block: {}", strerror(r));
 	}
 
-	if (_io.offset + _block_size == _block_end) { // Write block meta
+	if (_io.offset + _block_size == _io.block_end) { // Write block meta
 		if (auto r = _write_block(_io.offset); r)
 			return r;
 	}
@@ -677,23 +761,25 @@ int File<TIO>::_write_datav(Args && ... args)
 	if (_check_write(size, _io.writev(iov, N + 2)))
 		return EINVAL;
 
-	return _shift(size);
+	_shift(size);
+	return 0;
 }
 
 template <typename TIO>
 int File<TIO>::_write_block(size_t offset)
 {
+	if (auto r = _io.block(offset); r)
+		return this->_log.fail(EINVAL, "Failed to prepare block: {}", strerror(r));
+
 	static constexpr uint8_t header[5] = {5, 0, 0, 0, 0x80};
 	if (_write_raw(&header, sizeof(header)))
 		return EINVAL;
-	_io.offset = offset;
-	_block_end = offset + _block_size;
 	_io.offset += sizeof(header);
 
 	// Ensure there is always at least one empty block in the end
-	if (_tail_extra_blocks && _file_size_cache <= _block_end) {
+	if (_tail_extra_blocks && _file_size_cache <= _io.block_end) {
 		this->_log.debug("Extend file with {} extra blocks", _tail_extra_blocks);
-		_truncate(_block_end + _tail_extra_blocks * _block_size);
+		_truncate(_io.block_end + _tail_extra_blocks * _block_size);
 	}
 	return 0;
 }
@@ -701,37 +787,41 @@ int File<TIO>::_write_block(size_t offset)
 template <typename TIO>
 int File<TIO>::_read_frame(frame_size_t *ptr)
 {
+	if (_io.offset + sizeof(full_frame_t) + 1 > _io.block_end) {
+		if (auto r = _shift_block(_io.block_end); r)
+			return r;
+	}
+
+	return _read_frame_nocheck(ptr);
+}
+
+template <typename TIO>
+int File<TIO>::_read_frame_nocheck(frame_size_t *ptr)
+{
 	auto r = _io.read(sizeof(*ptr));
 
 	if (!r.data) {
 		if (r.size == EAGAIN)
 			return EAGAIN;
-		return this->_log.fail(EINVAL, "Failed to read frame at 0x{:x}: {}", _io.offset, strerror(errno));
+		return this->_log.fail(EINVAL, "Failed to read frame at 0x{:x}: {}", _io.offset, strerror(r.size));
 	}
 
-	auto frame = *static_cast<const frame_size_t *>(r.data);
+	auto frame = *ptr = *static_cast<const frame_size_t *>(r.data);
 
-	if (frame == 0)
-		return EAGAIN;
-
-	if (frame != -1) {
-		if (frame < (ssize_t) sizeof(frame) + 1)
-			return this->_log.fail(EMSGSIZE, "Invalid frame size at 0x{:x}: {} < minimum {}", _io.offset, frame, sizeof(frame) + 1);
-
-		if (_io.offset + frame > _block_end)
+	if (frame > (ssize_t) sizeof(frame)) {
+		if (_io.offset + frame > _io.block_end)
 			return this->_log.fail(EMSGSIZE, "Invalid frame size at 0x{:x}: {} excedes block boundary", _io.offset, frame);
-		*ptr = frame;
+		return 0;
+	} else if (frame == 0) {
+		return EAGAIN;
+	} else if (frame < 0) {
+		this->_log.trace("Found skip frame at offset 0x{:x}", _io.offset);
 		return 0;
 	}
 
-	this->_log.trace("Found skip frame at offset 0x{:x}", _io.offset);
-	if (_io.offset + _block_size == _block_end)
-		return EAGAIN;
-
-	_io.offset = _block_end;
-	_block_end += _block_size;
-
-	return _read_frame(ptr);
+	if (frame < (ssize_t) sizeof(frame) + 1)
+		return this->_log.fail(EMSGSIZE, "Invalid frame size at 0x{:x}: {} < minimum {}", _io.offset, frame, sizeof(frame) + 1);
+	return EINVAL;
 }
 
 template <typename TIO>
@@ -764,9 +854,18 @@ int File<TIO>::_process(long timeout, int flags)
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	frame_size_t frame;
 
-	auto r = _read_frame(&frame);
+	if (_io.offset + _io.block_size == _io.block_end) {
+		frame_size_t frame;
+		if (auto r = _read_frame_nocheck(&frame); r)
+			return r;
+		if (frame == -1)
+			return this->_log.fail(EINVAL, "Skip frame at block start 0x{:x}", _io.offset);
+		_io.shift(frame);
+	}
 
-	if (r == EAGAIN) {
+	if (auto r = _read_frame(&frame); r) {
+		if (r != EAGAIN)
+			return r;
 		if (!_end_of_data) {
 			if (_autoclose) {
 				this->_log.info("All messages processed. Closing");
@@ -780,11 +879,10 @@ int File<TIO>::_process(long timeout, int flags)
 		} else
 			this->_dcaps_pending(false);
 		return EAGAIN;
-	} else if (r)
-		return r;
+	}
 
-	if (_io.offset + _block_size == _block_end) {
-		_shift(frame);
+	if (frame == -1) {
+		_shift_skip();
 		return _process(timeout, flags);
 	}
 
@@ -792,13 +890,11 @@ int File<TIO>::_process(long timeout, int flags)
 	if (size < sizeof(frame_t))
 		return this->_log.fail(EINVAL, "Invalid frame size at 0x{:x}: {} too small", _io.offset, frame);
 
-	r = _read_data(size, &msg);
-
-	if (r == EAGAIN) {
-		this->_dcaps_pending(false);
-		return EAGAIN;
-	} else if (r)
+	if (auto r = _read_data(size, &msg); r) {
+		if (r == EAGAIN)
+			this->_dcaps_pending(false);
 		return r;
+	}
 
 	_shift(frame);
 

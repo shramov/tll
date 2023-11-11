@@ -40,7 +40,6 @@ class File : public tll::channel::AutoSeq<File<TIO>>
 
 	size_t _block_size = 0;
 	size_t _block_init = 0;
-	size_t _block_end = 0;
 	size_t _tail_extra_size = 0;
 	size_t _tail_extra_blocks = 0;
 	size_t _file_size_cache = 0;
@@ -64,6 +63,7 @@ public:
 
 private:
 	int _read_frame(frame_size_t *);
+	int _read_frame_nocheck(frame_size_t *);
 	int _read_data(size_t size, tll_msg_t *msg);
 
 	size_t _data_size(frame_size_t frame) { return frame - sizeof(frame) - 1; }
@@ -89,8 +89,10 @@ private:
 	int _read_meta();
 	int _write_meta();
 
-	int _shift(size_t size);
-	int _shift(const tll_msg_t * msg) { return _shift(sizeof(frame_size_t) + sizeof(frame_t) + msg->size + 1); }
+	void _shift(size_t size);
+	void _shift(const tll_msg_t * msg) { _shift(sizeof(frame_size_t) + sizeof(frame_t) + msg->size + 1); }
+	void _shift_skip() { _io.offset = _io.block_end; }
+	int _shift_block(size_t offset);
 	void _truncate(size_t offset);
 	int _check_write(size_t size, int r);
 };
