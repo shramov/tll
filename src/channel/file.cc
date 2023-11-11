@@ -313,7 +313,7 @@ ssize_t File::_file_size()
 int File::_file_bounds()
 {
 	auto size = _file_size();
-	if (size < 0)
+	if (size <= 0)
 		return EINVAL;
 
 	tll_msg_t msg;
@@ -326,7 +326,7 @@ int File::_file_bounds()
 
 	_seq_begin = msg.seq;
 
-	for (auto last = size / _block_size; last > 0; last--) {
+	for (auto last = (size + _block_size - 1) / _block_size - 1; last > 0; last--) {
 		auto r = _block_seq(last, &msg);
 		if (r == 0)
 			break;
@@ -370,7 +370,7 @@ int File::_seek(long long seq)
 	tll_msg_t msg;
 
 	size_t first = 0;
-	size_t last = size / _block_size;
+	size_t last = (size + _block_size - 1) / _block_size - 1;
 
 	for (; last > 0; last--) {
 		auto r = _block_seq(last, &msg);
