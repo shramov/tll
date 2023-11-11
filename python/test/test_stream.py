@@ -237,6 +237,56 @@ async def test_block(asyncloop, tmp_path, req, result):
     assert m.type == m.Type.Control
     assert (m.seq, c.unpack(m).SCHEME.name) == (result[-1], 'Online')
 
+@pytest.mark.parametrize("init_seq,init_block", [
+        ('', ''),
+        (10, ''),
+        (10, 'other'),
+        ])
+@asyncloop_run
+async def test_init_message(asyncloop, tmp_path, init_seq, init_block):
+    SCHEME = '''yamls://
+ - name: Initial
+   id: 10
+   fields: [{name: i64, type: int64}]
+ - name: Data
+   id: 20
+   fields: [{name: i32, type: int32}]
+'''
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;storage.dump=frame;blocks.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file://{tmp_path}/storage.dat;name=server;mode=server;blocks.url=blocks://{tmp_path}/blocks.yaml;init-message=Initial;init-seq={init_seq};init-block={init_block}', scheme=SCHEME)
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test', scheme=SCHEME)
+
+    s.open()
+    assert s.state == s.State.Active # No need to wait
+
+    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': init_seq or 0, 'type': init_block or 'default'}]
+
+    s.close()
+    s.open()
+
+    assert s.state == s.State.Active # No need to wait
+
+    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': init_seq or 0, 'type': init_block or 'default'}]
+
+    c.open(f'mode=seq;seq={init_seq or 0}')
+
+    assert (await c.recv_state()) == c.State.Active
+
+    m = await c.recv()
+    assert (m.type, m.seq, m.msgid) == (m.Type.Data, init_seq or 0, 10)
+    assert c.unpack(m).as_dict() == {'i64': 0}
+
+    m = await c.recv()
+    assert m.type == m.Type.Control
+    assert (m.seq, c.unpack(m).SCHEME.name) == (init_seq or 0, 'Online')
+
+    c.close()
+    c.open(f'mode=block;block=0;block-type={init_block or "default"}')
+
+    m = await c.recv()
+    assert m.type == m.Type.Control
+    assert (m.seq, c.unpack(m).SCHEME.name) == (init_seq or 0, 'Online')
+
 @asyncloop_run
 async def test_autoseq(asyncloop, tmp_path):
     common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'

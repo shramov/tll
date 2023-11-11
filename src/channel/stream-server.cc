@@ -48,6 +48,10 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 
 	_autoseq.enable = reader.getT("autoseq", false);
 
+	_init_message = reader.getT("init-message", std::string());
+	_init_seq = reader.getT<unsigned long>("init-seq", 0);
+	_init_block = reader.getT("init-block", std::string(url.sub("blocks") ? "default" : ""));
+
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -150,15 +154,76 @@ int StreamServer::_open(const ConstConfig &url)
 	if (!last)
 		return _log.fail(EINVAL, "Storage has invalid 'seq' config value: {}", last.error());
 	_seq = *last;
-	_autoseq.reset(_seq);
 	config_info().set_ptr("seq", &_seq);
 	_log.info("Last seq in storage: {}", _seq);
+
+	const bool empty_storage = _seq == -1;
+	tll_msg_t initial_message = {};
+	std::vector<char> initial_buffer;
+
+	if (_init_message.size() && empty_storage) {
+		_log.info("Init empty storage with message {} seq {}", _init_message, _init_seq);
+		auto scheme = _storage->scheme();
+		if (!scheme)
+			return _log.fail(EINVAL, "Can not initialize storage without scheme");
+		auto message = scheme->lookup(_init_message);
+		if (!message)
+			return _log.fail(EINVAL, "Message '{}' not found in scheme", _init_message);
+		initial_buffer.resize(message->size);
+		initial_message.msgid = message->msgid;
+		initial_message.seq = _init_seq;
+		initial_message.data = initial_buffer.data();
+		initial_message.size = initial_buffer.size();
+		if (auto r = _storage->post(&initial_message); r)
+			return _log.fail(EINVAL, "Failed to post initial message {} to storage", _init_message);
+		_seq = _init_seq;
+	}
+
+	_autoseq.reset(_seq);
 
 	if (_blocks) {
 		if (_blocks->open())
 			return _log.fail(EINVAL, "Failed to open blocks channel");
 		if (_blocks->state() != tll::state::Active)
 			return _log.fail(EINVAL, "Long opening blocks is not supported");
+
+		if (empty_storage && _init_message.size() && _init_block.size()) {
+			_log.info("Post initial message to blocks storage");
+			if (_blocks->post(&initial_message))
+				return _log.fail(EINVAL, "Failed to post initial message to blocks storage");
+
+			if (!_control_blocks)
+				return _log.fail(EINVAL, "Blocks storage has no control scheme, can not initialize");
+			auto message = _control_blocks->lookup("Block");
+			if (!message)
+				return _log.fail(EINVAL, "Blocks storage scheme has no Block message");
+			std::vector<char> buf;
+			buf.resize(message->size);
+			tll::scheme::Field * field = nullptr;
+			for (field = message->fields; field; field = field->next) {
+				if (field->name == std::string_view("type"))
+					break;
+			}
+			if (!field)
+				return _log.fail(EINVAL, "Block message has no 'type' field");
+			if (field->type == field->Bytes) {
+				auto view = tll::make_view(buf).view(field->offset);
+				if (field->size < _init_block.size())
+					return _log.fail(EINVAL, "Block::type size {} is not enough for init-block '{}'", field->size, _init_block);
+				memcpy(view.data(), _init_block.data(), _init_block.size());
+			} else
+				return _log.fail(EINVAL, "Block::type field is not fixed string: {}", field->type);
+			tll_msg_t msg = {};
+			msg.type = TLL_MESSAGE_CONTROL;
+			msg.msgid = message->msgid;
+			msg.data = buf.data();
+			msg.size = buf.size();
+
+			_log.info("Post initial block {}", _init_block);
+			if (_blocks->post(&msg))
+				return _log.fail(EINVAL, "Failed to post initial block '{}'", _init_block);
+		}
+
 		auto seq = _blocks->config().getT<long long>("info.seq");
 		if (!seq)
 			return _log.fail(EINVAL, "Blocks channel last seq invalid: {}", seq.error());
@@ -535,12 +600,12 @@ int StreamServer::_post(const tll_msg_t * msg, int flags)
 	msg = _autoseq.update(msg);
 	if (msg->seq <= _seq)
 		return _log.fail(EINVAL, "Non monotonic seq: {} < last posted {}", msg->seq, _seq);
-	if (auto r = _storage->post(msg); r)
-		return _log.fail(r, "Failed to store message {}", msg->seq);
 	if (_blocks) {
 		if (auto r = _blocks->post(msg); r)
-			return _log.fail(r, "Failed to send Block control message");
+			return _log.fail(r, "Failed to post message into block storage");
 	}
+	if (auto r = _storage->post(msg); r)
+		return _log.fail(r, "Failed to store message {}", msg->seq);
 	_seq = msg->seq;
 	_last_seq_tx(msg->seq);
 	return _child->post(msg);

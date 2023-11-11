@@ -75,6 +75,10 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 
 	tll::Config _child_open;
 
+	std::string _init_message;
+	long long _init_seq;
+	std::string _init_block;
+
  public:
 	static constexpr std::string_view channel_protocol() { return "stream+"; }
 
