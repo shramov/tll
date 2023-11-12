@@ -84,8 +84,8 @@ cdef class Context:
         if self._ptr:
             tll_channel_context_free(self._ptr)
 
-    def __init__(self, cfg=None, __wrap=False):
-        if __wrap: return
+    def __init__(self, cfg=None, _wrap=False):
+        if _wrap: return
         cdef tll_config_t * cptr = NULL
         if cfg is not None:
             if not isinstance(cfg, Config):
@@ -105,7 +105,7 @@ cdef class Context:
 
     @staticmethod
     cdef Context wrap(tll_channel_context_t * ptr):
-        r = Context(__wrap=True)
+        r = Context(_wrap=True)
         r._ptr = tll_channel_context_ref(ptr)
         return r
 
