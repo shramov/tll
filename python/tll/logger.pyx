@@ -125,34 +125,42 @@ cdef class PyLog:
         return &self.impl == tll_logger_impl_get()
 
     @staticmethod
-    cdef int pylog(long long ts, const char * category, tll_logger_level_t level, const char * data, size_t size, void * obj) with gil:
+    cdef int pylog(long long ts, const char * category, tll_logger_level_t level, const char * data, size_t size, void * obj) noexcept with gil:
         o = <object>obj
-        o.handle(TLLLogRecord(o.name, tll2logging.get(level, logging.INFO), b2s(data[:size])))
+        try:
+            o.handle(TLLLogRecord(o.name, tll2logging.get(level, logging.INFO), b2s(data[:size])))
+        except:
+            pass
 
     @staticmethod
-    cdef void * pylog_new(tll_logger_impl_t * impl, const char * category) with gil:
-        o = <PyLog>(impl.user)
-        l = logging.getLogger(b2s(category))
-        Py_INCREF(l)
+    cdef void * pylog_new(tll_logger_impl_t * impl, const char * category) noexcept with gil:
+        try:
+            o = <PyLog>(impl.user)
+            l = logging.getLogger(b2s(category))
+            Py_INCREF(l)
+        except:
+            return NULL
         return <void *>l
 
     @staticmethod
-    cdef void pylog_free(tll_logger_impl_t * impl, const char * category, void * obj) with gil:
+    cdef void pylog_free(tll_logger_impl_t * impl, const char * category, void * obj) noexcept with gil:
         if obj == NULL: return
         o = <object>obj
         Py_DECREF(o)
 
     @staticmethod
-    cdef void pylog_release(tll_logger_impl_t * impl) with gil:
+    cdef void pylog_release(tll_logger_impl_t * impl) noexcept with gil:
         pass
 
     @staticmethod
-    cdef int pylog_configure(tll_logger_impl_t * impl, const tll_config_t * _cfg) with gil:
-        cdef Config config = Config.wrap_const(_cfg, ref=True)
-        if config.sub('python', throw=False) is None:
-            return 0
+    cdef int pylog_configure(tll_logger_impl_t * impl, const tll_config_t * _cfg) noexcept with gil:
+        cdef Config config = None
 
         try:
+            config = Config.wrap_const(_cfg, ref=True)
+            if config.sub('python', throw=False) is None:
+                return 0
+
             lcfg = config.sub('python').as_dict()
             lcfg['version'] = int(lcfg.get('version', '1'))
             print(lcfg)
