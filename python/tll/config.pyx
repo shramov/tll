@@ -13,7 +13,7 @@ from libc.string cimport memcpy
 from .conv import getT
 from .error import TLLError
 
-__default_tag = object()
+DEFAULT_TAG = object()
 
 cdef object _check_error(int r, object message):
     if r == ENOENT:
@@ -207,22 +207,22 @@ cdef class Config:
         finally:
             tll_config_value_free(buf)
 
-    def get(self, key=None, default=__default_tag, decode=True):
+    def get(self, key=None, default=DEFAULT_TAG, decode=True):
         if key is None: return self._get(decode=decode)
         k = s2b(key)
         cdef tll_config_t * cfg = tll_config_sub(self._ptr, k, len(k), 0)
         if cfg == NULL:
-            if default == __default_tag:
+            if default == DEFAULT_TAG:
                 raise KeyError("Key {} not found".format(key))
             return default
         return Config.wrap(cfg).get(decode=decode)
 
-    def get_url(self, key=None, default=__default_tag):
+    def get_url(self, key=None, default=DEFAULT_TAG):
         cdef Config sub = self
         if key is not None:
             sub = self.sub(key, create=False, throw=False)
             if sub is None:
-                if default == __default_tag:
+                if default == DEFAULT_TAG:
                     raise KeyError(f"Key {key} not found")
                 return default
         r = Config.wrap(tll_config_get_url(sub._ptr, NULL, 0))
