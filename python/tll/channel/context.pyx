@@ -248,18 +248,18 @@ def channel_cast(channel, klass=None):
         raise TypeError("Expected type {}, got {}".format((<Impl>impl).name_bytes, ptr.impl.name))
     return <object>ptr.data
 
-cdef int _py_bad_channel(const tll_channel_t * channel):
+cdef int _py_bad_channel(const tll_channel_t * channel) noexcept:
     if channel == NULL or channel.data == NULL or channel.impl.free != &_py_free: return 1
     return 0
 
-cdef int _py_check_return(object obj):
+cdef int _py_check_return(object obj) noexcept:
     if obj is None: return 0
     if isinstance(obj, int):
         return <int>obj
     cdef int r = <int> obj
     return r
 
-cdef int _py_init(tll_channel_t * channel, const tll_config_t *curl, tll_channel_t * parent, tll_channel_context_t *ctx) with gil:
+cdef int _py_init(tll_channel_t * channel, const tll_config_t *curl, tll_channel_t * parent, tll_channel_context_t *ctx) noexcept with gil:
     if channel == NULL or channel.impl.free != &_py_free: return 0
     if channel.impl.data == NULL: return 0
     cdef Internal intr = Internal()
@@ -296,7 +296,7 @@ cdef int _py_init(tll_channel_t * channel, const tll_config_t *curl, tll_channel
             pass
         return EINVAL
 
-cdef void _py_free(tll_channel_t * channel) with gil:
+cdef void _py_free(tll_channel_t * channel) noexcept with gil:
     if _py_bad_channel(channel): return
     pyc = <object>(channel.data)
     try:
@@ -311,7 +311,7 @@ cdef void _py_free(tll_channel_t * channel) with gil:
         except:
             pass
 
-cdef int _py_open(tll_channel_t * channel, const tll_config_t *cfg) with gil:
+cdef int _py_open(tll_channel_t * channel, const tll_config_t *cfg) noexcept with gil:
     if _py_bad_channel(channel): return EINVAL
     pyc = <object>(channel.data)
     try:
@@ -324,7 +324,7 @@ cdef int _py_open(tll_channel_t * channel, const tll_config_t *cfg) with gil:
             pass
         return EINVAL
 
-cdef int _py_close(tll_channel_t * channel, int force) with gil:
+cdef int _py_close(tll_channel_t * channel, int force) noexcept with gil:
     if _py_bad_channel(channel): return EINVAL
     pyc = <object>(channel.data)
     try:
@@ -337,7 +337,7 @@ cdef int _py_close(tll_channel_t * channel, int force) with gil:
             pass
         return EINVAL
 
-cdef const tll_scheme_t * _py_scheme(const tll_channel_t * channel, int stype) with gil:
+cdef const tll_scheme_t * _py_scheme(const tll_channel_t * channel, int stype) noexcept with gil:
     if _py_bad_channel(channel): return NULL
     pyc = <object>(channel.data)
     try:
@@ -355,7 +355,7 @@ cdef const tll_scheme_t * _py_scheme(const tll_channel_t * channel, int stype) w
             pass
         return NULL
 
-cdef int _py_post(tll_channel_t * channel, const tll_msg_t *msg, int flags) with gil:
+cdef int _py_post(tll_channel_t * channel, const tll_msg_t *msg, int flags) noexcept with gil:
     if _py_bad_channel(channel): return EINVAL
     pyc = <object>(channel.data)
     try:
@@ -368,7 +368,7 @@ cdef int _py_post(tll_channel_t * channel, const tll_msg_t *msg, int flags) with
             pass
         return EINVAL
 
-cdef int _py_process(tll_channel_t * channel, long timeout, int flags) with gil:
+cdef int _py_process(tll_channel_t * channel, long timeout, int flags) noexcept with gil:
     if _py_bad_channel(channel): return EINVAL
     pyc = <object>(channel.data)
     try:

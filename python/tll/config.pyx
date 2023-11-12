@@ -35,7 +35,7 @@ cdef class Callback:
     def __call__(self):
         return self._cb()
 
-cdef char * pyvalue_callback(int * length, void * data) with gil:
+cdef char * pyvalue_callback(int * length, void * data) noexcept with gil:
     cdef object cb = <object>data
     cdef Py_buffer * buf
     cdef char * ptr
@@ -59,7 +59,7 @@ cdef char * pyvalue_callback(int * length, void * data) with gil:
     except:
         return NULL
 
-cdef void pyvalue_callback_free(tll_config_value_callback_t f, void * data) with gil:
+cdef void pyvalue_callback_free(tll_config_value_callback_t f, void * data) noexcept with gil:
     if f != pyvalue_callback:
         return
     cdef cb = <object>data
@@ -318,7 +318,7 @@ cdef class Config:
     def __setitem__(self, key, value): self.set(key, value)
     def __delitem__(self, key): self.remove(key)
 
-cdef int browse_cb(const char * key, int klen, const tll_config_t *value, void * data):
+cdef int browse_cb(const char * key, int klen, const tll_config_t *value, void * data) noexcept:
     cb = <object>data
     pykey = None
     try:
