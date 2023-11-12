@@ -21,6 +21,6 @@ shared_library('tll-logic-stat'
 
 shared_library('tll-logic-control'
 	, ['control.cc']
-	, dependencies : [fmt, tll]
+	, dependencies : [fmt, tll, rapidjson]
 	, install: true
 	)
