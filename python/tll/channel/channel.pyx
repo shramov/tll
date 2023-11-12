@@ -92,7 +92,7 @@ class RunGuard:
     def active(self):
         return self._active
 
-cdef int ccallback_destroy_cb(const tll_channel_t * c, const tll_msg_t *msg, void * user) with gil:
+cdef int ccallback_destroy_cb(const tll_channel_t * c, const tll_msg_t *msg, void * user) noexcept with gil:
     if msg.type != TLL_MESSAGE_STATE or msg.msgid != TLL_STATE_DESTROY:
         return 0
     o = <object>user
@@ -102,7 +102,7 @@ cdef int ccallback_destroy_cb(const tll_channel_t * c, const tll_msg_t *msg, voi
         pass
     return 0
 
-cdef int ccallback_cb(const tll_channel_t * c, const tll_msg_t *msg, void * user) with gil:
+cdef int ccallback_cb(const tll_channel_t * c, const tll_msg_t *msg, void * user) noexcept with gil:
     cb = <CCallback>user
     func = None
     cdef CMessage cmsg
