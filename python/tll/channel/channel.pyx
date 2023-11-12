@@ -450,59 +450,6 @@ class Callback:
         if o is None: return # Exception?
         return getattr(o, self.func)(*a, **kw)
 
-"""
-cdef class Context:
-    def __cinit__(self):
-        self._ptr = NULL
-
-    def __dealloc__(self):
-        if self._ptr:
-            tll_channel_context_free(self._ptr)
-
-    def __init__(self, cfg=None, __wrap=False):
-        if __wrap: return
-        cdef tll_config_t * cptr = NULL
-        if cfg is not None:
-            if not isinstance(cfg, Config):
-                raise RuntimeError("cfg must be None or Config object, got {}".format(type(cfg)))
-            cptr = (<Config>(cfg))._ptr
-        self._ptr = tll_channel_context_new(cptr)
-
-    def __richcmp__(Context self, Context other, int op):
-        return bool(richcmp(<intptr_t>self._ptr, <intptr_t>other._ptr, op))
-
-    def Channel(self, *a, **kw):
-        kw['context'] = self
-        return Channel(*a, **kw)
-
-    @staticmethod
-    cdef Context wrap(tll_channel_context_t * ptr):
-        r = Context(__wrap=True)
-        r._ptr = tll_channel_context_ref(ptr)
-        return r
-
-    def get(self, name):
-        n = s2b(name)
-        cdef tll_channel_t * c = tll_channel_get(self._ptr, n, len(n))
-        if c is NULL:
-            return None
-        return Channel.wrap(c)
-
-    def load(self, path, symbol='module'):
-        p = s2b(path)
-        s = s2b(symbol)
-        r = tll_channel_module_load(self._ptr, p, s)
-        if r:
-            raise TLLError("Failed to load {}:{}".format(path, symbol), r)
-
-    def scheme_load(self, url, cache=True):
-        b = s2b(url)
-        cdef const tll_scheme_t * s = tll_channel_context_scheme_load(self._ptr, b, len(b), 1 if cache else 0)
-        if s == NULL:
-            raise TLLError("Failed to load scheme from '{}'".format(url))
-        return Scheme.wrap(s)
-        """
-
 class Message:
     Type = _Type
     __slots__ = ["type", "msgid", "seq", "addr", "data", "time"]
