@@ -6,12 +6,13 @@ from .config cimport *
 from .s2b cimport *
 
 from cpython.ref cimport Py_INCREF, Py_DECREF
-from libc.errno cimport ENOENT
+from libc.errno cimport ENOENT, EINVAL
 from libc.stdlib cimport malloc
 from libc.string cimport memcpy
 
 from .conv import getT
 from .error import TLLError
+from .logger import Logger
 
 DEFAULT_TAG = object()
 
@@ -34,7 +35,7 @@ cdef class Callback:
     def __call__(self):
         return self._cb()
 
-cdef char * pyvalue_callback(int * length, void * data) with gil:
+cdef char * pyvalue_callback(int * length, void * data) noexcept with gil:
     cdef object cb = <object>data
     cdef Py_buffer * buf
     cdef char * ptr
@@ -58,7 +59,7 @@ cdef char * pyvalue_callback(int * length, void * data) with gil:
     except:
         return NULL
 
-cdef void pyvalue_callback_free(tll_config_value_callback_t f, void * data) with gil:
+cdef void pyvalue_callback_free(tll_config_value_callback_t f, void * data) noexcept with gil:
     if f != pyvalue_callback:
         return
     cdef cb = <object>data
@@ -304,10 +305,14 @@ cdef class Config:
     def __setitem__(self, key, value): self.set(key, value)
     def __delitem__(self, key): self.remove(key)
 
-cdef int browse_cb(const char * key, int klen, const tll_config_t *value, void * data):
+cdef int browse_cb(const char * key, int klen, const tll_config_t *value, void * data) noexcept:
     cb = <object>data
-    cfg = Config.wrap(<tll_config_t *>value, ref=True, _const=True)
-    cb(b2s(key[:klen]), cfg)
+    try:
+        cfg = Config.wrap(<tll_config_t *>value, ref=True, _const=True)
+        cb(b2s(key[:klen]), cfg)
+    except:
+        Logger('tll.python').exception("Exception in browse callback {}", cb)
+        return EINVAL
     return 0
 
 cdef class Url(Config):
