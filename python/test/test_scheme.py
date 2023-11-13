@@ -395,6 +395,9 @@ def test_fixed():
     assert m.SCHEME['i16'].from_string('123.4') == decimal.Decimal('123.4')
     assert m.SCHEME['u16'].from_string('123.4') == decimal.Decimal('123.4')
 
+    with pytest.raises(ValueError): m.SCHEME['i16'].from_string('xxx')
+    with pytest.raises(ValueError): m.i16 = 'xxx'
+
 @pytest.mark.parametrize("version", ['default', 'legacy-long', 'legacy-short'])
 def test_list(version):
     scheme = S.Scheme("""yamls://
@@ -720,6 +723,9 @@ def test_decimal128():
     assert u.snan.is_snan()
 
     assert m.SCHEME['dec'].from_string('123.4') == decimal.Decimal('123.4')
+
+    with pytest.raises(ValueError): assert m.SCHEME['dec'].from_string('xxx')
+    with pytest.raises(ValueError): m.dec = 'xxx'
 
 def test_union_pack():
     scheme = S.Scheme("""yamls://

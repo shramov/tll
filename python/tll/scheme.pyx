@@ -11,7 +11,7 @@ from cpython.version cimport PY_MAJOR_VERSION
 
 from collections import OrderedDict, namedtuple
 import copy
-from decimal import Decimal
+from decimal import Decimal, DecimalException
 import enum
 from .error import TLLError
 from .buffer cimport *
@@ -165,6 +165,12 @@ cdef bits_wrap(tll_scheme_bits_t * ptr):
 def memoryview_check(o):
     if not PyMemoryView_Check(o):
         raise TLLError("Need memoryview to pack, got {}".format(type(o)))
+
+def decimal_value_check(f, value):
+    try:
+        return f(value)
+    except DecimalException as e:
+        raise ValueError(f"Invalid decimal value: '{value}'") from e
 
 ctypedef fused primitive_t:
     int8_t
@@ -372,9 +378,9 @@ cdef class FDecimal128(FBase):
     cdef unpack(FDecimal128 self, src):
         return decimal128.unpack(src[:16])
     cdef convert(FDecimal128 self, v):
-        return decimal128.context.create_decimal(v)
+        return decimal_value_check(decimal128.context.create_decimal, v)
     cdef from_string(FDecimal128 self, str s):
-        return decimal128.context.create_decimal(s)
+        return decimal_value_check(decimal128.context.create_decimal, s)
 _TYPES[Type.Decimal128] = FDecimal128
 
 cdef class FBytes(FBase):
@@ -632,14 +638,16 @@ cdef class FFixed(FBase):
     cdef unpack(FFixed self, src):
         return Decimal(self.base.unpack(src)) * Decimal((0, (1,), -self.fixed_precision))
     cdef convert(FFixed self, v):
-        if isinstance(v, (str, int)):
+        if isinstance(v, int):
             v = Decimal(v)
+        elif isinstance(v, str):
+            v = decimal_value_check(Decimal, v)
         elif isinstance(v, float):
             v = Decimal(round(v * (10 ** self.fixed_precision))).scaleb(-self.fixed_precision)
         elif not isinstance(v, Decimal):
             raise TypeError("Expected str, float or int, got {}: {}".format(type(v), v))
         return v
-    cdef from_string(FFixed self, str s): return Decimal(s)
+    cdef from_string(FFixed self, str s): return decimal_value_check(Decimal, s)
 _SUBTYPES[SubType.FixedPoint] = FFixed
 
 cdef class FTimePoint(FBase):
