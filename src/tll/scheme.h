@@ -293,6 +293,9 @@ typedef struct tll_scheme_t
 	static tll_scheme_t * load(std::string_view url) { return tll_scheme_load(url.data(), url.size()); }
 	tll_scheme_t * copy() const { return tll_scheme_copy(this); }
 
+	tll_scheme_t * ref() { return const_cast<tll_scheme_t *>(tll_scheme_ref(this)); }
+	const tll_scheme_t * ref() const { return tll_scheme_ref(this); }
+
 	tll_scheme_message_t * lookup(int id)
 	{
 		for (auto m = messages; m; m = m->next) {
