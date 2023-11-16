@@ -513,11 +513,13 @@ int tll_channel_module_load(tll_channel_context_t *ctx, const char *module, cons
 
 tll_channel_t * tll_channel_new(tll_channel_context_t * ctx, const char *str, size_t len, tll_channel_t *master, const tll_channel_impl_t *impl)
 {
+	if (!str) return nullptr;
 	return context(ctx)->init(string_view_from_c(str, len), master, impl);
 }
 
 tll_channel_t * tll_channel_new_url(tll_channel_context_t * ctx, const tll_config_t *curl, tll_channel_t *master, const tll_channel_impl_t *impl)
 {
+	if (!curl) return nullptr;
 	const tll::Channel::Url url(const_cast<tll_config_t *>(curl));
 
 	return context(ctx)->init(url, master, impl);
