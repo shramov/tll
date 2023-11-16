@@ -120,7 +120,6 @@ TLL_0.0.0 {
 		tll_scheme_field_fix;
 		tll_scheme_ref;
 		tll_scheme_unref;
-		tll_scheme_ref;
 		tll_scheme_option_free;
 		tll_scheme_bits_free;
 		tll_scheme_enum_free;
