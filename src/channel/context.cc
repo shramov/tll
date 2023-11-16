@@ -357,23 +357,36 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 			return tll_scheme_ref(tll_channel_scheme(c, 0));
 		}
 
-		if (!cache)
+		auto hashproto = (url.substr(0, 6 + 3) == "sha256://");
+
+		if (!cache && !hashproto)
 			return Scheme::load(url);
 
 		{
 			std::shared_lock<std::shared_mutex> lock(scheme_cache_lock);
 			auto it = scheme_cache.find(url);
 			if (it != scheme_cache.end())
-				return tll_scheme_ref(it->second.get());
+				return it->second->ref();
 		}
 
-		auto s = Scheme::load(url);
-		if (!s) return nullptr;
+		if (hashproto)
+			return _log.fail(nullptr, "Hashed scheme '{}' not found in the cache", url);
 
-		std::unique_lock<std::shared_mutex> lock(scheme_cache_lock);
-		if (!scheme_cache.insert({std::string(url), scheme::SchemePtr {s}}).second)
-			return s;
-		return tll_scheme_ref(s);
+		auto result = Scheme::load(url);
+		if (!result) return nullptr;
+
+		{
+			std::unique_lock<std::shared_mutex> lock(scheme_cache_lock);
+			if (!scheme_cache.insert({std::string(url), scheme::SchemePtr {result->ref()}}).second)
+				return result;
+			auto hash = tll_scheme_dump(result, "sha256");
+			if (hash) {
+				_log.debug("Register scheme hash '{}'", hash);
+				scheme_cache.insert({std::string(hash), scheme::SchemePtr {result->ref()}});
+				free(hash);
+			}
+		}
+		return result;
 	}
 };
 

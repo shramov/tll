@@ -4,6 +4,7 @@
 import tll.channel as C
 from tll.config import Config
 from tll.error import TLLError
+from tll.scheme import Scheme
 from tll.stat import Method, Unit
 from tll.test_util import Accum, ports
 from tll.processor import Loop
@@ -35,17 +36,32 @@ def test_defaults():
     del c
     del defaults['mem.size']
 
-def test_context_scheme():
-    c = ctx.Channel('null://;name=null;scheme=yamls://{}')
+def test_context_scheme(context):
+    c = context.Channel('null://;name=null;scheme=yamls://{}')
     c.open()
-    s1 = ctx.scheme_load('yamls://{}')
-    s2 = ctx.scheme_load('channel://null')
-    c1 = ctx.Channel('null://;scheme=channel://null')
+    s1 = context.scheme_load('yamls://{}')
+    s2 = context.scheme_load('channel://null')
+    c1 = context.Channel('null://;scheme=channel://null')
     c1.open()
     assert c.scheme != None
     assert c1.scheme != None
-    with pytest.raises(TLLError): ctx.scheme_load('channel://unknown')
-    with pytest.raises(TLLError): ctx.scheme_load('zzz://scheme')
+    with pytest.raises(TLLError): context.scheme_load('channel://unknown')
+    with pytest.raises(TLLError): context.scheme_load('zzz://scheme')
+
+def test_context_scheme_hash(context):
+    SCHEME = 'yamls://[{name: Data}]'
+    s0 = Scheme(SCHEME)
+    assert [m.name for m in s0.messages] == ['Data']
+    try:
+        sha = s0.dump('sha256')
+    except:
+        pytest.skip('SHA256 not available for scheme')
+        return
+    with pytest.raises(TLLError): context.scheme_load(sha)
+    s1 = context.scheme_load(SCHEME)
+    s2 = context.scheme_load(sha)
+    assert [m.name for m in s1.messages] == ['Data']
+    assert [m.name for m in s2.messages] == ['Data']
 
 def test_stat():
     ctx = C.Context()
