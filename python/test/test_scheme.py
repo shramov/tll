@@ -11,6 +11,7 @@ import copy
 import datetime
 import decimal
 import enum
+import hashlib
 import pytest
 import struct
 
@@ -910,3 +911,22 @@ def test_sub_create():
     assert not hasattr(msg, 'f2')
     assert msg.f3 == []
     assert msg.f4 == []
+
+
+def test_sha256():
+    scheme = '''yamls://
+- name: Data
+  id: 10
+  fields:
+    - {name: f0, type: int16}
+'''
+
+    scheme = S.Scheme(scheme)
+    yamls = scheme.dump('yamls')
+    try:
+        ssha = scheme.dump('sha256')
+    except:
+        pytest.skip('SHA256 not available for scheme')
+    with pytest.raises(OSError): scheme.dump('shaXXX')
+
+    assert ssha == 'sha256://' + hashlib.sha256(yamls[len('yamls://'):].encode('ascii')).hexdigest()

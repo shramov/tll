@@ -26,6 +26,7 @@ yaml = dependency('yaml-0.1')
 fmt = dependency('fmt')
 spdlog = dependency('spdlog', version: '>=1.0', required: false)
 rapidjson = dependency('RapidJSON', required: false)
+rhash = dependency('librhash', required: false)
 threads = dependency('threads')
 
 include = include_directories('src')

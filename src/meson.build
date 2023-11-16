@@ -16,7 +16,8 @@ sources += channel_sources
 sources += processor_sources
 
 sources += configure_file(output : 'scheme-config.h', configuration : configuration_data({
-	'DATADIR': '"@0@"'.format(get_option('prefix') / get_option('datadir'))
+	'DATADIR': '"@0@"'.format(get_option('prefix') / get_option('datadir')),
+	'WITH_RHASH': rhash.found(),
 }))
 
 
@@ -29,7 +30,7 @@ endif
 tll_lib = shared_library('tll',
                         sources,
                         include_directories : include,
-                        dependencies : [fmt, threads, yaml, zlib] + channel_deps,
+                        dependencies : [fmt, rhash, threads, yaml, zlib] + channel_deps,
 			version: '0', soversion: '0',
 			link_with: tll_logger,
 			link_args: version_script + cxx_fs_link_args,

@@ -28,6 +28,14 @@
 #include <memory>
 #include <set>
 
+/*
+ * rhash_library_init is intentionaly skipped, according to sources most of hashes does not need it
+ * and it's better to avoid dlopen for libcrypto in this library
+ */
+#ifdef WITH_RHASH
+#include <rhash.h>
+#endif//WITH_RHASH
+
 void tll_scheme_free(tll_scheme_t *);
 
 using namespace tll::scheme;
@@ -1840,7 +1848,11 @@ char * tll_scheme_dump(const tll_scheme_t * s, const char * format)
 	constexpr std::string_view fdefault = "yamls";
 
 	auto fmt = format == nullptr ? fdefault : std::string_view(format);
-	if (fmt != "yamls" && fmt != "yamls+gz")
+	if (fmt == "yamls" || fmt == "yamls+gz") {}
+#ifdef WITH_RHASH
+	else if (fmt == "sha256") {}
+#endif
+	else
 		return nullptr;
 	std::string r;
 	if (s->options || s->enums || s->bits || s->unions || s->aliases) {
@@ -1878,10 +1890,21 @@ char * tll_scheme_dump(const tll_scheme_t * s, const char * format)
 		auto z = tll::zlib::compress(r);
 		if (!z)
 			return nullptr;
-		r = "yamls+gz://" + tll::util::b64_encode(*z);
-	} else
-		r = "yamls://" + r;
+		r = tll::util::b64_encode(*z);
+	}
 
+#ifdef WITH_RHASH
+	if (fmt == "sha256") {
+		std::vector<unsigned char> sha(256 / 8);
+		auto hash = rhash_init(RHASH_SHA256);
+		rhash_update(hash, r.data(), r.size());
+		rhash_final(hash, sha.data());
+		rhash_free(hash);
+		r = tll::util::bin2hex(sha);
+	}
+#endif
+
+	r = std::string(fmt) + "://" + r;
 	return strdup(r.c_str());
 }
 
