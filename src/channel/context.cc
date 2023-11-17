@@ -379,11 +379,10 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 			std::unique_lock<std::shared_mutex> lock(scheme_cache_lock);
 			if (!scheme_cache.insert({std::string(url), scheme::SchemePtr {result->ref()}}).second)
 				return result;
-			auto hash = tll_scheme_dump(result, "sha256");
+			auto hash = result->dump("sha256");
 			if (hash) {
-				_log.debug("Register scheme hash '{}'", hash);
-				scheme_cache.insert({std::string(hash), scheme::SchemePtr {result->ref()}});
-				free(hash);
+				_log.debug("Register scheme hash '{}'", *hash);
+				scheme_cache.insert({std::string(*hash), scheme::SchemePtr {result->ref()}});
 			}
 		}
 		return result;

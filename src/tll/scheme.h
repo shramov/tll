@@ -14,6 +14,8 @@
 #include <string_view>
 #include <memory>
 
+#include <tll/util/cstring.h>
+
 extern "C" {
 #endif
 
@@ -33,6 +35,18 @@ const struct tll_scheme_t * tll_scheme_ref(const struct tll_scheme_t *);
  * Decrement scheme reference count
  */
 void tll_scheme_unref(const struct tll_scheme_t *);
+
+/**
+ * Dump scheme into string. Supported formats:
+ *
+ *  - yamls - yaml representation
+ *  - yamls+gz - compressed yaml, base64(gzip(yaml))
+ *  - sha256 - sha256 hash of yaml representation
+ *
+ * On error and for unsupported format nullptr is returned.
+ * Returned string should be free'd by caller
+ */
+char * tll_scheme_dump(const struct tll_scheme_t *s, const char * format);
 
 typedef enum tll_scheme_field_type_t
 {
@@ -296,6 +310,8 @@ typedef struct tll_scheme_t
 	tll_scheme_t * ref() { return const_cast<tll_scheme_t *>(tll_scheme_ref(this)); }
 	const tll_scheme_t * ref() const { return tll_scheme_ref(this); }
 
+	tll::util::cstring dump(const std::string &format) const { return tll::util::cstring(tll_scheme_dump(this, format.c_str())); }
+
 	tll_scheme_message_t * lookup(int id)
 	{
 		for (auto m = messages; m; m = m->next) {
@@ -342,8 +358,6 @@ void tll_scheme_field_free(tll_scheme_field_t *);
 void tll_scheme_message_free(tll_scheme_message_t *);
 void tll_scheme_union_free(tll_scheme_union_t *);
 //void tll_scheme_free(tll_scheme_t *);
-
-char * tll_scheme_dump(const tll_scheme_t *s, const char * format);
 
 int tll_scheme_fix(tll_scheme_t *);
 int tll_scheme_message_fix(tll_scheme_message_t *);

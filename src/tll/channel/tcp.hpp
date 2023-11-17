@@ -583,9 +583,8 @@ int TcpServer<T, C>::_open(const ConstConfig &url)
 		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _host, addr.error());
 
 	if (this->_scheme) {
-		char * string = tll_scheme_dump(this->_scheme.get(), "yamls+gz");
-		_client_url.set("scheme", string);
-		::free(string);
+		if (auto s = this->_scheme->dump("yamls+gz"); s)
+			_client_url.set("scheme", *s);
 	}
 
 	auto af = static_cast<network::AddressFamily>(addr->front()->sa_family);
