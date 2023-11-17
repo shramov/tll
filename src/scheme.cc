@@ -1678,12 +1678,17 @@ std::string dump(const tll::scheme::Option * options, std::string_view key = "op
 	std::string r;
 	r += fmt::format("{}: {{", key);
 	bool comma = false;
+	std::map<std::string_view, std::string_view> map;
 	for (auto &o : list_wrap(options)) {
 		if (o.name == std::string_view("_auto")) continue;
+		map.emplace(o.name, o.value);
+	}
+
+	for (auto & [k, v] : map) {
 		if (comma)
 			r += ", ";
 		comma = true;
-		r += fmt::format("'{}': '{}'", o.name, o.value);
+		r += fmt::format("'{}': '{}'", k, v);
 	}
 	r += "}";
 	return r;
