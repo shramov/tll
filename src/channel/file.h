@@ -83,6 +83,7 @@ private:
 	ssize_t _file_size();
 
 	int _seek(long long seq);
+	int _seek_start();
 	int _block_seq(size_t block, tll_msg_t *msg);
 	int _read_seq(frame_size_t frame, tll_msg_t *msg);
 	int _read_seq(tll_msg_t *msg);

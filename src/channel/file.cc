@@ -250,11 +250,16 @@ int File<TIO>::_open(const ConstConfig &props)
 		if (auto r = _file_bounds(); r && r != EAGAIN)
 			return this->_log.fail(EINVAL, "Failed to load file bounds");
 
-		auto seq = reader.getT<long long>("seq", 0);
+		auto seq = reader.getT("seq", std::optional<long long>());
 		if (!reader)
 			return this->_log.fail(EINVAL, "Invalid params: {}", reader.error());
-		if (auto r = _seek(seq); r && r != EAGAIN)
-			return this->_log.fail(EINVAL, "Seek failed");
+		if (seq) {
+			if (auto r = _seek(*seq); r && r != EAGAIN)
+				return this->_log.fail(EINVAL, "Seek failed");
+		} else {
+			if (auto r = _seek_start(); r)
+				return this->_log.fail(EINVAL, "Failed to seek to first message");
+		}
 		this->_update_dcaps(dcaps::Process | dcaps::Pending);
 	} else {
 		auto overwrite = reader.getT("overwrite", false);
@@ -545,6 +550,15 @@ int File<TIO>::_file_bounds()
 	} while (true);
 
 	this->_log.info("First seq: {}, last seq: {}", _seq_begin, _seq);
+	return 0;
+}
+
+template <typename TIO>
+int File<TIO>::_seek_start()
+{
+	if (auto r = _shift_block(0); r)
+		return this->_log.fail(EINVAL, "Failed to prepare block 0: {}", strerror(r));
+
 	return 0;
 }
 
