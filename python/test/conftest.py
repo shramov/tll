@@ -13,6 +13,7 @@ tll.logger.init()
 tll.logger.configure({'levels': {'tll.python.asynctll*':'info', 'tll.channel.asynctll':'info'}})
 
 from tll import asynctll
+from tll import scheme as S
 
 version = tuple([int(x) for x in pytest.__version__.split('.')[:2]])
 
@@ -38,3 +39,10 @@ def path_builddir():
 def path_srcdir():
     path = pathlib.Path(tll.__file__).parent.parent.parent
     return pathlib.Path(os.environ.get("SOURCE_DIR", path))
+
+@pytest.fixture
+def with_scheme_hash():
+    try:
+        S.Scheme('yamls://{}').dump('sha256')
+    except:
+        pytest.skip("Scheme SHA256 hashes not supported")

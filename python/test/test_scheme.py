@@ -913,7 +913,7 @@ def test_sub_create():
     assert msg.f4 == []
 
 
-def test_sha256():
+def test_sha256(with_scheme_hash):
     scheme = '''yamls://
 - name: Data
   id: 10
@@ -923,10 +923,7 @@ def test_sha256():
 
     scheme = S.Scheme(scheme)
     yamls = scheme.dump('yamls')
-    try:
-        ssha = scheme.dump('sha256')
-    except:
-        pytest.skip('SHA256 not available for scheme')
+    ssha = scheme.dump('sha256')
     with pytest.raises(OSError): scheme.dump('shaXXX')
 
     assert ssha == 'sha256://' + hashlib.sha256(yamls[len('yamls://'):].encode('ascii')).hexdigest()
