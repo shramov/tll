@@ -606,7 +606,7 @@ async def test_export_client(asyncloop, tmp_path):
 
     assert [m.name for m in server.scheme.messages] == ['Test']
 
-    url = server.config.get_url('client')
+    url = server.config.get_url('client.init')
     assert url.proto == 'stream+pub+tcp'
 
     c = asyncloop.Channel(url, name='client')

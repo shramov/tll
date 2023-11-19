@@ -163,7 +163,7 @@ async def test_many(asyncloop, server, client):
 async def test_client(asyncloop, server):
     server.open()
 
-    url = server.config.get_url('client')
+    url = server.config.get_url('client.init')
     assert url.proto == 'pub+tcp'
 
     c = asyncloop.Channel(url, name='client')

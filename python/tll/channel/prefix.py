@@ -70,7 +70,7 @@ class Prefix(Base):
             pass
 
     def _on_client_export(self, client):
-        proto = client.get("tll.proto", None)
+        proto = client.get("init.tll.proto", None)
         if proto is None:
             self.log.warning("Client parameters without tll.proto")
             return

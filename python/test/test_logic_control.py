@@ -194,8 +194,8 @@ channel:
     assert (m.service, m.channel) == ('test', 'tcp')
 
     cfg = Config.from_dict({x.key: x.value for x in m.config})
-    assert cfg['tll.proto'] == 'tcp'
-    client = asyncloop.Channel(cfg, name='client')
+    assert cfg['init.tll.proto'] == 'tcp'
+    client = asyncloop.Channel(cfg.sub('init'), name='client')
     client.open()
 
     m = await tcp.recv()

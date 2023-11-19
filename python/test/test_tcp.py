@@ -303,9 +303,9 @@ def test_client(host, af):
 
     s.open()
 
-    assert s.config.sub('client').as_dict() == {'tll': {'proto': 'tcp', 'host': result}, 'af': af, 'mode': 'client'}
+    assert s.config.sub('client').as_dict() == {'init': {'tll': {'proto': 'tcp', 'host': result}, 'af': af, 'mode': 'client'}}
 
-    c = Accum(s.config.sub('client'), name='client')
+    c = Accum(s.config.sub('client.init'), name='client')
     c.open()
 
 def test_client_scheme():
@@ -315,9 +315,9 @@ def test_client_scheme():
     s.open()
     assert [m.name for m in s.scheme.messages] == ['Test']
 
-    assert s.config.sub('client').as_dict() == {'tll': {'proto': 'tcp', 'host': f'::1:{ports.TCP6}'}, 'af': 'ipv6', 'mode': 'client', 'scheme': s.scheme.dump('yamls+gz')}
+    assert s.config.sub('client').as_dict() == {'init': {'tll': {'proto': 'tcp', 'host': f'::1:{ports.TCP6}'}, 'af': 'ipv6', 'mode': 'client', 'scheme': s.scheme.dump('yamls+gz')}}
 
-    c = Accum(s.config.sub('client'), name='client')
+    c = Accum(s.config.sub('client.init'), name='client')
     c.open()
 
     assert [m.name for m in s.scheme.messages] == ['Test']

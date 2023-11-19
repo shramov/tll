@@ -30,7 +30,7 @@ def test_resolve(context):
     assert c.state == c.State.Opening
     assert rserver.result != []
     assert rserver.unpack(rserver.result[0]).as_dict() == {'service': 'service', 'channel': 'channel'}
-    rserver.post({'config': [{'key': 'tll.proto', 'value': 'direct'}, {'key': 'master', 'value': 'server'}]}, name='ExportChannel')
+    rserver.post({'config': [{'key': 'init.tll.proto', 'value': 'direct'}, {'key': 'init.master', 'value': 'server'}]}, name='ExportChannel')
 
     assert c.state == c.State.Active
     c.post(b'xxx', msgid=100)

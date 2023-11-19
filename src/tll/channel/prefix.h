@@ -181,13 +181,13 @@ public:
 
 	int _on_client_export(const tll::ConstConfig &cfg)
 	{
-		auto proto = cfg.get("tll.proto");
+		auto proto = cfg.get("init.tll.proto");
 		if (!proto) {
 			this->_log.warning("Client parameters without tll.proto");
 			return 0;
 		}
 		this->_config.set("client", cfg.copy());
-		this->_config.set("client.tll.proto", fmt::format("{}{}", this->channelT()->channel_protocol(), *proto));
+		this->_config.set("client.init.tll.proto", fmt::format("{}{}", this->channelT()->channel_protocol(), *proto));
 		return 0;
 	}
 };

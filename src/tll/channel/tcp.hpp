@@ -565,8 +565,8 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	if (!this->_scheme_control.get())
 		return this->_log.fail(EINVAL, "Failed to load control scheme");
 
-	_client_url.set("tll.proto", url.proto());
-	_client_url.set("mode", "client");
+	_client_init.proto(url.proto());
+	_client_init.set("mode", "client");
 
 	this->_log.debug("Listen on {}:{}", _host, _port);
 	return 0;
@@ -584,14 +584,15 @@ int TcpServer<T, C>::_open(const ConstConfig &url)
 
 	if (this->_scheme) {
 		if (auto s = this->_scheme->dump("yamls+gz"); s)
-			_client_url.set("scheme", *s);
+			_client_init.set("scheme", *s);
 	}
 
 	auto af = static_cast<network::AddressFamily>(addr->front()->sa_family);
-	_client_url.set("af", tll::conv::to_string(af));
+	_client_init.set("af", tll::conv::to_string(af));
 	if (af == network::AddressFamily::UNIX || _host != "*") {
-		_client_url.host(tll::conv::to_string(addr->front()));
-		this->_config.set("client", _client_url);
+		_client_init.host(tll::conv::to_string(addr->front()));
+		_client_config.set("init", _client_init);
+		this->_config.set("client", _client_config);
 	}
 
 	for (auto & a : *addr) {

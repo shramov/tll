@@ -64,9 +64,14 @@ int Resolve::_on_request_data(const tll_msg_t *msg)
 	auto data = resolve_scheme::ExportChannel::bind(*msg);
 	if (msg->size < data.meta_size())
 		return _log.fail(EMSGSIZE, "Message size too small: {} < min {}", msg->size, data.meta_size());
-	tll::Channel::Url url;
+	tll::Config cfg;
 	for (auto m : data.get_config())
-		url.set(m.get_key(), m.get_value());
+		cfg.set(m.get_key(), m.get_value());
+	tll::Channel::Url url;
+	if (auto sub = cfg.sub("init"); sub)
+		url = *sub;
+	else
+		return _log.fail(EINVAL, "No 'init' subtree in resolved config");
 	child_url_fill(url, "resolve");
 	_child = context().channel(url);
 	if (!_child)
