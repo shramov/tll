@@ -72,6 +72,16 @@ int Resolve::_on_request_data(const tll_msg_t *msg)
 		url = *sub;
 	else
 		return _log.fail(EINVAL, "No 'init' subtree in resolved config");
+	for (auto &[k, v] : cfg.browse("scheme.**")) {
+		auto body = v.get();
+		if (!body) continue;
+		auto hash = k.substr(strlen("scheme."));
+		_log.debug("Preload scheme {}", hash);
+		if (auto r = context().scheme_load(*body); r)
+			tll_scheme_unref(r);
+		else
+			return state_fail(0, "Failed to load scheme with hash {}", hash);
+	}
 	child_url_fill(url, "resolve");
 	_child = context().channel(url);
 	if (!_child)

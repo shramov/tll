@@ -315,7 +315,12 @@ def test_client_scheme():
     s.open()
     assert [m.name for m in s.scheme.messages] == ['Test']
 
-    assert s.config.sub('client').as_dict() == {'init': {'tll': {'proto': 'tcp', 'host': f'::1:{ports.TCP6}'}, 'af': 'ipv6', 'mode': 'client', 'scheme': s.scheme.dump('yamls+gz')}}
+    body = s.scheme.dump('yamls+gz')
+    try:
+        hashed = s.scheme.dump('sha256')
+        assert s.config.sub('client').as_dict() == {'init': {'tll': {'proto': 'tcp', 'host': f'::1:{ports.TCP6}'}, 'af': 'ipv6', 'mode': 'client', 'scheme': hashed}, 'scheme': {hashed: body}}
+    except:
+        assert s.config.sub('client').as_dict() == {'init': {'tll': {'proto': 'tcp', 'host': f'::1:{ports.TCP6}'}, 'af': 'ipv6', 'mode': 'client', 'scheme': body}}
 
     c = Accum(s.config.sub('client.init'), name='client')
     c.open()

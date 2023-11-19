@@ -583,8 +583,12 @@ int TcpServer<T, C>::_open(const ConstConfig &url)
 		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _host, addr.error());
 
 	if (this->_scheme) {
-		if (auto s = this->_scheme->dump("yamls+gz"); s)
+		auto full = this->_scheme->dump("yamls+gz");
+		if (auto s = this->_scheme->dump("sha256"); s) {
 			_client_init.set("scheme", *s);
+			_client_config.sub("scheme", true)->set(*s, *full);
+		} else if (full)
+			_client_init.set("scheme", *full);
 	}
 
 	auto af = static_cast<network::AddressFamily>(addr->front()->sa_family);
