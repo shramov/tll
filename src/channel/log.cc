@@ -25,6 +25,8 @@ int tll_channel_log_msg(const tll_channel_t * c, const char * _log, tll_logger_l
 		log.log(level, "{} message: type: {}, msgid: {}", text, "State", tll_state_str((tll_state_t) msg->msgid));
 		return 0;
 	} else if (msg->type == TLL_MESSAGE_CHANNEL) {
+		if (level <= TLL_LOGGER_INFO)
+			level = TLL_LOGGER_TRACE;
 		log.log(level, "{} message: type: {}, msgid: {}, seq: {}, size: {}, addr: {:016x}",
 				text, "Channel", msg->msgid, msg->seq, msg->size, msg->addr.u64);
 		return 0;

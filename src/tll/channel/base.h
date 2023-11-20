@@ -490,7 +490,7 @@ class Base
 		if ((old & mask) == caps)
 			return;
 		internal.dcaps ^= (old & mask) ^ caps;
-		_log.debug("Update caps: {:02b} + {:02b} -> {:02b}", old, caps, internal.dcaps);
+		_log.trace("Update caps: {:02b} + {:02b} -> {:02b}", old, caps, internal.dcaps);
 		tll_msg_t msg = {TLL_MESSAGE_CHANNEL, TLL_MESSAGE_CHANNEL_UPDATE};
 		msg.data = &old;
 		msg.size = sizeof(old);
