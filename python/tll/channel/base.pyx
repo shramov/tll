@@ -351,7 +351,7 @@ cdef class Base:
             return
 
         cdef unsigned ccaps = self.dcaps
-        self.log.debug("Update caps: {!s} -> {!s}", old, caps)
+        self.log.trace("Update caps: {!s} -> {!s}", old, caps)
         self.internal.internal.dcaps = (self.dcaps & ~mask) | caps
 
         cdef tll_msg_t msg
