@@ -58,6 +58,8 @@ template <typename T, typename Frame>
 class UdpSocket : public tll::channel::Base<T>
 {
  protected:
+	using Base = tll::channel::Base<T>;
+
 	static constexpr size_t frame_size = _sizeof<Frame>();
 	tll::network::sockaddr_any _addr;
 	tll::network::sockaddr_any _peer;
@@ -124,6 +126,7 @@ class UdpSocket : public tll::channel::Base<T>
 
  public:
 	static constexpr std::string_view channel_protocol() { return "udp"; }
+	static constexpr auto process_policy() { return Base::ProcessPolicy::Custom; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::ConstConfig &);
@@ -323,7 +326,8 @@ int UdpSocket<T, F>::_open(const ConstConfig &url)
 		}
 	}
 
-	this->_dcaps_poll(dcaps::CPOLLIN);
+	if ((this->internal.caps & caps::InOut) != caps::Output)
+		this->_update_dcaps(dcaps::Process | dcaps::CPOLLIN);
 	return 0;
 }
 

@@ -346,6 +346,19 @@ class TestSerial:
         c.process()
         assert [x.data.tobytes() for x in c.result] == [b'data']
 
+@pytest.mark.parametrize("dir,process", [("", True), ("r", True), ("rw", True), ("w", False)])
+def test_udp_caps(context, tmp_path, dir, process):
+    s = context.Channel(f'udp://{tmp_path}/udp.sock', mode='server', name='server', dir=dir)
+    c = context.Channel(f'udp://{tmp_path}/udp.sock', mode='client', name='client', dir=dir)
+
+    s.open()
+    c.open()
+
+    caps = (s.DCaps.Process | s.DCaps.PollIn) if process else s.DCaps.Zero
+
+    assert (s.dcaps & (s.DCaps.Process | s.DCaps.PollMask)) == caps
+    assert (c.dcaps & (c.DCaps.Process | c.DCaps.PollMask)) == caps
+
 class _test_udp_base:
     PROTO = 'invalid-url'
     FRAME = ('seq', 'msgid')
