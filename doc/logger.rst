@@ -1,15 +1,15 @@
 Logger
 ======
 
-Motivation for building logging subsystem is to have one place where logs from different components that may
-be implemented in different languages can be handled.
+Motivation for building logging subsystem is to have one place where logs from different components (that may
+be implemented in different languages) can be handled.
 
 It's design resembles Python ``logging`` or any other hierarcical system - each ``Logger`` object has it's name,
 (for example ``tll.channel.stat``) and current level (for example ``Info``). Messages with level less then current
 are ignored (for example ``Debug`` will be discarded). Level of ``Logger`` object can be changed during program
 execution.
 
-Since there many logging libraries in the wild there is no reason to write yet another one so only
+Since there are many logging libraries in the wild there is no reason to write yet another one so only
 primitive stderr printing backend is implemented. Actual logging is handled either by spdlog_ library or by
 user provided callback. For example in Python scripts it's good idea to use native python logging subsystem.
 
