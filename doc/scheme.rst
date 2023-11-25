@@ -35,6 +35,7 @@ Composite wire types:
  - ``message``: embedded message;
  - ``array``: fixed size array, pair of integer counter and list of elements;
  - ``pointer``: variable size array, that's located somewhere later in the message;
+ - ``union``: several fields sharing same space;
 
 Logical type is used to elaboration what exactly this field represents. For example you can
 declare milliseconds timestamp or nanoseconds duration fields.
@@ -89,6 +90,22 @@ First variant is canonical form, used when scheme is serialized to string, secon
 
 Pointers
 --------
+
+Union
+-----
+
+A union represents several fields that are stored in the same location with only one present in a
+time. It consists of 1 byte tag followed by shared body space with size equals to maximum of fields
+sizes. Field indices are started from 0 so zeroed union is correct. New fields can be added to union
+without breaking backward compatibility if size is not increased.
+
+.. code::
+
+  - name: Addr
+    unions:
+      IPAny: {union: [{name: ipv4, type: uint32}, {name: ipv6, type: byte16}]}
+    fields:
+      - {name: addr, type: IPAny}
 
 .. _capnproto: https://capnproto.org/
 .. _sbe: https://github.com/real-logic/simple-binary-encoding
