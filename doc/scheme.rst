@@ -88,8 +88,47 @@ Supported values (self explanatory):
 
 First variant is canonical form, used when scheme is serialized to string, second is better for reading.
 
-Pointers
---------
+Array
+-----
+
+Array is a fixed number of elements with counter stored in front of them. Element can be of any field
+type, even nested array. Counter size depends on preallocated space and spans from 1 to 4 bytes.
+Declaration has normal C semantics - ``int8[8][4]`` means array of size 8 of arrays of size 4.
+
+.. code::
+
+  - name: Arrays
+    fields:
+      - {name: simple, type: 'int8[8]'}
+      - {name: nested, type: 'int8[8][4]'}
+
+Array of type ``int32[4]`` has layout of packed C structure
+
+.. code::
+
+  struct __attribute__((packed)) Array {
+      int8_t counter;
+      int32_t body[4];
+  };
+
+Pointer
+-------
+
+Pointer is used to store variable sized arrays of fields without preallocating space for them like
+in ``Array``. Actual data is located after fixed message body. Order of offset arrays is not defined
+and depends on composer. It holds offset of data (calculated from start of the field), numer of
+elements and (optionaly) each element size. Pointer uses 8 bytes with following C structure:
+
+.. code::
+
+  struct __attribute__((packed)) Pointer {
+      uint32_t offset;
+      uint32_t size : 24;
+      uint8_t  entity;
+  };
+
+For entities larger then 255 bytes size is stored before array body and entity field is set to
+``0xff``.
 
 Union
 -----
