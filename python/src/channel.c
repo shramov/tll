@@ -10,7 +10,7 @@
 static int pyref = 0;
 static PyThreadState * pystate = NULL;
 
-static int pyinit(struct tll_channel_module_t * m, tll_channel_context_t * ctx)
+static int pyinit(struct tll_channel_module_t * m, tll_channel_context_t * ctx, const tll_config_t * cfg)
 {
 	tll_logger_t * log = tll_logger_new("tll.python", -1);
 
