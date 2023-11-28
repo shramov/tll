@@ -22,7 +22,8 @@ typedef enum tll_channel_module_flags_t
 	TLL_CHANNEL_MODULE_DLOPEN_GLOBAL = 1,
 } tll_channel_module_flags_t;
 
-#define TLL_CHANNEL_MODULE_VERSION 1
+#define TLL_CHANNEL_MODULE_VERSION 2
+
 
 typedef struct tll_channel_module_t
 {
@@ -31,12 +32,15 @@ typedef struct tll_channel_module_t
 	/// Null terminated list of implementations
 	tll_channel_impl_t ** impl;
 	/// Init function, may be NULL. Non-zero return value indicates error and aborts module loading
-	int (*init)(struct tll_channel_module_t * m, tll_channel_context_t *ctx);
+	int (*init)(struct tll_channel_module_t * m, tll_channel_context_t *ctx, const tll_config_t *cfg);
 	/// Free function, called on context destruction as many times as init function.
 	int (*free)(struct tll_channel_module_t * m, tll_channel_context_t *ctx);
 	/// Flags, @see tll_channel_module_flags_t
 	unsigned flags;
 } tll_channel_module_t;
+
+/// First version of init function, without config parameter
+typedef int (*tll_channel_module_init_v1_t)(struct tll_channel_module_t * m, tll_channel_context_t *ctx);
 
 typedef tll_channel_module_t * (*tll_channel_module_func_t)();
 

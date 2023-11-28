@@ -274,7 +274,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		if (!f)
 			return log.fail(EINVAL, "Module loader {} returns null pointer", symbol);
 
-		if (f->version != TLL_CHANNEL_MODULE_VERSION)
+		if (f->version > TLL_CHANNEL_MODULE_VERSION)
 			return log.fail(EINVAL, "Mismatched module version: expected {}, got {}", TLL_CHANNEL_MODULE_VERSION, f->version);
 
 		if (f->flags & TLL_CHANNEL_MODULE_DLOPEN_GLOBAL) {
@@ -284,7 +284,12 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		}
 
 		if (f->init) {
-			if ((*f->init)(f, this))
+			auto r = 0;
+			if (f->version == 1) {
+				r = (*(tll_channel_module_init_v1_t *) f->init)(f, this);
+			} else
+				r = (*f->init)(f, this, cfg);
+			if (r)
 				return log.fail(EINVAL, "Failed to load: init function returned error");
 		}
 
