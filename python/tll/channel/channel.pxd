@@ -121,7 +121,7 @@ cdef extern from "tll/channel.h" nogil:
     cdef int tll_channel_impl_unregister(tll_channel_context_t *ctx, tll_channel_impl_t *impl, const char *name)
     cdef const tll_channel_impl_t * tll_channel_impl_get(tll_channel_context_t *ctx, const char *name)
 
-    cdef int tll_channel_module_load(tll_channel_context_t *ctx, const char *module, const char * symbol)
+    cdef int tll_channel_module_load_cfg(tll_channel_context_t *ctx, const char *module, const char * symbol, const tll_config_t * cfg)
     cdef int tll_channel_module_unload(tll_channel_context_t *ctx, const char *module)
 
 cdef class CMessage:

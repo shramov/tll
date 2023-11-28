@@ -131,15 +131,18 @@ cdef class Context:
             return None
         return Channel.wrap(c)
 
-    def load(self, path, symbol=''):
+    def load(self, path, symbol='', config=None):
         if isinstance(path, pathlib.Path):
             path = str(path)
+        cdef const tll_config_t * cfg = NULL
+        if config:
+            cfg = (<Config>config)._ptr
         p = s2b(path)
         s = s2b(symbol)
         # XXX: Temporary warning
         if symbol == 'channel_module':
             warnings.warn('Passing "channel_module" to load() is deprecated, omit second argument', DeprecationWarning)
-        r = tll_channel_module_load(self._ptr, p, s)
+        r = tll_channel_module_load_cfg(self._ptr, p, s, cfg)
         if r:
             raise TLLError("Failed to load {}:{}".format(path, symbol), r)
 
