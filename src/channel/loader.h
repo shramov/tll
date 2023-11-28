@@ -20,10 +20,11 @@ public:
 
 	int _init(const tll::Channel::Url &url, tll::Channel *)
 	{
-		for (auto & p : url.browse("module.*", true)) {
-			auto m = p.second.get("module");
+		for (auto &[_, mcfg] : url.browse("module.*", true)) {
+			auto m = mcfg.get("module");
 			if (!m) continue;
-			if (context().load(std::string(*m)))
+			auto extra = mcfg.sub("config");
+			if (context().load(std::string(*m), extra.value_or(tll::ConstConfig())))
 				return _log.fail(EINVAL, "Failed to load module {}", *m);
 		}
 		auto aliases = url.sub("alias");
