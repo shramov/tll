@@ -379,10 +379,13 @@ int tll_channel_alias_unregister(tll_channel_context_t *ctx, const char *name, c
  * @param ctx Pointer to channel context to which module will be loaded
  * @param module name of module without 'lib' prefix and '.so' suffix (or other platform specific parts).
  * @param symbol name of entry point, if string is empty or null default value is used
+ * @param config additional configuration parameters passed to module init function
  *
  * Module is in format [path/]name. Name is converted into platform specific library name - for linux it is lib{name}.so.
  * If path is not given then global library search path is used.
  */
+int tll_channel_module_load_cfg(tll_channel_context_t *ctx, const char *module, const char * symbol, const tll_config_t * cfg);
+/// Version of tll_channel_module_load_cfg without config parameter
 int tll_channel_module_load(tll_channel_context_t *ctx, const char *module, const char * symbol);
 int tll_channel_module_unload(tll_channel_context_t *ctx, const char *module);
 
@@ -582,7 +585,8 @@ class Context
 	int alias_reg(const std::string &name, std::string_view url) { return tll_channel_alias_register(_ptr, name.c_str(), url.data(), url.size()); }
 	int alias_unreg(const std::string &name, std::string_view url) { return tll_channel_alias_unregister(_ptr, name.c_str(), url.data(), url.size()); }
 
-	int load(const std::string &path, const std::string &symbol = "") { return tll_channel_module_load(_ptr, path.c_str(), symbol.c_str()); }
+	int load(const std::string &path, const std::string &symbol = "") { return load(path, tll::ConstConfig(), symbol); }
+	int load(const std::string &path, const tll::ConstConfig &cfg, const std::string &symbol = "") { return tll_channel_module_load_cfg(_ptr, path.c_str(), symbol.c_str(), cfg); }
 
 	Config config() { return Config::consume(tll_channel_context_config(_ptr)); }
 	const Config config() const { return Config::consume(tll_channel_context_config((tll_channel_context_t *) _ptr)); }

@@ -230,7 +230,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 #endif
 	}
 
-	int load(std::string_view p, std::string_view symbol)
+	int load(std::string_view p, std::string_view symbol, const tll::ConstConfig &cfg)
 	{
 		std::string_view name = p;
 		auto sep = name.rfind('/');
@@ -518,9 +518,14 @@ int tll_channel_alias_unregister_url(tll_channel_context_t *ctx, const char *nam
 	return context(ctx)->alias_unreg(name, tll::ConstConfig(cfg).copy());
 }
 
+int tll_channel_module_load_cfg(tll_channel_context_t *ctx, const char *module, const char * symbol, const tll_config_t * cfg)
+{
+	return context(ctx)->load(module, symbol ? symbol : "", cfg ? tll::ConstConfig(cfg) : tll::ConstConfig());
+}
+
 int tll_channel_module_load(tll_channel_context_t *ctx, const char *module, const char * symbol)
 {
-	return context(ctx)->load(module, symbol ? symbol : "");
+	return context(ctx)->load(module, symbol ? symbol : "", tll::ConstConfig());
 }
 
 tll_channel_t * tll_channel_new(tll_channel_context_t * ctx, const char *str, size_t len, tll_channel_t *master, const tll_channel_impl_t *impl)

@@ -34,6 +34,7 @@ TLL_0.0.0 {
 		tll_channel_list_free;
 		tll_channel_log_msg;
 		tll_channel_module_load;
+		tll_channel_module_load_cfg;
 		tll_channel_module_unload;
 		tll_channel_name;
 		tll_channel_new;
