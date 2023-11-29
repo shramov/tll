@@ -39,9 +39,7 @@ class OwnedMessage : public tll_msg_t
 
 	~OwnedMessage()
 	{
-		if (data)
-			delete [] (char *) data;
-		data = nullptr;
+		reset();
 	}
 
 	OwnedMessage & operator = (OwnedMessage rhs)
@@ -52,11 +50,25 @@ class OwnedMessage : public tll_msg_t
 		return *this;
 	}
 
+	void reset()
+	{
+		if (data)
+			delete [] (char *) data;
+		data = nullptr;
+		size = 0;
+	}
+
+	void resize(size_t size)
+	{
+		reset();
+		this->data = new char[size];
+		this->size = size;
+	}
+
 	static OwnedMessage * allocate(size_t size)
 	{
 		auto m = new OwnedMessage;
-		m->data = new char[size];
-		m->size = size;
+		m->resize(size);
 		return m;
 	}
 
