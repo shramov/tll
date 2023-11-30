@@ -31,6 +31,8 @@ threads = dependency('threads')
 
 include = include_directories('src')
 
+rst2man = find_program('rst2man', disabler: true, required: false)
+
 subdir('src')
 subdir('python')
 

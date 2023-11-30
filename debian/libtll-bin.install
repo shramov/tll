@@ -2,3 +2,4 @@
 /usr/bin/tll-bench-channel
 /usr/lib/*/libtll-logic*.so
 /usr/share/tll/scheme/tll/logic
+/usr/share/man/*/tll-bench-channel.*

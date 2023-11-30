@@ -222,7 +222,7 @@ int main(int argc, char *argv[])
 					std::swap(msg, *r);
 			}
 		} else
-			return fail(1, "Invalid preload url in config: {}", url.error());
+			return fail(1, "Invalid payload url in config: {}", url.error());
 
 		for (auto &[p, _] : cfg->browse("channel.*", true)) {
 			auto r = cfg->getT<tll::Channel::Url>(p);
