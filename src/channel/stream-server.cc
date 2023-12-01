@@ -527,12 +527,12 @@ int StreamServer::_post(const tll_msg_t * msg, int flags)
 	msg = _autoseq.update(msg);
 	if (msg->seq <= _seq)
 		return _log.fail(EINVAL, "Non monotonic seq: {} < last posted {}", msg->seq, _seq);
+	if (auto r = _storage->post(msg); r)
+		return _log.fail(r, "Failed to store message {}", msg->seq);
 	if (_blocks) {
 		if (auto r = _blocks->post(msg); r)
 			return _log.fail(r, "Failed to send Block control message");
 	}
-	if (auto r = _storage->post(msg); r)
-		return _log.fail(r, "Failed to store message {}", msg->seq);
 	_seq = msg->seq;
 	_last_seq_tx(msg->seq);
 	return _child->post(msg);
