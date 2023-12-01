@@ -11,6 +11,36 @@
 #include "tll/util/memoryview.h"
 #include "tll/util/string.h"
 
+std::string msg2hex(const tll_msg_t * msg)
+{
+	std::string body;
+	body.reserve(msg->size * 4 + (msg->size / 16) * 18);
+
+	auto data = std::string_view((const char *) msg->data, msg->size);
+	for (auto l = 0u; l < msg->size; l += 16) {
+		auto line = data.substr(l, 16);
+		body += fmt::format("  {:08x}:  ", l);
+
+		for (auto i = 0u; i < 16; i++) {
+			if (line.size() > i)
+				body += fmt::format("{:02x} ", (unsigned char) line[i]);
+			else
+				body += "   ";
+			if (i % 4 == 3)
+				body.push_back(' ');
+		}
+
+		for (auto c : line) {
+			if (tll::util::printable(c))
+				body.push_back(c);
+			else
+				body.push_back('.');
+		}
+		body.push_back('\n');
+	}
+	return body;
+}
+
 int tll_channel_log_msg(const tll_channel_t * c, const char * _log, tll_logger_level_t level, tll_channel_log_msg_format_t format, const tll_msg_t * msg, const char * _text, int tlen)
 {
 	using namespace tll::channel;
@@ -79,30 +109,7 @@ int tll_channel_log_msg(const tll_channel_t * c, const char * _log, tll_logger_l
 		}
 	} else if (format == log_msg_format::TextHex) {
 		prefix = "";
-		body.reserve(msg->size * 4 + (msg->size / 16) * 18);
-
-		auto data = std::string_view((const char *) msg->data, msg->size);
-		for (auto l = 0u; l < msg->size; l += 16) {
-			auto line = data.substr(l, 16);
-			body += fmt::format("  {:08x}:  ", l);
-
-			for (auto i = 0u; i < 16; i++) {
-				if (line.size() > i)
-					body += fmt::format("{:02x} ", (unsigned char) line[i]);
-				else
-					body += "   ";
-				if (i % 4 == 3)
-					body.push_back(' ');
-			}
-
-			for (auto c : line) {
-				if (tll::util::printable(c))
-					body.push_back(c);
-				else
-					body.push_back('.');
-			}
-			body.push_back('\n');
-		}
+		body = msg2hex(msg);
 	} else if (format == log_msg_format::Scheme) {
 		if (!scheme) {
 			body = "(no scheme)";
@@ -123,6 +130,8 @@ int tll_channel_log_msg(const tll_channel_t * c, const char * _log, tll_logger_l
 					body = fmt::format("Failed to format message {}: {}", message->name, e.second);
 				else
 					body = fmt::format("Failed to format message {} field {}: {}", message->name, e.first, e.second);
+				body += "\n";
+				body += msg2hex(msg);
 			}
 		}
 	}
