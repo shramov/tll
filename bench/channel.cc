@@ -1,10 +1,10 @@
 #include <tll/channel.h>
+#include <tll/channel/prefix.h>
 #include <tll/logger.h>
+#include <tll/processor/loop.h>
 #include <tll/util/argparse.h>
 #include <tll/util/bench.h>
 #include <tll/util/ownedmsg.h>
-
-#include <tll/channel/prefix.h>
 
 template <typename R, typename... Args>
 [[nodiscard]]
@@ -121,6 +121,12 @@ std::optional<tll::util::OwnedMessage> payload_read(tll::channel::Context &ctx, 
 	if (!c)
 		return fail(std::nullopt, "Failed to create payload channel {}\n");
 
+	auto loop = tll::processor::Loop();
+	if (auto r = loop.init(tll::Config()); r)
+		return fail(std::nullopt, "Failed to init processor loop\n");
+
+	loop.add(c.get());
+
 	struct Callback
 	{
 		tll::util::OwnedMessage msg;
@@ -135,7 +141,7 @@ std::optional<tll::util::OwnedMessage> payload_read(tll::channel::Context &ctx, 
 	c->callback_add(&cb, TLL_MESSAGE_MASK_DATA);
 	c->open();
 	for (auto i = 0; i < 10; i++) {
-		c->process();
+		loop.step(100us);
 		if (cb.msg.size)
 			break;
 	}
