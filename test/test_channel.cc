@@ -455,6 +455,7 @@ TEST(Channel, Reopen)
 	ASSERT_EQ(c->state(), tll::state::Error);
 	ASSERT_NE(timer->dcaps() & tll::dcaps::Process, 0u);
 
+	usleep(1);
 	timer->process();
 	ASSERT_EQ(c->state(), tll::state::Closed);
 	ASSERT_NE(timer->dcaps() & tll::dcaps::Process, 0u);
@@ -478,6 +479,7 @@ TEST(Channel, Reopen)
 	ASSERT_EQ(c->state(), tll::state::Error);
 	ASSERT_NE(timer->dcaps() & tll::dcaps::Process, 0u);
 
+	usleep(1);
 	timer->process();
 	ASSERT_EQ(c->state(), tll::state::Closed);
 	ASSERT_NE(timer->dcaps() & tll::dcaps::Process, 0u);
@@ -495,6 +497,7 @@ TEST(Channel, Reopen)
 	c->close();
 	ASSERT_NE(timer->dcaps() & tll::dcaps::Process, 0u);
 
+	usleep(1);
 	timer->process();
 	ASSERT_EQ(c->state(), tll::state::Opening);
 	ASSERT_EQ(timer->dcaps() & tll::dcaps::Process, 0u);
