@@ -119,7 +119,7 @@ std::optional<tll::util::OwnedMessage> payload_read(tll::channel::Context &ctx, 
 {
 	auto c = ctx.channel(url);
 	if (!c)
-		return fail(std::nullopt, "Failed to create payload channel {}\n");
+		return fail(std::nullopt, "Failed to create payload channel {}\n", tll::conv::to_string(url));
 
 	auto loop = tll::processor::Loop();
 	if (auto r = loop.init(tll::Config()); r)
@@ -239,7 +239,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (payload_channel.size()) {
-		auto url = tll::Channel::Url::load(payload_channel);
+		auto url = tll::Channel::Url::parse(payload_channel);
 		if (!url)
 			return fail(1, "Failed to parse payload url {}\n", payload_channel);
 
