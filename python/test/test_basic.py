@@ -531,6 +531,48 @@ def test_lz4():
     c.post(b'xxx')
     assert s.state == s.State.Error
 
+def test_lz4_block():
+    s = Accum('lz4b+direct://;dump=frame;direct.dump=yes', name='server', context=ctx)
+    c = Accum('direct://', name='client', master=s, context=ctx)
+
+    s.open()
+    c.open()
+
+    for i in range(10):
+        s.post(b'xxxyyyzzzaaabbbccc', seq=i)
+        s.post(b'XXXYYYZZZAAABBBCCC', seq=i)
+
+    #assert [(m.data.tobytes(), m.seq) for m in c.result] == [(lz4.block.compress(b'xxx', store_size=False), 10)]
+    assert s.result == []
+
+    for m in c.result:
+        c.post(m)
+    for i in range(10):
+        assert [(m.data.tobytes(), m.seq) for m in s.result[2 * i:2 * i + 2]] == [(b'xxxyyyzzzaaabbbccc', i), (b'XXXYYYZZZAAABBBCCC', i)]
+    #c.post(b'xxx')
+    #assert s.state == s.State.Error
+
+@pytest.mark.fuzzy
+def test_lz4_block_many():
+    s = Accum('lz4b+direct://', name='server', context=ctx, block='128kb')
+    c = Accum('lz4b+direct://', name='client', master=s, context=ctx, block='64kb')
+
+    s.open()
+    c.open()
+
+    data = b'aaabbbcccdddeeefffggghhhiiijjjkkklllmmmnnnooopppqqqrrrssstttuuuvvvwwwxxxyyyzzz'
+    for i in range(10000):
+        s.post(data, seq=i)
+        assert [(m.data.tobytes(), m.seq) for m in c.result] == [(data, i)]
+
+        c.post(c.result[-1])
+        assert [(m.data.tobytes(), m.seq) for m in s.result] == [(data, i)]
+
+        s.result = []
+        c.result = []
+
+        data = data[1:] + data[:1]
+
 @pytest.mark.parametrize("smin,smax", [(10, 100), (300, 400), (400, 400)])
 @pytest.mark.parametrize("mode,pattern", [("random", ""), ("seq", ""), ("pattern", "0x1122334455667788")])
 def test_random(smin, smax, mode, pattern):

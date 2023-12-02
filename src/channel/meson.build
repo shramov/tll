@@ -9,6 +9,7 @@ channel_sources = files(
 	, 'framed.cc'
 	, 'log.cc'
 	, 'lz4.cc'
+	, 'lz4block.cc'
 	, 'mem.cc'
 	, 'pub.cc'
 	, 'pub-client.cc'

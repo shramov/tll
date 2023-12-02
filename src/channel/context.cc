@@ -36,6 +36,7 @@
 #endif
 #include "channel/loader.h"
 #include "channel/lz4.h"
+#include "channel/lz4block.h"
 #include "channel/mem.h"
 #include "channel/null.h"
 #include "channel/pub.h"
@@ -71,6 +72,7 @@ TLL_DECLARE_IMPL(ChJSON);
 #endif
 TLL_DECLARE_IMPL(ChMem);
 TLL_DECLARE_IMPL(ChLZ4);
+TLL_DECLARE_IMPL(ChLZ4B);
 TLL_DECLARE_IMPL(ChPubMem);
 TLL_DECLARE_IMPL(ChPubServer);
 TLL_DECLARE_IMPL(ChSerial);
@@ -114,6 +116,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 #endif
 		reg(&ChMem::impl);
 		reg(&ChLZ4::impl);
+		reg(&ChLZ4B::impl);
 		reg(&ChLoader::impl);
 		reg(&ChNull::impl);
 		reg(&ChPubMem::impl);
