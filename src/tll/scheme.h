@@ -161,9 +161,13 @@ typedef enum tll_scheme_time_resolution_t {
 	TLL_SCHEME_TIME_DAY,
 } tll_scheme_time_resolution_t;
 
+/// Type of offset pointer structure
 typedef enum tll_scheme_offset_ptr_version_t {
+	/// Default offset pointer, 8 bytes with entity size @see tll_scheme_offset_ptr_t
 	TLL_SCHEME_OFFSET_PTR_DEFAULT = 0,
+	/// Shoft offset pointer, 4 bytes without entity size @see tll_scheme_offset_ptr_legacy_short_t
 	TLL_SCHEME_OFFSET_PTR_LEGACY_SHORT,
+	/// Long deprecated offset pointer, 8 bytes with entity size @see tll_scheme_offset_ptr_legacy_long_t
 	TLL_SCHEME_OFFSET_PTR_LEGACY_LONG,
 } tll_scheme_offset_ptr_version_t;
 
@@ -172,6 +176,7 @@ typedef struct tll_scheme_field_t
 	/// Pointer to next entity
 	struct tll_scheme_field_t * next;
 
+	/// List of options
 	struct tll_scheme_option_t * options;
 
 	/// Name of the field
@@ -185,19 +190,26 @@ typedef struct tll_scheme_field_t
 	/// Size of field data
 	size_t size;
 
+	/// Additional fields for different types and sub types
 	union {
 		/// Message descriptor for TLL_SCHEME_FIELD_MESSAGE fields
 		struct tll_scheme_message_t * type_msg;
 
 		/// Sub-field descriptor for TLL_SCHEME_FIELD_POINTER fields
 		struct {
+			/// Type of element
 			struct tll_scheme_field_t * type_ptr;
+			/// Type of offset structure
 			tll_scheme_offset_ptr_version_t offset_ptr_version;
 		};
 
+		/// Sub-field descrioptor for TLL_SCHEME_FIELD_ARRAY fields
 		struct {
+			/// Type of element, offset from start of array field. Usually count_ptr->size
 			struct tll_scheme_field_t * type_array;
+			/// Type of count field, offset from start of array. Usually 0
 			struct tll_scheme_field_t * count_ptr;
+			/// Maximum number of elements in array
 			size_t count;
 		};
 
@@ -208,13 +220,13 @@ typedef struct tll_scheme_field_t
 		/// Time resolution (from 2^32/1 to 1/2^32) for TLL_SCHEME_SUB_TIME_POINT/DURATION fields
 		tll_scheme_time_resolution_t time_resolution;
 
-		/// List of bit fields with corresponding offsets
+		/// List of bit fields with corresponding offsets for TLL_SCHEME_SUB_BITS
 		struct {
 			struct tll_scheme_bit_field_t * bitfields;
 			struct tll_scheme_bits_t * type_bits;
 		};
 
-		/// Union descriptors
+		/// Union descriptors for TLL_SCHEME_FIELD_UNION
 		struct tll_scheme_union_t * type_union;
 	};
 
