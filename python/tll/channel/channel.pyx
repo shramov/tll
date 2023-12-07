@@ -104,14 +104,17 @@ cdef int ccallback_destroy_cb(const tll_channel_t * c, const tll_msg_t *msg, voi
 cdef int ccallback_cb(const tll_channel_t * c, const tll_msg_t *msg, void * user) with gil:
     cb = <CCallback>user
     func = None
+    cdef CMessage cmsg
     try:
+        cmsg = CMessage.wrap(msg)
         func = cb._func_ref()
         if func is None:
             return 0
         chan = cb._chan_ref()
         if chan is None:
             chan = Channel.wrap(<tll_channel_t *>c)
-        r = func(chan, CMessage.wrap(msg))
+        r = func(chan, cmsg)
+        cmsg._ptr = NULL
         if r is not None:
             return r
     except:
