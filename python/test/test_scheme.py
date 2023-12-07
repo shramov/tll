@@ -582,8 +582,14 @@ def _test_bits(scheme):
     assert m.u32.d == True
     assert m.u32.e == False
 
+    assert m.as_dict() == {'i8': {'a': True, 'b': False, 'c': True}, 'u32': {'c': False, 'd': True, 'e': False}}
+
     u = msg.unpack(memoryview(m.pack()))
     assert u.as_dict() == m.as_dict()
+
+    m1 = msg.object(**m.as_dict())
+    assert m1.as_dict() == m.as_dict()
+    assert m1.pack() == m.pack()
 
     assert u.i8.a == True
     assert u.i8.b == False

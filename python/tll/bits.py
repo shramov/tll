@@ -25,8 +25,13 @@ class Bits(object):
             self._value = 0
             for n in value:
                 self.BITS[n].set(self, 1)
+        elif isinstance(value, dict):
+            self._value = 0
+            for k,v in value.items():
+                if v:
+                    self.BITS[k].set(self, 1)
         else:
-            self._value = value
+            self._value = int(value)
 
 def fill_properties(cls):
     for b in cls.BITS.values():
