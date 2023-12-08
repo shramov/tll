@@ -8,6 +8,10 @@
 #include "tll/processor/loop.h"
 #include "tll/util/string.h"
 
+#include <signal.h>
+
+#include <atomic>
+
 tll_processor_loop_t * tll_processor_loop_new(const char * name, int len)
 {
 	auto r = std::make_unique<tll_processor_loop_t>(tll::string_view_from_c(name, len));
@@ -63,6 +67,33 @@ int tll_processor_loop_step(tll_processor_loop_t *loop, long timeout)
 int tll_processor_loop_run(tll_processor_loop_t *loop, long timeout)
 {
 	return loop->run(std::chrono::milliseconds(timeout));
+}
+
+int tll_processor_loop_run_signal(tll_processor_loop_t *loop, long timeout, const int * signals, size_t sigsize)
+{
+	static std::atomic<unsigned> sigflag = 0;
+	const unsigned sigenter = sigflag;
+
+	struct sigaction action = {};
+	action.sa_handler = [](int) { sigflag++; };
+
+	std::vector<struct sigaction> actions(sigsize);
+	for (auto i = 0u; i < sigsize; i++) {
+		if (signals[i])
+			sigaction(signals[i], &action, &actions[i]);
+	}
+
+	while (sigflag == sigenter && !loop->stop)
+		loop->step(std::chrono::milliseconds(timeout));
+
+	if (!loop->stop)
+		loop->stop = 0x40000000;
+
+	for (auto i = 0u; i < sigsize; i++) {
+		if (signals[i])
+			sigaction(signals[i], &actions[i], nullptr);
+	}
+	return 0;
 }
 
 int tll_processor_loop_get_fd(const tll_processor_loop_t *loop)

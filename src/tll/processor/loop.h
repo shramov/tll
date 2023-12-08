@@ -638,6 +638,8 @@ int tll_processor_loop_get_fd(const tll_processor_loop_t *);
 int tll_processor_loop_stop_get(const tll_processor_loop_t *);
 int tll_processor_loop_stop_set(tll_processor_loop_t *, int flag);
 int tll_processor_loop_run(tll_processor_loop_t *, long timeout);
+/// Run loop but stop on specified signals
+int tll_processor_loop_run_signal(tll_processor_loop_t *, long timeout, const int * signals, size_t sigsize);
 int tll_processor_loop_step(tll_processor_loop_t *, long timeout);
 
 #ifdef __cplusplus
