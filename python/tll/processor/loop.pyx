@@ -8,6 +8,9 @@ from ..s2b cimport s2b
 
 from .. import error
 
+from libc.stdlib cimport malloc, free
+import signal
+
 cdef class Loop:
     cdef tll_processor_loop_t * _ptr
 
@@ -56,6 +59,18 @@ cdef class Loop:
 
     def run(self, timeout):
         error.wrap(tll_processor_loop_run(self._ptr, int(timeout * 1000)), "tll_processor_loop_run failed")
+
+    def run_signal(self, timeout, signals=[signal.SIGINT]):
+        cdef size_t sigsize = len(signals)
+        if sigsize == 0:
+            return self.run(timeout)
+        cdef int * array = <int *>malloc(sizeof(int) * sigsize)
+        for i in range(sigsize):
+            array[i] = signals[i]
+        try:
+            error.wrap(tll_processor_loop_run_signal(self._ptr, int(timeout * 1000), array, sigsize), "tll_processor_loop_run failed")
+        finally:
+            free(array)
 
     @property
     def pending(self):

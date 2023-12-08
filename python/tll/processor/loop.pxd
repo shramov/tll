@@ -20,3 +20,4 @@ cdef extern from "tll/processor/loop.h" nogil:
     cdef int tll_processor_loop_stop_set(tll_processor_loop_t *, int flag)
     cdef int tll_processor_loop_step(tll_processor_loop_t *, long timeout)
     cdef int tll_processor_loop_run(tll_processor_loop_t *, long timeout)
+    cdef int tll_processor_loop_run_signal(tll_processor_loop_t *, long timeout, const int * signals, size_t sigsize)
