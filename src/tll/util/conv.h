@@ -338,7 +338,7 @@ struct dump<T, typename std::enable_if<std::is_floating_point_v<T>>::type> : pub
 {
 	static constexpr std::string_view _snprintf_format()
 	{
-		if constexpr (sizeof(T) == sizeof(long double))
+		if constexpr (std::is_same_v<T, long double>)
 			return "%.*Lg";
 		return "%.*g";
 	}
