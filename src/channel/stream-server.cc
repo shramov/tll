@@ -73,10 +73,14 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 			return _log.fail(EINVAL, "Failed to get storage url: {}", curl.error());
 		child_url_fill(*curl, "storage");
 		curl->set("dir", "w");
+		if (_scheme_url)
+			curl->set("scheme", *_scheme_url);
 
 		_storage = context().channel(*curl, master);
 		if (!_storage)
 			return _log.fail(EINVAL, "Failed to create storage channel");
+
+		curl->remove("scheme");
 		_storage_url = *curl;
 		_storage_url.set("dir", "r");
 		_storage_url.set("name", fmt::format("{}/storage/client", name));
@@ -88,10 +92,14 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 			return _log.fail(EINVAL, "Failed to get blocks url: {}", curl.error());
 		child_url_fill(*curl, "blocks");
 		curl->set("dir", "w");
+		if (_scheme_url)
+			curl->set("scheme", *_scheme_url);
 
 		_blocks = context().channel(*curl, master);
 		if (!_blocks)
 			return _log.fail(EINVAL, "Failed to create blocks channel");
+
+		curl->remove("scheme");
 		_blocks_url = *curl;
 		_blocks_url.set("dir", "r");
 		_blocks_url.set("dump", "frame");
