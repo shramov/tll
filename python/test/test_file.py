@@ -261,7 +261,7 @@ def test_fuzzy(writer, reader):
 
         for _ in range(5):
             reader.process()
-        assert [(m.seq, m.msgid, len(m.data)) for m in reader.result] == [(start + 2 * k, data[k], data[k]) for k in range(i, min(i + 5, len(data)))]
+        assert [(m.seq, m.msgid, len(m.data)) for m in reader.result if m.type == m.Type.Data] == [(start + 2 * k, data[k], data[k]) for k in range(i, min(i + 5, len(data)))]
         reader.close()
 
     reader.open()
@@ -271,7 +271,7 @@ def test_fuzzy(writer, reader):
         reader.post(b'', type=reader.Type.Control, name='Seek', seq=start + j)
         for _ in range(5):
             reader.process()
-        assert [(m.seq, m.msgid, len(m.data)) for m in reader.result] == [(start + 2 * k, data[k], data[k]) for k in range(i, min(i + 5, len(data)))]
+        assert [(m.seq, m.msgid, len(m.data)) for m in reader.result if m.type == m.Type.Data] == [(start + 2 * k, data[k], data[k]) for k in range(i, min(i + 5, len(data)))]
 
 def test_open_filename(context, filename):
     writer = context.Channel('file://', name='writer', dump='frame', dir='w', block='1kb')
