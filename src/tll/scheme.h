@@ -11,6 +11,7 @@
 #include <stddef.h>
 
 #ifdef __cplusplus
+#include <string>
 #include <string_view>
 #include <memory>
 

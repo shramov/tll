@@ -3,6 +3,7 @@
 #ifndef _TLL_UTIL_CSTRING_H
 #define _TLL_UTIL_CSTRING_H
 
+#include <cstdlib>
 #include <cstring>
 #include <string_view>
 
@@ -18,7 +19,6 @@ class cstring
 	explicit cstring(const char * data) : _data(data, data ? std::strlen(data) : 0) {}
 	explicit cstring(const char * data, size_t size) : _data(data, size) {}
 	cstring() {}
-	cstring(const std::nullopt_t &) {}
 	cstring(cstring && rhs) { std::swap(_data, rhs._data); }
 
 	~cstring() { if (_data.data()) free((void *) _data.data()); _data = {}; }
