@@ -17,6 +17,28 @@
 
 #include <tll/util/cstring.h>
 
+namespace tll::scheme {
+template <typename T>
+T * lookup_name(T * list, std::string_view name)
+{
+	for (auto i = list; i; i = i->next) {
+		if (i->name && i->name == name)
+			return i;
+	}
+	return nullptr;
+}
+
+template <typename T>
+T * lookup_msgid(T * list, int msgid)
+{
+	for (auto i = list; i; i = i->next) {
+		if (i->msgid && i->msgid == msgid)
+			return i;
+	}
+	return nullptr;
+}
+} // namespace tll::scheme
+
 extern "C" {
 #endif
 
@@ -288,6 +310,11 @@ typedef struct tll_scheme_message_t
 
 	/// Presence map field (if defined)
 	struct tll_scheme_field_t * pmap;
+
+#ifdef __cplusplus
+	tll_scheme_field_t * lookup(std::string_view name) { return tll::scheme::lookup_name(fields, name); }
+	const tll_scheme_field_t * lookup(std::string_view name) const { return tll::scheme::lookup_name(fields, name); }
+#endif
 } tll_scheme_message_t;
 
 typedef struct tll_scheme_import_t
@@ -325,41 +352,11 @@ typedef struct tll_scheme_t
 
 	tll::util::cstring dump(const std::string &format) const { return tll::util::cstring(tll_scheme_dump(this, format.c_str())); }
 
-	tll_scheme_message_t * lookup(int id)
-	{
-		for (auto m = messages; m; m = m->next) {
-			if (m->msgid == id)
-				return m;
-		}
-		return nullptr;
-	}
+	tll_scheme_message_t * lookup(int id) { return tll::scheme::lookup_msgid(messages, id); }
+	const tll_scheme_message_t * lookup(int id) const { return tll::scheme::lookup_msgid(messages, id); }
 
-	const tll_scheme_message_t * lookup(int id) const
-	{
-		for (auto m = messages; m; m = m->next) {
-			if (m->msgid == id)
-				return m;
-		}
-		return nullptr;
-	}
-
-	tll_scheme_message_t * lookup(std::string_view id)
-	{
-		for (auto m = messages; m; m = m->next) {
-			if (m->name && m->name == id)
-				return m;
-		}
-		return nullptr;
-	}
-
-	const tll_scheme_message_t * lookup(std::string_view id) const
-	{
-		for (auto m = messages; m; m = m->next) {
-			if (m->name && m->name == id)
-				return m;
-		}
-		return nullptr;
-	}
+	tll_scheme_message_t * lookup(std::string_view name) { return tll::scheme::lookup_name(messages, name); }
+	const tll_scheme_message_t * lookup(std::string_view name) const { return tll::scheme::lookup_name(messages, name); }
 #endif
 } tll_scheme_t;
 
