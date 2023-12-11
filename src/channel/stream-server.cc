@@ -199,11 +199,7 @@ int StreamServer::_open(const ConstConfig &url)
 				return _log.fail(EINVAL, "Blocks storage scheme has no Block message");
 			std::vector<char> buf;
 			buf.resize(message->size);
-			tll::scheme::Field * field = nullptr;
-			for (field = message->fields; field; field = field->next) {
-				if (field->name == std::string_view("type"))
-					break;
-			}
+			auto field = message->lookup("type");
 			if (!field)
 				return _log.fail(EINVAL, "Block message has no 'type' field");
 			if (field->type == field->Bytes) {
