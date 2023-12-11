@@ -108,27 +108,38 @@ typedef struct tll_scheme_option_t
 	const char * value;
 } tll_scheme_option_t;
 
+/// Enum value descriptor
 typedef struct tll_scheme_enum_value_t
 {
+	/// Pointer to the next element in a linked list
 	struct tll_scheme_enum_value_t * next;
+	/// Name of the enum value
 	const char * name;
+	/// Value
 	long long value;
 } tll_scheme_enum_value_t;
 
+/// Enum descriptor
 typedef struct tll_scheme_enum_t
 {
+	/// Pointer to the next element in a linked list
 	struct tll_scheme_enum_t * next;
+	/// Name of enum type
 	const char * name;
+	/// Primitive type of enum values
 	tll_scheme_field_type_t type;
+	/// Size of enum type
 	size_t size;
+	/// Linked list of enum values
 	struct tll_scheme_enum_value_t * values;
+	/// Linked list of options
 	struct tll_scheme_option_t * options;
 } tll_scheme_enum_t;
 
 /// Union descriptor
 typedef struct tll_scheme_union_t
 {
-	/// Pointer to next element in linked list
+	/// Pointer to the next element in a linked list
 	struct tll_scheme_union_t * next;
 	/// Union type name
 	const char * name;
@@ -140,27 +151,37 @@ typedef struct tll_scheme_union_t
 	size_t fields_size;
 	/// Size in bytes of union part (without type_ptr)
 	size_t union_size;
-	/// Options
+	/// Linked list of options
 	struct tll_scheme_option_t * options;
 } tll_scheme_union_t;
 
+/// Descriptor of bit field in bits
 typedef struct tll_scheme_bit_field_t
 {
+	/// Pointer to the next element in a linked list
 	struct tll_scheme_bit_field_t * next;
+	/// Name of bit
 	const char * name;
+	/// Offset in bits
 	unsigned offset;
+	/// Size in bits
 	unsigned size;
 } tll_scheme_bit_field_t;
 
 /// Bits descriptor
 typedef struct tll_scheme_bits_t
 {
-	/// Pointer to next element in linked list
+	/// Pointer to the next element in a linked list
 	struct tll_scheme_bits_t * next;
+	/// Name of bits type
 	const char * name;
+	/// Integer type used to hold bits
 	tll_scheme_field_type_t type;
+	/// Size in bytes of bits field
 	size_t size;
+	/// List of bit values
 	struct tll_scheme_bit_field_t * values;
+	/// Linked list of options
 	struct tll_scheme_option_t * options;
 } tll_scheme_bits_t;
 
@@ -194,12 +215,13 @@ typedef enum tll_scheme_offset_ptr_version_t {
 	TLL_SCHEME_OFFSET_PTR_LEGACY_LONG,
 } tll_scheme_offset_ptr_version_t;
 
+/// Field descriptor
 typedef struct tll_scheme_field_t
 {
-	/// Pointer to next entity
+	/// Pointer to the next entity
 	struct tll_scheme_field_t * next;
 
-	/// List of options
+	/// Linked list of options
 	struct tll_scheme_option_t * options;
 
 	/// Name of the field
@@ -288,17 +310,26 @@ typedef struct tll_scheme_field_t
 #endif
 } tll_scheme_field_t;
 
+/// Message descriptor
 typedef struct tll_scheme_message_t
 {
+	/// Pointer to the next element in a linked list
 	struct tll_scheme_message_t * next;
 
+	/// Linked list of options
 	struct tll_scheme_option_t * options;
 
+	/// Message id, may be zero if not defined
 	int msgid;
+	/// Name of the message
 	const char * name;
+	/// Size of fixed part of the message
 	size_t size;
+	/// Linked list of fields
 	struct tll_scheme_field_t * fields;
+	/// Linked list of enum types defined in the message
 	struct tll_scheme_enum_t * enums;
+	/// Linked list of union types defined in the message
 	struct tll_scheme_union_t * unions;
 
 	/// User defined data
@@ -306,6 +337,7 @@ typedef struct tll_scheme_message_t
 	/// Function to destroy user defined data, if not specified standard ``free`` is used
 	void (*user_free)(void *);
 
+	/// Linked list of bits types defined in the message
 	struct tll_scheme_bits_t * bits;
 
 	/// Presence map field (if defined)
@@ -326,14 +358,21 @@ typedef struct tll_scheme_import_t
 
 struct tll_scheme_internal_t;
 
+/// Scheme descriptor
 typedef struct tll_scheme_t
 {
+	/// Internal structure, do not use
 	struct tll_scheme_internal_t * internal;
 
+	/// Linked list of options
 	struct tll_scheme_option_t * options;
+	/// Linked list of messages
 	struct tll_scheme_message_t * messages;
+	/// Linked list of global enum types
 	struct tll_scheme_enum_t * enums;
+	/// Linked list of aliases
 	struct tll_scheme_field_t * aliases;
+	/// Linked list of global union types
 	struct tll_scheme_union_t * unions;
 
 	/// User defined data
@@ -341,6 +380,7 @@ typedef struct tll_scheme_t
 	/// Function to destroy user defined data, if not specified standard ``free`` is used
 	void (*user_free)(void *);
 
+	/// Linked list of global bits types
 	struct tll_scheme_bits_t * bits;
 
 #ifdef __cplusplus
