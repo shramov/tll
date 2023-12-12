@@ -34,3 +34,17 @@ channel_sources += configure_file(output : 'channels.h', configuration : configu
 if rapidjson.found()
 	channel_sources += files(['json.cc'])
 endif
+
+mansources = \
+	[ 'tcp.rst'
+	]
+
+foreach f : mansources
+	custom_target('channel-man-@0@'.format(f)
+		, input: f
+		, output : 'tll-channel-@BASENAME@.7'
+		, command : [rst2man, '@INPUT@', '@OUTPUT@']
+		, install_dir: get_option('mandir') / 'man7'
+		, install: true
+	)
+endforeach

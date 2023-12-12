@@ -1,1 +1,2 @@
 /usr/lib/*/libtll.so.*
+/usr/share/man/*/tll-channel-*
