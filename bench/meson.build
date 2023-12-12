@@ -3,10 +3,10 @@ executable('tll-bench-channel', sources: ['channel.cc'], dependencies: [fmt, tll
 executable('bench-binder', sources: ['binder.cc'], dependencies: [fmt], include_directories: include)
 
 
-custom_target('tll-bench-channel.3'
-	, output : 'tll-bench-channel.3'
+custom_target('tll-bench-channel.1'
+	, output : 'tll-bench-channel.1'
 	, input : 'channel.rst'
 	, command : [rst2man, '@INPUT@', '@OUTPUT@']
-	, install_dir: get_option('mandir') / 'man3'
+	, install_dir: get_option('mandir') / 'man1'
 	, install: true
 )
