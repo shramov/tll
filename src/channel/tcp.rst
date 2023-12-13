@@ -55,11 +55,10 @@ field is filled with time of last recv.
 ``nodelay=<bool>`` (default ``yes``) - enable or disable TCP Nagle algorithm (see ``tcp(7)``,
 ``TCP_NODELAY``).
 
-``sndbuf=<size>`` (default 0) - set specific send buffer size. Size format is ``number`` +
-``suffix``, where ``suffix`` is one of ``b``, ``kb``, ``mb`` or ``gb`` for byte, kilobyte etc.
+``sndbuf=<size>`` (default 0) - set specific send buffer size, for format see
+``tll-channel-common(7)``.
 
-``rcvbuf=<size>`` (default 0) - set specific recv buffer size. Size is in same format os for
-``sndbuf``.
+``rcvbuf=<size>`` (default 0) - set specific recv buffer size
 
 ``buffer-size=<size>`` (default ``64kb``) - size of internal buffer used for receiving messages
 before passing them to user.
@@ -105,6 +104,11 @@ Create TCP client with unix socket, / symbol is found in address so address fami
 ::
 
     tcp:///tmp/tcp.sock;mode=client
+
+See also
+--------
+
+``tll-channel-common(7)``
 
 ..
     vim: sts=4 sw=4 et tw=100

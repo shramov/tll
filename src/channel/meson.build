@@ -35,8 +35,9 @@ if rapidjson.found()
 	channel_sources += files(['json.cc'])
 endif
 
-mansources = \
-	[ 'tcp.rst'
+mansources = [
+	'common.rst',
+	'tcp.rst',
 	]
 
 foreach f : mansources
