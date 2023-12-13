@@ -55,6 +55,10 @@ field is filled with time of last recv.
 ``nodelay=<bool>`` (default ``yes``) - enable or disable TCP Nagle algorithm (see ``tcp(7)``,
 ``TCP_NODELAY``).
 
+``mptcp=<bool>`` (default ``no``) - enable Multipath TCP if available. Fallback to TCP occures for
+Unix sockets or when ``IPPROTO_MPTCP`` constant is not available for target platform. On Linux it is
+always defined (even if not available from included headers).
+
 ``sndbuf=<size>`` (default 0) - set specific send buffer size, for format see
 ``tll-channel-common(7)``.
 

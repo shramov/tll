@@ -4,6 +4,7 @@
 import tll.channel as C
 from tll.error import TLLError
 from tll.test_util import Accum, ports
+from tll.processor import Loop
 
 import os
 import pytest
@@ -326,3 +327,40 @@ def test_client_scheme():
     c.open()
 
     assert [m.name for m in s.scheme.messages] == ['Test']
+
+@pytest.mark.skipif(not hasattr(socket, 'IPPROTO_MPTCP'), reason="MPTCP not available")
+@pytest.mark.parametrize("client", ["yes", "no"])
+@pytest.mark.parametrize("server", ["yes", "no"])
+@pytest.mark.parametrize("host", [f"127.0.0.1:{ports.TCP4}", f"::1:{ports.TCP6}", "./tcp.sock"])
+def test_mptcp(host, client, server):
+    s = Accum(f'tcp://{host};mode=server;dump=frame', mptcp=server)
+    c = Accum(f'tcp://{host};mode=client;dump=frame', mptcp=client)
+
+    loop = Loop()
+
+    loop.add(s)
+    loop.add(c)
+
+    s.open()
+    c.open()
+
+    try:
+        for _ in range(10):
+            if s.result:
+                break
+            loop.step(0.001)
+        addr = s.result[-1].addr
+        s.result = []
+
+        c.post(b'xxx', seq=10)
+        s.post(b'zzz', seq=20, addr=addr)
+
+        for _ in range(10):
+            if s.result and c.result:
+                break
+            loop.step(0.001)
+        assert [(m.data.tobytes(), m.seq) for m in s.result] == [(b'xxx', 10)]
+        assert [(m.data.tobytes(), m.seq) for m in c.result] == [(b'zzz', 20)]
+    finally:
+        s.close()
+        c.close()

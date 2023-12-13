@@ -45,6 +45,7 @@ struct tcp_settings_t {
 	bool timestamping = false;
 	bool keepalive = true;
 	bool nodelay = false;
+	bool mptcp = false;
 };
 
 struct tcp_connect_t {

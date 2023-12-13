@@ -25,6 +25,10 @@
 #include <linux/sockios.h>
 #include <linux/net_tstamp.h>
 #include <sys/ioctl.h>
+
+#ifndef IPPROTO_MPTCP
+#define IPPROTO_MPTCP 262
+#endif
 #endif
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -54,6 +58,23 @@ size_t _fill_iovec(size_t full, struct iovec * iov, const Arg &arg, const Args &
 	iov->iov_base = (void *) tll::memoryview_api<Arg>::data(arg);
 	iov->iov_len = tll::memoryview_api<Arg>::size(arg);
 	return _fill_iovec(full + tll::memoryview_api<Arg>::size(arg), iov + 1, std::forward<const Args &>(args)...);
+}
+
+inline int check_mptcp_proto(tll::Logger &log, const tcp_settings_t &settings, int af)
+{
+	if (!settings.mptcp)
+		return 0;
+	if (af == AF_UNIX) {
+		log.info("MPTCP not supported for Unix sockets, fall back to TCP");
+		return 0;
+	}
+
+#ifdef IPPROTO_MPTCP
+	return IPPROTO_MPTCP;
+#else
+	log.warning("MPTCP not supported on this platform, fall back to TCP");
+	return 0;
+#endif
 }
 
 } // namespace _
@@ -359,6 +380,7 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_settings.sndbuf = reader.getT("sndbuf", util::Size { 0 });
 	_settings.rcvbuf = reader.getT("rcvbuf", util::Size { 0 });
 	_settings.buffer_size = reader.getT("buffer-size", util::Size { 64 * 1024 });
+	_settings.mptcp = reader.getT("mptcp", false);
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -406,7 +428,7 @@ int TcpClient<T, S>::_open(const ConstConfig &url)
 	std::swap(_addr_list, *addr);
 	_addr = _addr_list.begin();
 
-	auto fd = socket((*_addr)->sa_family, SOCK_STREAM, 0);
+	auto fd = socket((*_addr)->sa_family, SOCK_STREAM, _::check_mptcp_proto(this->_log, _settings, (*_addr)->sa_family));
 	if (fd == -1)
 		return this->_log.fail(errno, "Failed to create socket: {}", strerror(errno));
 	this->_update_fd(fd);
@@ -619,7 +641,7 @@ int TcpServer<T, C>::_bind(const tll::network::sockaddr_any &addr)
 	static constexpr int sflags = SOCK_STREAM;
 #endif
 
-	tll::network::scoped_socket fd(socket(addr->sa_family, sflags, 0));
+	tll::network::scoped_socket fd(socket(addr->sa_family, sflags, _::check_mptcp_proto(this->_log, _settings, addr->sa_family)));
 	if (fd == -1)
 		return this->_log.fail(errno, "Failed to create socket: {}", strerror(errno));
 
