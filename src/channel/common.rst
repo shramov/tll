@@ -26,6 +26,24 @@ constructed from the list of parameters that in simple cases can be represented 
 looks like URL or with config subtree if string is not suitable. Some parameters are common, like
 statistics and dump switches, others are implementation specific.
 
+Special class of *prefix* channels have one configurable child that is created inside parent object.
+Such channels can be used for filtering, data modification or testing purposes. Prefix protocol ends
+with ``+`` sign, for example ``lua+``. Full protocol is a concatenation of prefixes and normal one,
+like ``timeit+lua+null://`` to measure time of posts through lua filter.
+
+Parameter names
+---------------
+
+Each channel type has parameter prefix that is in most cases is equal to protocol string (``tcp``
+for ``tcp://`` channels). Parameter lookup is performed in the following order:
+
+  - ``prefix.name`` and ``name`` from initialization dictionary
+  - ``prefix.name`` from context-wide defaults
+
+Prefixed form can be used to pass common parameter to specific part of channel chain, for example
+for ``lua+file://`` filter channel, where ``lua+`` has ``file`` child, ``file.dump=yes`` enables
+dump only for inner file channel.
+
 Value types
 -----------
 

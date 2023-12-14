@@ -14,10 +14,13 @@ Synopsis
 Description
 -----------
 
-Channel implements TCP client and server with or without framing.
+Channel implements TCP client and server. If framing is not disabled - messages are prefixed by a
+frame with a size, message id and sequence number. Server assigns unique 8 byte address to each
+client that is filled in every message received by user, both for data messages and
+connect/disconnect notifications. Same address is used to specify connection for outgoing messages.
 
-Options
--------
+Server creates child channel for each client so it's not best choice for usecases with thousands of
+short living connections.
 
 Init parameters
 ~~~~~~~~~~~~~~~
@@ -35,7 +38,7 @@ multiple connections and can listen on several local addresses.
 
 ``frame={none|std|short|...}`` (default ``std``) - select framing mode:
 
-  - ``none`` - disable framing, each chunk of data is sent to user as it is received, output is sent
+  - ``none`` - disable framing, each chunk of data is passed to user as it is received, output is sent
     without any modification.
   - ``std`` or ``l4m4s8`` - "standard" frame, 4 bytes of message size, 4 bytes of message id, 8
     bytes of message sequence number. Incoming data is accumulated until full message is available.
@@ -77,7 +80,7 @@ Open parameters
 Control messages
 ----------------
 
-TCP server generates control messages when client is connected or disconnected with following
+TCP server generates control messages when client connects or disconnects with following
 scheme:
 
 .. code-block:: yaml
@@ -92,6 +95,8 @@ scheme:
 
   - name: Disconnect
     id: 20
+
+If ``Disconnect`` message is posted then connection with specified address is closed.
 
 Both server and client use two additonal messages are used to signal buffer state:
 
