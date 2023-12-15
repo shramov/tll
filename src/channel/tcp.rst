@@ -25,16 +25,22 @@ short living connections.
 Init parameters
 ~~~~~~~~~~~~~~~
 
+All parameters except ``frame`` are used in channels that are based on common tcp implementations,
+for example ``pub+tcp``.
+
+
 ``ADDRESS`` - TCP address, either ``HOST:PORT`` pair or Unix socket path. Both IP address or hostname
 can be used for HOST. Abstract Unix sockets are supported with common ``@PATH`` notation. If
 ``ADDRESS`` is empty then it can be passed in open parameters as ``hostname`` parameter.
 
 ``af={any|unix|ipv4|ipv6}`` (default ``any``) - choose specific address family or use autodetection.
 Unix AF is selected when ``/`` character is found in address string. Otherwise result of
-``getaddrinfo(3)`` is used, all entries for in server mode and first one for client.
+``getaddrinfo(3)`` is used.
 
-``mode={server|client}`` (default ``client``) - channel mode, client or server. Server handles
-multiple connections and can listen on several local addresses.
+``mode={server|client}`` (default ``client``) - channel mode, client or server. Client connect stage
+is performed in non-blocking mode so user should wait until channel states becomes ``Active`` before
+sending data. Server binds to all addresses returned by ``getaddrinfo(3)`` and handles multipl
+client connections.
 
 ``frame={none|std|short|...}`` (default ``std``) - select framing mode:
 
@@ -49,9 +55,10 @@ multiple connections and can listen on several local addresses.
   - ``bson`` - same as ``size32`` but size includes 4 bytes of frame. Output is not prefixed in
     post, input is returned with non stripped frame.
 
-``timestamping=<bool>`` (default ``no``) - enable hardware (if possible) timestamping, for each post special control
-message is generated with timestamp, for received messages ``msg->time``
-field is filled with time of last recv.
+``timestamping=<bool>`` (default ``no``) - enable hardware (if possible) timestamping, for each
+received message ``msg->time`` field is filled with time of last recv operation obtained from
+kernel. If message body was gathered from several recv calls then time of last is used. This
+feature is supporeted only on Linux.
 
 ``keepalive=<bool>`` (default ``yes``) - enable or disable TCP keepalive.
 
