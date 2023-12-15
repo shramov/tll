@@ -38,6 +38,7 @@ endif
 mansources = [
 	'common.rst',
 	'tcp.rst',
+	'udp.rst',
 	]
 
 foreach f : mansources
