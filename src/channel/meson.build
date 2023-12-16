@@ -39,6 +39,7 @@ mansources = [
 	'common.rst',
 	'tcp.rst',
 	'udp.rst',
+	'zero.rst',
 	]
 
 foreach f : mansources
