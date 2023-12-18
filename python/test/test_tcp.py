@@ -15,6 +15,15 @@ import time
 
 ctx = C.Context()
 
+def check_mptcp():
+    try:
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_MPTCP).close()
+    except:
+        return False
+    return True
+
+WITHOUT_MPTCP = not check_mptcp()
+
 class _test_tcp_base:
     PROTO = 'invalid-url'
     ADDR = ('unix', 0)
@@ -328,7 +337,7 @@ def test_client_scheme():
 
     assert [m.name for m in s.scheme.messages] == ['Test']
 
-@pytest.mark.skipif(not hasattr(socket, 'IPPROTO_MPTCP'), reason="MPTCP not available")
+@pytest.mark.skipif(WITHOUT_MPTCP, reason="MPTCP not available")
 @pytest.mark.parametrize("client", ["yes", "no"])
 @pytest.mark.parametrize("server", ["yes", "no"])
 @pytest.mark.parametrize("host", [f"127.0.0.1:{ports.TCP4}", f"::1:{ports.TCP6}", "./tcp.sock"])
