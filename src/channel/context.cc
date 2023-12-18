@@ -134,6 +134,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 
 	~tll_channel_context_t()
 	{
+		_log.info("Destroy context");
 		for (auto & m : modules) {
 			if (m.second->free)
 				(*m.second->free)(m.second, this);
@@ -414,14 +415,6 @@ tll_channel_context_t * context(tll_channel_context_t *ctx = nullptr)
 	context_init();
 	return _context.get();
 }
-
-const tll_channel_context_t * context(const tll_channel_context_t *ctx)
-{
-	if (ctx)
-		return ctx;
-	context_init();
-	return _context.get();
-}
 }
 
 tll_channel_context_t * tll_channel_context_new(tll_config_t *defaults)
@@ -434,12 +427,14 @@ tll_channel_context_t * tll_channel_context_new(tll_config_t *defaults)
 
 tll_channel_context_t * tll_channel_context_ref(tll_channel_context_t * ctx)
 {
-	return context(ctx)->ref();
+	if (!ctx) return nullptr;
+	return ctx->ref();
 }
 
 void tll_channel_context_free(tll_channel_context_t * ctx)
 {
-	context(ctx)->unref();
+	if (!ctx) return;
+	ctx->unref();
 }
 
 tll_channel_context_t * tll_channel_context_default()
@@ -475,18 +470,20 @@ const tll_scheme_t * tll_channel_context_scheme_load(tll_channel_context_t *c, c
 
 int tll_channel_impl_register(tll_channel_context_t *ctx, const tll_channel_impl_t *impl, const char *name)
 {
-	return context(ctx)->reg(impl, name?name:"");
+	if (!ctx) return EINVAL;
+	return ctx->reg(impl, name?name:"");
 }
 
 int tll_channel_impl_unregister(tll_channel_context_t *ctx, const tll_channel_impl_t *impl, const char *name)
 {
-	return context(ctx)->unreg(impl, name?name:"");
+	if (!ctx) return EINVAL;
+	return ctx->unreg(impl, name?name:"");
 }
 
 const tll_channel_impl_t * tll_channel_impl_get(const tll_channel_context_t *ctx, const char *name)
 {
-	if (!name) return nullptr;
-	auto r = context(ctx)->lookup(name);
+	if (!ctx || !name) return nullptr;
+	auto r = ctx->lookup(name);
 	if (r == nullptr)
 		return nullptr;
 	if (!std::holds_alternative<const tll_channel_impl_t *>(*r))
@@ -496,41 +493,43 @@ const tll_channel_impl_t * tll_channel_impl_get(const tll_channel_context_t *ctx
 
 int tll_channel_alias_register(tll_channel_context_t *ctx, const char *name, const char *url, int len)
 {
-	if (!name || !url) return EINVAL;
+	if (!ctx || !name || !url) return EINVAL;
 	auto cfg = tll::Channel::Url::parse(string_view_from_c(url, len));
 	if (!cfg) return EINVAL;
-	return context(ctx)->alias_reg(name, std::move(*cfg));
+	return ctx->alias_reg(name, std::move(*cfg));
 }
 
 int tll_channel_alias_register_url(tll_channel_context_t *ctx, const char *name, const tll_config_t *cfg)
 {
-	if (!name || !cfg) return EINVAL;
-	return context(ctx)->alias_reg(name, tll::ConstConfig(cfg).copy());
+	if (!ctx || !name || !cfg) return EINVAL;
+	return ctx->alias_reg(name, tll::ConstConfig(cfg).copy());
 }
 
 int tll_channel_alias_unregister(tll_channel_context_t *ctx, const char *name, const char *url, int len)
 {
-	if (!name || !url) return EINVAL;
+	if (!ctx || !name || !url) return EINVAL;
 	auto cfg = tll::Channel::Url::parse(string_view_from_c(url, len));
 	if (!cfg) return EINVAL;
-	return context(ctx)->alias_unreg(name, std::move(*cfg));
+	return ctx->alias_unreg(name, std::move(*cfg));
 }
 
 
 int tll_channel_alias_unregister_url(tll_channel_context_t *ctx, const char *name, const tll_config_t *cfg)
 {
-	if (!name || !cfg) return EINVAL;
-	return context(ctx)->alias_unreg(name, tll::ConstConfig(cfg).copy());
+	if (!ctx || !name || !cfg) return EINVAL;
+	return ctx->alias_unreg(name, tll::ConstConfig(cfg).copy());
 }
 
 int tll_channel_module_load_cfg(tll_channel_context_t *ctx, const char *module, const char * symbol, const tll_config_t * cfg)
 {
-	return context(ctx)->load(module, symbol ? symbol : "", cfg ? tll::ConstConfig(cfg) : tll::ConstConfig());
+	if (!ctx) return EINVAL;
+	return ctx->load(module, symbol ? symbol : "", cfg ? tll::ConstConfig(cfg) : tll::ConstConfig());
 }
 
 int tll_channel_module_load(tll_channel_context_t *ctx, const char *module, const char * symbol)
 {
-	return context(ctx)->load(module, symbol ? symbol : "", tll::ConstConfig());
+	if (!ctx) return EINVAL;
+	return ctx->load(module, symbol ? symbol : "", tll::ConstConfig());
 }
 
 tll_channel_t * tll_channel_new(tll_channel_context_t * ctx, const char *str, size_t len, tll_channel_t *master, const tll_channel_impl_t *impl)
@@ -859,7 +858,8 @@ int tll_channel_callback_del(tll_channel_t *c, tll_channel_callback_t cb, void *
 	return callback_del(in->cb, in->cb_size, &p);
 }
 
-tll_channel_t * tll_channel_get(const tll_channel_context_t *c, const char * name, int len)
+tll_channel_t * tll_channel_get(const tll_channel_context_t *ctx, const char * name, int len)
 {
-	return context(c)->get(std::string_view(name, len));
+	if (!ctx) return nullptr;
+	return ctx->get(std::string_view(name, len));
 }
