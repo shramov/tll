@@ -47,11 +47,13 @@ struct sink_t
 
 	static constexpr std::string_view default_format = "%^%Y-%m-%d %H:%M:%S.%e %l %n%$: %v";
 
-	static sink_t make_default()
+	static sink_t make_default(std::string_view format = "")
 	{
+		if (format.empty())
+			format = default_format;
 		sink_t sink;
 		sink.sink.reset(new spdlog::sinks::ansicolor_stderr_sink_mt);
-		sink.sink->set_pattern(std::string(default_format));
+		sink.sink->set_pattern(std::string(format));
 		return sink;
 	}
 };
@@ -253,7 +255,7 @@ struct spdlog_impl_t : public tll_logger_impl_t
 		result->finalize();
 
 		if (!result->sinks.size())
-			result->sinks.push_back(sink_t::make_default());
+			result->sinks.push_back(sink_t::make_default(format));
 
 		std::swap(root, result);
 		return 0;
