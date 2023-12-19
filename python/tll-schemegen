@@ -2,6 +2,7 @@
 # vim: sts=4 sw=4 et
 
 import argparse
+import logging
 import os
 import pathlib
 import shutil
@@ -11,6 +12,7 @@ import pkg_resources
 
 from mako.lookup import TemplateLookup
 
+from tll import logger
 import tll.scheme as S
 
 def safe_write(filename, data):
@@ -39,9 +41,8 @@ parser.add_argument('-o', '--output', dest='output', type=str,
 parser.add_argument('-T', '--template-dir', dest='template_dir', action='append',
                     default=[],
                     help='additional template directories')
-parser.add_argument('--timeout', dest='timeout', type=float,
-                    default=1,
-                    help='open timeout for channel')
+parser.add_argument('-l', '--loglevel', dest='loglevel', default='warning',
+                    help='logging level', choices=['trace', 'debug', 'info', 'warning', 'error', 'critical'])
 
 channels = parser.add_argument_group('Channel options')
 channels.add_argument('-c', '--channel', dest='channel', action='store_true',
@@ -55,6 +56,9 @@ channels.add_argument('-m', '--module', dest='modules', action='append',
                     help='additional channel modules')
 channels.add_argument('--master', dest='master',
                     help='master channel')
+parser.add_argument('--timeout', dest='timeout', type=float,
+                    default=1,
+                    help='open timeout for channel')
 
 args, rest = parser.parse_known_args()
 
@@ -74,6 +78,10 @@ if args.help_template:
     sys.exit(0)
 
 options = subparser.parse_args(rest)
+
+logger.init()
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)-7s %(name)s: %(message)s')
+logger.configure({'levels.*': args.loglevel})
 
 if args.channel:
     from tll.channel import Context
