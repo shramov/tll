@@ -66,9 +66,8 @@ int StreamClient::_open(const ConstConfig &url)
 
 	auto reader = channel_props_reader(url);
 
-	auto r = stream_scheme::Request::bind(_request_buf);
-	_request_buf.resize(r.meta_size());
-	memset(_request_buf.data(), 0, _request_buf.size());
+	auto r = stream_scheme::Request::bind_reset(_request_buf);
+	r.set_version(stream_scheme::Version::Current);
 
 	if (_peer.size())
 		r.set_client(_peer);

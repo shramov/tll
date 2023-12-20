@@ -434,10 +434,13 @@ tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
 	block_end = -1;
 
 	if (msg->msgid != stream_scheme::Request::meta_id())
-		return error(fmt::format("Invalid message id: {}", msg->msgid));
+		return error(fmt::format("Invalid message id: {}, expected {}", msg->msgid, stream_scheme::Request::meta_id()));
 	auto req = stream_scheme::Request::bind(*msg);
 	if (msg->size < req.meta_size())
 		return error(fmt::format("Invalid request size: {} < minimum {}", msg->size, req.meta_size()));
+
+	if (req.get_version() != stream_scheme::Version::Current)
+		return error(fmt::format("Invalid client version: {} differs from server {}", (int) req.get_version(), (int) stream_scheme::Version::Current));
 
 	name = req.get_client();
 	seq = req.get_seq();
