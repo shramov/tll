@@ -13,6 +13,7 @@ from libc.string cimport memset
 import enum
 import logging
 import traceback
+import weakref
 
 class Level(enum.Enum):
     Trace = TLL_LOGGER_TRACE
@@ -98,10 +99,14 @@ tll2logging = { TLL_LOGGER_TRACE: logging.DEBUG
               , TLL_LOGGER_CRITICAL: logging.CRITICAL
               }
 
+logging2tll = {v:k for k,v in tll2logging.items()}
+
 cdef class PyLog:
     cdef tll_logger_impl_t impl
+    cdef object _registered
 
     def __cinit__(self):
+        self._registered = False
         memset(&self.impl, 0, sizeof(tll_logger_impl_t))
         self.impl.log = self.pylog
         self.impl.log_new = self.pylog_new
@@ -111,10 +116,15 @@ cdef class PyLog:
         self.impl.user = <void *>self
 
     def reg(self):
+        self._registered = True
         tll_logger_register(&self.impl)
 
     def unreg(self):
+        self._registered = False
         tll_logger_register(NULL)
+
+    @property
+    def registered(self): return self._registered
 
     @staticmethod
     cdef int pylog(long long ts, const char * category, tll_logger_level_t level, const char * data, size_t size, void * obj) with gil:
@@ -155,7 +165,29 @@ cdef class PyLog:
 
 pylog = PyLog()
 
+class TLLHandler(logging.Handler):
+    def __init__(self, *a, **kw):
+        self._cache = {}
+        super().__init__(*a, **kw)
+
+    def emit(self, record):
+        if pylog.registered:
+            return
+        try:
+            log = self._cache.get(record.name)
+            if log is not None:
+                log = log()
+            if log is None:
+                log = logging.getLogger(record.name)
+                log._tll_logger = Logger(record.name)
+                self._cache[record.name] = weakref.ref(log)
+            log._tll_logger.log(logging2tll.get(record.levelno, Level.Info), record.getMessage())
+        except:
+            self.handleError(record)
 def init():
+    for h in logging.root.handlers:
+        if isinstance(h, TLLHandler):
+            raise RuntimeError("Python logs are redirect to TLL, can not install TLL -> Python redirection")
     pylog.reg()
 
 def configure(config):
@@ -165,3 +197,8 @@ def configure(config):
         config = Config.from_dict(config)
 
     tll_logger_config((<Config>config)._ptr);
+
+def basicConfig():
+    if pylog.registered:
+        raise RuntimeError("TLL logs are redirected to Python, can not install Python -> TLL redirection")
+    logging.basicConfig(level=logging.DEBUG, handlers=[TLLHandler(logging.DEBUG)])
