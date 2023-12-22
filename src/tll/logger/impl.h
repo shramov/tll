@@ -26,6 +26,9 @@ typedef struct tll_logger_impl_t {
 /// Replace current logger implementation
 int tll_logger_register(tll_logger_impl_t *);
 
+/// Get current logger implementation
+const tll_logger_impl_t * tll_logger_impl_get();
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

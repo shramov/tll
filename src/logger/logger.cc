@@ -282,6 +282,11 @@ int tll_logger_register(tll_logger_impl_t *impl)
 	return tll::logger::context.set_impl(impl);
 }
 
+const tll_logger_impl_t * tll_logger_impl_get()
+{
+	return tll::logger::context.impl;
+}
+
 const char * tll_logger_name(const tll_logger_t * log)
 {
 	return static_cast<const tll::logger::Logger *>(log)->name.c_str();

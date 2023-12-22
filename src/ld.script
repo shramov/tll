@@ -86,6 +86,7 @@ TLL_0.0.0 {
 		tll_logger_config;
 		tll_logger_copy;
 		tll_logger_free;
+		tll_logger_impl_get;
 		tll_logger_log;
 		tll_logger_name;
 		tll_logger_new;
