@@ -133,7 +133,7 @@ int state_t::parse(const yaml_event_t &event)
 					if (cfg.set(k, {r->data(), r->size()}))
 						return _log.fail(EINVAL, "Failed to set value {}: {}", k, value);
 				} else if (tag == "!link") {
-					_log.info("Link {} to {}", k, value);
+					_log.trace("Link {} to {}", k, value);
 					if (cfg.link(k, value))
 						return _log.fail(EINVAL, "Failed to set link {}: {}", k, value);
 				} else
