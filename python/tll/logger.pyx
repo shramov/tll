@@ -107,10 +107,8 @@ class TLLLogRecord(logging.LogRecord):
 
 cdef class PyLog:
     cdef tll_logger_impl_t impl
-    cdef object _registered
 
     def __cinit__(self):
-        self._registered = False
         memset(&self.impl, 0, sizeof(tll_logger_impl_t))
         self.impl.log = self.pylog
         self.impl.log_new = self.pylog_new
@@ -120,15 +118,14 @@ cdef class PyLog:
         self.impl.user = <void *>self
 
     def reg(self):
-        self._registered = True
         tll_logger_register(&self.impl)
 
     def unreg(self):
-        self._registered = False
         tll_logger_register(NULL)
 
     @property
-    def registered(self): return self._registered
+    def registered(self):
+        return &self.impl == tll_logger_impl_get()
 
     @staticmethod
     cdef int pylog(long long ts, const char * category, tll_logger_level_t level, const char * data, size_t size, void * obj) with gil:

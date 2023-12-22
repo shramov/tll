@@ -34,3 +34,4 @@ cdef extern from "tll/logger/impl.h":
         void * user
 
     cdef int tll_logger_register(tll_logger_impl_t *)
+    cdef const tll_logger_impl_t * tll_logger_impl_get()
