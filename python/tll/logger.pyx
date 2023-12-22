@@ -101,6 +101,10 @@ tll2logging = { TLL_LOGGER_TRACE: logging.DEBUG
 
 logging2tll = {v:k for k,v in tll2logging.items()}
 
+class TLLLogRecord(logging.LogRecord):
+    def __init__(self, name, level, msg):
+        super().__init__(name, level, "TLL", 0, msg, None, None)
+
 cdef class PyLog:
     cdef tll_logger_impl_t impl
     cdef object _registered
@@ -129,7 +133,7 @@ cdef class PyLog:
     @staticmethod
     cdef int pylog(long long ts, const char * category, tll_logger_level_t level, const char * data, size_t size, void * obj) with gil:
         o = <object>obj
-        o.log(tll2logging.get(level, logging.INFO), b2s(data[:size]))
+        o.handle(TLLLogRecord(o.name, tll2logging.get(level, logging.INFO), b2s(data[:size])))
 
     @staticmethod
     cdef void * pylog_new(tll_logger_impl_t * impl, const char * category) with gil:
@@ -171,7 +175,7 @@ class TLLHandler(logging.Handler):
         super().__init__(*a, **kw)
 
     def emit(self, record):
-        if pylog.registered:
+        if isinstance(record, TLLLogRecord):
             return
         try:
             log = self._cache.get(record.name)
