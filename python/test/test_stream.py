@@ -648,6 +648,67 @@ async def test_ring(asyncloop, tmp_path):
         assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'ccc')
 
 @asyncloop_run
+async def test_ring_autoclose(asyncloop, tmp_path):
+    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server;storage.autoclose=yes')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+
+    assert [x.name for x in s.children] == ['server/stream', 'server/request']
+    assert [x.name for x in c.children] == ['client/stream', 'client/request']
+
+    s.open()
+    assert s.state == s.State.Active # No need to wait
+
+    for i in range(10):
+        s.post(b'aaa', msgid=10, seq=i)
+
+    c.open(seq='0', mode='seq')
+
+    m = await s.recv()
+    assert m.type == m.Type.Control
+    assert s.unpack(m).SCHEME.name == 'Connect'
+
+    m = await c.recv()
+    assert (m.seq, m.msgid, m.data.tobytes()) == (0, 10, b'aaa')
+
+    assert [x.name for x in s.children] == ['server/stream', 'server/request', 'server/storage/client']
+
+    file = s.children[-1]
+    for _ in range(10):
+        file.process()
+
+    assert file.state == file.State.Closed
+    file = None
+
+    for i in range(10, 20):
+        s.post(b'bbb', msgid=10, seq=i)
+
+    for i in range(1, 10):
+        m = await c.recv()
+        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'aaa')
+
+    for i in range(10, 15):
+        m = await c.recv()
+        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'bbb')
+
+    assert c.children[1].state == c.State.Closed
+
+    for i in range(15, 20):
+        m = await c.recv()
+        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'bbb')
+
+    m = await c.recv()
+    assert m.type == m.Type.Control
+    assert (m.seq, c.unpack(m).SCHEME.name) == (19, 'Online')
+
+    for i in range(20, 30):
+        s.post(b'ccc', msgid=10, seq=i)
+
+    for i in range(20, 30):
+        m = await c.recv()
+        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'ccc')
+
+@asyncloop_run
 async def test_export_client(asyncloop, tmp_path):
     scheme = 'yamls://[{name: Test, id: 10}]'
     server = asyncloop.Channel(f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame;storage=file:///{tmp_path}/storage.dat;name=server;mode=server', scheme=scheme)

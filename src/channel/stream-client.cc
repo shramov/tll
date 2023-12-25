@@ -199,7 +199,7 @@ int StreamClient::_on_request_data(const tll_msg_t *msg)
 
 		if (_ring.empty())
 			return 0;
-		if (_ring.front().frame->seq > msg->seq)
+		if (_ring.front().frame->seq > msg->seq + 1)
 			return 0;
 
 		while (!_ring.empty() && _ring.front().frame->seq <= msg->seq) {
