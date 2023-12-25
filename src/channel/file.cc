@@ -58,7 +58,7 @@ struct IOBase
 	size_t block_end = 0;
 	size_t block_size = 0;
 
-	int init(const tll::Logger &log, int fd, size_t block_size) { this->fd = fd; this->block_size = block_size; return 0; }
+	int init(const tll::Logger &log, size_t block_size) { this->block_size = block_size; return 0; }
 	void reset()
 	{
 		fd = -1;
@@ -89,10 +89,10 @@ struct IOPosix : public IOBase
 
 	std::vector<char> buf;
 
-	int init(const tll::Logger &log, int fd, size_t block)
+	int init(const tll::Logger &log, size_t block)
 	{
 		buf.resize(block);
-		return IOBase::init(log, fd, block);
+		return IOBase::init(log, block);
 	}
 
 	int writev(const struct iovec * iov, size_t size)
@@ -123,12 +123,12 @@ struct IOMMap : public IOBase
 	size_t block_start = 0;
 	void * base = nullptr;
 
-	int init(const tll::Logger &log, int fd, size_t block)
+	int init(const tll::Logger &log, size_t block)
 	{
 		auto page = sysconf(_SC_PAGE_SIZE);
 		if (block % page != 0)
 			return log.fail(EINVAL, "Block size {} is not multiple of the page size {}", block, page);
-		return IOBase::init(log, fd, block);
+		return IOBase::init(log, block);
 	}
 
 	void unmap()
@@ -236,15 +236,14 @@ int File<TIO>::_open(const ConstConfig &props)
 
 	auto reader = tll::make_props_reader(props);
 	if (this->internal.caps & caps::Input) {
-		auto fd = ::open(filename.c_str(), O_RDONLY, 0644);
-		if (fd == -1)
+		_io.fd = ::open(filename.c_str(), O_RDONLY, 0644);
+		if (_io.fd == -1)
 			return this->_log.fail(EINVAL, "Failed to open file {} for reading: {}", filename, strerror(errno));
-		this->_update_fd(fd);
 
 		if (auto r = _read_meta(); r)
 			return this->_log.fail(EINVAL, "Failed to read metadata");
 
-		if (_io.init(this->_log, this->fd(), _block_size))
+		if (_io.init(this->_log, _block_size))
 			return this->_log.fail(EINVAL, "Failed to init io");
 
 		if (auto r = _file_bounds(); r && r != EAGAIN)
@@ -280,10 +279,9 @@ int File<TIO>::_open(const ConstConfig &props)
 		std::string fn(filename);
 		if (overwrite) {
 			fn += ".XXXXXX";
-			auto fd = mkstemp(fn.data());
-			if (fd == -1)
+			_io.fd = mkstemp(fn.data());
+			if (_io.fd == -1)
 				return this->_log.fail(EINVAL, "Failed to create temporary file {}: {}", fn, strerror(errno));
-			this->_update_fd(fd);
 
 			if (_write_meta()) {
 				return this->_log.fail(EINVAL, "Failed to write metadata");
@@ -292,10 +290,9 @@ int File<TIO>::_open(const ConstConfig &props)
 			this->_log.info("Rename temporary file {} to {}", fn, filename);
 			rename(fn.c_str(), filename.c_str());
 		} else {
-			auto fd = ::open(fn.data(), O_RDWR | O_CREAT, 0600);
-			if (fd == -1)
+			_io.fd = ::open(fn.data(), O_RDWR | O_CREAT, 0600);
+			if (_io.fd == -1)
 				return this->_log.fail(EINVAL, "Failed to open file {} for writing: {}", filename, strerror(errno));
-			this->_update_fd(fd);
 
 			if (auto r = _read_meta(); r)
 				return this->_log.fail(EINVAL, "Failed to read metadata");
@@ -307,7 +304,7 @@ int File<TIO>::_open(const ConstConfig &props)
 			this->_log.info("Keep up to extra {} blocks at file end", _tail_extra_blocks);
 		}
 
-		if (_io.init(this->_log, this->fd(), _block_size))
+		if (_io.init(this->_log, _block_size))
 			return this->_log.fail(EINVAL, "Failed to init io");
 
 		if (auto r = _file_bounds(); r && r != EAGAIN)
@@ -338,9 +335,8 @@ int File<TIO>::_open(const ConstConfig &props)
 template <typename TIO>
 int File<TIO>::_close()
 {
-	auto fd = this->_update_fd(-1);
-	if (fd != -1)
-		::close(fd);
+	if (_io.fd != -1)
+		::close(_io.fd);
 	_io.reset();
 	this->config_info().setT("seq-begin", _seq_begin);
 	this->config_info().setT("seq", _seq);
@@ -350,7 +346,7 @@ int File<TIO>::_close()
 template <typename TIO>
 void File<TIO>::_truncate(size_t offset)
 {
-	auto r = ftruncate(this->fd(), offset);
+	auto r = ftruncate(_io.fd, offset);
 	_file_size_cache = offset;
 	(void) r;
 }
@@ -373,7 +369,7 @@ int File<TIO>::_read_meta()
 	_io.offset = 0;
 	full_frame_t frame;
 
-	if (auto r = pread(this->fd(), &frame, sizeof(frame), 0); r != sizeof(frame)) {
+	if (auto r = pread(_io.fd, &frame, sizeof(frame), 0); r != sizeof(frame)) {
 		if (r < 0)
 			return this->_log.fail(EINVAL, "Failed to read meta frame: {}", strerror(errno));
 		return this->_log.fail(EINVAL, "Failed to read meta frame: truncated file");
@@ -389,7 +385,7 @@ int File<TIO>::_read_meta()
 	std::vector<unsigned char> buf;
 	buf.resize(size - sizeof(frame.frame) + 1); // Tail indicator
 
-	if (auto r = pread(this->fd(), buf.data(), buf.size(), sizeof(frame)); r != (ssize_t) buf.size()) {
+	if (auto r = pread(_io.fd, buf.data(), buf.size(), sizeof(frame)); r != (ssize_t) buf.size()) {
 		if (r < 0)
 			return this->_log.fail(EINVAL, "Failed to read meta data: {}", strerror(errno));
 		return this->_log.fail(EINVAL, "Failed to read meta data: truncated file");
@@ -458,7 +454,7 @@ int File<TIO>::_write_meta()
 	view = view.view(sizeof(frame_size_t));
 	*view.dataT<frame_t>() = frame_t { meta.meta_id(), 0 };
 
-	if (auto r = _check_write(buf.size(), pwrite(this->fd(), buf.data(), buf.size(), 0)); r)
+	if (auto r = _check_write(buf.size(), pwrite(_io.fd, buf.data(), buf.size(), 0)); r)
 		return r;
 
 	_shift(buf.size());
@@ -492,7 +488,7 @@ template <typename TIO>
 ssize_t File<TIO>::_file_size()
 {
 	struct stat stat;
-	auto r = fstat(this->fd(), &stat);
+	auto r = fstat(_io.fd, &stat);
 	if (r < 0)
 		return this->_log.fail(-1, "Failed to get file size: {}", strerror(errno));
 	_file_size_cache = stat.st_size;
