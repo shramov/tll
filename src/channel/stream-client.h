@@ -31,8 +31,11 @@ class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::
 
 	long long _seq = -1;
 	long long _server_seq = -1;
+	long long _block_end = -1;
 	std::optional<long long> _open_seq;
 	std::string _peer;
+
+	tll::Config _reopen_cfg;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "stream+"; }
@@ -104,6 +107,25 @@ class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::
 
 	int _report_online();
 	int _post_done(long long seq);
+
+	void _reset_config_cb(tll::Config cfg, std::string_view path)
+	{
+		if (auto v = cfg.get(path); v)
+			cfg.set(path, *v); // Replace pointer
+	}
+
+	static char * _config_seq(int * len, void * data)
+	{
+		auto self = static_cast<const StreamClient *>(data);
+		auto seq = self->_seq;
+		if (seq == -1)
+			seq = self->_open_seq.value_or(seq);
+		auto buf = (char *) malloc(22); // sign, 21 digit, null byte
+		auto size = snprintf(buf, 22, "%lld", seq);
+		if (len)
+			*len = size;
+		return buf;
+	}
 };
 
 } // namespace tll::channel

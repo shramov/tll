@@ -57,7 +57,9 @@ int StreamClient::_open(const ConstConfig &url)
 	_state = State::Closed;
 	_ring.clear();
 	_open_seq = {};
-	_seq = _server_seq = -1;
+	_seq = _server_seq = _block_end = -1;
+
+	_reopen_cfg = tll::Config();
 
 	if (auto sub = url.sub("request"); sub)
 		_request_open = sub->copy();
@@ -82,6 +84,7 @@ int StreamClient::_open(const ConstConfig &url)
 		return _log.fail(EINVAL, "Need mode=online/seq/block parameter");
 	} else if (mode == Online) {
 		_request_buf.resize(0);
+		_reopen_cfg.set("mode", "online");
 	} else if (mode == Seq || mode == SeqData) {
 		_open_seq = reader.getT<long long>("seq");
 		if (!_open_seq)
@@ -91,12 +94,21 @@ int StreamClient::_open(const ConstConfig &url)
 		if (mode == SeqData)
 			++*_open_seq;
 		r.set_seq(*_open_seq);
+
+		_reopen_cfg.set("mode", "seq");
+		_reopen_cfg.set("seq", _config_seq, this);
 	}  else if (mode == Block) {
 		auto block = reader.getT<unsigned>("block");
 		auto type = reader.getT<std::string>("block-type", "default");
 		r.set_seq(block);
 		r.set_block(type);
+
+		_reopen_cfg.set("mode", "block");
+		_reopen_cfg.setT("block", block);
+		_reopen_cfg.set("block-type", type);
 	}
+
+	config_info().set("reopen", _reopen_cfg);
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid open parameters: {}", reader.error());
@@ -106,6 +118,8 @@ int StreamClient::_open(const ConstConfig &url)
 
 int StreamClient::_close(bool force)
 {
+	_reset_config_cb(config_info(), "reopen.seq");
+
 	if (_request->state() != tll::state::Closed)
 		_request->close(force || state() == tll::state::Error);
 	return Base::_close(force || state() == tll::state::Error);
@@ -188,6 +202,14 @@ int StreamClient::_on_request_data(const tll_msg_t *msg)
 {
 	_log.debug("Seq {}, state {}, ring {}", msg->seq, (int) _state, _ring.empty());
 	if (_state == State::Connected) {
+		if (_seq < _block_end && msg->seq >= _block_end) {
+			_seq = msg->seq;
+			_reopen_cfg = tll::Config();
+			_reopen_cfg.set("mode", "seq");
+			_reopen_cfg.set("seq", _config_seq, this);
+			config_info().set("reopen", _reopen_cfg);
+		}
+
 		_seq = msg->seq;
 		_callback_data(msg);
 		if (_seq == _server_seq && _ring.empty()) {
@@ -228,6 +250,7 @@ int StreamClient::_on_request_data(const tll_msg_t *msg)
 		if (msg->size < data.meta_size())
 			return state_fail(0, "Invalid reply size: {} < minimum {}", msg->size, data.meta_size());
 		_server_seq = data.get_last_seq();
+		_block_end = data.get_block_seq();
 		_log.info("Server seq: {}, block end seq: {}", _server_seq, data.get_block_seq());
 		_state = State::Connected;
 		state(tll::state::Active);
@@ -240,6 +263,12 @@ int StreamClient::_on_request_data(const tll_msg_t *msg)
 		} else if (_server_seq + 1 == *_open_seq) {
 			_log.info("Server has no old data for us, channel is online (seq {})", _server_seq);
 			_seq = _server_seq;
+
+			_reopen_cfg = tll::Config();
+			_reopen_cfg.set("mode", "seq");
+			_reopen_cfg.set("seq", _config_seq, this);
+			config_info().set("reopen", _reopen_cfg);
+
 			_report_online();
 			_request->close();
 		} else if (_server_seq < *_open_seq) {

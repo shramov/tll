@@ -224,6 +224,10 @@ async def test_block(asyncloop, tmp_path, req, result):
 
     c.open('mode=block;' + req)
 
+    cfg = dict([x.split('=') for x in ('mode=block;' + req).split(';')])
+    cfg.setdefault('block-type', 'default')
+    assert c.config.sub('info.reopen').as_dict() == cfg
+
     if result == []:
         m = await c.recv_state()
         assert m == c.State.Error
@@ -236,6 +240,8 @@ async def test_block(asyncloop, tmp_path, req, result):
     m = await c.recv()
     assert m.type == m.Type.Control
     assert (m.seq, c.unpack(m).SCHEME.name) == (result[-1], 'Online')
+
+    assert c.config.sub('info.reopen').as_dict() == {'mode': 'seq', 'seq': f'{result[-1]}'}
 
 @pytest.mark.parametrize("init_seq,init_block", [
         ('', ''),
@@ -573,14 +579,24 @@ async def test_stream_aggregate(asyncloop, context, tmp_path):
     assert Aggregate.STORAGE == [(10, {10: b'xxx', 20: b'yyy'})]
 
     c.open(block='0', mode='block')
+    assert c.config.sub('info.reopen').as_dict() == {'mode': 'block', 'block': '0', 'block-type': 'default'}
+
     m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (9, 10, b'xxx')
+    assert c.config.sub('info.reopen').as_dict() == {'mode': 'block', 'block': '0', 'block-type': 'default'}
+
     m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (10, 20, b'yyy')
+    assert c.config.sub('info.reopen').as_dict() == {'mode': 'block', 'block': '0', 'block-type': 'default'}
+
     m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (20, 10, b'xxz')
+    assert c.config.sub('info.reopen').as_dict() == {'mode': 'seq', 'seq': '20'}
+
     m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (30, 20, b'yyz')
+    assert c.config.sub('info.reopen').as_dict() == {'mode': 'seq', 'seq': '30'}
+
     c.close()
 
     s.post({'type':'default'}, name='Block', type=s.Type.Control)
