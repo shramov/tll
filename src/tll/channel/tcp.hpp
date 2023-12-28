@@ -448,6 +448,8 @@ int TcpClient<T, S>::_open(const ConstConfig &url)
 		return this->_log.fail(errno, "Failed to connect: {}", strerror(errno));
 	}
 
+	this->_log.info("Connected");
+
 	return this->channelT()->_on_connect();
 }
 
