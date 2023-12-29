@@ -41,7 +41,7 @@ class MsgChannel(enum.Enum):
     def __int__(self): return self.value
 
 class MsgMask(enum.IntFlag):
-    All = TLL_MESSAGE_MASK_ALL
+    All = <unsigned>(TLL_MESSAGE_MASK_ALL) & (~TLL_MESSAGE_MASK_CHANNEL)
     Data = TLL_MESSAGE_MASK_DATA
     Control = TLL_MESSAGE_MASK_CONTROL
     State = TLL_MESSAGE_MASK_STATE

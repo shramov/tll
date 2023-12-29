@@ -20,7 +20,7 @@ class Entry:
 
 class AsyncChannel(C.Channel):
     LOOP_KEY = '_pytll_async_loop'
-    MASK = C.MsgMask.All ^ C.MsgMask.State ^ C.MsgMask.Channel
+    MASK = C.MsgMask.All ^ C.MsgMask.State
 
     def __init__(self, *a, async_mask=None, **kw):
         loop = kw.pop(self.LOOP_KEY, None)
