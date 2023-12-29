@@ -593,11 +593,13 @@ struct tll_processor_loop_t
 	int callback(const tll::Channel *c, const tll_msg_t *msg)
 	{
 		if (msg->type == TLL_MESSAGE_STATE) {
-			if (msg->msgid == tll::state::Opening)
+			if (msg->msgid == tll::state::Opening) {
+				_log.debug("Enable opening channel {}", c->name());
 				return process_add(const_cast<tll::Channel *>(c), c->fd(), c->dcaps());
-			else if (msg->msgid == tll::state::Closed || msg->msgid == tll::state::Error)
+			} else if (msg->msgid == tll::state::Closed || msg->msgid == tll::state::Error) {
+				_log.debug("Disable {} channel {}", msg->msgid == tll::state::Closed ? "closed" : "failed", c->name());
 				return process_del(c, c->fd());
-			else if (msg->msgid == tll::state::Destroy)
+			} else if (msg->msgid == tll::state::Destroy)
 				return del(c);
 			return 0;
 		} else if (msg->type != TLL_MESSAGE_CHANNEL) return 0;
