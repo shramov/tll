@@ -1,9 +1,13 @@
 <%def name='setup_options(parser)'><%
-    parser.add_argument('--namespace', dest='namespace', type=str,
+    parser.add_argument('--namespace', dest='namespace', type=str, default=None,
                         help='C++ namespace name for generated source')
 %></%def>\
 <%!
 from tll.templates import cpp
+%>\
+<%
+if options.namespace is None:
+    options.namespace = scheme.options.get('cpp-namespace', '')
 %>\
 #pragma once
 
