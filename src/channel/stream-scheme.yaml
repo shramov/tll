@@ -1,5 +1,6 @@
 - enums:
     Version: {type: int16, enum: {Current: 1}}
+  options.cpp-namespace: stream_scheme
 
 - name: Attribute
   fields:
