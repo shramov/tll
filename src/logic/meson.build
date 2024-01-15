@@ -24,3 +24,17 @@ shared_library('tll-logic-control'
 	, dependencies : [fmt, tll, rapidjson]
 	, install: true
 	)
+
+mansources = [
+	'quantile.rst',
+	]
+
+foreach f : mansources
+	custom_target('logic-man-@0@'.format(f)
+		, input: f
+		, output : 'tll-logic-@BASENAME@.7'
+		, command : [rst2man, '@INPUT@', '@OUTPUT@']
+		, install_dir: get_option('mandir') / 'man7'
+		, install: true
+	)
+endforeach

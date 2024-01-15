@@ -3,3 +3,4 @@
 /usr/lib/*/libtll-logic*.so
 /usr/share/tll/scheme/tll/logic
 /usr/share/man/*/tll-bench-channel.*
+/usr/share/man/*/tll-logic-*
