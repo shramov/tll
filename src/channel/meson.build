@@ -39,6 +39,7 @@ mansources = [
 	'common.rst',
 	'null.rst',
 	'tcp.rst',
+	'timer.rst',
 	'udp.rst',
 	'zero.rst',
 	]
