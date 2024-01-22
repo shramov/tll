@@ -154,7 +154,7 @@ class Prefix : public logger::Methods<Prefix<Log, Fmt, Args...>>
 		try {
 			fmt::format_to(std::back_inserter(*buf), format, std::forward<A>(args)...);
 		} catch (fmt::format_error &e) {
-			fmt::format_to(std::back_inserter(*buf), "Invalid format {}: {}", format, e.what());
+			fmt::format_to(std::back_inserter(*buf), "Invalid format {}: {}", static_cast<fmt::string_view>(format), e.what());
 		}
 		buf->push_back('\0');
 		l->log_buf(level, std::string_view(buf->data(), buf->size() - 1));

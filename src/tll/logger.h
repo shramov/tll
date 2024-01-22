@@ -254,7 +254,7 @@ public:
 			fmt::format_to(std::back_inserter(*buf), format, std::forward<Args>(args)...);
 		} catch (fmt::format_error &e) {
 			buf->resize(0);
-			fmt::format_to(std::back_inserter(*buf), "Invalid format {}: {}", format, e.what());
+			fmt::format_to(std::back_inserter(*buf), "Invalid format {}: {}", static_cast<fmt::string_view>(format), e.what());
 		}
 		buf->push_back('\0');
 		tll_logger_log(_log, level, buf->data(), buf->size() - 1);
