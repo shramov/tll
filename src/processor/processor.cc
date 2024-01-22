@@ -235,7 +235,7 @@ std::optional<Processor::PreObject> Processor::init_pre(std::string_view extname
 		for (auto d : split<','>(*deps)) {
 			auto n = tll::util::strip(d);
 			if (n.size() == 0)
-				return log.fail(std::nullopt, "Empty channel in {}: '{}'", k, deps);
+				return log.fail(std::nullopt, "Empty channel in {}: '{}'", k, *deps);
 			obj.depends_init.list.emplace(n);
 		}
 	}

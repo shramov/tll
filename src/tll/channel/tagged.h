@@ -208,7 +208,7 @@ class Tagged : public tll::channel::Base<T>
 			if (!v || !v->size()) continue;
 			auto l = conv::to_any<std::list<std::string_view>>(*v);
 			if (!l)
-				return this->_log.fail(EINVAL, "Invalid channel list '{}': {}", v, l.error());
+				return this->_log.fail(EINVAL, "Invalid channel list '{}': {}", *v, l.error());
 			std::vector<tll::Channel *> r;
 			r.reserve(l->size());
 			for (auto & i : *l) {

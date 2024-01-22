@@ -33,7 +33,7 @@ public:
 			auto v = c.get();
 			if (v) {
 				if (context().alias_reg(k, *v))
-					return _log.fail(EINVAL, "Failed to register alias {} -> {}", k, v);
+					return _log.fail(EINVAL, "Failed to register alias {} -> {}", k, *v);
 			} else if (context().alias_reg(k, c))
 				return _log.fail(EINVAL, "Failed to register alias {}", k);
 		}
