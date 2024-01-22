@@ -37,7 +37,7 @@ struct fmt::formatter<T, char, typename std::enable_if<_custom<T>::value>::type>
 
 	template <typename FormatContext>
 	auto format(const T &v, FormatContext &ctx) {
-		return format_to(ctx.out(), "{}", tll::conv::to_string<T>(v));
+		return fmt::format_to(ctx.out(), "{}", tll::conv::to_string<T>(v));
 	}
 };
 
