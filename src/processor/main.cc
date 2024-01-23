@@ -135,5 +135,7 @@ int main(int argc, char *argv[])
 	for (auto & t : threads)
 		t.join();
 
+	loader.reset();
+
 	return 0;
 }

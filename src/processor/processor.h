@@ -71,7 +71,11 @@ struct Processor : public tll::channel::Base<Processor>
 
 	std::vector<char> _buf;
 
-	~Processor() { _free(); }
+	~Processor()
+	{
+		_free();
+		_log.info("Destroy processor");
+	}
 
 	int parse_deps(Object &obj, const Config &cfg);
 

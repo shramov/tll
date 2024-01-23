@@ -67,6 +67,8 @@ int Processor::_init(const tll::Channel::Url &url, Channel * master)
 {
 	_log = { fmt::format("tll.processor.context.{}", name) };
 
+	_log.info("Init processor");
+
 	tll::Config lcfg;
 	lcfg.set("name", fmt::format("tll.processor.context.{}.loop", name));
 	if (loop.init(lcfg))
