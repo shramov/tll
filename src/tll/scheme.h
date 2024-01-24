@@ -445,6 +445,11 @@ static inline void tll_scheme_pmap_unset(void * data, int index)
 #include "tll/util/getter.h"
 #include "tll/util/url.h"
 
+constexpr auto format_as(tll_scheme_field_type_t v) noexcept { return static_cast<int>(v); }
+constexpr auto format_as(tll_scheme_sub_type_t v) noexcept { return static_cast<int>(v); }
+constexpr auto format_as(tll_scheme_time_resolution_t v) noexcept { return static_cast<int>(v); }
+constexpr auto format_as(tll_scheme_offset_ptr_version_t v) noexcept { return static_cast<int>(v); }
+
 namespace tll {
 using Scheme = tll_scheme_t;
 
