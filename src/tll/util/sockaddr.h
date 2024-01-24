@@ -68,11 +68,13 @@ class scoped_socket
 		_fd = fd;
 	}
 
-	operator int () const { return _fd; }
-	int get() const { return _fd; }
+	constexpr operator int () const noexcept { return _fd; }
+	constexpr int get() const noexcept { return _fd; }
 
 	int release() { int fd = _fd; _fd = -1; return fd; }
 };
+
+constexpr auto format_as(const scoped_socket &fd) noexcept { return fd.get(); }
 
 struct sockaddr_any
 {
