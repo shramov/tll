@@ -18,44 +18,26 @@ namespace tll::logger {
 namespace _ {
 
 template <typename... Args>
-struct arg_store_t : public fmt::format_arg_store<fmt::format_context, Args...>
+struct arg_store_t : public std::tuple<Args...>
 {
-	using fmt::format_arg_store<fmt::format_context, Args...>::format_arg_store;
-	std::string operator () (fmt::string_view format) const { return fmt::vformat(format, fmt::format_args(*this)); }
+	using std::tuple<Args...>::tuple;
+	std::string operator () (fmt::string_view format) const
+	{
+		using Index = std::make_index_sequence<sizeof...(Args)>;
+		return apply(format, Index());
+	}
+
+	template <size_t... Idx>
+	std::string apply(fmt::string_view format, std::index_sequence<Idx...>) const
+	{
+		return fmt::format(format, std::get<Idx>(*this)...);
+	}
 };
 
 template <>
 struct arg_store_t<>
 {
 	std::string operator () (fmt::string_view format) const { return std::string(format.data(), format.size()); }
-};
-
-template <typename A0>
-struct arg_store_t<A0> : public std::tuple<A0>
-{
-	using std::tuple<A0>::tuple;
-	std::string operator () (fmt::string_view format) const { return fmt::format(format, std::get<0>(*this)); }
-};
-
-template <typename A0, typename A1>
-struct arg_store_t<A0, A1> : public std::tuple<A0, A1>
-{
-	using std::tuple<A0, A1>::tuple;
-	std::string operator () (fmt::string_view format) const { return fmt::format(format, std::get<0>(*this), std::get<1>(*this)); }
-};
-
-template <typename A0, typename A1, typename A2>
-struct arg_store_t<A0, A1, A2> : public std::tuple<A0, A1, A2>
-{
-	using std::tuple<A0, A1, A2>::tuple;
-	std::string operator () (fmt::string_view format) const { return fmt::format(format, std::get<0>(*this), std::get<1>(*this), std::get<2>(*this)); }
-};
-
-template <typename A0, typename A1, typename A2, typename A3>
-struct arg_store_t<A0, A1, A2, A3> : public std::tuple<A0, A1, A2, A3>
-{
-	using std::tuple<A0, A1, A2, A3>::tuple;
-	std::string operator () (fmt::string_view format) const { return fmt::format(format, std::get<0>(*this), std::get<1>(*this), std::get<2>(*this), std::get<3>(*this)); }
 };
 
 template <typename Fmt, bool Func, typename... Args>
