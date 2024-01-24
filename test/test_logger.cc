@@ -141,8 +141,10 @@ struct NonCopyConstrutable
 {
 	NonCopyConstrutable() {}
 	NonCopyConstrutable(const NonCopyConstrutable &) = delete;
-	operator std::string_view () const { return "NonCopyConstrutable"; }
+	constexpr operator std::string_view () const noexcept { return "NonCopyConstrutable"; }
 };
+
+constexpr auto format_as(const NonCopyConstrutable &v) noexcept { return static_cast<std::string_view>(v); }
 
 TEST(Logger, NonCopyConstrutable)
 {
