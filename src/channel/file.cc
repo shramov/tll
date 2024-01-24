@@ -45,6 +45,10 @@ ssize_t pwritev(int fd, const struct iovec *iov, int iovcnt, off_t offset)
 #endif
 #endif
 
+#ifndef __linux__
+#define MAP_POPULATE 0
+#endif
+
 struct __attribute__((packed)) full_frame_t
 {
 	frame_size_t size = 0;
