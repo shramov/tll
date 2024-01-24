@@ -146,6 +146,10 @@ tll_stat_page_t * tll_stat_iter_swap(tll_stat_iter_t *);
 #include <string_view>
 #include <type_traits>
 
+constexpr auto format_as(tll_stat_method_t v) noexcept { return static_cast<int>(v); }
+constexpr auto format_as(tll_stat_type_t v) noexcept { return static_cast<int>(v); }
+constexpr auto format_as(tll_stat_unit_t v) noexcept { return static_cast<int>(v); }
+
 namespace tll::stat {
 
 using Method = tll_stat_method_t;
