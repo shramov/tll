@@ -1,0 +1,9 @@
+# Run with PYTHONPATH=. ../build/bench/tll-bench-channel --config bench.yaml --count=100000
+
+module:
+  - module: ../build/python/tll-channel-python
+channel:
+  - null://
+  - python://;python=./bench:Null
+  - echo://
+  - python://;python=./bench:Echo
