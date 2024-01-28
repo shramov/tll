@@ -153,8 +153,11 @@ class tls_buf_t : public tll_logger_buf_t
 	const_iterator end() const { return begin() + size(); }
 };
 
-template <typename Log, typename Fmt, typename... Args>
+template <typename Log, typename Func>
 class Prefix;
+
+template <typename... Args>
+class DelayedFormat;
 
 template <typename T>
 struct Methods
@@ -180,9 +183,9 @@ struct Methods
 	}
 
 	template <typename... Args>
-	Prefix<T, std::string_view, Args...> prefix(std::string_view fmt, Args && ... args) const
+	Prefix<T, DelayedFormat<Args...>> prefix(format_string<Args...> fmt, Args && ... args) const
 	{
-		return Prefix<T, std::string_view, Args...>(*static_cast<const T *>(this), std::move(fmt), std::forward<Args>(args)...);
+		return Prefix<T, DelayedFormat<Args...>>(*static_cast<const T *>(this), {std::move(fmt), std::forward<Args>(args)...});
 	}
 
 	template <typename Func>
@@ -191,7 +194,8 @@ struct Methods
 		return Prefix<T, Func>(*static_cast<const T *>(this), std::forward<Func>(f));
 	}
 };
-}
+
+} // namespace logger
 
 class Logger : public logger::Methods<Logger>
 {

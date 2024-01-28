@@ -15,78 +15,42 @@
 
 namespace tll::logger {
 
-namespace _ {
-
 template <typename... Args>
-struct arg_store_t : public std::tuple<Args...>
+class DelayedFormat
 {
-	using std::tuple<Args...>::tuple;
-	std::string operator () (fmt::string_view format) const
+	format_string<Args...> _fmt;
+	std::tuple<std::decay_t<Args>...> _args;
+
+public:
+	DelayedFormat(format_string<Args...> fmt, Args && ... args) : _fmt(fmt), _args({std::forward<std::decay_t<Args>>(args)... }) {}
+
+	std::string operator () () const
 	{
-		using Index = std::make_index_sequence<sizeof...(Args)>;
-		return apply(format, Index());
+		try {
+			using Index = std::make_index_sequence<sizeof...(Args)>;
+			return apply(Index());
+		} catch (fmt::format_error &e) {
+			return fmt::format("Invalid format '{}': {};", static_cast<fmt::string_view>(_fmt), e.what());
+		}
 	}
 
 	template <size_t... Idx>
-	std::string apply(fmt::string_view format, std::index_sequence<Idx...>) const
+	std::string apply(std::index_sequence<Idx...>) const
 	{
-		return fmt::format(format, std::get<Idx>(*this)...);
+#if FMT_VERSION >= 90000
+		return fmt::vformat(_fmt, fmt::make_format_args(std::get<Idx>(_args)...));
+#else
+		return fmt::format(_fmt, std::get<Idx>(_args)...);
+#endif
 	}
 };
 
-template <>
-struct arg_store_t<>
+template <typename Log, typename Func>
+class Prefix : public logger::Methods<Prefix<Log, Func>>
 {
-	std::string operator () (fmt::string_view format) const { return std::string(format.data(), format.size()); }
-};
-
-template <typename Fmt, bool Func, typename... Args>
-struct _delayed_format_t {};
-
-template <typename Fmt, typename... Args>
-struct _delayed_format_t<Fmt, false, Args...>
-{
-	std::pair<Fmt, arg_store_t<std::decay_t<Args>...>> pair;
-	_delayed_format_t(Fmt && fmt, Args && ... args) : pair(std::forward<Fmt>(fmt), {std::forward<std::decay_t<Args>>(args)... }) {}
-
-	std::string operator () () const
-	{
-		try {
-			return pair.second(pair.first);
-		} catch (fmt::format_error &e) {
-			return fmt::format("Invalid format '{}': {};", pair.first, e.what());
-		}
-	}
-};
-
-template <typename Func>
-struct _delayed_format_t<Func, true>
-{
-	Func f;
-	_delayed_format_t(Func && func) : f(std::move(func)) {}
-
-	std::string operator () () const
-	{
-		try {
-			return f();
-		} catch (fmt::format_error &e) {
-			return fmt::format("Invalid format: {};", e.what());
-		}
-	}
-};
-} // namespace _
-
-template <typename Fmt, typename... Args>
-using delayed_format_t = _::_delayed_format_t<Fmt, std::is_invocable_v<Fmt>, Args...>;
-
-template <typename Log = Logger, typename Fmt = std::string_view, typename... Args>
-class Prefix : public logger::Methods<Prefix<Log, Fmt, Args...>>
-{
-	template <typename L, typename F, typename... A> friend class Prefix;
-
 	const Log &_log;
 
-	mutable std::variant<std::string, delayed_format_t<Fmt, Args...>> _prefix;
+	mutable std::variant<std::string, Func> _prefix;
 
 	std::string_view _format_prefix() const
 	{
@@ -100,31 +64,8 @@ class Prefix : public logger::Methods<Prefix<Log, Fmt, Args...>>
 		}
 	}
 
-	template <typename Buf>
-	const Logger * _fill_prefix(Buf &buf) const
-	{
-		const Logger * l = nullptr;
-		if constexpr (!std::is_same_v<Log, Logger>)
-			l = _log._fill_prefix(buf);
-		else
-			l = &_log;
-		auto p = _format_prefix();
-		auto size = buf.size();
-		buf.resize(size + p.size());
-		memcpy(buf.data() + size, p.data(), p.size());
-		buf.push_back(' ');
-		return l;
-	}
-
  public:
-	Prefix(const Log &logger, Fmt && fmt, Args && ... args) : _log(logger)
-	{
-		if constexpr (!std::is_invocable_v<Fmt> && sizeof...(Args) == 0) {
-			_prefix.template emplace<0>(std::forward<Fmt>(fmt));
-		} else {
-			_prefix.template emplace<1>(std::forward<Fmt>(fmt), std::forward<Args>(args)...);
-		}
-	}
+	Prefix(const Log &logger, Func && func) : _log(logger), _prefix(std::in_place_index<1>, std::move(func)) {}
 
 	template <typename F, typename... A>
 	void log(Logger::level_t level, F format, A && ... args) const
@@ -132,7 +73,7 @@ class Prefix : public logger::Methods<Prefix<Log, Fmt, Args...>>
 		if (this->level() > level) return;
 		auto buf = Logger::tls_buf();
 		buf->resize(0);
-		auto l = _fill_prefix(*buf);
+		auto l = fill_prefix(*buf);
 		try {
 			fmt::format_to(std::back_inserter(*buf), format, std::forward<A>(args)...);
 		} catch (fmt::format_error &e) {
@@ -143,6 +84,22 @@ class Prefix : public logger::Methods<Prefix<Log, Fmt, Args...>>
 	}
 
 	Logger::level_t level() const { return _log.level(); }
+
+	template <typename Buf>
+	const Logger * fill_prefix(Buf &buf) const
+	{
+		const Logger * l = nullptr;
+		if constexpr (!std::is_same_v<Log, Logger>)
+			l = _log.fill_prefix(buf);
+		else
+			l = &_log;
+		auto p = _format_prefix();
+		auto size = buf.size();
+		buf.resize(size + p.size());
+		memcpy(buf.data() + size, p.data(), p.size());
+		buf.push_back(' ');
+		return l;
+	}
 };
 
 } // namespace tll::logger
