@@ -1,8 +1,11 @@
+#pragma once
+
 #include <tll/scheme/binder.h>
+#include <tll/util/conv.h>
 
 namespace tcp_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJxdjz8PgjAQxXc+xW1dIOFfiOlmNCZuxsXBOCDU2ASvBA5jQ/rdLQpC3e7u9+7evQAwfwgO7NRIEruuqpgHIEsOSegFDjyKvNQTTRd0oxBFQROKQlt0KBW23FYAbH9Yo2Yc+s+Uw7kfN2X9TJkPpOuh6yRSEjPjw4JnM79qElG25Pbey91fMXMx1vUmRVWO/sFPf1ctzfrvW+ZPU6uG3JuD55x2K9vCDRyH3hs8kmAK)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJxdjzELwkAMhff+imxZLFQrIt1EEdzExUFE6jXiQXt39FKxlPvvXtXa1i3J915eEoJKC0oAMQDQhqVWNoEGhTFhS6xJBaHnLMzFijsVhC4IO9exlEzbKs9bu8wSiKM/eKA0qzs6H9C1VooEd2ga+aJS73xfAeBuv1K1j27e0wROzdcpzWOOE+DatF0lFcczdBMY8EXPrzXTdDHkft9z7F+iOzufepOUZ9/88Ke/a8u9/nOW+9MYXfJ4Z5vZf7uRVowfnkXBC1YZcYA=)";
 
 struct WriteFull
 {
@@ -22,7 +25,10 @@ struct WriteFull
 	};
 
 	template <typename Buf>
-	static binder_type<Buf> bind(Buf &buf) { return binder_type<Buf>(buf); }
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct WriteReady
@@ -43,7 +49,10 @@ struct WriteReady
 	};
 
 	template <typename Buf>
-	static binder_type<Buf> bind(Buf &buf) { return binder_type<Buf>(buf); }
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct Connect
@@ -99,7 +108,10 @@ struct Connect
 	};
 
 	template <typename Buf>
-	static binder_type<Buf> bind(Buf &buf) { return binder_type<Buf>(buf); }
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct Disconnect
@@ -120,7 +132,10 @@ struct Disconnect
 	};
 
 	template <typename Buf>
-	static binder_type<Buf> bind(Buf &buf) { return binder_type<Buf>(buf); }
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 } // namespace tcp_scheme
