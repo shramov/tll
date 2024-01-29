@@ -1,5 +1,6 @@
 - import:
     - yaml://src/channel/tcp-client.yaml
+  options.cpp-namespace: tcp_scheme
 
 - name: Connect
   id: 10

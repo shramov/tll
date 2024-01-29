@@ -1,3 +1,4 @@
+- options.cpp-namespace: tcp_client_scheme
 - name: WriteFull
   id: 30
 
