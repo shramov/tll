@@ -272,14 +272,17 @@ def test_alias_dump():
 def test_import():
     SCHEME = '''yamls://
 - name:
+  options: { outer: outer }
   import:
     - |
         yamls://
         - name:
+          options: { outer: inner0, inner: inner0 }
           aliases:
             - {name: license, type: byte64, options.type: string}
     - |
         yamls://
+        - options: { outer: inner1, inner: inner1 }
         - name: sub
           fields:
             - {name: s0, type: license}
@@ -293,6 +296,8 @@ def test_import():
     s = S.Scheme(SCHEME)
     assert [(f.name, f.type, f.sub_type) for f in s.aliases.values()] == [("license", F.Bytes, F.Sub.ByteString)]
     assert [m.name for m in s.messages] == ['sub', 'msg']
+
+    assert s.options == {'outer': 'outer', 'inner': 'inner0'}
 
 @pytest.mark.parametrize("t", ['int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64'])
 def test_scalar(t):

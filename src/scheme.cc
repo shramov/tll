@@ -819,7 +819,10 @@ struct Scheme
 		tll::Logger _log = {"tll.scheme"};
 		auto o = Options::parse(cfg);
 		if (!o) return _log.fail(EINVAL, "Failed to parse options");
-		std::swap(options, *o);
+		for (auto &[k, v] : *o) {
+			if (!options.has(k))
+				options[k] = v;
+		}
 
 		Message message;
 		message.parent = this;
