@@ -162,9 +162,15 @@ class DelayedFormat;
 template <typename T>
 struct Methods
 {
+#if FMT_VERSION < 80000
 #define DECLARE_LOG(func, level) \
 	template <typename... A> \
-	void func(format_string<A...> format, A && ... args) const { return static_cast<const T *>(this)->log(level, format, std::forward<A>(args)...); }
+	inline void func(format_string<A...> format, A && ... args) const { return static_cast<const T *>(this)->log(level, format, std::forward<A>(args)...); }
+#else
+#define DECLARE_LOG(func, level) \
+	template <typename... A> \
+	inline void func(format_string<A...> format, A && ... args) const { return static_cast<const T *>(this)->vlog(level, format, fmt::make_format_args(args...)); }
+#endif
 
 	DECLARE_LOG(trace, Trace)
 	DECLARE_LOG(debug, Debug)
@@ -176,7 +182,7 @@ struct Methods
 
 	template <typename R, typename... Args>
 	[[nodiscard]]
-	R fail(R err, format_string<Args...> format, Args && ... args) const
+	inline R fail(R err, format_string<Args...> format, Args && ... args) const
 	{
 		error(format, std::forward<Args>(args)...);
 		return err;
@@ -249,10 +255,11 @@ public:
 	}
 
 	template <typename... Args>
-	void log(level_t level, logger::format_string<Args...> format, Args && ... args) const
+	inline void log(level_t level, logger::format_string<Args...> format, Args && ... args) const
 	{
-		auto buf = tls_buf();
+#if FMT_VERSION < 80000
 		if (_log->level > level) return;
+		auto buf = tls_buf();
 		try {
 			buf->resize(0);
 			fmt::format_to(std::back_inserter(*buf), format, std::forward<Args>(args)...);
@@ -262,7 +269,27 @@ public:
 		}
 		buf->push_back('\0');
 		tll_logger_log(_log, level, buf->data(), buf->size() - 1);
+#else
+		vlog(level, format, fmt::make_format_args(args...));
+#endif
 	}
+
+#if FMT_VERSION >= 80000
+	void vlog(level_t level, fmt::string_view format, fmt::format_args args) const
+	{
+		if (_log->level > level) return;
+		auto buf = tls_buf();
+		try {
+			buf->resize(0);
+			fmt::vformat_to(std::back_inserter(*buf), format, args);
+		} catch (fmt::format_error &e) {
+			buf->resize(0);
+			fmt::format_to(std::back_inserter(*buf), "Invalid format {}: {}", format, e.what());
+		}
+		buf->push_back('\0');
+		tll_logger_log(_log, level, buf->data(), buf->size() - 1);
+	}
+#endif
 };
 
 } // namespace tll

@@ -70,6 +70,7 @@ class Prefix : public logger::Methods<Prefix<Log, Func>>
 	template <typename F, typename... A>
 	void log(Logger::level_t level, F format, A && ... args) const
 	{
+#if FMT_VERSION < 80000
 		if (this->level() > level) return;
 		auto buf = Logger::tls_buf();
 		buf->resize(0);
@@ -81,7 +82,27 @@ class Prefix : public logger::Methods<Prefix<Log, Func>>
 		}
 		buf->push_back('\0');
 		l->log_buf(level, std::string_view(buf->data(), buf->size() - 1));
+#else
+		vlog(level, format, fmt::make_format_args(args...));
+#endif
 	}
+
+#if FMT_VERSION >= 80000
+	void vlog(Logger::level_t level, fmt::string_view format, fmt::format_args args) const
+	{
+		if (this->level() > level) return;
+		auto buf = Logger::tls_buf();
+		buf->resize(0);
+		auto l = fill_prefix(*buf);
+		try {
+			fmt::vformat_to(std::back_inserter(*buf), format, args);
+		} catch (fmt::format_error &e) {
+			fmt::format_to(std::back_inserter(*buf), "Invalid format {}: {}", format, e.what());
+		}
+		buf->push_back('\0');
+		l->log_buf(level, std::string_view(buf->data(), buf->size() - 1));
+	}
+#endif
 
 	Logger::level_t level() const { return _log.level(); }
 
