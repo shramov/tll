@@ -629,6 +629,10 @@ void tll_channel_free(tll_channel_t *c)
 	if (!c) return;
 	std::string_view name = tll_channel_name(c);
 
+	auto state = tll_channel_state(c);
+	if (state != TLL_STATE_DESTROY && state != TLL_STATE_CLOSED)
+		tll_channel_close(c, 1);
+
 	if (c->internal->stat) {
 		c->context->stat_list.remove(c->internal->stat);
 	}
