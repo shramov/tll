@@ -268,7 +268,6 @@ cdef class Base:
 
     def free(self):
         self.log.info("Destroy channel")
-        self.close(force=True)
         try:
             self._free()
         except:
