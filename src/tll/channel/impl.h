@@ -91,8 +91,12 @@ void tll_channel_list_free(tll_channel_list_t *l);
 int tll_channel_list_add(tll_channel_list_t **l, tll_channel_t *c);
 int tll_channel_list_del(tll_channel_list_t **l, const tll_channel_t *c);
 
+/// Init internal fields to default values, structure should be zeroed before this call
 void tll_channel_internal_init(tll_channel_internal_t *ptr);
+
+/// Clear internal lists, do not free structure itself
 void tll_channel_internal_clear(tll_channel_internal_t *ptr);
+
 int tll_channel_internal_child_add(tll_channel_internal_t *ptr, tll_channel_t *c, const char * tag, int len);
 int tll_channel_internal_child_del(tll_channel_internal_t *ptr, const tll_channel_t *c, const char * tag, int len);
 
