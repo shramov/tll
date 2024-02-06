@@ -34,6 +34,7 @@ cdef class Impl:
 
 cdef class Internal:
     def __cinit__(self):
+        memset(&self.internal, 0, sizeof(tll_channel_internal_t))
         tll_channel_internal_init(&self.internal)
         self.internal.fd = -1
         self.name = ''
