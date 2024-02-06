@@ -83,6 +83,8 @@ typedef struct tll_channel_internal_t
 	tll_channel_callback_pair_t * cb;
 
 	tll_stat_block_t * stat;
+
+	intptr_t reserved[4];
 } tll_channel_internal_t;
 
 void tll_channel_list_free(tll_channel_list_t *l);
