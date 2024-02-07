@@ -14,7 +14,6 @@ Package: libtll0
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Pre-Depends: ${misc:Pre-Depends}
-Breaks: libtll-java (<< 1.24)
 Multi-Arch: same
 Description: Framework for building data processing services.
  .
