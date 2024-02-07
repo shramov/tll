@@ -48,6 +48,7 @@ int tll_channel_list_del(tll_channel_list_t **l, const tll_channel_t *c)
 
 void tll_channel_internal_init(tll_channel_internal_t *ptr)
 {
+	memset(ptr, 0, offsetof(tll_channel_internal_t, reserved));
 	ptr->fd = -1;
 }
 
