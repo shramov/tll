@@ -1,3 +1,15 @@
+tll (0.1.1) unstable; urgency=medium
+
+  * channel:
+    Add reserved field to tll_channel_internal_t structure
+    tll_channel_internal_init zeroes all but reserved fields
+    Force close in tll_channel_free, prepare to remove from Channel::free later
+  * python: Remove close from Channel.free function
+  * logger: Compatibilty with fmtlib 10+ and C++20
+  * scheme: Do not overwrite outer options on import
+
+ -- Pavel Shramov <shramov@mexmat.net>  Thu, 08 Feb 2024 11:35:42 +0300
+
 tll (0.1.0) unstable; urgency=medium
 
   * First usable tagged version
