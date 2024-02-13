@@ -173,7 +173,10 @@ int StreamClient::_on_request_active()
 	msg.size = _request_buf.size();
 	if (auto r = _request->post(&msg); r)
 		return state_fail(EINVAL, "Failed to post request message");
-	_log.info("Posted request for seq {}, change state to Active", *_open_seq);
+	if (_open_seq)
+		_log.info("Posted request for seq {}, change state to Active", *_open_seq);
+	else
+		_log.info("Posted request for block, change state to Active");
 	_state = State::Opening;
 	return 0;
 }
