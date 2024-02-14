@@ -390,7 +390,7 @@ typedef struct tll_scheme_t
 	tll_scheme_t * ref() { return const_cast<tll_scheme_t *>(tll_scheme_ref(this)); }
 	const tll_scheme_t * ref() const { return tll_scheme_ref(this); }
 
-	tll::util::cstring dump(const std::string &format) const { return tll::util::cstring(tll_scheme_dump(this, format.c_str())); }
+	tll::util::cstring dump(const std::string &format) const { return tll::util::cstring::consume(tll_scheme_dump(this, format.c_str())); }
 
 	tll_scheme_message_t * lookup(int id) { return tll::scheme::lookup_msgid(messages, id); }
 	const tll_scheme_message_t * lookup(int id) const { return tll::scheme::lookup_msgid(messages, id); }
