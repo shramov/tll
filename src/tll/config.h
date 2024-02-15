@@ -158,6 +158,7 @@ tll_config_t * tll_config_detach(tll_config_t *, const char * path, int plen);
 
 #ifdef __cplusplus
 #include <cstring>
+#include <functional>
 #include <map>
 #include <optional>
 #include <string>
@@ -165,6 +166,7 @@ tll_config_t * tll_config_detach(tll_config_t *, const char * path, int plen);
 #include <type_traits>
 
 #include "tll/util/conv.h"
+#include "tll/util/cstring.h"
 #include "tll/util/props.h"
 #include "tll/util/result.h"
 
@@ -383,6 +385,33 @@ class Config : public ConfigT<false>
 		return tll_config_set_callback(_cfg, path.data(), path.size(), _to_string<V>, (void *) ptr, nullptr);
 	}
 
+	template <typename T>
+	using cstring_callback = tll::util::cstring (*)(T *);
+
+	template <typename T>
+	using cstring_member_callback = tll::util::cstring (T::*)();
+
+	template <typename T>
+	using cstring_const_member_callback = tll::util::cstring (T::*)() const;
+
+	template <typename T, cstring_callback<T> F>
+	int set_cb(std::string_view path, T * obj)
+	{
+		return tll_config_set_callback(_cfg, path.data(), path.size(), _from_cstring<T, F>, (void *) obj, nullptr);
+	}
+
+	template <typename T, cstring_member_callback<T> F>
+	int set_cb(std::string_view path, T * obj)
+	{
+		return tll_config_set_callback(_cfg, path.data(), path.size(), _from_cstring_member<T, F>, (void *) obj, nullptr);
+	}
+
+	template <typename T, cstring_const_member_callback<T> F>
+	int set_cb(std::string_view path, const T * obj)
+	{
+		return tll_config_set_callback(_cfg, path.data(), path.size(), _from_cstring_const_member<T, F>, (void *) obj, nullptr);
+	}
+
 	int link(std::string_view path, std::string_view dest) { return tll_config_set_link(_cfg, path.data(), path.size(), dest.data(), dest.size()); }
 
 	int unset(std::string_view path) { return tll_config_unset(_cfg, path.data(), path.size()); }
@@ -423,6 +452,30 @@ private:
 		auto s = tll::conv::to_string<V>(*(const V *) data);
 		*len = s.size();
 		return strdup(s.c_str());
+	}
+
+	template <typename T, cstring_callback<T> F>
+	static char * _from_cstring(int * len, void * data)
+	{
+		auto r = std::invoke(F, static_cast<T *>(data));
+		*len = r->size();
+		return const_cast<char *>(r.release());
+	}
+
+	template <typename T, cstring_member_callback<T> F>
+	static char * _from_cstring_member(int * len, void * data)
+	{
+		auto r = std::invoke(F, static_cast<T *>(data));
+		*len = r->size();
+		return const_cast<char *>(r.release());
+	}
+
+	template <typename T, cstring_const_member_callback<T> F>
+	static char * _from_cstring_const_member(int * len, void * data)
+	{
+		auto r = std::invoke(F, static_cast<const T *>(data));
+		*len = r->size();
+		return const_cast<char *>(r.release());
 	}
 };
 

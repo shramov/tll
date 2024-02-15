@@ -11,6 +11,27 @@
 
 #include <fmt/format.h>
 
+using tll::util::cstring;
+
+cstring cstring_const_cb(const std::string_view *s)
+{
+	if (*s == "null")
+		return {};
+	return { s->data(), s->size() };
+}
+
+cstring cstring_cb(std::string_view *s)
+{
+	return cstring_const_cb(s);
+}
+
+struct Struct
+{
+	std::string_view str;
+	cstring callback() { return cstring_cb(&str); }
+	cstring const_callback() const { return cstring_const_cb(&str); }
+};
+
 TEST(Config, Get)
 {
 	tll::Config cfg;
@@ -68,6 +89,52 @@ TEST(Config, Get)
 
 	sub->setT(4);
 	ASSERT_EQ(*sub->get(), "4");
+
+	std::string_view str = "string";
+	cfg.set_cb<std::string_view, cstring_cb>("a.b.c", &str);
+
+	{
+		auto r = sub->get();
+		ASSERT_TRUE(r);
+		ASSERT_EQ(*r, "string");
+	}
+
+	cfg.set_cb<const std::string_view, cstring_const_cb>("a.b.c", &str);
+
+	str = "other";
+
+	{
+		auto r = std::move(sub->get());
+		ASSERT_TRUE(r);
+		ASSERT_EQ(*r, "other");
+	}
+
+	str = "null";
+
+	ASSERT_FALSE(sub->get());
+
+	Struct s;
+	s.str = "string";
+	cfg.set_cb<Struct, &Struct::callback>("a.b.c", &s);
+
+	{
+		auto r = sub->get();
+		ASSERT_TRUE(r);
+		ASSERT_EQ(*r, "string");
+	}
+
+	s.str = "other";
+	cfg.set_cb<Struct, &Struct::const_callback>("a.b.c", &s);
+
+	{
+		auto r = std::move(sub->get());
+		ASSERT_TRUE(r);
+		ASSERT_EQ(*r, "other");
+	}
+
+	s.str = "null";
+
+	ASSERT_FALSE(sub->get());
 }
 
 template <typename T>
