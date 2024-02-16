@@ -849,9 +849,10 @@ def test_pmap():
     assert msg['f3'].optional == False
 
     m = msg.klass(f0=100, f2=200)
+    m.pmap = 0xff
     u = msg.unpack(memoryview(m.pack()))
 
-    assert m.as_dict() == {'f0':100, 'f2':200}
+    assert m.as_dict() == {'f0':100, 'f2':200, 'pmap': 0xff}
     assert u.as_dict() == {'f0':100, 'f2':200, 'f3':0}
 
 def test_inline():

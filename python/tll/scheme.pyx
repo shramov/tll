@@ -1058,6 +1058,8 @@ class Message(OrderedDict):
         memoryview_check(dest)
         pmap = dest[self.pmap.offset:self.pmap.offset + self.pmap.size] if self.pmap else None
         for f in self.fields:
+            if f == self.pmap:
+                continue
             i = getattr(v, f.name, None)
             if i is None:
                 continue
