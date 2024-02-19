@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+# vim: sts=4 sw=4 et
+
+import argparse
+import logging
+import os
+import sys
+
+from tll.channel import Context
+from tll.config import Url
+from tll import asynctll, logger
+
+parser = argparse.ArgumentParser(description='Browse for exported channels in TLL resolve server')
+parser.add_argument('service', metavar='SERVICE', type=str,
+                    help='service name or tag')
+parser.add_argument('channel', metavar='CHANNEL', type=str,
+                    help='channel name')
+parser.add_argument('-s', '--server', dest='server', type=str,
+                    required=True,
+                    help='resolve server address, if protocol is missing - default is tcp://')
+parser.add_argument('--scheme', dest='scheme', type=str,
+                    default='yaml://tll/logic/resolve.yaml',
+                    help='resolve protocol scheme')
+parser.add_argument('-l', '--loglevel', dest='loglevel', default='warning',
+                    help='logging level', choices=['trace', 'debug', 'info', 'warning', 'error', 'critical'])
+
+args = parser.parse_args()
+
+logger.init()
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)-7s %(name)s: %(message)s')
+logger.configure({'levels.*': args.loglevel})
+
+ctx = Context()
+loop = asynctll.Loop(ctx)
+
+async def main(loop):
+    url = args.server
+    if '://' not in url:
+        url = 'tcp://' + url
+    c = loop.Channel(url, name='client', scheme=args.scheme)
+
+    c.open()
+
+    if (await c.recv_state()) != c.State.Active:
+        raise RuntimeError("Failed to connect to server")
+
+    c.post({'service': args.service, 'channel': args.channel}, name='Request')
+
+    while c.state == c.State.Active:
+        try:
+            m = await c.recv(timeout=3)
+        except TimeoutError:
+            continue
+        m = c.unpack(m)
+        if m.SCHEME.name != 'ExportChannel':
+            continue
+        url = Url()
+        for i in m.config:
+            if i.key.startswith('init.'):
+                url[i.key[len('init.'):]] = i.value
+        print(f'''Service: {m.service}
+Channel: {m.channel}
+Host: {m.host}
+Url: {url}
+''')
+
+loop.run(main(loop))

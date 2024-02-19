@@ -7,7 +7,7 @@ from Cython.Distutils import build_ext
 
 setup( name = 'tll'
      , packages = ['tll', 'tll.channel', 'tll.processor', 'tll.templates']
-     , scripts = ['tll-pyprocessor', 'tll-schemegen']
+     , scripts = ['tll-pyprocessor', 'tll-schemegen', 'tll-resolve-browse']
      , include_dirs = ["../src"]
      , cmdclass = {'build_ext': build_ext}
      , ext_modules =
