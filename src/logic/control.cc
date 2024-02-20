@@ -117,8 +117,10 @@ int Control::_init(const tll::Channel::Url &url, tll::Channel * master)
 	if (auto r = Base::_init(url, master); r)
 		return _log.fail(EINVAL, "Base init failed");
 
-	check_channels_size<Processor>(1, 1);
-	check_channels_size<Resolve>(0, 1);
+	if (check_channels_size<Processor>(1, 1))
+		return EINVAL;
+	if (check_channels_size<Resolve>(0, 1))
+		return EINVAL;
 
 	auto resolve = _channels.get<Resolve>().size() > 0;
 
