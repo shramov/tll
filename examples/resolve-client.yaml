@@ -1,0 +1,24 @@
+logger:
+  type: spdlog
+  levels:
+    tll: INFO
+
+processor.module:
+  - module: build/src/logic/tll-logic-control
+
+processor.objects:
+  tcp:
+    init: tcp://::1:5556;mode=server;tll.resolve.export=yes
+    depends: control
+  control-resolve:
+    init: tcp://::1:5555;mode=client;scheme=yaml://src/logic/resolve.yaml;dump=yes
+    depends: control
+  control-processor:
+    init: ipc://;mode=client;master=processor/ipc;scheme=channel://processor;dump=yes
+    depends: control
+  control:
+    init: control://;service=test;service-tags=tag,othertag;hostname=test-server
+    channels: {resolve: control-resolve, processor: control-processor}
+
+# vim: sts=2 sw=2 et
+

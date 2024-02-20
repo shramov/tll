@@ -1,0 +1,18 @@
+logger:
+  type: spdlog
+  levels:
+    tll: INFO
+
+processor.module:
+  - module: build/python/tll-channel-python
+
+processor.objects:
+  tcp:
+    init: tcp://*:5555;mode=server;scheme=yaml://src/logic/resolve.yaml;dump=yes
+    depends: resolve
+  resolve:
+    init: python://;python=tll.channel.resolve:Resolve
+    channels.input: tcp
+
+# vim: sts=2 sw=2 et
+
