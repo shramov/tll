@@ -325,6 +325,7 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 	refptr_t<tll_config_t> find(path_iterator_t &pi, const path_iterator_t end, bool create)
 	{
 		auto v = lookup(pi, end);
+		if (!v) return v;
 		if (pi == end) return v;
 		if (!create) return {nullptr};
 

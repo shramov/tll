@@ -293,3 +293,10 @@ def test_broken_link():
     assert cfg.sub('li.nk').as_dict() == {'c': '10'}
     cfg.set('a./x', 'y')
     assert cfg.sub('li.nk').as_dict() == {'c': '10'}
+
+def test_broken_link_load():
+    cfg = Config.load('''yamls://
+a: !link /broken
+''')
+
+    with pytest.raises(TLLError): cfg.set('a.b', 'c')
