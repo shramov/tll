@@ -104,7 +104,7 @@ TEST(Config, Get)
 	str = "other";
 
 	{
-		auto r = std::move(sub->get());
+		auto r = sub->get();
 		ASSERT_TRUE(r);
 		ASSERT_EQ(*r, "other");
 	}
@@ -127,7 +127,7 @@ TEST(Config, Get)
 	cfg.set_cb<Struct, &Struct::const_callback>("a.b.c", &s);
 
 	{
-		auto r = std::move(sub->get());
+		auto r = sub->get();
 		ASSERT_TRUE(r);
 		ASSERT_EQ(*r, "other");
 	}
