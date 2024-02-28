@@ -143,10 +143,10 @@ public:
 	void _reopen_reset(tll::Channel * channel)
 	{
 		if (_reopen_data.channel)
-			_reopen_data.channel->callback_del(_reopen_cb_static, this, TLL_MESSAGE_MASK_STATE);
+			_reopen_data.channel->callback_del<Reopen, &Reopen::_reopen_cb>(this, TLL_MESSAGE_MASK_STATE);
 		_reopen_data.channel = channel;
 		if (_reopen_data.channel)
-			_reopen_data.channel->callback_add(_reopen_cb_static, this, TLL_MESSAGE_MASK_STATE);
+			_reopen_data.channel->callback_add<Reopen, &Reopen::_reopen_cb>(this, TLL_MESSAGE_MASK_STATE);
 		_reopen_data.reset();
 		return;
 	}
@@ -179,14 +179,7 @@ public:
 	}
 
  private:
-	static int _reopen_cb_static(const tll_channel_t *, const tll_msg_t *msg, void * user)
-	{
-		if (msg->type != TLL_MESSAGE_STATE)
-			return 0;
-		return static_cast<Reopen *>(user)->_reopen_cb(msg);
-	}
-
-	int _reopen_cb(const tll_msg_t *msg)
+	int _reopen_cb(const tll::Channel *, const tll_msg_t *msg)
 	{
 		using namespace std::chrono_literals;
 		auto state = (tll_state_t) msg->msgid;
