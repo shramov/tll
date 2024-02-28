@@ -77,17 +77,7 @@ class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::
 	int _process(long timeout, int flags);
 
  private:
-	static int _on_request_state(const tll_channel_t *c, const tll_msg_t *msg, void * user)
-	{
-		return static_cast<StreamClient *>(user)->_on_request_state(msg);
-	}
-
-	static int _on_request_data(const tll_channel_t *c, const tll_msg_t *msg, void * user)
-	{
-		return static_cast<StreamClient *>(user)->_on_request_data(msg);
-	}
-
-	int _on_request_state(const tll_msg_t *msg)
+	int _on_request_state(const tll::Channel *, const tll_msg_t *msg)
 	{
 		switch ((tll_state_t) msg->msgid) {
 		case tll::state::Active: return _on_request_active();
@@ -99,7 +89,7 @@ class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::
 		}
 	}
 
-	int _on_request_data(const tll_msg_t *msg);
+	inline int _on_request_data(const tll::Channel *, const tll_msg_t *msg);
 	int _on_request_active();
 	int _on_request_error();
 	int _on_request_closing() { return 0; }

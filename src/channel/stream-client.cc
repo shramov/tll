@@ -41,8 +41,8 @@ int StreamClient::_init(const Channel::Url &url, tll::Channel *master)
 	_request = context().channel(*curl, master);
 	if (!_request)
 		return _log.fail(EINVAL, "Failed to create request channel");
-	_request->callback_add(_on_request_state, this, TLL_MESSAGE_MASK_STATE);
-	_request->callback_add(_on_request_data, this, TLL_MESSAGE_MASK_DATA);
+	_request->callback_add<StreamClient, &StreamClient::_on_request_state>(this, TLL_MESSAGE_MASK_STATE);
+	_request->callback_add<StreamClient, &StreamClient::_on_request_data>(this, TLL_MESSAGE_MASK_DATA);
 	_child_add(_request.get(), "request");
 
 	_scheme_control.reset(context().scheme_load(stream_control_scheme::scheme_string));
@@ -201,7 +201,7 @@ int StreamClient::_on_data(const tll_msg_t *msg)
 	return 0;
 }
 
-int StreamClient::_on_request_data(const tll_msg_t *msg)
+int StreamClient::_on_request_data(const tll::Channel *, const tll_msg_t *msg)
 {
 	_log.debug("Seq {}, state {}, ring {}", msg->seq, (int) _state, _ring.empty());
 	if (_state == State::Connected) {
