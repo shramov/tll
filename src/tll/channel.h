@@ -524,14 +524,78 @@ public:
 		return tll_channel_callback_add(this, proxy<T>::call, obj, mask);
 	}
 
+	template <typename T, int (*F)(T *, const tll::Channel *, const tll_msg_t * msg)>
+	int callback_add(T *obj, unsigned mask = TLL_MESSAGE_MASK_ALL)
+	{
+		return tll_channel_callback_add(this, _proxy_func<T, F>, obj, mask);
+	}
+
+	template <typename T, int (T::*F)(const tll::Channel *, const tll_msg_t * msg)>
+	int callback_add(T *obj, unsigned mask = TLL_MESSAGE_MASK_ALL)
+	{
+		return tll_channel_callback_add(this, _proxy_member<T, F>, obj, mask);
+	}
+
+	template <typename T, int (T::*F)(const tll::Channel *, const tll_msg_t * msg) const>
+	int callback_add(const T *obj, unsigned mask = TLL_MESSAGE_MASK_ALL)
+	{
+		return tll_channel_callback_add(this, _proxy_member_const<T, F>, (void *) obj, mask);
+	}
+
 	template <typename T>
 	int callback_del(T *obj, unsigned mask = TLL_MESSAGE_MASK_ALL)
 	{
 		return tll_channel_callback_del(this, proxy<T>::call, obj, mask);
 	}
 
+	template <typename T, int (*F)(T *, const tll::Channel *, const tll_msg_t * msg)>
+	int callback_del(T *obj, unsigned mask = TLL_MESSAGE_MASK_ALL)
+	{
+		return tll_channel_callback_del(this, _proxy_func<T, F>, obj, mask);
+	}
+
+	template <typename T, int (T::*F)(const tll::Channel *, const tll_msg_t * msg)>
+	int callback_del(T *obj, unsigned mask = TLL_MESSAGE_MASK_ALL)
+	{
+		return tll_channel_callback_del(this, _proxy_member<T, F>, obj, mask);
+	}
+
+	template <typename T, int (T::*F)(const tll::Channel *, const tll_msg_t * msg) const>
+	int callback_del(const T *obj, unsigned mask = TLL_MESSAGE_MASK_ALL)
+	{
+		return tll_channel_callback_del(this, _proxy_member_const<T, F>, (void *) obj, mask);
+	}
+
 	int add_callback(tll_channel_callback_t cb, void * user, unsigned mask = TLL_MESSAGE_MASK_ALL) { return callback_add(cb, user, mask); }
 	int del_callback(tll_channel_callback_t cb, void * user, unsigned mask = TLL_MESSAGE_MASK_ALL) { return callback_del(cb, user, mask); }
+
+ private:
+
+	template <typename T, int (*F)(T *, const tll::Channel *, const tll_msg_t *)>
+	static int _proxy_func(const tll_channel_t * c, const tll_msg_t * msg, void * data)
+	{
+		return std::invoke(F, static_cast<T *>(data), static_cast<const tll::Channel *>(c), msg);
+	}
+
+	template <typename T, int (T::*F)(const tll::Channel *, const tll_msg_t *)>
+	static int _proxy_member(const tll_channel_t * c, const tll_msg_t * msg, void * data)
+	{
+#ifdef __clang__
+		return std::invoke(F, static_cast<T *>(data), static_cast<const tll::Channel *>(c), msg);
+#else
+		return (static_cast<T *>(data)->*F)(static_cast<const tll::Channel *>(c), msg);
+#endif
+	}
+
+	template <typename T, int (T::*F)(const tll::Channel *, const tll_msg_t *) const>
+	static int _proxy_member_const(const tll_channel_t * c, const tll_msg_t * msg, void * data)
+	{
+#ifdef __clang__
+		return std::invoke(F, static_cast<const T *>(data), static_cast<const tll::Channel *>(c), msg);
+#else
+		return (static_cast<const T *>(data)->*F)(static_cast<const tll::Channel *>(c), msg);
+#endif
+	}
 };
 
 namespace channel {
