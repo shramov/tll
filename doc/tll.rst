@@ -1,6 +1,9 @@
 TLL
 ###
 
+.. contents:: Table of Contents
+   :depth: 1
+
 .. warning::
   This library is a work in progress. API may change, repository may be rebased.
 
@@ -13,7 +16,6 @@ around C functions for those reasons:
 - C API is needed for language bindings
 - C API is more stable and does not depend on C++ version used at compile time
 - header-only C++ API removes whole class of errors where C and C++ functions do different things
-
 
 .. include::
         logger.rst
