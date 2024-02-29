@@ -37,6 +37,7 @@ endif
 
 mansources = [
 	'common.rst',
+	'file.rst',
 	'null.rst',
 	'tcp.rst',
 	'timer.rst',
