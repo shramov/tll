@@ -1,15 +1,18 @@
 rst2pdf = find_program('rst2pdf', disabler: true, required: false)
 rst2html = find_program('rst2html', disabler: true, required: false)
 
-sources = ['logger.rst', 'stat.rst', 'scheme.rst', 'channel.rst', 'processor.rst', 'tll.rst']
+sources = ['logger.rst', 'stat.rst', 'scheme.rst', 'channel.rst', 'processor.rst', 'channels.rst', 'tll.rst']
 
-pdf = custom_target('tll.pdf'
-	, output : '@BASENAME@.pdf'
-	, input : 'tll.rst'
-	, command : [rst2pdf, '@INPUT@', '-o', '@OUTPUT@']
-	, install_dir : get_option('datadir') / 'doc'
-	, install : true
-)
+pdf = []
+foreach s : ['tll.rst', 'channels.rst']
+	pdf += custom_target(s + '.pdf'
+		, output : '@BASENAME@.pdf'
+		, input : s
+		, command : [rst2pdf, '@INPUT@', '-o', '@OUTPUT@']
+		, install_dir : get_option('datadir') / 'doc'
+		, install : true
+	)
+endforeach
 
 html = []
 foreach s : sources
