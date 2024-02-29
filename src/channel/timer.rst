@@ -8,7 +8,7 @@ tll-channel-timer
 Synopsis
 --------
 
-``timer://;interval=<time>>;oneshot=<bool>;clock=<monotonic | realtime>``
+``timer://;interval=<time>;oneshot=<bool>;clock=<monotonic | realtime>``
 
 
 Description
