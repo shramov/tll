@@ -45,12 +45,11 @@ typedef int32_t ring_size_t; // Negative numbers are needed for skips
 typedef struct ringbuffer_t
 {
     ring_header_t * header;
-    char * buf;
 } ringbuffer_t;
 
 typedef struct ringiter_t
 {
-    const ringbuffer_t *ring;
+    const ring_header_t *header;
     uint64_t generation;
     size_t offset;
 } ringiter_t;

@@ -55,7 +55,6 @@ int ring_init(ringbuffer_t *ring, size_t size, void * memory)
 	ring->header->generation = 0;
     } else
 	ring->header = (ring_header_t *)memory;
-    ring->buf = (char *) (ring->header + 1);
     return 0;
 }
 
@@ -73,9 +72,9 @@ void ring_clear(ringbuffer_t *ring)
 	h->head = h->tail = 0;
 }
 
-static inline ring_size_t * _size_at(const ringbuffer_t *ring, size_t off)
+static inline ring_size_t * _size_at(ring_header_t *header, size_t off)
 {
-    return (ring_size_t *) (ring->buf + off);
+    return (ring_size_t *) (((char *) (header + 1)) + off);
 }
 
 int ring_write_begin(ringbuffer_t *ring, void ** data, size_t sz)
@@ -92,10 +91,10 @@ int ring_write_begin(ringbuffer_t *ring, void ** data, size_t sz)
     if (h->tail + a > h->size) {
 	if (h->head <= a)
 	    return EAGAIN;
-	*data = _size_at(ring, 0) + 1;
+	*data = _size_at(h, 0) + 1;
 	return 0;
     }
-    *data = _size_at(ring, h->tail) + 1;
+    *data = _size_at(h, h->tail) + 1;
     return 0;
 }
 
@@ -103,12 +102,12 @@ int ring_write_end(ringbuffer_t *ring, void * data, size_t sz)
 {
     ring_header_t *h = ring->header;
     size_t a = size_aligned(sz + sizeof(ring_size_t));
-    if (data == _size_at(ring, 0) + 1) {
+    if (data == _size_at(h, 0) + 1) {
 	// Wrap
-	*_size_at(ring, h->tail) = -1;
+	*_size_at(h, h->tail) = -1;
 	h->tail = 0;
     }
-    *_size_at(ring, h->tail) = sz;
+    *_size_at(h, h->tail) = sz;
     // mah: see [2]:144
     // PaUtil_WriteMemoryBarrier(); ???
 
@@ -127,10 +126,8 @@ int ring_write(ringbuffer_t *ring, const void * data, size_t sz)
     memmove(ptr, data, sz);
     return ring_write_end(ring, ptr, sz);
 }
-
-static inline int _ring_read_at(const ringbuffer_t *ring, size_t offset, const void **data, size_t *size)
+static inline int _ring_read_at(const ring_header_t *h, size_t offset, const void **data, size_t *size)
 {
-    ring_header_t *h = ring->header;
     if (offset == h->tail)
 	return EAGAIN;
 
@@ -138,9 +135,9 @@ static inline int _ring_read_at(const ringbuffer_t *ring, size_t offset, const v
     // PaUtil_ReadMemoryBarrier(); ???
 
     //printf("Head/tail: %zd/%zd\n", h->head, h->tail);
-    ring_size_t *sz = _size_at(ring, offset);
+    const ring_size_t *sz = _size_at((ring_header_t *) h, offset);
     if (*sz < 0)
-        return _ring_read_at(ring, 0, data, size);
+        return _ring_read_at(h, 0, data, size);
 
     *size = *sz;
     *data = sz + 1;
@@ -165,26 +162,25 @@ ring_size_t ring_next_size(ringbuffer_t *ring)
 
 int ring_read(const ringbuffer_t *ring, const void **data, size_t *size)
 {
-    return _ring_read_at(ring, ring->header->head, data, size);
+    return _ring_read_at(ring->header, ring->header->head, data, size);
 }
 
-static ssize_t _ring_shift_offset(const ringbuffer_t *ring, size_t offset)
+static ssize_t _ring_shift_offset(const ring_header_t *h, size_t offset)
 {
-    ring_header_t *h = ring->header;
     if (h->head == h->tail)
 	return -1;
     // mah: [2]:192 
     // PaUtil_FullMemoryBarrier(); ???
-    ring_size_t size = *_size_at(ring, offset);
+    ring_size_t size = *_size_at((ring_header_t *) h, offset);
     if (size < 0)
-	return _ring_shift_offset(ring, 0);
+	return _ring_shift_offset(h, 0);
     size = size_aligned(size + sizeof(ring_size_t));
     return (offset + size) % h->size;
 }
 
 int ring_shift(ringbuffer_t *ring)
 {
-    ssize_t off = _ring_shift_offset(ring, ring->header->head);
+    ssize_t off = _ring_shift_offset(ring->header, ring->header->head);
     if (off < 0) return EAGAIN;
     ring->header->generation++;
     ring->header->head = off;
@@ -215,7 +211,7 @@ void ring_dump(ringbuffer_t *ring, const char *name)
 
 int ring_iter_init(const ringbuffer_t *ring, ringiter_t *iter)
 {
-    iter->ring = ring;
+    iter->header = ring->header;
     iter->generation = ring->header->generation;
     iter->offset = ring->header->head;
     if (ring->header->generation != iter->generation)
@@ -225,7 +221,7 @@ int ring_iter_init(const ringbuffer_t *ring, ringiter_t *iter)
 
 int ring_iter_invalid(const ringiter_t *iter)
 {
-    if (iter->ring->header->generation > iter->generation)
+    if (iter->header->generation > iter->generation)
         return EINVAL;
     return 0;
 }
@@ -233,8 +229,8 @@ int ring_iter_invalid(const ringiter_t *iter)
 int ring_iter_shift(ringiter_t *iter)
 {
     if (ring_iter_invalid(iter)) return EINVAL;
-    if (iter->offset == iter->ring->header->tail) return EAGAIN;
-    ssize_t off = _ring_shift_offset(iter->ring, iter->offset);
+    if (iter->offset == iter->header->tail) return EAGAIN;
+    ssize_t off = _ring_shift_offset(iter->header, iter->offset);
     if (off < 0) return EAGAIN;
 //    printf("Offset to %zd\n", off);
     iter->generation++;
@@ -247,7 +243,7 @@ int ring_iter_read(const ringiter_t *iter, const void **data, size_t *size)
     if (ring_iter_invalid(iter)) return EINVAL;
 
 //    printf("Read at %zd\n", iter->offset);
-    int r = _ring_read_at(iter->ring, iter->offset, data, size);
+    int r = _ring_read_at(iter->header, iter->offset, data, size);
     if (r) return r;
     if (ring_iter_invalid(iter)) return EINVAL; // Check, that data and size are valid
     return 0;
