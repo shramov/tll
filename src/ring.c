@@ -72,9 +72,9 @@ void ring_clear(ringbuffer_t *ring)
 	h->head = h->tail = 0;
 }
 
-static inline ring_size_t * _size_at(ring_header_t *header, size_t off)
+static inline ring_size_t * _size_at(const ring_header_t *header, size_t off)
 {
-    return (ring_size_t *) (((char *) (header + 1)) + off);
+    return (ring_size_t *) &header->data[off];
 }
 
 int ring_write_begin(ringbuffer_t *ring, void ** data, size_t sz)
@@ -135,7 +135,7 @@ static inline int _ring_read_at(const ring_header_t *h, size_t offset, const voi
     // PaUtil_ReadMemoryBarrier(); ???
 
     //printf("Head/tail: %zd/%zd\n", h->head, h->tail);
-    const ring_size_t *sz = _size_at((ring_header_t *) h, offset);
+    const ring_size_t *sz = _size_at(h, offset);
     if (*sz < 0)
         return _ring_read_at(h, 0, data, size);
 

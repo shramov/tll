@@ -32,6 +32,8 @@ typedef struct
     /* volatile */ uint64_t generation;
 
     /* volatile */ size_t ALIGN(64) tail;
+
+    char ALIGN(64) data[];
 } ring_header_t;
 
 #undef ALIGN
