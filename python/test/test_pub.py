@@ -173,3 +173,17 @@ async def test_client(asyncloop, server):
     server.post(b'xxx', seq=100)
 
     assert (await c.recv()).seq == 100
+
+@asyncloop_run
+async def test_mem(asyncloop, tmp_path):
+    s = asyncloop.Channel(f'pub+mem:///{tmp_path}/memory', mode='server', name='server', dump='frame', size='16kb')
+    c = asyncloop.Channel(f'pub+mem:///{tmp_path}/memory', mode='client', name='client', dump='frame')
+    s.open()
+    c.open()
+    assert await c.recv_state() == c.State.Active
+
+    for i in range(0, 1000):
+        data = b'z' * 16 + b'x' * (i % 100)
+        s.post(data, seq=i, msgid=10)
+        m = await c.recv(0.001)
+        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, data)

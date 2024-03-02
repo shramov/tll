@@ -39,6 +39,7 @@
 #include "channel/mem.h"
 #include "channel/null.h"
 #include "channel/pub.h"
+#include "channel/pub-mem.h"
 #include "channel/random.h"
 #include "channel/rate.h"
 #include "channel/resolve.h"
@@ -70,6 +71,7 @@ TLL_DECLARE_IMPL(ChJSON);
 #endif
 TLL_DECLARE_IMPL(ChMem);
 TLL_DECLARE_IMPL(ChLZ4);
+TLL_DECLARE_IMPL(ChPubMem);
 TLL_DECLARE_IMPL(ChPubServer);
 TLL_DECLARE_IMPL(ChSerial);
 TLL_DECLARE_IMPL(tll::channel::StreamServer);
@@ -114,6 +116,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChLZ4::impl);
 		reg(&ChLoader::impl);
 		reg(&ChNull::impl);
+		reg(&ChPubMem::impl);
 		reg(&ChPubServer::impl);
 		reg(&tll::channel::Random::impl);
 		reg(&tll::channel::Rate::impl);
