@@ -51,7 +51,8 @@ class File : public tll::channel::AutoSeq<File<TIO>>
 	bool _end_of_data = false;
 
 public:
-	static constexpr std::string_view channel_protocol() { return "file"; }
+	static constexpr std::string_view channel_protocol() { return IO::protocol(); }
+	static constexpr std::string_view param_prefix() { return "file"; }
 	static constexpr auto process_policy() { return Base::ProcessPolicy::Custom; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);

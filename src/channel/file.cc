@@ -89,7 +89,8 @@ struct IOBase
 
 struct IOPosix : public IOBase
 {
-	static constexpr std::string_view name() { return "posix"; }
+	static constexpr std::string_view protocol() { return "file-posix"; }
+	static constexpr std::string_view name() { return protocol().substr(5);; }
 
 	std::vector<char> buf;
 
@@ -122,7 +123,8 @@ struct IOPosix : public IOBase
 
 struct IOMMap : public IOBase
 {
-	static constexpr std::string_view name() { return "mmap"; }
+	static constexpr std::string_view protocol() { return "file-mmap"; }
+	static constexpr std::string_view name() { return protocol().substr(5);; }
 
 	size_t block_start = 0;
 	void * base = nullptr;
