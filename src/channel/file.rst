@@ -37,6 +37,8 @@ for reading but provides much better speed.
 Write parameters
 ^^^^^^^^^^^^^^^^
 
+``autoseq=<bool>`` (default ``no``) - ignore message seq and fill it with contiguous incrementing
+sequence. When file is reopened - use last seq as starting point, otherwise start from 0;
 ``block={SIZE}`` (default ``1mb``) - block size, used only in write mode.
 ``extra-space={SIZE}`` (default ``0b``) - keep up to this amount of empty space in the end of the
 file. Without this non-zero option file can not be read in ``mmap`` mode. Used only in write mode.
@@ -52,7 +54,7 @@ Open parameters
 ``filename=FILENAME`` - if init ``FILENAME`` parameter is empty, use this one. This way one channel
 can be used to read different files without creating new objects.
 
-``overrite=<bool>`` (default ``no``) - drop old file and replace it with new one, only in write
+``overwrite=<bool>`` (default ``no``) - drop old file and replace it with new one, only in write
 mode.
 
 ``seq=<UNSIGNED>`` - start reading from specified ``SEQ``, if missing - read from file start. Only
