@@ -29,7 +29,8 @@ typedef struct
     size_t size;
 
     /* volatile */ size_t ALIGN(64) head;
-    /* volatile */ uint64_t generation;
+    /* volatile */ uint64_t generation_pre;
+    /* volatile */ uint64_t generation_post;
 
     /* volatile */ size_t ALIGN(64) tail;
 

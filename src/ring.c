@@ -52,7 +52,7 @@ int ring_init(ringbuffer_t *ring, size_t size, void * memory)
 	    return ENOMEM;
 	ring->header->size = size;
 	ring->header->head = ring->header->tail = 0;
-	ring->header->generation = 0;
+	ring->header->generation_pre = ring->header->generation_post = 0;
     } else
 	ring->header = (ring_header_t *)memory;
     return 0;
@@ -182,8 +182,10 @@ int ring_shift(ringbuffer_t *ring)
 {
     ssize_t off = _ring_shift_offset(ring->header, ring->header->head);
     if (off < 0) return EAGAIN;
-    ring->header->generation++;
+    uint64_t gen = ring->header->generation_pre + 1;
+    ring->header->generation_pre = gen;
     ring->header->head = off;
+    ring->header->generation_post = gen;
     return 0;
 }
 
@@ -212,16 +214,17 @@ void ring_dump(ringbuffer_t *ring, const char *name)
 int ring_iter_init(const ringbuffer_t *ring, ringiter_t *iter)
 {
     iter->header = ring->header;
-    iter->generation = ring->header->generation;
+    iter->generation = ring->header->generation_post;
     iter->offset = ring->header->head;
-    if (ring->header->generation != iter->generation)
+    if (ring->header->generation_pre != iter->generation)
         return EAGAIN;
     return 0;
 }
 
 int ring_iter_invalid(const ringiter_t *iter)
 {
-    if (iter->header->generation > iter->generation)
+    asm volatile("": : :"memory"); // Do not reorder or optimize this check
+    if (iter->header->generation_pre > iter->generation)
         return EINVAL;
     return 0;
 }
@@ -231,6 +234,7 @@ int ring_iter_shift(ringiter_t *iter)
     if (ring_iter_invalid(iter)) return EINVAL;
     if (iter->offset == iter->header->tail) return EAGAIN;
     ssize_t off = _ring_shift_offset(iter->header, iter->offset);
+    if (ring_iter_invalid(iter)) return EINVAL;
     if (off < 0) return EAGAIN;
 //    printf("Offset to %zd\n", off);
     iter->generation++;

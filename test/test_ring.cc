@@ -15,6 +15,8 @@
 #include <memory>
 #include <thread>
 
+#include <fmt/format.h>
+
 using ring_guard = std::unique_ptr<ringbuffer_t, decltype(&ring_free)>;
 
 TEST(Ring, Base)
@@ -148,6 +150,76 @@ TEST(Ring, Thread)
 		idx++;
 		EXPECT_EQ(ring_shift(&ring), 0);
 	}
+
+	stop = true;
+	t.join();
+}
+
+void ringpub(ringbuffer_t * ring, size_t count, bool * stop)
+{
+	void * ptr;
+	for (auto i = 0u; i < count; i++) {
+		const auto c = 'A' + i % MDATA;
+		const auto size = i % MSIZE;
+
+		if (*stop) return;
+		while (ring_write_begin(ring, &ptr, sizeof(size_t) + size))
+			ring_shift(ring);
+		auto data = (size_t *) ptr;
+		*data = i;
+		memset(data + 1, c, size);
+		ring_write_end(ring, ptr, sizeof(size_t) + size);
+	}
+	*stop = true;
+}
+
+TEST(Ring, IterRead)
+{
+	ringbuffer_t ring = {};
+	ASSERT_EQ(ring_init(&ring, 1024 * 1024, nullptr), 0);
+	ring_guard guard(&ring, &ring_free);
+
+	const size_t count = 1000000;
+	bool stop = false;
+	std::thread t(ringpub, &ring, count, &stop);
+
+	const void * ptr;
+	size_t size;
+	size_t idx = 0;
+	size_t checked = 0;
+
+	char buf[sizeof(size_t) + MSIZE];
+
+	ringiter_t iter;
+
+	EXPECT_EQ(ring_iter_init(&ring, &iter), 0);
+	EXPECT_FALSE(ring_iter_invalid(&iter));
+
+	while (!HasFailure() && idx != count && !stop) {
+		if (ring_iter_invalid(&iter)) {
+			if (ring_iter_init(&ring, &iter))
+				continue;
+		}
+
+		if (ring_iter_read(&iter, &ptr, &size))
+			continue;
+
+		memcpy(buf, ptr, size);
+
+		if (ring_iter_shift(&iter))
+			continue;
+
+		auto data = (const size_t *) buf;
+		idx = *data;
+		EXPECT_EQ(size, sizeof(size_t) + idx % MSIZE);
+		const char c = 'A' + idx % MDATA;
+		auto str = (const char *) (data + 1);
+		for (auto s = str; s < str + size - sizeof(size_t) && !HasFailure(); s++)
+			EXPECT_EQ(*s, c);
+		checked++;
+	}
+
+	fmt::print("Checked {} of {} messages ({:.2f}%)\n", checked, count, 100. * checked / count);
 
 	stop = true;
 	t.join();
