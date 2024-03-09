@@ -3,6 +3,7 @@ executable('tll-bench-channel', sources: ['channel.cc'], dependencies: [fmt, tll
 executable('bench-binder', sources: ['binder.cc'], dependencies: [fmt], include_directories: include)
 executable('bench-callback', sources: ['callback.cc'], dependencies: [fmt, tll])
 executable('bench-callback-standalone', sources: ['callback-standalone.cc'])
+executable('bench-ring', sources: ['ring.cc', '../src/ring.c'], dependencies: [fmt], include_directories: include)
 
 custom_target('tll-bench-channel.1'
 	, output : 'tll-bench-channel.1'
