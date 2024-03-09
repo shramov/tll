@@ -8,6 +8,7 @@
 #include "gtest/gtest.h"
 
 #include "tll/ring.h"
+#include "tll/cppring.h"
 
 #include <errno.h>
 #include <string.h>
@@ -49,6 +50,36 @@ TEST(Ring, Base)
 
 	ASSERT_EQ(ring_read(&ring, &rptr, &rsize), EAGAIN);
 	ASSERT_EQ(ring_shift(&ring), EAGAIN);
+}
+
+TEST(Ring, CppBase)
+{
+	auto ring = tll::Ring::allocate(128);
+
+	void * wptr = nullptr;
+	const void * rptr = nullptr;
+	size_t rsize;
+
+	ASSERT_EQ(ring->read(&rptr, &rsize), EAGAIN);
+	ASSERT_EQ(ring->shift(), EAGAIN);
+
+	ASSERT_EQ(ring->write_begin(&wptr, 128), ERANGE);
+	ASSERT_EQ(ring->write_begin(&wptr, 16), 0);
+	memset(wptr, 'a', 16);
+
+	ASSERT_EQ(ring->read(&rptr, &rsize), EAGAIN);
+	ASSERT_EQ(ring->shift(), EAGAIN);
+
+	ASSERT_EQ(ring->write_end(wptr, 8), 0);
+
+	ASSERT_EQ(ring->read(&rptr, &rsize), 0);
+	ASSERT_EQ(rsize, 8u);
+	ASSERT_EQ(memcmp(rptr, "aaaaaaaa", 8), 0);
+
+	ASSERT_EQ(ring->shift(), 0);
+
+	ASSERT_EQ(ring->read(&rptr, &rsize), EAGAIN);
+	ASSERT_EQ(ring->shift(), EAGAIN);
 }
 
 TEST(Ring, Iter)
@@ -207,6 +238,74 @@ TEST(Ring, IterRead)
 		memcpy(buf, ptr, size);
 
 		if (ring_iter_shift(&iter))
+			continue;
+
+		auto data = (const size_t *) buf;
+		idx = *data;
+		EXPECT_EQ(size, sizeof(size_t) + idx % MSIZE);
+		const char c = 'A' + idx % MDATA;
+		auto str = (const char *) (data + 1);
+		for (auto s = str; s < str + size - sizeof(size_t) && !HasFailure(); s++)
+			EXPECT_EQ(*s, c);
+		checked++;
+	}
+
+	fmt::print("Checked {} of {} messages ({:.2f}%)\n", checked, count, 100. * checked / count);
+
+	stop = true;
+	t.join();
+}
+
+void cppringpub(tll::PubRing * ring, size_t count, bool * stop)
+{
+	void * ptr;
+	for (auto i = 0u; i < count; i++) {
+		const auto c = 'A' + i % MDATA;
+		const auto size = i % MSIZE;
+
+		if (*stop) return;
+		while (ring->write_begin(&ptr, sizeof(size_t) + size))
+			ring->shift();
+		auto data = (size_t *) ptr;
+		*data = i;
+		memset(data + 1, c, size);
+		ring->write_end(ptr, sizeof(size_t) + size);
+	}
+	*stop = true;
+}
+
+TEST(Ring, CppIterRead)
+{
+	auto ring = tll::PubRing::allocate(1024 * 1024);
+
+	const size_t count = 1000000;
+	bool stop = false;
+	std::thread t(cppringpub, ring.get(), count, &stop);
+
+	const void * ptr;
+	size_t size;
+	size_t idx = 0;
+	size_t checked = 0;
+
+	char buf[sizeof(size_t) + MSIZE];
+
+	auto iter = ring->end();
+
+	EXPECT_TRUE(iter.valid());
+
+	while (!HasFailure() && idx != count && !stop) {
+		if (!iter.valid()) {
+			iter = ring->begin();
+			if (!iter.valid())
+				continue;
+		}
+
+		if (iter.read(&ptr, &size))
+			continue;
+
+		memcpy(buf, ptr, size);
+
+		if (iter.shift())
 			continue;
 
 		auto data = (const size_t *) buf;
