@@ -124,7 +124,7 @@ struct RingT
 
 		auto t = tail.load(std::memory_order_relaxed);
 		auto h = head.load(std::memory_order_acquire);
-		size_t free = (_size + h - t - 1) % _size + 1; // -1 + 1 is needed for head==tail
+		size_t free = _wrap_size(_size + h - t - 1, _size) + 1; // -1 + 1 is needed for head==tail
 
 		if (free <= a)
 			return EAGAIN;
@@ -150,7 +150,7 @@ struct RingT
 		}
 
 		*_size_at(t) = size;
-		tail.store((t + a) % _size, std::memory_order_release);
+		tail.store(_wrap_size(t + a, _size), std::memory_order_release);
 		return 0;
 	}
 
@@ -244,13 +244,21 @@ struct RingT
 		return r;
 	}
 
+	size_t _wrap_size(size_t off, size_t size) const
+	{
+		//return off % size;
+		if (off >= size)
+			return off - size;
+		return off;
+	}
+
 	ssize_t _shift_offset(size_t offset) const
 	{
 		auto size = *_size_at(offset);
 		if (size < 0)
 			return _shift_offset(0);
 		size = aligned(size + sizeof(Size));
-		return (offset + size) % _size;
+		return _wrap_size(offset + size, _size);
 	}
 
 	int _read_at(size_t offset, const void **data, size_t *size) const
