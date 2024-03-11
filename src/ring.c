@@ -44,6 +44,14 @@ static ring_size_t size_aligned(ring_size_t x)
     return x + (-x & (align - 1));
 }
 
+static size_t wrap_size(size_t off, size_t size)
+{
+    //return off % size;
+    if (off >= size)
+	return off - size;
+    return off;
+}
+
 int ring_init(ringbuffer_t *ring, size_t size, void * memory)
 {
     if (!memory) {
@@ -85,7 +93,7 @@ int ring_write_begin(ringbuffer_t *ring, void ** data, size_t sz)
     if (a > h->size)
 	return ERANGE;
 
-    size_t free = (h->size + h->head - h->tail - 1) % h->size + 1; // -1 + 1 is needed for head==tail
+    size_t free = wrap_size(h->size + h->head - h->tail - 1, h->size) + 1; // -1 + 1 is needed for head==tail
 
     //printf("Free space: %d; Need %zd\n", free, a);
     if (free <= a) return EAGAIN;
@@ -114,7 +122,7 @@ int ring_write_end(ringbuffer_t *ring, void * data, size_t sz)
 
     // mah: see [6]:69
     // should this be CAS(&(h->tail, h->tail, h->tail+a) ?
-    h->tail = (h->tail + a) % h->size;
+    h->tail = wrap_size(h->tail + a, h->size);
     //printf("New head/tail: %zd/%zd\n", h->head, h->tail);
     return 0;
 }
@@ -176,7 +184,7 @@ static ssize_t _ring_shift_offset(const ring_header_t *h, size_t offset)
     if (size < 0)
 	return _ring_shift_offset(h, 0);
     size = size_aligned(size + sizeof(ring_size_t));
-    return (offset + size) % h->size;
+    return wrap_size(offset + size, h->size);
 }
 
 int ring_shift(ringbuffer_t *ring)
