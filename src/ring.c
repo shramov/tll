@@ -50,6 +50,7 @@ int ring_init(ringbuffer_t *ring, size_t size, void * memory)
 	ring->header = (ring_header_t *)malloc(sizeof(ring_header_t) + size);
 	if (ring->header == NULL)
 	    return ENOMEM;
+	ring->header->magic = ring_magic;
 	ring->header->size = size;
 	ring->header->head = ring->header->tail = 0;
 	ring->header->generation_pre = ring->header->generation_post = 0;
