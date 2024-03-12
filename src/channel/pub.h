@@ -25,6 +25,7 @@ class ChPubSocket : public tll::channel::TcpSocket<ChPubSocket>
 	const unsigned char * _ptr = nullptr;
 	container_type::const_iterator _iter = {};
 	bool _hello = true;
+	std::string _peer;
 
  public:
 	static constexpr auto open_policy() { return OpenPolicy::Manual; }
@@ -40,8 +41,14 @@ class ChPubSocket : public tll::channel::TcpSocket<ChPubSocket>
 	int _post(const tll_msg_t *msg, int flags) { return ENOTSUP; }
 
 	int _process_data(bool pollout = false);
- private:
 
+	void _on_close()
+	{
+		_log.info("Client '{}' disconnected", _peer);
+		this->close();
+	}
+
+ private:
 	int _process_open();
 	int _on_active();
 };

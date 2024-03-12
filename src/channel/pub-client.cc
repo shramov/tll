@@ -24,6 +24,7 @@ int ChPubClient::_init(const Channel::Url &url, tll::Channel *master)
 
 	auto reader = channel_props_reader(url);
 	_hello = reader.getT("hello", true);
+	_peer = reader.getT<std::string>("peer", "");
 	_size = reader.getT<util::Size>("size", 128 * 1024);
 
 	if (!reader)
@@ -49,9 +50,10 @@ int ChPubClient::_post_hello()
 	}
 
 	_log.debug("Sending hello to server");
-	std::array<char, pub_scheme::Hello::meta_size()> buf;
-	auto hello = pub_scheme::Hello::bind(buf);
+	std::vector<char> buf;
+	auto hello = pub_scheme::Hello::bind_reset(buf);
 	hello.set_version((int16_t) pub_scheme::Version::Current);
+	hello.set_name(_peer);
 
 	tll_frame_t frame = { hello.meta_size(), hello.meta_id(), 0 };
 	if (_sendv(tll::memory {(void *) &frame, sizeof(frame)}, hello.view()))

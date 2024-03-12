@@ -16,6 +16,7 @@ class ChPubClient : public tll::channel::LastSeqRx<ChPubClient, tll::channel::Tc
 {
 	bool _hello = true;
 	size_t _size;
+	std::string _peer;
 
 	enum { Closed, Connected, Active } _state = Closed;
 

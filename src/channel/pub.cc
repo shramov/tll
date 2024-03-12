@@ -186,6 +186,7 @@ int ChPubSocket::_process_open()
 	if (hello.get_version() != (int) pub_scheme::Version::Current)
 		return _log.fail(EINVAL, "Client sent invalid version: {} (expected {})",
 				hello.get_version(), (int) pub_scheme::Version::Current);
+	_peer = hello.get_name();
 	rdone(rsize());
 	_rbuf.resize(16);
 
@@ -201,7 +202,7 @@ int ChPubSocket::_process_open()
 			return _log.fail(EINVAL, "Failed to send hello to client: truncated write, {} bytes not sent", _wbuf.size());
 	}
 
-	_log.debug("Handshake finished");
+	_log.info("Handshake finished, client name '{}'", _peer);
 	return _on_active();
 }
 
@@ -210,7 +211,7 @@ int ChPubSocket::_process_data(bool pollout)
 	if (_ring->empty())
 		return EAGAIN;
 	if (_seq != -1 && _seq < _ring->front().frame->seq)
-		return state_fail(EINVAL, "Client out of data: {} < {}", _seq, _ring->front().frame->seq);
+		return state_fail(EINVAL, "Client '{}' out of data: {} < {}", _peer, _seq, _ring->front().frame->seq);
 	if (_ptr != nullptr && !pollout)
 		return EAGAIN;
 
@@ -238,10 +239,10 @@ int ChPubSocket::_process_data(bool pollout)
 			_dcaps_poll(dcaps::CPOLLOUT);
 			return EAGAIN;
 		} else if (errno == EPIPE) {
-			_log.warning("Send failed: {}", strerror(errno));
+			_log.warning("Send to '{}' failed: {}", _peer, strerror(errno));
 			return EPIPE;
 		}
-		return _log.fail(EINVAL, "Send failed: {}", strerror(errno));
+		return _log.fail(EINVAL, "Send to '{}' failed: {}", _peer, strerror(errno));
 	}
 
 	_log.trace("Sent {} bytes to client", r);
