@@ -13,6 +13,15 @@
 
 #ifdef __cplusplus
 extern "C" {
+
+#if __cplusplus > 202002L
+#  include <stdatomic.h>
+#else
+#  define _Atomic(x) x
+#endif
+
+#else // __cplusplus
+#include <stdatomic.h>
 #endif
 
 #ifdef _MSC_VER
@@ -25,14 +34,13 @@ typedef struct
 {
     int32_t magic;
     int32_t version;
-    // mah: see [1],[4]: shouldnt head+tail be volatile?
     size_t size;
 
-    /* volatile */ size_t ALIGN(64) head;
-    /* volatile */ uint64_t generation_pre;
-    /* volatile */ uint64_t generation_post;
+    _Atomic(size_t) ALIGN(64) head;
+    _Atomic(uint64_t) generation_pre;
+    _Atomic(uint64_t) generation_post;
 
-    /* volatile */ size_t ALIGN(64) tail;
+    _Atomic(size_t) ALIGN(64) tail;
 
     char ALIGN(64) data[];
 } ring_header_t;
