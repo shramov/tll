@@ -17,6 +17,8 @@ import tll.scheme as S
 
 def safe_write(filename, data):
     p = pathlib.Path(filename)
+    if not p.parent.exists():
+        p.parent.mkdir(parents=True)
     dest, name = tempfile.mkstemp(dir=p.parent, prefix=p.name)
 
     try:
