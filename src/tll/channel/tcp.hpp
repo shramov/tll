@@ -223,14 +223,8 @@ int TcpSocket<T>::setup(const tcp_settings_t &settings, int af)
 	if (settings.rcvbuf && setsockoptT<int>(this->fd(), SOL_SOCKET, SO_RCVBUF, settings.rcvbuf))
 		return this->_log.fail(EINVAL, "Failed to set rcvbuf to {}: {}", settings.rcvbuf, strerror(errno));
 
-	if (settings.nodelay) {
-		int af = 0;
-		socklen_t aflen = sizeof(af);
-		if (getsockopt(this->fd(), SOL_SOCKET, SO_DOMAIN, &af, &aflen))
-			return this->_log.fail(EINVAL, "Failed to get socket address family: {}", strerror(errno));
-		if (aflen == sizeof(af) && af != AF_UNIX && setsockoptT<int>(this->fd(), SOL_TCP, TCP_NODELAY, 1))
-			return this->_log.fail(EINVAL, "Failed to set nodelay: {}", strerror(errno));
-	}
+	if (settings.nodelay && af != AF_UNIX && setsockoptT<int>(this->fd(), SOL_TCP, TCP_NODELAY, 1))
+		return this->_log.fail(EINVAL, "Failed to set nodelay: {}", strerror(errno));
 
 	return 0;
 }
