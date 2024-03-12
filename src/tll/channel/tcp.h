@@ -159,7 +159,7 @@ class TcpSocket : public Base<T>
 	void bind(int fd, int seq = 0) { this->_update_fd(fd); _msg_addr = { fd, seq }; }
 	const tcp_socket_addr_t & msg_addr() const { return _msg_addr; }
 
-	int setup(const tcp_settings_t &settings);
+	int setup(const tcp_settings_t &settings, int af);
 
 	void _on_close()
 	{

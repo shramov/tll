@@ -190,7 +190,7 @@ std::optional<size_t> TcpSocket<T>::_recv(size_t size)
 }
 
 template <typename T>
-int TcpSocket<T>::setup(const tcp_settings_t &settings)
+int TcpSocket<T>::setup(const tcp_settings_t &settings, int af)
 {
 	using namespace tll::network;
 
@@ -433,7 +433,7 @@ int TcpClient<T, S>::_open(const ConstConfig &url)
 		return this->_log.fail(errno, "Failed to create socket: {}", strerror(errno));
 	this->_update_fd(fd);
 
-	if (this->setup(_settings))
+	if (this->setup(_settings, (*_addr)->sa_family))
 		return this->_log.fail(EINVAL, "Failed to setup socket");
 
 	if (S::_open(url))
@@ -847,7 +847,7 @@ int TcpServer<T, C>::_cb_socket(const tll_channel_t *c, const tll_msg_t *msg)
 		return this->_log.fail(EINVAL, "Failed to cast to tcp socket type, invalid socket protocol {}", _socket_url.proto());
 	//r.release();
 	client->bind(fd);
-	client->setup(_settings);
+	client->setup(_settings, conn->addr->sa_family);
 	tll_channel_callback_add(r.get(), _cb_other, this, TLL_MESSAGE_MASK_STATE | TLL_MESSAGE_MASK_CONTROL);
 	tll_channel_callback_add(r.get(), _cb_data, this, TLL_MESSAGE_MASK_DATA);
 	if (this->channelT()->_on_accept(r.get())) {
