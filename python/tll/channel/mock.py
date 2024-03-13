@@ -75,6 +75,9 @@ class Mock:
             c.free()
         self._channels = {}
 
+    def __del__(self):
+        self.destroy()
+
     @property
     def channel(self):
         return self._channel
