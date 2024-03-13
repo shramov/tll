@@ -187,6 +187,17 @@ def test_direct_state():
     c.close()
     assert [s.unpack(m).as_dict() for m in s.result] == [{'state': s.State.Closing}, {'state': s.State.Closed}]
 
+def test_direct_scheme():
+    scheme = 'yamls://[{name: Test, id: 10}]'
+    s = Accum(f'direct://', name='server', context=ctx, scheme=scheme)
+    c = Accum('direct://', name='client', master=s, context=ctx)
+
+    s.open()
+    c.open()
+
+    assert c.scheme != None
+    assert [m.name for m in c.scheme.messages] == ['Test']
+
 def test_direct_autoseq(context):
     s = Accum(f'direct://;autoseq=yes', name='server', dump='frame', context=context)
     c = Accum('direct://', name='client', master=s, dump='frame', context=context)
