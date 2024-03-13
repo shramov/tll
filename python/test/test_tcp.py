@@ -5,6 +5,7 @@ import tll.channel as C
 from tll.error import TLLError
 from tll.test_util import Accum, ports
 from tll.processor import Loop
+from tll.asynctll import asyncloop_run
 
 import os
 import pytest
@@ -14,6 +15,10 @@ import sys
 import time
 
 ctx = C.Context()
+
+@pytest.fixture
+def context():
+    return C.Context()
 
 def check_mptcp():
     try:
@@ -317,6 +322,33 @@ def test_client(host, af):
 
     c = Accum(s.config.sub('client.init'), name='client')
     c.open()
+
+@pytest.mark.parametrize("host,af",
+        [ (f"127.0.0.1", "ipv4")
+        , (f"::1", "ipv6")
+        ])
+@asyncloop_run
+async def test_client_ephemeral(asyncloop, host, af):
+    s = asyncloop.Channel(f'tcp://{host}:0;mode=server;dump=frame')
+
+    s.open()
+
+    h, port = s.config['client.init.tll.host'].rsplit(':', 1)
+    assert h == host
+    assert port != '0'
+    assert s.config.sub('client').as_dict() == {'init': {'tll': {'proto': 'tcp', 'host': f'{host}:{port}'}, 'af': af, 'mode': 'client'}}
+
+    c = asyncloop.Channel(s.config.sub('client.init'), name='client')
+    c.open()
+
+    assert await c.recv_state() == c.State.Active
+    m = await s.recv()
+    assert m.type == m.Type.Control
+
+    c.post(b'xxx')
+
+    m = await s.recv()
+    assert m.data.tobytes() == b'xxx'
 
 def test_client_scheme():
     scheme = 'yamls://[{name: Test, id: 10}]'

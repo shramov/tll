@@ -600,6 +600,11 @@ int TcpServer<T, C>::_open(const ConstConfig &url)
 	if (!addr)
 		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _host, addr.error());
 
+	for (auto & a : *addr) {
+		if (this->_bind(a))
+			return this->_log.fail(EINVAL, "Failed to listen on {}", a);
+	}
+
 	if (this->_scheme) {
 		auto full = this->_scheme->dump("yamls+gz");
 		if (auto s = this->_scheme->dump("sha256"); s) {
@@ -617,17 +622,12 @@ int TcpServer<T, C>::_open(const ConstConfig &url)
 		this->_config.set("client", _client_config);
 	}
 
-	for (auto & a : *addr) {
-		if (this->_bind(a))
-			return this->_log.fail(EINVAL, "Failed to listen on {}", a);
-	}
-
 	this->state(state::Active);
 	return 0;
 }
 
 template <typename T, typename C>
-int TcpServer<T, C>::_bind(const tll::network::sockaddr_any &addr)
+int TcpServer<T, C>::_bind(tll::network::sockaddr_any &addr)
 {
 	this->_log.info("Listen on {}", conv::to_string(addr));
 
@@ -658,6 +658,15 @@ int TcpServer<T, C>::_bind(const tll::network::sockaddr_any &addr)
 
 	if (listen(fd, 10))
 		return this->_log.fail(errno, "Failed to listen on socket: {}", strerror(errno));
+
+	if ((addr->sa_family == AF_INET && addr.in()->sin_port == 0) ||
+	    (addr->sa_family == AF_INET6 && addr.in6()->sin6_port == 0)) {
+		addr.size = sizeof(addr);
+		if (getsockname(fd, addr, &addr.size))
+			return this->_log.fail(errno, "Failed to get socket address: {}", strerror(errno));
+
+		this->_log.info("Listen on ephemeral address {}", conv::to_string(addr));
+	}
 
 	auto r = this->context().channel(fmt::format("tcp://;fd-mode=yes;tll.internal=yes;name={}/{}", this->name, fd), this->self(), &tcp_server_socket_t::impl);
 	if (!r)
