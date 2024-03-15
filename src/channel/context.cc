@@ -597,8 +597,12 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 	} while (true);
 
 	if (!*internal && c->internal->name) {
-		channels.emplace(c->internal->name, c.get()); // Check for dup
-		tll_config_set_config(config, c->internal->name, -1, c->internal->config, 0);
+		auto dup = !channels.emplace(c->internal->name, c.get()).second;
+		if (dup) {
+			if (c->internal->name != std::string_view("noname"))
+				_log.warning("Duplicate channel name: {}", c->internal->name);
+		} else
+			tll_config_set_config(config, c->internal->name, -1, c->internal->config, 0);
 	}
 
 	if (c->internal->stat) {
@@ -638,8 +642,13 @@ void tll_channel_free(tll_channel_t *c)
 	}
 
 	if ((tll_channel_caps(c) & caps::Custom) == 0) {
-		c->context->channels.erase(name);
-		tll_config_unlink(c->context->config, name.data(), name.size());
+		auto it = c->context->channels.find(name);
+		if (it->second == c)
+			c->context->channels.erase(it);
+
+		auto cfg = c->context->config.sub(name);
+		if (cfg == c->internal->config)
+			c->context->config.unlink(name);
 	}
 
 	if (c->impl)

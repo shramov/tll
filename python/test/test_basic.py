@@ -24,6 +24,23 @@ ctx = C.Context()
 def context():
     return C.Context()
 
+def test_duplicate(context):
+    c0 = context.Channel('null://;name=dup;first=yes')
+
+    assert context.get('dup') == c0
+    assert context.config.get('dup.url.first', None) == 'yes'
+
+    c1 = context.Channel('null://;name=dup;first=no')
+
+    assert context.get('dup') == c0
+    assert context.config.get('dup.url.first', None) == 'yes'
+
+    c1.free()
+    del c1
+
+    assert context.get('dup') == c0
+    assert context.config.get('dup.url.first', None) == 'yes'
+
 def test_defaults():
     defaults = Config()
     ctx = C.Context(defaults)
