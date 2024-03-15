@@ -95,6 +95,8 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 	std::map<void *, tll_channel_module_t *> modules;
 	std::shared_mutex scheme_cache_lock;
 
+	unsigned _noname_idx = 0;
+
 	Config config;
 	Config config_defaults;
 
@@ -555,6 +557,12 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 			return _log.fail(nullptr, "Channel '{}' not found", url.proto());
 	}
 
+	{
+		auto name = url.get("name");
+		if (!name || *name == "")
+			url.set("name", fmt::format("noname-{}", _noname_idx++));
+	}
+
 	auto internal = url.getT("tll.internal", false);
 	if (!internal)
 		return _log.fail(nullptr, "Invalid tll.internal parameter: {}", internal.error());
@@ -599,8 +607,7 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 	if (!*internal && c->internal->name) {
 		auto dup = !channels.emplace(c->internal->name, c.get()).second;
 		if (dup) {
-			if (c->internal->name != std::string_view("noname"))
-				_log.warning("Duplicate channel name: {}", c->internal->name);
+			_log.warning("Duplicate channel name: {}", c->internal->name);
 		} else
 			tll_config_set_config(config, c->internal->name, -1, c->internal->config, 0);
 	}
