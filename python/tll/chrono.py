@@ -159,3 +159,17 @@ class TimePoint(_Base):
     @property
     def datetime(self):
         return datetime.datetime.fromtimestamp(self.seconds)
+
+    def __str__(self):
+        seconds = self.seconds
+        d =  datetime.datetime.utcfromtimestamp(seconds)
+        ns = self.convert(Resolution.ns).value
+        ns = int(ns - 1000000000 * int(seconds))
+        r = d.strftime('%Y-%m-%dT%H:%M:%S')
+        if ns == 0:
+            return r + "Z"
+        if ns % 1000000 == 0:
+            return f'{r}.{ns // 1000000:03}Z'
+        elif ns % 1000 == 0:
+            return f'{r}.{ns // 1000:06}Z'
+        return f'{r}.{ns:09}Z'

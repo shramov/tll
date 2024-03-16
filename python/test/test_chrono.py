@@ -57,3 +57,11 @@ def test_duration_eq():
 
     assert Duration(100, 'ns') != 100
     with pytest.raises(TypeError): Duration(100, 'ns') < 100
+
+def test_date_str():
+    base = TimePoint(946782245, Resolution.second, type=int) # 2000-01-02 03:04:05 UTC
+    assert str(base) == "2000-01-02T03:04:05Z"
+    assert str(base.convert('ms') + Duration(100, 'ms')) == "2000-01-02T03:04:05.100Z"
+    assert str(base.convert('us') + Duration(100, 'us')) == "2000-01-02T03:04:05.000100Z"
+    assert str(base.convert('ns') + Duration(100, 'ns')) == "2000-01-02T03:04:05.000000100Z"
+    assert str(base.convert('second', float) + Duration(100, 'ms')) == "2000-01-02T03:04:05.100Z"
