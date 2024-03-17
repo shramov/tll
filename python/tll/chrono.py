@@ -104,6 +104,28 @@ class _Base:
         if not isinstance(other, self.__class__): return NotImplemented
         return self.seconds < v.seconds
 
+    def __iadd__(self, other):
+        if not isinstance(other, Duration): return NotImplemented
+        o = other.convert(self.resolution, type(self.value))
+        self.value += o.value
+        return self
+
+    def __add__(self, other):
+        r = self.__copy__()
+        r += other
+        return r
+
+    def __isub__(self, other):
+        if not isinstance(other, Duration): return NotImplemented
+        o = other.convert(self.resolution, type(self.value))
+        self.value -= o.value
+        return self
+
+    def __sub__(self, other):
+        r = self.__copy__()
+        r -= other
+        return r
+
 class Duration(_Base):
     def __init__(self, value = 0, resolution = Resolution.second.value, type=float, raw=False):
         if raw:

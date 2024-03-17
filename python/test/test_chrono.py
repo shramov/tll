@@ -15,6 +15,14 @@ def test_convert():
     assert str(D(123, 'us', int).convert('ns')) == '123000ns'
     assert str(D(123456, 'ns', int).convert('us')) == '123us'
 
+def test_math():
+    assert str(D(1, 'us', int) + D('2', 'ms', int)) == '2001us'
+    assert str(D(1, 'us', int) - D('2', 'ms', int)) == '-1999us'
+    assert str(D(2, 'ms', int) + D('1', 'us', int)) == '2ms'
+    assert str(D(2, 'ms', int) - D('1', 'us', int)) == '2ms'
+    assert str(D(2, 'ms', float) + D('1', 'us', int)) == '2.001ms'
+    assert str(D(2, 'ms', float) - D('1', 'us', int)) == '1.999ms'
+
 def test_str():
     assert str(Duration(100, Resolution.ns, type=float)) == '100.0ns'
     assert str(Duration(100, 'ns', type=int)) == '100ns'
