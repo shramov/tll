@@ -99,6 +99,7 @@ class _Base:
         return self
 
     def __add__(self, other):
+        if not isinstance(other, Duration): return NotImplemented
         r = self.__copy__()
         r += other
         return r
@@ -110,6 +111,7 @@ class _Base:
         return self
 
     def __sub__(self, other):
+        if not isinstance(other, Duration): return NotImplemented
         r = self.__copy__()
         r -= other
         return r
