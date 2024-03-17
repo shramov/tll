@@ -6,6 +6,15 @@ import pytest
 from tll.chrono import *
 from datetime import timedelta
 
+D = Duration
+T = TimePoint
+
+def test_convert():
+    assert str(D(123, 'second', int).convert('ms')) == '123000ms'
+    assert str(D(123, 'ms', int).convert(Resolution.second, float)) == '0.123s'
+    assert str(D(123, 'us', int).convert('ns')) == '123000ns'
+    assert str(D(123456, 'ns', int).convert('us')) == '123us'
+
 def test_str():
     assert str(Duration(100, Resolution.ns, type=float)) == '100.0ns'
     assert str(Duration(100, 'ns', type=int)) == '100ns'

@@ -35,7 +35,12 @@ _res2str = dict([(v,k) for (k,v) in _str2res.items()])
 @functools.total_ordering
 class _Base:
     __slots__ = ['value', 'resolution']
-    def __init__(self, value, resolution, type=float):
+    def __init__(self, value, resolution, type=float, raw=False):
+        if raw:
+            self.value = value
+            self.resolution = resolution
+            return
+
         if isinstance(resolution, Resolution):
             resolution = resolution.value
         elif isinstance(resolution, str):
@@ -48,6 +53,21 @@ class _Base:
             else:
                 value = value.seconds * self.resolution[1] / self.resolution[0]
         self.value = type(value)
+
+    def __copy__(self):
+        return self.__class__(self.value, self.resolution, raw=True)
+
+    def convert(self, res, _type=None):
+        if isinstance(res, Resolution):
+            res = res.value
+        elif isinstance(res, str):
+            res = Resolution[res].value
+
+        _type = _type or type(self.value)
+
+        if _type == int:
+            return self.__class__(_type(self.value * res[1] * self.resolution[0] // (res[0] * self.resolution[1])), res, raw=True)
+        return self.__class__(_type(self.value * res[1] * self.resolution[0] / (res[0] * self.resolution[1])), res, raw=True)
 
     @property
     def seconds(self):
@@ -85,7 +105,12 @@ class _Base:
         return self.seconds < v.seconds
 
 class Duration(_Base):
-    def __init__(self, value = 0, resolution = Resolution.second.value, type=float):
+    def __init__(self, value = 0, resolution = Resolution.second.value, type=float, raw=False):
+        if raw:
+            self.value = value
+            self.resolution = resolution
+            return
+
         if isinstance(value, datetime.timedelta):
             value = _Base(int(value.total_seconds()) * 1000000 + value.microseconds, Resolution.us.value)
         super().__init__(value, resolution, type)
@@ -100,7 +125,11 @@ class Duration(_Base):
         return super().__eq__(other)
 
 class TimePoint(_Base):
-    def __init__(self, value = 0, resolution = Resolution.second.value, type=float):
+    def __init__(self, value = 0, resolution = Resolution.second.value, type=float, raw=False):
+        if raw:
+            self.value = value
+            self.resolution = resolution
+            return
         if isinstance(value, datetime.datetime):
             value = _Base(int(value.timestamp()) * 1000000 + value.microsecond, Resolution.us.value)
         super().__init__(value, resolution, type)
