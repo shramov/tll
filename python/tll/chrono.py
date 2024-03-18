@@ -82,18 +82,6 @@ class _Base:
             return '{}{}'.format(self.value, suffix)
         return '{}*({}/{})'.format(self.value, self.resolution[0], self.resolution[1])
 
-    @classmethod
-    def from_str(cls, s):
-        if '*' in s:
-            raise ValueError("Invalid string")
-        body = s.rstrip('abcdefghijklmnopqrstuvwxyz')
-        suffix = s[len(body):]
-        if '.' in body or 'e' in body or 'E' in body:
-            typ = float
-        else:
-            typ = int
-        return cls(typ(body), _str2res[suffix], type=typ)
-
     def __eq__(self, other):
         if not isinstance(other, self.__class__): return NotImplemented
         if self.resolution == other.resolution:
@@ -146,6 +134,18 @@ class Duration(_Base):
             return self == Duration(other)
         return super().__eq__(other)
 
+    @classmethod
+    def from_str(cls, s):
+        if '*' in s:
+            raise ValueError("Invalid string")
+        body = s.rstrip('abcdefghijklmnopqrstuvwxyz')
+        suffix = s[len(body):]
+        if '.' in body or 'e' in body or 'E' in body:
+            typ = float
+        else:
+            typ = int
+        return cls(typ(body), _str2res[suffix], type=typ)
+
 class TimePoint(_Base):
     def __init__(self, value = 0, resolution = Resolution.second.value, type=float, raw=False):
         if raw:
@@ -173,3 +173,31 @@ class TimePoint(_Base):
         elif ns % 1000 == 0:
             return f'{r}.{ns // 1000:06}Z'
         return f'{r}.{ns:09}Z'
+
+    @classmethod
+    def from_str(cls, s):
+        if ' ' not in s and 'T' not in s:
+            if '+' not in s and not s.endswith('Z'):
+                s += 'Z'
+            ts = int(datetime.datetime.strptime(s, '%Y-%m-%d%z').timestamp())
+            return TimePoint(ts, Resolution.second, int)
+        sub = None
+        if '.' in s:
+            s, sub = s.split('.', 1)
+            if '+' in sub:
+                sub, tz = sub.split('+')
+                s += '+' + tz
+            else:
+                s += 'Z'
+            if len(sub) > 9:
+                raise ValueError(f"Subsecond value too long: '{sub}'")
+            sub += '0' * (9 - len(sub))
+            sub = Duration(int(sub), Resolution.ns, int)
+        if '+' not in s and not s.endswith('Z'):
+            s += 'Z'
+        s = s.replace('T', ' ')
+        ts = int(datetime.datetime.strptime(s, '%Y-%m-%d %H:%M:%S%z').timestamp())
+        ts = TimePoint(ts, Resolution.second, int)
+        if sub is not None:
+            ts = ts.convert(Resolution.ns) + sub
+        return ts

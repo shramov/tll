@@ -65,3 +65,34 @@ def test_date_str():
     assert str(base.convert('us') + Duration(100, 'us')) == "2000-01-02T03:04:05.000100Z"
     assert str(base.convert('ns') + Duration(100, 'ns')) == "2000-01-02T03:04:05.000000100Z"
     assert str(base.convert('second', float) + Duration(100, 'ms')) == "2000-01-02T03:04:05.100Z"
+
+def test_date_from_str():
+    base = TimePoint(946771200, Resolution.second, type=int) # 2000-01-02 UTC
+    base1h = base - D(1, 'hour', int)
+    full = base + D(3, 'hour', int) + D(4, 'minute', int) + D(5, 'second', int)
+    full = full.convert('ns')
+
+    assert TimePoint.from_str('2000-01-02').resolution == (1, 1)
+    assert TimePoint.from_str('2000-01-02') == base
+    assert TimePoint.from_str('2000-01-02Z') == base
+    assert TimePoint.from_str('2000-01-02+00:00') == base
+    assert TimePoint.from_str('2000-01-02+01:00') == base1h
+
+    assert TimePoint.from_str('2000-01-02T03:04:05') == full
+    assert TimePoint.from_str('2000-01-02 03:04:05') == full
+    assert TimePoint.from_str('2000-01-02 03:04:05Z') == full
+    assert TimePoint.from_str('2000-01-02T03:04:05Z') == full
+    assert TimePoint.from_str('2000-01-02T03:04:05+00:00') == full
+    assert TimePoint.from_str('2000-01-02 03:04:05+00:00') == full
+    assert TimePoint.from_str('2000-01-02T03:04:05+01:00') == full - D(1, 'hour', int)
+    assert TimePoint.from_str('2000-01-02 03:04:05+01:00') == full - D(1, 'hour', int)
+    assert TimePoint.from_str('2000-01-02T03:04:05.123') == full + D.from_str('123ms')
+    assert TimePoint.from_str('2000-01-02 03:04:05.123') == full + D.from_str('123ms')
+    assert TimePoint.from_str('2000-01-02T03:04:05.000123') == full + D.from_str('123us')
+    assert TimePoint.from_str('2000-01-02 03:04:05.000123') == full + D.from_str('123us')
+    assert TimePoint.from_str('2000-01-02T03:04:05.000000123') == full + D.from_str('123ns')
+    assert TimePoint.from_str('2000-01-02 03:04:05.000000123') == full + D.from_str('123ns')
+    assert TimePoint.from_str('2000-01-02T03:04:05.123+00:00') == full + D.from_str('123ms')
+    assert TimePoint.from_str('2000-01-02 03:04:05.123+00:00') == full + D.from_str('123ms')
+    assert TimePoint.from_str('2000-01-02T03:04:05.123+01:00') == full + D.from_str('123ms') - D.from_str('1h')
+    assert TimePoint.from_str('2000-01-02 03:04:05.123+01:00') == full + D.from_str('123ms') - D.from_str('1h')

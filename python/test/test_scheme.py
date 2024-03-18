@@ -226,7 +226,7 @@ def test_from_string():
     assert msg['duration'].from_string("100ns") == Duration(100, 'ns')
     assert msg['duration'].from_string("10.5us") == Duration(10500, 'ns')
 
-    assert msg['ts'].from_string("100ns") == TimePoint(100, 'ns') # FIXME: Change to normal time format?
+    assert msg['ts'].from_string("1970-01-01 00:00:00.000000100") == TimePoint(100, 'ns')
 
     with pytest.raises(OverflowError):
         msg['int8'].from_string("1000")
