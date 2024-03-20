@@ -42,9 +42,17 @@ class ChDirect : public tll::channel::AutoSeq<ChDirect>
 		if (!_sub)
 			return 0;
 		_update_state(tll::state::Closing);
-		_sibling->_sibling = nullptr;
+		if (_sibling)
+			_sibling->_sibling = nullptr;
 		_update_state(tll::state::Closed);
 		return 0;
+	}
+
+	void _free()
+	{
+		if (_sibling)
+			_sibling->_sibling = nullptr;
+		_sibling = nullptr;
 	}
 
 	int _post(const tll_msg_t *msg, int flags)

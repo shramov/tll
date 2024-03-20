@@ -186,6 +186,18 @@ def test_direct():
     assert c.result == []
     assert s.result == []
 
+def test_direct_free(context):
+    s = context.Channel('direct://', name='server')
+    c = context.Channel('direct://', name='client', master=s)
+
+    s.open()
+    c.open()
+
+    s.free()
+    del s
+
+    c.close()
+
 def test_direct_state():
     control = 'yamls://[{name: Test, id: 10}]'
     s = Accum(f'direct://;notify-state=yes;scheme-control={control}', name='server', context=ctx)
