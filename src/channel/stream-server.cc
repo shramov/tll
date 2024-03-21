@@ -381,22 +381,20 @@ int StreamServer::_on_request_data(const tll_msg_t *msg)
 		if (it == _clients.end())
 			return _log.fail(0, "Client with addr {} not found", msg->addr.u64);
 
+		it->second.state = Client::State::Closed;
 		_log.info("Drop client '{}' (addr {})", it->second.name, msg->addr.u64);
+		std::string name = std::move(it->second.name);
 		it->second.reset();
 		_clients.erase(it);
-
-		if (_control_msgid_disconnect) {
-			tll_msg_t m = { TLL_MESSAGE_CONTROL };
-			m.addr = msg->addr;
-			m.msgid = _control_msgid_disconnect;
-			_request->post(&m);
-		}
+		_request_disconnect(name, msg->addr);
 		return 0;
 	} else if (msg->msgid != stream_scheme::Request::meta_id())
 		return _log.fail(0, "Invalid message from client: {}", msg->msgid);
 
 	auto r = _clients.emplace(msg->addr.u64, this);
 	auto & client = r.first->second;
+	client.msg = {};
+	client.msg.addr = msg->addr;
 
 	if (auto error = client.init(msg); !error) {
 		_log.error("Failed to init client '{}' from {}: {}", client.name, msg->addr.u64, error.error());
@@ -409,20 +407,13 @@ int StreamServer::_on_request_data(const tll_msg_t *msg)
 		client.msg.msgid = r.meta_id();
 		client.msg.data = r.view().data();
 		client.msg.size = r.view().size();
-		client.msg.addr = msg->addr;
 		if (auto r = _request->post(&client.msg); r)
 			_log.error("Failed to post error message");
 
-		if (_control_msgid_disconnect) {
-			tll_msg_t m = { TLL_MESSAGE_CONTROL };
-			m.addr = msg->addr;
-			m.msgid = _control_msgid_disconnect;
-			_log.info("Disconnect client '{}' (addr {})", client.name, msg->addr.u64);
-			client.reset();
-			_request->post(&m);
-		} else
-			client.reset();
-		_clients.erase(msg->addr.u64); // If request reported Disconnect - iterator is not valid
+		std::string name = std::move(client.name);
+		client.reset();
+		_clients.erase(msg->addr.u64);
+		_request_disconnect(name, msg->addr);
 		return 0;
 	}
 	_child_add(client.storage.get());
@@ -487,9 +478,6 @@ tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
 
 		_log.info("Translated block type '{}' number {} to seq {}, storage seq {}", block, req.get_seq(), seq, block_end);
 	}
-
-	this->msg = {};
-	this->msg.addr = msg->addr;
 
 	storage = parent->context().channel(parent->_storage_url, parent->_storage.get());
 	if (!storage)
@@ -568,8 +556,12 @@ int StreamServer::Client::on_storage_state(tll_state_t s)
 			parent->_child_del(storage.get());
 			std::swap(storage, storage_next); // Can not destroy in callback
 			parent->_child_add(storage.get());
-		} else
-			state = State::Closed;
+			return 0;
+		}
+		state = State::Closed;
+		parent->_log.info("Client '{}' from {} storage closed, schedule disconnect", name, msg.addr.u64);
+		parent->_clients_drop.push_back(msg.addr);
+		parent->_update_dcaps(dcaps::Process | dcaps::Pending);
 		break;
 	case TLL_STATE_OPENING:
 	case TLL_STATE_DESTROY:
@@ -613,62 +605,35 @@ int StreamServer::_post(const tll_msg_t * msg, int flags)
 	return _child->post(msg);
 }
 
-/*
-int StreamServer::_process_pending()
+int StreamServer::_request_disconnect(std::string_view name, const tll_addr_t &addr)
 {
-	_log.debug("Pending data: {}", rsize());
-	auto frame = rdataT<tll_frame_t>();
-	if (!frame)
-		return EAGAIN;
-	auto data = rdataT<void>(sizeof(*frame), frame->size);
-	if (!data)
-		return EAGAIN;
-
-	tll_msg_t msg = { TLL_MESSAGE_DATA };
-	msg.msgid = frame->msgid;
-	msg.seq = frame->seq;
-	msg.data = data;
-	msg.size = frame->size;
-	_callback_data(&msg);
-	rdone(sizeof(*frame) + frame->size);
-	return 0;
-}
-
-int StreamServer::_process_data()
-{
-	if (_process_pending() != EAGAIN)
+	if (!_control_msgid_disconnect)
 		return 0;
+	tll_msg_t m = { TLL_MESSAGE_CONTROL };
+	m.addr = addr;
+	m.msgid = _control_msgid_disconnect;
 
-	rshift();
-
-	_log.debug("Fetch data");
-	auto r = _recv();
-	if (!r)
-		return _log.fail(EINVAL, "Failed to receive data");
-	if (*r == 0)
-		return EAGAIN;
-	if (_process_pending() == EAGAIN)
-		return EAGAIN;
-	return 0;
+	_log.info("Disconnect client '{}' (addr {})", name, addr.u64);
+	return _request->post(&m);
 }
 
 int StreamServer::_process(long timeout, int flags)
 {
-	if (state() == state::Opening) {
-		if (_state == Closed) {
-			auto r = _process_connect();
-			if (r == 0)
-				_state = Connected;
-			return r;
+	for (auto addr : _clients_drop) {
+		auto it = _clients.find(addr.u64);
+		if (it == _clients.end())
+			continue;
+		if (it->second.state != Client::State::Closed) {
+			_log.debug("Client '{}' from {} not in closing state, do not drop", it->second.name, addr.u64);
+			continue;
 		}
-		return _process_open();
-	}
 
-	auto r = _process_data();
-	if (r == EAGAIN)
-		_dcaps_pending(false);
-	else if (r == 0)
-		_dcaps_pending(rsize() != 0);
-	return r;
+		std::string name = std::move(it->second.name);
+		it->second.reset();
+		_clients.erase(it);
+		_request_disconnect(name, addr);
+	}
+	_clients_drop.clear();
+	_update_dcaps(0, dcaps::Process | dcaps::Pending);
+	return 0;
 }
-*/

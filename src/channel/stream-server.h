@@ -63,6 +63,7 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	};
 
 	std::map<uint64_t, Client> _clients;
+	std::list<tll_addr_t> _clients_drop;
 
 	int _control_msgid_full = 0;
 	int _control_msgid_ready = 0;
@@ -81,6 +82,7 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 
  public:
 	static constexpr std::string_view channel_protocol() { return "stream+"; }
+	static constexpr auto process_policy() { return ProcessPolicy::Never; }
 
 	std::optional<const tll_channel_impl_t *> _init_replace(const tll::Channel::Url &url, tll::Channel *master);
 
@@ -103,6 +105,7 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	}
 
 	int _post(const tll_msg_t *msg, int flags);
+	int _process(long timeout, int flags);
 
 	int _on_data(const tll_msg_t *msg) { return 0; }
 	int _on_active() { return _check_state(tll::state::Active); }
@@ -135,6 +138,7 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 
 	int _check_state(tll_state_t s);
 	int _post_block(const tll_msg_t *msg);
+	int _request_disconnect(std::string_view name, const tll_addr_t & addr);
 
 	int _on_storage_load(const tll_msg_t * msg);
 };
