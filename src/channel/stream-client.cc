@@ -16,6 +16,23 @@ using namespace tll::channel;
 
 TLL_DEFINE_IMPL(StreamClient);
 
+template <>
+struct tll::conv::dump<StreamClient::State> : public tll::conv::to_string_from_string_buf<StreamClient::State>
+{
+	template <typename Buf>
+	static std::string_view to_string_buf(const StreamClient::State &v, Buf &buf)
+        {
+		switch (v) {
+		case StreamClient::State::Closed: return "Closed";
+		case StreamClient::State::Opening: return "Opening";
+		case StreamClient::State::Connected: return "Connected";
+		case StreamClient::State::Overlapped: return "Overlapped";
+		case StreamClient::State::Online: return "Online";
+		}
+		return "UNKNOWN";
+        }
+};
+
 int StreamClient::_init(const Channel::Url &url, tll::Channel *master)
 {
 	auto r = Base::_init(url, master);
@@ -118,6 +135,7 @@ int StreamClient::_open(const ConstConfig &url)
 
 int StreamClient::_close(bool force)
 {
+	_state = State::Closed;
 	_reset_config_cb(config_info(), "reopen.seq");
 
 	if (_request->state() != tll::state::Closed)
@@ -148,7 +166,7 @@ int StreamClient::_post_done(long long seq)
 	msg.data = data.view().data();
 	msg.size = data.view().size();
 	if (auto r = _request->post(&msg); r)
-		return state_fail(EINVAL, "Failed to post online message");
+		return state_fail(EINVAL, "Failed to post Done message");
 	return 0;
 }
 
@@ -164,7 +182,29 @@ int StreamClient::_on_active()
 	return _request->open(_request_open);
 }
 
-int StreamClient::_on_request_error() { return 0; }
+int StreamClient::_on_request_error()
+{
+	switch (_state) {
+	case State::Closed:
+		break;
+	default:
+		return state_fail(0, "Request channel failed, client in state {}", _state);
+	}
+	return 0;
+}
+int StreamClient::_on_request_closed()
+{
+	switch (_state) {
+	case State::Closed:
+	case State::Online:
+	case State::Overlapped:
+		break;
+	default:
+		return state_fail(0, "Request channel closed, client in state {}", _state);
+	}
+	return 0;
+}
+
 int StreamClient::_on_request_active()
 {
 	tll_msg_t msg = { TLL_MESSAGE_DATA };

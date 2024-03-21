@@ -19,6 +19,10 @@ namespace tll::channel {
 
 class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::Prefix<StreamClient>>
 {
+ public:
+	enum class State { Closed, Opening, Connected, Overlapped, Online };
+
+ private:
 	using Base = LastSeqRx<StreamClient, Prefix<StreamClient>>;
 
 	tll::util::DataRing<tll_frame_t> _ring;
@@ -27,7 +31,7 @@ class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::
 	std::vector<char> _request_buf;
 	tll::Config _request_open;
 
-	enum class State { Closed, Opening, Connected, Overlapped, Online } _state;
+	State _state;
 
 	long long _seq = -1;
 	long long _server_seq = -1;
@@ -93,7 +97,7 @@ class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::
 	int _on_request_active();
 	int _on_request_error();
 	int _on_request_closing() { return 0; }
-	int _on_request_closed() { return 0; }
+	int _on_request_closed();
 
 	int _report_online();
 	int _post_done(long long seq);

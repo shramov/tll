@@ -742,3 +742,41 @@ async def test_export_client(asyncloop, tmp_path):
     assert (await c.recv()).seq == 100
 
     assert [m.name for m in c.scheme.messages] == ['Test']
+
+@asyncloop_run
+@pytest.mark.parametrize("mode,rseq,oseq", [
+        ("request-only", list(range(10, 15)), []),
+        ("request+online", list(range(10, 25)), [30]),
+        ])
+async def test_request_close(asyncloop, tmp_path, path_srcdir, mode, rseq, oseq):
+    request = asyncloop.Channel('direct://', name='request', scheme=f'yaml://{path_srcdir / "src/channel/stream-scheme.yaml"}')
+    request.open()
+
+    client = asyncloop.Channel(f'stream+direct://;request=direct://', dump='frame', name='client', mode='client',
+        **{'request.master': 'request', 'request.dump': 'frame', 'direct.dump': 'frame'})
+    client.open(mode='seq', seq='10')
+
+    assert client.children[0].name == 'client/stream'
+    assert client.children[1].name == 'client/request'
+
+    online = asyncloop.Channel('direct://', master=client.children[0], name='online')
+    online.open()
+
+    m = request.unpack(await request.recv())
+    assert m.SCHEME.name == 'Request'
+    assert m.seq == 10
+
+    request.post({'last_seq': 20, 'requested_seq': 10}, name='Reply')
+
+    for s in oseq:
+        online.post(b'online', seq=s)
+    for i in rseq:
+        request.post(b'xxx', seq=i)
+
+    for i in rseq:
+        m = await client.recv()
+        assert (m.seq, m.data.tobytes()) == (i, b'xxx')
+
+    client.children[1].close()
+
+    assert client.state == client.State.Error
