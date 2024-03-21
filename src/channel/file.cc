@@ -913,6 +913,7 @@ int File<TIO>::_process(long timeout, int flags)
 	}
 
 	_shift(frame);
+	this->_dcaps_pending(true);
 
 	this->_callback_data(&msg);
 
