@@ -64,6 +64,10 @@ int ChDirect::_init(const tll::Channel::Url &url, tll::Channel * master)
 		return _log.fail(EINVAL, "Master {} has it's own master, can not bind", _sibling->name);
 	if (!_scheme_url)
 		_scheme_url = _sibling->_scheme_url;
+	if (!_scheme_control && _sibling->_scheme_control) {
+		_log.info("Inherit control scheme from master");
+		_scheme_control.reset(_sibling->_scheme_control->ref());
+	}
 	_log.debug("Init child of master {}", _sibling->name);
 	return 0;
 }
