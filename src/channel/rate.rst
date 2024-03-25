@@ -72,7 +72,7 @@ Read from the file with average speed of ``16kbit`` and maximum burst size of ``
 message size:
 
 ::
-  
+
     rate+file://file.dat;speed=16kbit;max-window=8kbit;dir=in
 
 Send message with the speed of 0.1 byte per second (and wait for 10 seconds before first message can
