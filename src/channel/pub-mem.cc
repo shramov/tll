@@ -9,7 +9,7 @@
 
 #include "tll/channel/frame.h"
 #include "tll/channel/lastseq.h"
-#include "tll/ring.h"
+#include "tll/cppring.h"
 #include "tll/util/size.h"
 
 #include <fcntl.h>
@@ -42,10 +42,10 @@ struct PubMemCommon
 		return 0;
 	}
 
-	void close(const ring_header_t * header, tll::Logger &log)
+	void close(const tll::PubRing * header, tll::Logger &log)
 	{
-		if (header && munmap((void *) header, header->size + sizeof(*header)))
-			log.error("Failed to unmap ring of size {}: {}", header->size + sizeof(*header), strerror(errno));
+		if (header && munmap((void *) header, header->size() + sizeof(*header)))
+			log.error("Failed to unmap ring of size {}: {}", header->size() + sizeof(*header), strerror(errno));
 
 		if (fd != -1)
 			::close(fd);
@@ -57,7 +57,7 @@ class PubMemClient : public tll::channel::LastSeqRx<PubMemClient>
 {
 	using Base = tll::channel::LastSeqRx<PubMemClient>;
 
-	ringiter_t _iter = {};
+	tll::PubRing::Iterator _iter = {};
 	std::vector<char> _buf;
 
 	PubMemCommon _common = {};
@@ -77,7 +77,7 @@ class PubMemServer : public tll::channel::LastSeqTx<PubMemServer>
 {
 	using Base = tll::channel::LastSeqTx<PubMemServer>;
 
-	ringbuffer_t _ring = {};
+	tll::PubRing * _ring = nullptr;
 
 	PubMemCommon _common = {};
 	size_t _size = 0;
@@ -132,7 +132,7 @@ int PubMemServer::_open(const tll::ConstConfig &cfg)
 	if (_common.fd == -1)
 		return _log.fail(EINVAL, "Failed to create temporary file {}: {}", fn, strerror(errno));
 
-	auto full = sizeof(ring_header_t) + _size;
+	auto full = sizeof(tll::Ring) + _size;
 	if (auto r = posix_fallocate(_common.fd, 0, full); r) {
 		std::filesystem::remove(fn, uec);
 		return _log.fail(EINVAL, "Failed to allocate {} bytes of space: {}", full, strerror(r));
@@ -144,10 +144,8 @@ int PubMemServer::_open(const tll::ConstConfig &cfg)
 		return _log.fail(EINVAL, "Failed to mmap memory: {}", strerror(errno));
 	}
 
-	_ring.header = static_cast<ring_header_t *>(buf);
-	*_ring.header = {};
-	_ring.header->size = _size;
-	_ring.header->magic = ring_magic;
+	_ring = static_cast<tll::PubRing *>(buf);
+	_ring->init(_size);
 
 	_log.info("Rename temporary file {} to {}", fn, _common.filename);
 	if (std::filesystem::rename(fn, _common.filename, ec); ec) {
@@ -164,7 +162,7 @@ int PubMemServer::_close()
 	if (_unlink)
 		unlink(_common.filename.c_str());
 	_unlink = false;
-	_common.close(_ring.header, _log);
+	_common.close(_ring, _log);
 	_ring = {};
 
 	return Base::_close();
@@ -181,14 +179,14 @@ int PubMemServer::_post(const tll_msg_t *msg, int flags)
 	Frame * frame;
 	const size_t size = sizeof(Frame) + msg->size;
 
-	while (ring_write_begin(&_ring, (void **) &frame, size)) {
-		ring_shift(&_ring);
+	while (_ring->write_begin((void **) &frame, size)) {
+		_ring->shift();
 	}
 
 	frame->seq = msg->seq;
 	frame->msgid = msg->msgid;
 	memcpy(frame + 1, msg->data, msg->size);
-	ring_write_end(&_ring, frame, size);
+	_ring->write_end(frame, size);
 	return 0;
 }
 
@@ -205,24 +203,28 @@ int PubMemClient::_open(const tll::ConstConfig &cfg)
 	if (_common.fd == -1)
 		return _log.fail(EINVAL, "Failed to open file {}: {}", _common.filename, strerror(errno));
 
-	ring_header_t hdr = {};
-	auto r = read(_common.fd, &hdr, sizeof(hdr));
+	std::array<char, sizeof(tll::Ring)> hbuf;
+	auto r = read(_common.fd, hbuf.data(), hbuf.size());
 	if (r < 0)
 		return _log.fail(EINVAL, "Failed to read ring header from file {}: {}", _common.filename, strerror(errno));
-	if ((size_t) r < sizeof(hdr))
-		return _log.fail(EINVAL, "Failed to read ring header from file {}: got {} bytes of {} needed", _common.filename, r, sizeof(hdr));
-	if (hdr.magic != ring_magic)
-		return _log.fail(EINVAL, "Invalid ring magic in file {}: expected 0x{08:x}, got 0x{08:x}", _common.filename, ring_magic, hdr.magic);
+	if ((size_t) r < hbuf.size())
+		return _log.fail(EINVAL, "Failed to read ring header from file {}: got {} bytes of {} needed", _common.filename, r, sizeof(hbuf.data()));
+	auto hdr = (const tll::PubRing *) hbuf.data();
+	if (hdr->magic() != hdr->Magic)
+		return _log.fail(EINVAL, "Invalid ring magic in file {}: expected 0x{08:x}, got 0x{08:x}", _common.filename, hdr->Magic, hdr->magic());
 
-	auto buf = mmap(nullptr, sizeof(hdr) + hdr.size, PROT_READ, MAP_SHARED | MAP_POPULATE, _common.fd, 0);
+	const auto buf = mmap(nullptr, sizeof(*hdr) + hdr->size(), PROT_READ, MAP_SHARED | MAP_POPULATE, _common.fd, 0);
 	if (buf == MAP_FAILED)
 		return _log.fail(EINVAL, "Failed to mmap memory from {}: {}", _common.filename, strerror(errno));
 
-	ringbuffer_t ring = { static_cast<ring_header_t *>(buf) };
-	if (ring_iter_init(&ring, &_iter))
+	auto ring = tll::PubRing::bind(buf);
+	if (!ring)
+		return _log.fail(EINVAL, "Failed to bind ring: invalid magic");
+	_iter = ring->end();
+	if (!_iter.valid())
 		return _log.fail(EINVAL, "Failed to init iterator: writer is too fast");
 
-	_buf.resize(hdr.size / 4);
+	_buf.resize(hdr->size() / 4);
 
 	_dcaps_pending(true);
 
@@ -231,7 +233,7 @@ int PubMemClient::_open(const tll::ConstConfig &cfg)
 
 int PubMemClient::_close()
 {
-	_common.close(_iter.header, _log);
+	_common.close(_iter.ring, _log);
 	_iter = {};
 
 	return Base::_close();
@@ -243,7 +245,7 @@ int PubMemClient::_process(long timeout, int flags)
 	const Frame * frame;
 	size_t size;
 
-	if (auto r = ring_iter_read(&_iter, (const void **) &frame, &size); r) {
+	if (auto r = _iter.read((const void **) &frame, &size); r) {
 		if (r == EAGAIN) return r;
 		return _log.fail(EINVAL, "Ring iterator invalidated");
 	}
@@ -252,14 +254,13 @@ int PubMemClient::_process(long timeout, int flags)
 		return _log.fail(EMSGSIZE, "Got invalid payload size {} > max size {}", size, _buf.size());
 
 	memcpy(_buf.data(), frame, size);
-	if (ring_iter_invalid(&_iter))
+	if (_iter.shift())
 		return _log.fail(EINVAL, "Ring iterator invalidated");
 
 	frame = (const Frame *) _buf.data();
 
 	if (size < sizeof(Frame))
 		return _log.fail(EMSGSIZE, "Got invalid payload size {} < {}", size, sizeof(Frame));
-	ring_iter_shift(&_iter);
 
 	msg.seq = frame->seq;
 	msg.msgid = frame->msgid;
