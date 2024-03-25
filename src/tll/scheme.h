@@ -283,6 +283,9 @@ typedef struct tll_scheme_field_t
 	/// Field index, negative if not defined (auto or mandatory fields)
 	int index;
 
+	/// Reserved space
+	long long reserved[4];
+
 #ifdef __cplusplus
 	static constexpr auto Int8 = TLL_SCHEME_FIELD_INT8;
 	static constexpr auto Int16 = TLL_SCHEME_FIELD_INT16;
@@ -343,6 +346,9 @@ typedef struct tll_scheme_message_t
 	/// Presence map field (if defined)
 	struct tll_scheme_field_t * pmap;
 
+	/// Reserved space
+	long long reserved[4];
+
 #ifdef __cplusplus
 	tll_scheme_field_t * lookup(std::string_view name) { return tll::scheme::lookup_name(fields, name); }
 	const tll_scheme_field_t * lookup(std::string_view name) const { return tll::scheme::lookup_name(fields, name); }
@@ -382,6 +388,9 @@ typedef struct tll_scheme_t
 
 	/// Linked list of global bits types
 	struct tll_scheme_bits_t * bits;
+
+	/// Reserved space
+	long long reserved[4];
 
 #ifdef __cplusplus
 	static tll_scheme_t * load(std::string_view url) { return tll_scheme_load(url.data(), url.size()); }
