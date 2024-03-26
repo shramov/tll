@@ -16,6 +16,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include <array>
 #include <filesystem>
 
 #ifndef MAP_POPULATE
