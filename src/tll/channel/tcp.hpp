@@ -41,6 +41,20 @@
 #endif // SOL_TCP
 #endif // __APPLE__
 
+template <>
+struct tll::conv::parse<tll::channel::tcp_settings_t::Protocol>
+{
+        static tll::result_t<tll::channel::tcp_settings_t::Protocol> to_any(std::string_view s)
+        {
+		using Protocol = tll::channel::tcp_settings_t::Protocol;
+                return tll::conv::select(s, std::map<std::string_view, Protocol> {
+			{"tcp", Protocol::TCP},
+			{"mptcp", Protocol::MPTCP},
+			{"sctp", Protocol::SCTP},
+		});
+        }
+};
+
 namespace tll::channel {
 
 enum class TcpChannelMode { Client, Server, Socket };
@@ -60,21 +74,28 @@ size_t _fill_iovec(size_t full, struct iovec * iov, const Arg &arg, const Args &
 	return _fill_iovec(full + tll::memoryview_api<Arg>::size(arg), iov + 1, std::forward<const Args &>(args)...);
 }
 
-inline int check_mptcp_proto(tll::Logger &log, const tcp_settings_t &settings, int af)
+inline int select_protocol(tll::Logger &log, const tcp_settings_t &settings, int af)
 {
-	if (!settings.mptcp)
+	switch (settings.protocol) {
+	case tcp_settings_t::TCP:
 		return 0;
-	if (af == AF_UNIX) {
-		log.info("MPTCP not supported for Unix sockets, fall back to TCP");
-		return 0;
-	}
 
+	case tcp_settings_t::MPTCP:
+		if (af == AF_UNIX) {
+			log.info("MPTCP not supported for Unix sockets, fall back to TCP");
+			return 0;
+		}
 #ifdef IPPROTO_MPTCP
-	return IPPROTO_MPTCP;
+		return IPPROTO_MPTCP;
 #else
-	log.warning("MPTCP not supported on this platform, fall back to TCP");
-	return 0;
+		log.warning("MPTCP not supported on this platform, fall back to TCP");
+		return 0;
 #endif
+
+	case tcp_settings_t::SCTP:
+		return IPPROTO_SCTP;
+	}
+	return log.fail(-1, "Undefined protocol variant: {}", int(settings.protocol));
 }
 
 } // namespace _
@@ -223,7 +244,7 @@ int TcpSocket<T>::setup(const tcp_settings_t &settings, int af)
 	if (settings.rcvbuf && setsockoptT<int>(this->fd(), SOL_SOCKET, SO_RCVBUF, settings.rcvbuf))
 		return this->_log.fail(EINVAL, "Failed to set rcvbuf to {}: {}", settings.rcvbuf, strerror(errno));
 
-	if (settings.nodelay && af != AF_UNIX && setsockoptT<int>(this->fd(), SOL_TCP, TCP_NODELAY, 1))
+	if (settings.nodelay && af != AF_UNIX && settings.protocol != settings.SCTP && setsockoptT<int>(this->fd(), SOL_TCP, TCP_NODELAY, 1))
 		return this->_log.fail(EINVAL, "Failed to set nodelay: {}", strerror(errno));
 
 	return 0;
@@ -374,7 +395,7 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_settings.sndbuf = reader.getT("sndbuf", util::Size { 0 });
 	_settings.rcvbuf = reader.getT("rcvbuf", util::Size { 0 });
 	_settings.buffer_size = reader.getT("buffer-size", util::Size { 64 * 1024 });
-	_settings.mptcp = reader.getT("mptcp", false);
+	_settings.protocol = reader.getT("protocol", tcp_settings_t::Protocol::TCP);
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -422,7 +443,7 @@ int TcpClient<T, S>::_open(const ConstConfig &url)
 	std::swap(_addr_list, *addr);
 	_addr = _addr_list.begin();
 
-	auto fd = socket((*_addr)->sa_family, SOCK_STREAM, _::check_mptcp_proto(this->_log, _settings, (*_addr)->sa_family));
+	auto fd = socket((*_addr)->sa_family, SOCK_STREAM, _::select_protocol(this->_log, _settings, (*_addr)->sa_family));
 	if (fd == -1)
 		return this->_log.fail(errno, "Failed to create socket: {}", strerror(errno));
 	this->_update_fd(fd);
@@ -557,6 +578,7 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_settings.sndbuf = reader.getT("sndbuf", util::Size { 0 });
 	_settings.rcvbuf = reader.getT("rcvbuf", util::Size { 0 });
 	_settings.buffer_size = reader.getT("buffer-size", util::Size { 64 * 1024 });
+	_settings.protocol = reader.getT("protocol", tcp_settings_t::Protocol::TCP);
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -637,7 +659,7 @@ int TcpServer<T, C>::_bind(tll::network::sockaddr_any &addr)
 	static constexpr int sflags = SOCK_STREAM;
 #endif
 
-	tll::network::scoped_socket fd(socket(addr->sa_family, sflags, _::check_mptcp_proto(this->_log, _settings, addr->sa_family)));
+	tll::network::scoped_socket fd(socket(addr->sa_family, sflags, _::select_protocol(this->_log, _settings, addr->sa_family)));
 	if (fd == -1)
 		return this->_log.fail(errno, "Failed to create socket: {}", strerror(errno));
 

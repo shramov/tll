@@ -20,14 +20,15 @@ ctx = C.Context()
 def context():
     return C.Context()
 
-def check_mptcp():
+def check_protocol(proto):
     try:
-        socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_MPTCP).close()
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM, getattr(socket, proto)).close()
     except:
         return False
     return True
 
-WITHOUT_MPTCP = not check_mptcp()
+WITHOUT_MPTCP = not check_protocol('IPPROTO_MPTCP')
+WITHOUT_SCTP = not check_protocol('IPPROTO_SCTP')
 
 class _test_tcp_base:
     PROTO = 'invalid-url'
@@ -370,12 +371,12 @@ def test_client_scheme():
     assert [m.name for m in s.scheme.messages] == ['Test']
 
 @pytest.mark.skipif(WITHOUT_MPTCP, reason="MPTCP not available")
-@pytest.mark.parametrize("client", ["yes", "no"])
-@pytest.mark.parametrize("server", ["yes", "no"])
+@pytest.mark.parametrize("client", ['mptcp', 'tcp'])
+@pytest.mark.parametrize("server", ['mptcp', 'tcp'])
 @pytest.mark.parametrize("host", [f"127.0.0.1:{ports.TCP4}", f"::1:{ports.TCP6}", "./tcp.sock"])
 def test_mptcp(host, client, server):
-    s = Accum(f'tcp://{host};mode=server;dump=frame', mptcp=server)
-    c = Accum(f'tcp://{host};mode=client;dump=frame', mptcp=client)
+    s = Accum(f'tcp://{host};mode=server;dump=frame', protocol=server)
+    c = Accum(f'tcp://{host};mode=client;dump=frame', protocol=client)
 
     loop = Loop()
 
@@ -402,6 +403,34 @@ def test_mptcp(host, client, server):
             loop.step(0.001)
         assert [(m.data.tobytes(), m.seq) for m in s.result] == [(b'xxx', 10)]
         assert [(m.data.tobytes(), m.seq) for m in c.result] == [(b'zzz', 20)]
+    finally:
+        s.close()
+        c.close()
+
+@asyncloop_run
+@pytest.mark.skipif(WITHOUT_SCTP, reason="SCTP not available")
+@pytest.mark.parametrize("client", ['::1', '127.0.0.1'])
+async def test_sctp(asyncloop, client):
+    s = asyncloop.Channel(f'tcp://*:{ports.TCP6};af=ipv6;mode=server;dump=frame', name='server', protocol='sctp')
+    c = asyncloop.Channel(f'tcp://{client}:{ports.TCP6};mode=client;dump=frame', name='client', protocol='sctp')
+
+    s.open()
+    c.open()
+
+    try:
+        assert c.State.Active == await c.recv_state(0.01)
+
+        m = await s.recv()
+        addr = m.addr
+
+        c.post(b'xxx', seq=10)
+        s.post(b'zzz', seq=20, addr=addr)
+
+        m = await s.recv()
+        assert (m.data.tobytes(), m.seq) == (b'xxx', 10)
+
+        m = await c.recv()
+        assert (m.data.tobytes(), m.seq) == (b'zzz', 20)
     finally:
         s.close()
         c.close()
