@@ -420,7 +420,7 @@ int File<TIO>::_read_meta()
 
 	std::string_view scheme = meta.get_scheme();
 	if (scheme.size()) {
-		auto s = tll::Scheme::load(scheme);
+		auto s = this->context().scheme_load(scheme);
 		if (!s)
 			return this->_log.fail(EINVAL, "Failed to load scheme");
 		this->_scheme.reset(s);
