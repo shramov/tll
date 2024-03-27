@@ -471,6 +471,7 @@ tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
 		if (seq == -1) {
 			_log.info("Block without data, translated seq points to the end {}", block_end);
 			seq = block_end;
+			blocks->close();
 		}
 
 		if (blocks->state() != tll::state::Closed)
