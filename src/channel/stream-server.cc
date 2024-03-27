@@ -469,6 +469,8 @@ tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
 			block_end = *bseq + 1;
 
 		if (seq == -1) {
+			if (block_end == 0) // -1 + 1
+				return error(fmt::format("Failed to get block seq values: reported invalid values -1 and -1"));
 			_log.info("Block without data, translated seq points to the end {}", block_end);
 			seq = block_end;
 			blocks->close();
