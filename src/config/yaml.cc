@@ -28,12 +28,36 @@ struct state_t
 	tll::Logger _log = {"tll.config.yaml.state"};
 
 	using variant_t = std::variant<bool, size_t, std::string>;
-	std::list<std::pair<Config, variant_t>> stack;
+	struct Frame {
+		Config cfg;
+		variant_t key;
+		std::string path;
+	};
+	std::list<Frame> stack;
 	variant_t key;
 
 	std::map<std::string, Config, std::less<>> anchors;
+	std::map<Config, bool> checked;
 
 	int parse(const yaml_event_t &event);
+
+	std::string key_full(std::string_view suffix)
+	{
+		std::string full;
+		for (auto &i : stack) {
+			if (full.empty())
+				full = i.path;
+			else
+				full += "." + i.path;
+		}
+		if (suffix.size()) {
+			if (full.empty())
+				full = suffix;
+			else
+				full += "." + std::string(suffix);
+		}
+		return full;
+	}
 
 	std::string key_string()
 	{
@@ -91,22 +115,23 @@ int state_t::parse(const yaml_event_t &event)
 	case YAML_MAPPING_END_EVENT:
 	case YAML_SEQUENCE_END_EVENT:
 		if (stack.empty()) return 0; // Last mapping
-		key = stack.back().second;
-		cfg = stack.back().first;
+		key = stack.back().key;
+		cfg = stack.back().cfg;
 		stack.pop_back();
 		break;
 
 	case YAML_MAPPING_START_EVENT:
 	case YAML_SEQUENCE_START_EVENT: {
 		auto c = cfg;
+		std::string k;
 		if (!std::holds_alternative<bool>(key)) {
-			auto k = key_string();
+			k = key_string();
 			auto sub = cfg.sub(k, true);
 			if (!sub)
 				return _log.fail(EINVAL, "Failed to build path {}", k);
 			c = *sub;
 		}
-		stack.emplace_back(cfg, std::move(key));
+		stack.emplace_back(Frame {cfg, std::move(key), k});
 		cfg = c;
 		if (event.type == YAML_SEQUENCE_START_EVENT) {
 			anchor(event.data.mapping_start.anchor, cfg, "sequence");
@@ -122,8 +147,39 @@ int state_t::parse(const yaml_event_t &event)
 		std::string_view value = {(const char *) event.data.scalar.value, event.data.scalar.length};
 		if (!std::holds_alternative<bool>(key)) {
 			auto k = key_string();
-			if (cfg.has(k))
+			bool created = !cfg.sub(k, false);
+			auto sub = cfg.sub(k, true);
+			if (sub->value())
 				return _log.fail(EINVAL, "Failed to set value {}: duplicate entry", k);
+			if (created) {
+				auto index = 0;
+				for (auto p = sub->parent(); p; p = p->parent()) {
+					index++;
+					if (p->value()) {
+						auto full = key_full(k);
+						auto split = tll::split<'.'>(full);
+						auto it = split.end();
+						it--;
+						for (; index; index--)
+							it--;
+						auto path = std::string_view(it.data_begin, it.end - it.data_begin);
+						const auto & mark = event.start_mark;
+						_log.warning("Parent '{}' with value conflicts with new node '{}' at line {}", path, full, mark.line + 1);
+						break;
+					}
+				}
+			} else if (auto children = sub->list(); !children.empty()) {
+				std::string names;
+				for (auto &[c, _] : children) {
+					if (names.empty())
+						names = c;
+					else
+						names += ", " + c;
+				}
+				auto full = key_full(k);
+				const auto & mark = event.start_mark;
+				_log.warning("Conflicting value at '{}', node has children [{}] at line {}", full, names, mark.line + 1);
+			}
 			if (event.data.scalar.tag) {
 				std::string_view tag((const char *) event.data.scalar.tag);
 				if (tag == "tag:yaml.org,2002:binary") {
