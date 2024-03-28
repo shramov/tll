@@ -551,6 +551,9 @@ int StreamServer::Client::on_storage_state(tll_state_t s)
 		break;
 	case TLL_STATE_ERROR:
 		state = State::Error;
+		parent->_log.info("Client '{}' from {} storage error, schedule disconnect", name, msg.addr.u64);
+		parent->_clients_drop.push_back(msg.addr);
+		parent->_update_dcaps(dcaps::Process | dcaps::Pending);
 		break;
 	case TLL_STATE_CLOSING:
 		break;
@@ -626,7 +629,7 @@ int StreamServer::_process(long timeout, int flags)
 		auto it = _clients.find(addr.u64);
 		if (it == _clients.end())
 			continue;
-		if (it->second.state != Client::State::Closed) {
+		if (it->second.state != Client::State::Closed && it->second.state != Client::State::Error) {
 			_log.debug("Client '{}' from {} not in closing state, do not drop", it->second.name, addr.u64);
 			continue;
 		}

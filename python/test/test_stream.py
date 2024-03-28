@@ -462,6 +462,7 @@ class Aggregate(Base):
         if self.caps & self.Caps.Output:
             self.scheme_control = self.context.scheme_load(self.SCHEME_CONTROL)
             self.PROCESS_POLICY = Base.ProcessPolicy.Never
+        self._fail_mode = props.getT("fail-mode", False)
 
     def _open(self, props):
         if self.caps & self.Caps.Output:
@@ -493,6 +494,9 @@ class Aggregate(Base):
     def _process(self, timeout, flags):
         if self.caps & self.Caps.Output:
             return
+
+        if self._fail_mode:
+            raise RuntimeError("Fail mode")
 
         if not self._data:
             self.close()
@@ -606,6 +610,28 @@ async def test_stream_aggregate(asyncloop, context, tmp_path):
     assert (m.seq, m.msgid, m.data.tobytes()) == (29, 10, b'xxz')
     m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (30, 20, b'yyz')
+
+@asyncloop_run
+async def test_stream_aggregate_error(asyncloop, context, tmp_path):
+    context.register(Aggregate)
+
+    Aggregate.STORAGE = []
+
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage;name=server;mode=server;blocks.url=aggr://;blocks.fail-mode=yes')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+
+    s.open()
+
+    s.post(b'xxx', msgid=10, seq=0)
+    s.post({'type':'default'}, name='Block', type=s.Type.Control)
+
+    assert Aggregate.STORAGE == [(0, {10: b'xxx'})]
+
+    c.open(block='0', mode='block')
+
+    assert c.State.Active == await c.recv_state()
+    assert c.State.Error == await c.recv_state()
 
 @asyncloop_run
 async def test_ring(asyncloop, tmp_path):
