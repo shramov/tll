@@ -46,9 +46,7 @@ class UdpClient : public FramedSocket<UdpClient<Frame>, Frame>
 {
 	using udp_socket_t = FramedSocket<UdpClient<Frame>, Frame>;
 
-	AddressFamily _af = AddressFamily::UNSPEC;
-	std::string _host;
-	unsigned short _port = 0;
+	tll::network::hostport _host;
 
  public:
 	int _init(const tll::Channel::Url &, tll::Channel *master);
@@ -65,9 +63,7 @@ class UdpServer : public FramedSocket<UdpServer<Frame>, Frame>
 {
 	using udp_socket_t = FramedSocket<UdpServer<Frame>, Frame>;
 
-	AddressFamily _af = AddressFamily::UNSPEC;
-	std::string _host;
-	unsigned short _port = 0;
+	tll::network::hostport _host;
 	bool _unlink_socket = false;
 
  public:
@@ -173,7 +169,7 @@ template <typename F>
 int UdpClient<F>::_init(const Channel::Url &url, Channel *master)
 {
 	auto reader = this->channel_props_reader(url);
-	_af = reader.getT("af", AddressFamily::UNSPEC);
+	auto af = reader.getT("af", AddressFamily::UNSPEC);
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -181,31 +177,21 @@ int UdpClient<F>::_init(const Channel::Url &url, Channel *master)
 		return this->_log.fail(EINVAL, "Failed to init Udp socket");
 
 	auto host = url.host();
-	if (_af == AddressFamily::UNSPEC && host.find('/') != host.npos)
-		_af = AddressFamily::UNIX;
+	auto r = network::parse_hostport(host, af);
+	if (!r)
+		return this->_log.fail(EINVAL, "Invalid host string '{}': {}", host, r.error());
+	_host = *r;
 
-	if (_af != AddressFamily::UNIX) {
-		auto sep = host.find_last_of(':');
-		if (sep == host.npos)
-			return this->_log.fail(EINVAL, "Invalid host:port pair: {}", host);
-		auto p = conv::to_any<unsigned short>(host.substr(sep + 1));
-		if (!p)
-			return this->_log.fail(EINVAL, "Invalid port '{}': {}", host.substr(sep + 1), p.error());
-
-		_port = *p;
-		_host = host.substr(0, sep);
-	} else
-		_host = host;
-	this->_log.debug("Connection to {}:{}", _host, _port);
+	this->_log.debug("Connection to {}:{}", _host.host, _host.port);
 	return 0;
 }
 
 template <typename F>
 int UdpClient<F>::_open(const ConstConfig &url)
 {
-	auto addr = tll::network::resolve(_af, SOCK_DGRAM, _host.c_str(), _port);
+	auto addr = tll::network::resolve(_host.af, SOCK_DGRAM, _host.host, _host.port);
 	if (!addr)
-		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _host, addr.error());
+		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _host.host, addr.error());
 	this->_addr = addr->front();
 
 	auto fd = socket(this->_addr->sa_family, SOCK_DGRAM, 0);
@@ -222,7 +208,7 @@ template <typename F>
 int UdpServer<F>::_init(const Channel::Url &url, Channel *master)
 {
 	auto reader = this->channel_props_reader(url);
-	_af = reader.getT("af", AddressFamily::UNSPEC);
+	auto af = reader.getT("af", AddressFamily::UNSPEC);
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -230,22 +216,12 @@ int UdpServer<F>::_init(const Channel::Url &url, Channel *master)
 		return this->_log.fail(EINVAL, "Failed to init Udp socket");
 
 	auto host = url.host();
-	if (_af == AddressFamily::UNSPEC && host.find('/') != host.npos)
-		_af = AddressFamily::UNIX;
+	auto r = network::parse_hostport(host, af);
+	if (!r)
+		return this->_log.fail(EINVAL, "Invalid host string '{}': {}", host, r.error());
+	_host = *r;
 
-	if (_af != AddressFamily::UNIX) {
-		auto sep = host.find_last_of(':');
-		if (sep == host.npos)
-			return this->_log.fail(EINVAL, "Invalid host:port pair: {}", host);
-		auto p = conv::to_any<unsigned short>(host.substr(sep + 1));
-		if (!p)
-			return this->_log.fail(EINVAL, "Invalid port '{}': {}", host.substr(sep + 1), p.error());
-
-		_port = *p;
-		_host = host.substr(0, sep);
-	} else
-		_host = host;
-	this->_log.debug("Listen on {}:{}", _host, _port);
+	this->_log.debug("Listen on {}:{}", _host.host, _host.port);
 	return 0;
 }
 
@@ -253,9 +229,9 @@ template <typename F>
 int UdpServer<F>::_open(const ConstConfig &url)
 {
 	using namespace tll::network;
-	auto addr = tll::network::resolve(_af, SOCK_DGRAM, _host.c_str(), _port);
+	auto addr = tll::network::resolve(_host.af, SOCK_DGRAM, _host.host, _host.port);
 	if (!addr)
-		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _host, addr.error());
+		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _host.host, addr.error());
 	this->_addr = addr->front();
 
 	auto fd = socket(this->_addr->sa_family, SOCK_DGRAM, 0);
@@ -272,7 +248,7 @@ int UdpServer<F>::_open(const ConstConfig &url)
 
 	if (bind(this->fd(), this->_addr, this->_addr.size))
 		return this->_log.fail(errno, "Failed to bind: {}", strerror(errno));
-	_unlink_socket = _af == AF_UNIX;
+	_unlink_socket = _host.af == AF_UNIX;
 
 	if (this->_multi) {
 		if (this->_nametoindex())
@@ -309,9 +285,9 @@ template <typename F>
 int UdpServer<F>::_close()
 {
 	if (_unlink_socket) {
-		this->_log.info("Unlink unix socket {}", this->_host);
-		if (unlink(this->_host.c_str()))
-			this->_log.warning("Failed to unlink socket {}: {}", this->_host, strerror(errno));
+		this->_log.info("Unlink unix socket {}", this->_host.host);
+		if (unlink(_host.host.c_str()))
+			this->_log.warning("Failed to unlink socket {}: {}", _host.host, strerror(errno));
 	}
 	_unlink_socket = false;
 	return udp_socket_t::_close();
