@@ -189,7 +189,7 @@ int UdpClient<F>::_init(const Channel::Url &url, Channel *master)
 template <typename F>
 int UdpClient<F>::_open(const ConstConfig &url)
 {
-	auto addr = tll::network::resolve(_host.af, SOCK_DGRAM, _host.host, _host.port);
+	auto addr = _host.resolve(SOCK_DGRAM);
 	if (!addr)
 		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _host.host, addr.error());
 	this->_addr = addr->front();
@@ -229,7 +229,7 @@ template <typename F>
 int UdpServer<F>::_open(const ConstConfig &url)
 {
 	using namespace tll::network;
-	auto addr = tll::network::resolve(_host.af, SOCK_DGRAM, _host.host, _host.port);
+	auto addr = _host.resolve(SOCK_DGRAM);
 	if (!addr)
 		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _host.host, addr.error());
 	this->_addr = addr->front();

@@ -210,6 +210,8 @@ struct hostport
 	AddressFamily af = AddressFamily::UNSPEC;
 	std::string host;
 	unsigned short port = 0;
+
+	auto resolve(int socktype) const { return tll::network::resolve(af, socktype, host, port); }
 };
 
 static inline tll::result_t<hostport> parse_hostport(std::string_view host, AddressFamily af = AddressFamily::UNSPEC)
