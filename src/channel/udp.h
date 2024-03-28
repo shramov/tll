@@ -5,8 +5,8 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
-#ifndef _TLL_CHANNEL_UDP_H
-#define _TLL_CHANNEL_UDP_H
+#ifndef _TLL_IMPL_CHANNEL_UDP_H
+#define _TLL_IMPL_CHANNEL_UDP_H
 
 #include "tll/channel/base.h"
 
@@ -20,4 +20,4 @@ class ChUdp : public tll::channel::Base<ChUdp>
 	int _init(const tll::Channel::Url &url, tll::Channel * master) { return this->_log.fail(EINVAL, "Failed to choose proper udp channel"); }
 };
 
-#endif//_TLL_CHANNEL_UDP_H
+#endif//_TLL_IMPL_CHANNEL_UDP_H
