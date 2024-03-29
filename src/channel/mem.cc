@@ -230,7 +230,10 @@ int Mem<F>::_process(long timeout, int flags)
 	frame->fill(msg);
 	msg.size = size - sizeof(Frame);
 	msg.data = frame + 1;
-	this->_callback_data(&msg);
+	if constexpr (std::is_same_v<frame::Short, F>)
+		this->_callback_data(&msg);
+	else
+		this->_callback(&msg);
 	ring_shift(&_rin->ring);
 
 	auto empty = _empty();

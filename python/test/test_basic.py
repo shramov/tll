@@ -318,8 +318,11 @@ def test_mem_full():
     test_mem(frame='full')
 
 def test_mem_full_control():
+    class ControlAccum(Accum):
+        MASK = Accum.MsgMask.Control
+
     s = Accum('mem://;size=1kb', name='server', context=ctx, frame='full')
-    c = Accum('mem://', name='client', master=s, context=ctx, frame='full')
+    c = ControlAccum('mem://', name='client', master=s, context=ctx, frame='full')
 
     s.open()
     c.open()
