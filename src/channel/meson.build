@@ -46,6 +46,7 @@ mansources = [
 	'tcp.rst',
 	'timer.rst',
 	'udp.rst',
+	'yaml.rst',
 	'zero.rst',
 	]
 
