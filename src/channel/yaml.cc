@@ -387,6 +387,6 @@ int ChYaml::_process(long timeout, int flags)
 
 	_idx++;
 
-	_callback_data(&msg);
+	_callback(&msg);
 	return 0;
 }

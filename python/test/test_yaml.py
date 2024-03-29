@@ -273,10 +273,13 @@ config.0:
   data.f0: 100
 ''')
     url['scheme-control'] = scheme
-    c = Accum(url)
+
+    class ControlAccum(Accum):
+        MASK = Accum.MsgMask.Control
+    c = ControlAccum(url)
     c.open()
     c.process()
-    assert [(m.type, m.msgid, m.seq) for m in c.result] == [(Accum.Type.Control, 10, 20)]
+    assert [(m.type, m.msgid, m.seq) for m in c.result] == [(c.Type.Control, 10, 20)]
     m = c.unpack(c.result[0])
     assert m.as_dict() == {'f0': 100}
 
