@@ -66,9 +66,10 @@ typedef union {
 /// Message object
 typedef struct {
 	short type;		///< tll_msg_type_t
+	short flags;		///< User defined message flags
 	int msgid;		///< Message id
 	long long seq;		///< Sequence number
-	short flags;		///< User defined message flags
+	const void * pad0; 	///< Padding, free space
 	const void * data; 	///< Data pointer
 	size_t size;		///< Data size
 	tll_addr_t addr;	///< Peer address
