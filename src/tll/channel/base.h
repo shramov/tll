@@ -440,7 +440,7 @@ class Base
 		_log.info("State change: {} -> {}", tll_state_str(old), tll_state_str(s));
 		internal.state = s;
 		_config.set("state", tll_state_str(s));
-		_callback({TLL_MESSAGE_STATE, s});
+		_callback({.type = TLL_MESSAGE_STATE, .msgid = s});
 		return old;
 	}
 
@@ -489,7 +489,7 @@ class Base
 			return;
 		internal.dcaps ^= (old & mask) ^ caps;
 		_log.trace("Update caps: {:02b} + {:02b} -> {:02b}", old, caps, internal.dcaps);
-		tll_msg_t msg = {TLL_MESSAGE_CHANNEL, TLL_MESSAGE_CHANNEL_UPDATE};
+		tll_msg_t msg = {.type = TLL_MESSAGE_CHANNEL, .msgid = TLL_MESSAGE_CHANNEL_UPDATE};
 		msg.data = &old;
 		msg.size = sizeof(old);
 		_callback(msg);
@@ -501,7 +501,7 @@ class Base
 			return fd;
 		std::swap(fd, internal.fd);
 		_log.debug("Update fd: {} -> {}", fd, this->fd());
-		tll_msg_t msg = {TLL_MESSAGE_CHANNEL, TLL_MESSAGE_CHANNEL_UPDATE_FD};
+		tll_msg_t msg = {.type = TLL_MESSAGE_CHANNEL, .msgid = TLL_MESSAGE_CHANNEL_UPDATE_FD};
 		msg.data = &fd;
 		msg.size = sizeof(fd);
 		_callback(msg);
