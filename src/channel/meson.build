@@ -43,6 +43,7 @@ mansources = [
 	'mem.rst',
 	'null.rst',
 	'pub-mem.rst',
+	'pub-tcp.rst',
 	'rate.rst',
 	'tcp.rst',
 	'timer.rst',
