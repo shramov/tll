@@ -699,7 +699,7 @@ inline void suspend(tll_channel_t *c)
 		return;
 	c->internal->dcaps |= dcaps::Suspend;
 
-	tll_msg_t msg = {TLL_MESSAGE_CHANNEL, TLL_MESSAGE_CHANNEL_UPDATE};
+	tll_msg_t msg = {.type = TLL_MESSAGE_CHANNEL, .msgid = TLL_MESSAGE_CHANNEL_UPDATE};
 	msg.data = &old;
 	msg.size = sizeof(old);
 	tll_channel_callback(c->internal, &msg);
@@ -718,7 +718,7 @@ inline void resume(tll_channel_t *c)
 
 	c->internal->dcaps &= ~dcaps::Suspend;
 
-	tll_msg_t msg = {TLL_MESSAGE_CHANNEL, TLL_MESSAGE_CHANNEL_UPDATE};
+	tll_msg_t msg = {.type = TLL_MESSAGE_CHANNEL, .msgid = TLL_MESSAGE_CHANNEL_UPDATE};
 	msg.data = &old;
 	msg.size = sizeof(old);
 	tll_channel_callback(c->internal, &msg);

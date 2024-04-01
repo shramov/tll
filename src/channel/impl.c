@@ -84,7 +84,7 @@ int tll_channel_internal_child_add(tll_channel_internal_t *ptr, tll_channel_t *c
 		//tll_logger_printf(internal->logger, TLL_LOGGER_ERROR, "Failed to add child '%s': %s", tll_channel_name(c), strerror(r));
 		return r;
 	}
-	tll_msg_t msg = {TLL_MESSAGE_CHANNEL, TLL_MESSAGE_CHANNEL_ADD};
+	tll_msg_t msg = {.type = TLL_MESSAGE_CHANNEL, .msgid = TLL_MESSAGE_CHANNEL_ADD};
 	msg.data = &c;
 	msg.size = sizeof(c);
 	tll_channel_callback_add(c, _state_callback, ptr, TLL_MESSAGE_MASK_STATE);
@@ -102,7 +102,7 @@ int tll_channel_internal_child_del(tll_channel_internal_t *ptr, const tll_channe
 		//tll_logger_printf(internal->logger, TLL_LOGGER_ERROR, "Failed to remove child '%s': %s", tll_channel_name(c), strerror(r));
 		return r;
 	}
-	tll_msg_t msg = {TLL_MESSAGE_CHANNEL, TLL_MESSAGE_CHANNEL_DELETE};
+	tll_msg_t msg = {.type = TLL_MESSAGE_CHANNEL, .msgid = TLL_MESSAGE_CHANNEL_DELETE};
 	msg.data = &c;
 	msg.size = sizeof(c);
 	tll_channel_callback(ptr, &msg);
