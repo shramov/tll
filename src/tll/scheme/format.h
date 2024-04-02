@@ -71,7 +71,7 @@ format_result_t to_strings_number(const tll::scheme::Field * field, Int v)
 		} else if (field->sub_type == field->Bits) {
 			std::string r;
 			for (auto b = field->bitfields; b; b = b->next) {
-				if (v & (1 << b->offset)) {
+				if (tll_scheme_bit_field_get(v, b->offset, b->size)) {
 					if (r.size())
 						r += " | ";
 					r += std::string(b->name);
