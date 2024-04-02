@@ -27,10 +27,13 @@ socket for non-spin processors.
 Init parameters
 ~~~~~~~~~~~~~~~
 
-``mode={client | server}``, defaut ``client`` - channel mode, publisher - ``server`` or subscriber
+``FILENAME`` - path to the file that is mapped to the memory. Server creates new file each time it
+is opened so old clients can not see new data.
+
+``mode={client | server}``, default ``client`` - channel mode. Publisher - ``server`` or subscriber
 - ``client``.
 
-``size=<SIZE>``, defaut ``64kb`` - size of ring buffer, for server only. Client reads ring size from
+``size=<SIZE>``, default ``64kb`` - size of ring buffer, for server only. Client reads ring size from
 file on open.
 
 Examples
