@@ -8,10 +8,23 @@ TLL_DEFINE_IMPL(Resolve);
 int Resolve::_init(const Channel::Url &url, tll::Channel *master)
 {
 	auto reader = channel_props_reader(url);
-	auto service = reader.getT<std::string>("resolve.service");
-	auto channel = reader.getT<std::string>("resolve.channel");
+	auto service = reader.getT<std::string>("resolve.service", "");
+	auto channel = reader.getT<std::string>("resolve.channel", "");
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
+
+	if (service.empty() && channel.empty()) {
+		auto host = url.host();
+
+		auto sep = host.find('/');
+		if (sep == host.npos)
+			return _log.fail(EINVAL, "Invalid service/channel pair, no '/' separator: '{}'", host);
+		service = host.substr(0, sep);
+		channel = host.substr(sep + 1);
+	}
+
+	if (service.empty()) return _log.fail(EINVAL, "Empty service parameter");
+	if (channel.empty()) return _log.fail(EINVAL, "Empty channel parameter");
 
 	tll::Channel::Url curl;
 	if (_config_defaults.sub("resolve.request")) {

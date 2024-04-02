@@ -18,11 +18,12 @@ from tll.test_util import Accum
 def context():
     return C.Context(Config.from_dict({'resolve.request': 'direct://;master=resolve-server;dump=frame'}))
 
-def test_resolve(context):
+@pytest.mark.parametrize("url", ['resolve://;resolve.service=service;resolve.channel=channel', 'resolve://service/channel'])
+def test_resolve(context, url):
     scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/resolve.yaml"
     rserver = Accum('direct://', name='resolve-server', dump='yes', scheme=f'yaml://{scheme}', context=context)
     server = Accum('direct://', name='server', dump='yes', context=context)
-    c = Accum('resolve://;resolve.service=service;resolve.channel=channel;name=resolve', context=context)
+    c = Accum(url, name='resolve', context=context)
 
     server.open()
     rserver.open()
