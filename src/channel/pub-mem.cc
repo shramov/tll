@@ -30,6 +30,11 @@ struct Frame {
 	int32_t msgid;
 };
 
+enum class Control : uint32_t
+{
+	EndOfData = 1,
+};
+
 struct PubMemCommon
 {
 	std::string filename;
@@ -160,6 +165,15 @@ int PubMemServer::_open(const tll::ConstConfig &cfg)
 
 int PubMemServer::_close()
 {
+	if (_ring) {
+		Control * marker;
+		while (_ring->write_begin((void **) &marker, sizeof(*marker))) {
+			_ring->shift();
+		}
+		*marker = Control::EndOfData;
+		_ring->write_end(marker, sizeof(*marker));
+	}
+
 	if (_unlink)
 		unlink(_common.filename.c_str());
 	_unlink = false;
@@ -260,8 +274,18 @@ int PubMemClient::_process(long timeout, int flags)
 
 	frame = (const Frame *) _buf.data();
 
-	if (size < sizeof(Frame))
+	if (size < sizeof(Frame)) {
+		if (size == sizeof(Control)) {
+			auto control = *(const Control *) frame;
+			if (control == Control::EndOfData) {
+				_log.info("Server is closed");
+				this->close();
+				return 0;
+			} else
+				return _log.fail(EINVAL, "Unknown control message: {}", (uint32_t) control);
+		}
 		return _log.fail(EMSGSIZE, "Got invalid payload size {} < {}", size, sizeof(Frame));
+	}
 
 	msg.seq = frame->seq;
 	msg.msgid = frame->msgid;

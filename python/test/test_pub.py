@@ -187,3 +187,23 @@ async def test_mem(asyncloop, tmp_path):
         s.post(data, seq=i, msgid=10)
         m = await c.recv(0.001)
         assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, data)
+
+@asyncloop_run
+async def test_mem_close(asyncloop, tmp_path):
+    s = asyncloop.Channel(f'pub+mem:///{tmp_path}/memory', mode='server', name='server', dump='frame', size='16kb')
+    c = asyncloop.Channel(f'pub+mem:///{tmp_path}/memory', mode='client', name='client', dump='frame')
+    s.open()
+    c.open()
+    assert await c.recv_state() == c.State.Active
+
+    for i in range(0, 10):
+        s.post(b'xxx', seq=i, msgid=10)
+    s.close()
+
+    for i in range(0, 10):
+        m = await c.recv(0.001)
+        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'xxx')
+
+    assert c.state == c.State.Active
+    c.process()
+    assert c.state == c.State.Closed
