@@ -207,3 +207,34 @@ async def test_mem_close(asyncloop, tmp_path):
     assert c.state == c.State.Active
     c.process()
     assert c.state == c.State.Closed
+
+@asyncloop_run
+async def test_mem_inverted(asyncloop, tmp_path):
+    c = asyncloop.Channel(f'pub+mem:///{tmp_path}/memory', mode='sub-server', name='server', dump='frame', size='16kb')
+    s = asyncloop.Channel(f'pub+mem:///{tmp_path}/memory', mode='pub-client', name='client', dump='frame')
+
+    c.open()
+    s.open()
+
+    assert c.state == c.State.Active
+    assert c.state == s.State.Active
+
+    s1 = asyncloop.Channel(f'pub+mem:///{tmp_path}/memory', mode='pub-client', name='p1')
+    with pytest.raises(TLLError): s1.open()
+
+    for i in range(0, 10):
+        s.post(b'xxx', seq=i, msgid=10)
+
+    s.close()
+    s.open()
+
+    for i in range(10, 20):
+        s.post(b'yyy', seq=i, msgid=20)
+
+    for i in range(0, 10):
+        m = await c.recv(0.001)
+        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'xxx')
+
+    for i in range(10, 20):
+        m = await c.recv(0.001)
+        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 20, b'yyy')

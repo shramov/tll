@@ -30,11 +30,16 @@ Init parameters
 ``FILENAME`` - path to the file that is mapped to the memory. Server creates new file each time it
 is opened so old clients can not see new data.
 
-``mode={client | server}``, default ``client`` - channel mode. Publisher - ``server`` or subscriber
-- ``client``.
+``mode={client | server | pub-client | sub-server}``, default ``client`` - channel mode.
 
-``size=<SIZE>``, default ``64kb`` - size of ring buffer, for server only. Client reads ring size from
-file on open.
+ - ``client`` - subscribe client, opens file in readonly mode and watches for new messages.
+ - ``server`` - publish server, creates new file and pushes messages into it.
+ - ``pub-client`` - publish client, opens existing file and pushes messages into it
+ - ``sub-server`` - subscribe server, creates file for publisher and watches it for messages,
+   unlinks it on close.
+
+``size=<SIZE>``, default ``64kb`` - size of ring buffer, for server (``server`` or ``sub-server``)
+only. Client reads ring size from file on open.
 
 Examples
 --------

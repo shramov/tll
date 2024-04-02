@@ -13,11 +13,13 @@
 #include "tll/util/size.h"
 
 #include <fcntl.h>
+#include <sys/file.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
 #include <array>
 #include <filesystem>
+#include <utility>
 
 #ifndef MAP_POPULATE
 #define MAP_POPULATE 0
@@ -35,66 +37,85 @@ enum class Control : uint32_t
 	EndOfData = 1,
 };
 
-struct PubMemCommon
+template <typename T>
+struct MemCommon : public tll::channel::Base<T>
 {
-	std::string filename;
-	int fd = -1;
+	using Base = tll::channel::Base<T>;
 
-	int init(const tll::Channel::Url &url, tll::Logger &log)
+ protected:
+	std::string _filename;
+	bool _create = false;
+	bool _unlink = false;
+	size_t _size = 0;
+
+	int _fd = -1;
+
+ public:
+	int _init(const tll::Channel::Url &url, tll::Channel *master)
 	{
-		filename = url.host();
-		if (filename.empty())
-			return log.fail(EINVAL, "Empty or missing filename");
+		_filename = url.host();
+		if (_filename.empty())
+			return this->_log.fail(EINVAL, "Empty or missing filename");
+
+		auto reader = this->channel_props_reader(url);
+		_create = reader.getT("mode", false, {{"server", true}, {"pub-client", false}, {"client", false}, {"sub-server", true}});
+		if (_create)
+			_size = reader.getT("size", util::Size {64 * 1024});
+		if (!reader)
+			return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
+
+		return Base::_init(url, master);
+	}
+
+	tll::PubRing * _file_create();
+	tll::PubRing * _file_open(bool readwrite);
+
+	int _close()
+	{
+		if (auto fd = std::exchange(_fd, -1); fd != -1)
+			::close(fd);
+		if (_unlink)
+			unlink(_filename.c_str());
+
+		_unlink = false;
 		return 0;
 	}
 
-	void close(const tll::PubRing * header, tll::Logger &log)
+	void _unmap(const tll::PubRing * header)
 	{
 		if (header && munmap((void *) header, header->size() + sizeof(*header)))
-			log.error("Failed to unmap ring of size {}: {}", header->size() + sizeof(*header), strerror(errno));
-
-		if (fd != -1)
-			::close(fd);
-		fd = -1;
+			this->_log.error("Failed to unmap ring of size {}: {}", header->size() + sizeof(*header), strerror(errno));
 	}
 };
 
-class PubMemClient : public tll::channel::LastSeqRx<PubMemClient>
+class MemSub : public tll::channel::LastSeqRx<MemSub, MemCommon<MemSub>>
 {
-	using Base = tll::channel::LastSeqRx<PubMemClient>;
+	using Base = tll::channel::LastSeqRx<MemSub, MemCommon<MemSub>>;
 
 	tll::PubRing::Iterator _iter = {};
 	std::vector<char> _buf;
-
-	PubMemCommon _common = {};
 
  public:
 	static constexpr std::string_view channel_protocol() { return "pub+mem"; }
 	static constexpr std::string_view param_prefix() { return "pub"; }
 
-	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::ConstConfig &);
 	int _close();
 
 	int _process(long timeout, int flags);
 };
 
-class PubMemServer : public tll::channel::LastSeqTx<PubMemServer>
+class MemPub : public tll::channel::LastSeqTx<MemPub, MemCommon<MemPub>>
 {
-	using Base = tll::channel::LastSeqTx<PubMemServer>;
+	using Base = tll::channel::LastSeqTx<MemPub, MemCommon<MemPub>>;
 
 	tll::PubRing * _ring = nullptr;
-
-	PubMemCommon _common = {};
-	size_t _size = 0;
-	bool _unlink = false;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "pub+mem"; }
 	static constexpr std::string_view param_prefix() { return "pub"; }
 	static constexpr auto process_policy() { return ProcessPolicy::Never; }
 
-	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::ConstConfig &);
 	int _close();
 
@@ -102,68 +123,112 @@ class PubMemServer : public tll::channel::LastSeqTx<PubMemServer>
 };
 
 TLL_DEFINE_IMPL(ChPubMem);
-TLL_DEFINE_IMPL(PubMemServer);
-TLL_DEFINE_IMPL(PubMemClient);
+TLL_DEFINE_IMPL(MemPub);
+TLL_DEFINE_IMPL(MemSub);
 
 std::optional<const tll_channel_impl_t *> ChPubMem::_init_replace(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = channel_props_reader(url);
-	auto server = reader.getT("mode", false, {{"server", true}, {"client", false}});
+	auto pub = reader.getT("mode", false, {{"server", true}, {"pub-client", true}, {"client", false}, {"sub-server", false}});
 	if (!reader)
 		return _log.fail(std::nullopt, "Invalid url: {}", reader.error());
 
-	if (server)
-		return &PubMemServer::impl;
-	return &PubMemClient::impl;
+	if (pub)
+		return &MemPub::impl;
+	return &MemSub::impl;
 }
 
-int PubMemServer::_init(const tll::Channel::Url &url, tll::Channel *master)
-{
-	if (auto r = _common.init(url, _log))
-		return r;
-
-	auto reader = this->channel_props_reader(url);
-	_size = reader.getT("size", util::Size {64 * 1024});
-	if (!reader)
-		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
-
-	return Base::_init(url, master);
-}
-
-int PubMemServer::_open(const tll::ConstConfig &cfg)
+template <typename T>
+tll::PubRing * MemCommon<T>::_file_create()
 {
 	std::error_code ec, uec;
-	std::string fn = _common.filename + ".XXXXXX";
-	_common.fd = mkstemp(fn.data());
-	if (_common.fd == -1)
-		return _log.fail(EINVAL, "Failed to create temporary file {}: {}", fn, strerror(errno));
+	std::string fn = _filename + ".XXXXXX";
+	_fd = mkstemp(fn.data());
+	if (_fd == -1)
+		return this->_log.fail(nullptr, "Failed to create temporary file {}: {}", fn, strerror(errno));
 
 	auto full = sizeof(tll::Ring) + _size;
-	if (auto r = posix_fallocate(_common.fd, 0, full); r) {
+	if (auto r = posix_fallocate(_fd, 0, full); r) {
 		std::filesystem::remove(fn, uec);
-		return _log.fail(EINVAL, "Failed to allocate {} bytes of space: {}", full, strerror(r));
+		return this->_log.fail(nullptr, "Failed to allocate {} bytes of space: {}", full, strerror(r));
 	}
 
-	auto buf = mmap(nullptr, full, PROT_READ | PROT_WRITE, MAP_SHARED, _common.fd, 0);
+	auto buf = mmap(nullptr, full, PROT_READ | PROT_WRITE, MAP_SHARED, _fd, 0);
 	if (buf == MAP_FAILED) {
 		std::filesystem::remove(fn, uec);
-		return _log.fail(EINVAL, "Failed to mmap memory: {}", strerror(errno));
+		return this->_log.fail(nullptr, "Failed to mmap memory: {}", strerror(errno));
 	}
 
-	_ring = static_cast<tll::PubRing *>(buf);
-	_ring->init(_size);
+	auto ring = static_cast<tll::PubRing *>(buf);
+	ring->init(_size);
 
-	_log.info("Rename temporary file {} to {}", fn, _common.filename);
-	if (std::filesystem::rename(fn, _common.filename, ec); ec) {
+	this->_log.info("Rename temporary file {} to {}", fn, _filename);
+	if (std::filesystem::rename(fn, _filename, ec); ec) {
 		std::filesystem::remove(fn, uec);
-		return _log.fail(EINVAL, "Failed to rename temporary file '{}' to '{}': {}", fn, _common.filename, ec.message());
+		return this->_log.fail(nullptr, "Failed to rename temporary file '{}' to '{}': {}", fn, _filename, ec.message());
 	}
 	_unlink = true;
 
-	return Base::_open(cfg);
+	return ring;
 }
 
-int PubMemServer::_close()
+template <typename T>
+tll::PubRing * MemCommon<T>::_file_open(bool rw)
+{
+	_fd = ::open(_filename.c_str(), rw ? O_RDWR : O_RDONLY);
+	if (_fd == -1)
+		return this->_log.fail(nullptr, "Failed to open file {}: {}", _filename, strerror(errno));
+
+	std::array<char, sizeof(tll::Ring)> hbuf;
+	auto r = read(_fd, hbuf.data(), hbuf.size());
+	if (r < 0)
+		return this->_log.fail(nullptr, "Failed to read ring header from file {}: {}", _filename, strerror(errno));
+	if ((size_t) r < hbuf.size())
+		return this->_log.fail(nullptr, "Failed to read ring header from file {}: got {} bytes of {} needed", _filename, r, sizeof(hbuf.data()));
+	auto hdr = (const tll::PubRing *) hbuf.data();
+	if (hdr->magic() != hdr->Magic)
+		return this->_log.fail(nullptr, "Invalid ring magic in file {}: expected 0x{08:x}, got 0x{08:x}", _filename, hdr->Magic, hdr->magic());
+
+	const auto buf = mmap(nullptr, sizeof(*hdr) + hdr->size(), PROT_READ | (rw ? PROT_WRITE : 0), MAP_SHARED | MAP_POPULATE, _fd, 0);
+	if (buf == MAP_FAILED)
+		return this->_log.fail(nullptr, "Failed to mmap memory from {}: {}", _filename, strerror(errno));
+
+	return static_cast<tll::PubRing *>(buf);
+}
+
+int MemPub::_open(const tll::ConstConfig &cfg)
+{
+	if (auto r = Base::_open(cfg); r)
+		return r;
+	if (_create)
+		_ring = _file_create();
+	else
+		_ring = _file_open(true);
+
+	if (!_ring)
+		return _log.fail(EINVAL, "Failed to open ring buffer file '{}'", _filename);
+
+	if (flock(_fd, LOCK_EX | LOCK_NB))
+		return _log.fail(EINVAL, "Failed to flock file descriptor: {}", strerror(errno));
+
+	auto it = _ring->begin();
+	const Frame * frame;
+	size_t size;
+
+	long long seq = -1;
+	while (it.read((const void **) &frame, &size) == 0) {
+		if (size >= sizeof(Frame))
+			seq = frame->seq;
+		it.shift();
+	}
+
+	if (seq >= 0)
+		_log.info("Last seq in the ring: {}", seq);
+
+	return 0;
+}
+
+int MemPub::_close()
 {
 	if (_ring) {
 		Control * marker;
@@ -174,21 +239,20 @@ int PubMemServer::_close()
 		_ring->write_end(marker, sizeof(*marker));
 	}
 
-	if (_unlink)
-		unlink(_common.filename.c_str());
-	_unlink = false;
-	_common.close(_ring, _log);
-	_ring = {};
+	if (_fd != -1)
+		flock(_fd, LOCK_UN | LOCK_NB);
+
+	_unmap(_ring);
 
 	return Base::_close();
 }
 
-int PubMemServer::_post(const tll_msg_t *msg, int flags)
+int MemPub::_post(const tll_msg_t *msg, int flags)
 {
 	if (msg->type != TLL_MESSAGE_DATA)
 		return 0;
 
-	if (msg->size > _size / 4)
+	if (msg->size > _ring->size() / 4)
 		return _log.fail(EMSGSIZE, "Message size too large: {} > max {}", msg->size, _size / 4);
 
 	Frame * frame;
@@ -205,56 +269,37 @@ int PubMemServer::_post(const tll_msg_t *msg, int flags)
 	return 0;
 }
 
-int PubMemClient::_init(const tll::Channel::Url &url, tll::Channel *master)
+int MemSub::_open(const tll::ConstConfig &cfg)
 {
-	if (auto r = _common.init(url, _log))
-		return r;
-	return Base::_init(url, master);
-}
+	const tll::PubRing * ring = nullptr;
+	if (_create)
+		ring = _file_create();
+	else
+		ring = _file_open(false);
 
-int PubMemClient::_open(const tll::ConstConfig &cfg)
-{
-	_common.fd = ::open(_common.filename.c_str(), O_RDONLY);
-	if (_common.fd == -1)
-		return _log.fail(EINVAL, "Failed to open file {}: {}", _common.filename, strerror(errno));
-
-	std::array<char, sizeof(tll::Ring)> hbuf;
-	auto r = read(_common.fd, hbuf.data(), hbuf.size());
-	if (r < 0)
-		return _log.fail(EINVAL, "Failed to read ring header from file {}: {}", _common.filename, strerror(errno));
-	if ((size_t) r < hbuf.size())
-		return _log.fail(EINVAL, "Failed to read ring header from file {}: got {} bytes of {} needed", _common.filename, r, sizeof(hbuf.data()));
-	auto hdr = (const tll::PubRing *) hbuf.data();
-	if (hdr->magic() != hdr->Magic)
-		return _log.fail(EINVAL, "Invalid ring magic in file {}: expected 0x{08:x}, got 0x{08:x}", _common.filename, hdr->Magic, hdr->magic());
-
-	const auto buf = mmap(nullptr, sizeof(*hdr) + hdr->size(), PROT_READ, MAP_SHARED | MAP_POPULATE, _common.fd, 0);
-	if (buf == MAP_FAILED)
-		return _log.fail(EINVAL, "Failed to mmap memory from {}: {}", _common.filename, strerror(errno));
-
-	auto ring = tll::PubRing::bind(buf);
 	if (!ring)
-		return _log.fail(EINVAL, "Failed to bind ring: invalid magic");
+		return _log.fail(EINVAL, "Failed to open file '{}'", _filename);
+
 	_iter = ring->end();
 	if (!_iter.valid())
 		return _log.fail(EINVAL, "Failed to init iterator: writer is too fast");
 
-	_buf.resize(hdr->size() / 4);
+	_buf.resize(ring->size() / 4);
 
 	_dcaps_pending(true);
 
 	return Base::_open(cfg);
 }
 
-int PubMemClient::_close()
+int MemSub::_close()
 {
-	_common.close(_iter.ring, _log);
+	_unmap(_iter.ring);
 	_iter = {};
 
 	return Base::_close();
 }
 
-int PubMemClient::_process(long timeout, int flags)
+int MemSub::_process(long timeout, int flags)
 {
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	const Frame * frame;
@@ -278,8 +323,9 @@ int PubMemClient::_process(long timeout, int flags)
 		if (size == sizeof(Control)) {
 			auto control = *(const Control *) frame;
 			if (control == Control::EndOfData) {
-				_log.info("Server is closed");
-				this->close();
+				_log.info("Publisher is closed");
+				if (!_create)
+					this->close();
 				return 0;
 			} else
 				return _log.fail(EINVAL, "Unknown control message: {}", (uint32_t) control);
