@@ -180,8 +180,12 @@ int Processor::init_one(PreObject &obj)
 	o->worker = w;
 
 	auto open = obj.config.sub("open");
-	if (open)
+	if (open) {
+		auto v = open->get();
+		if (v)
+			return log.fail(EINVAL, "Open parameter in string form: '{}', expected subtree", *v);
 		o->reopen.open_params = ConstConfig(*open);
+	}
 
 	o->depends_names = {obj.depends_open.list.begin(), obj.depends_open.list.end()};
 	if (o->init(obj.url))
