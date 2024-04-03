@@ -34,8 +34,10 @@ for reading but provides much better speed.
 
 ``scheme={SCHEME}`` - file scheme, ignored in read mode if present in metadata.
 
-Write parameters
-^^^^^^^^^^^^^^^^
+Write init parameters
+^^^^^^^^^^^^^^^^^^^^^
+
+Following init parameters are used only for writing channel (``dir=w``):
 
 ``autoseq=<bool>`` (default ``no``) - ignore message seq and fill it with contiguous incrementing
 sequence. When file is reopened - use last seq as starting point, otherwise start from 0;
@@ -43,8 +45,10 @@ sequence. When file is reopened - use last seq as starting point, otherwise star
 ``extra-space={SIZE}`` (default ``0b``) - keep up to this amount of empty space in the end of the
 file. Without this non-zero option file can not be read in ``mmap`` mode. Used only in write mode.
 
-Read parameters
-^^^^^^^^^^^^^^^
+Read init parameters
+^^^^^^^^^^^^^^^^^^^^
+
+Following init parameters are used only for reading channel (``dir=r``):
 
 ``autoclose=<bool>`` (default ``yes``) - close file when last message is read.
 
