@@ -229,12 +229,17 @@ async def test_mem_inverted(asyncloop, tmp_path):
     s.open()
 
     for i in range(10, 20):
-        s.post(b'yyy', seq=i, msgid=20)
+        s.post(b'xxx', seq=i, msgid=20)
 
-    for i in range(0, 10):
-        m = await c.recv(0.001)
-        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'xxx')
+    s.close()
 
-    for i in range(10, 20):
+    for j in range(2):
         m = await c.recv(0.001)
-        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 20, b'yyy')
+        assert (m.type, c.unpack(m).SCHEME.name) == (m.Type.Control, "Connect")
+
+        for i in range(10 * j, 10 * j + 10):
+            m = await c.recv(0.001)
+            assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10 + 10 * j, b'xxx')
+
+        m = await c.recv(0.001)
+        assert (m.type, c.unpack(m).SCHEME.name) == (m.Type.Control, "Disconnect")

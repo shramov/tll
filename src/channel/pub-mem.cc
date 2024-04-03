@@ -27,6 +27,17 @@
 
 using namespace tll;
 
+constexpr std::string_view scheme_string = R"(yamls://
+- name: Connect
+  id: 10
+
+- name: Disconnect
+  id: 20
+)";
+
+constexpr auto scheme_msgid_connect = 10;
+constexpr auto scheme_msgid_disconnect = 20;
+
 struct Frame {
 	int64_t seq;
 	int32_t msgid;
@@ -34,7 +45,8 @@ struct Frame {
 
 enum class Control : uint32_t
 {
-	EndOfData = 1,
+	Connect = 1,
+	Disconnect = 2,
 };
 
 template <typename T>
@@ -98,6 +110,20 @@ class MemSub : public tll::channel::LastSeqRx<MemSub, MemCommon<MemSub>>
  public:
 	static constexpr std::string_view channel_protocol() { return "pub+mem"; }
 	static constexpr std::string_view param_prefix() { return "pub"; }
+
+	int _init(const tll::Channel::Url &url, tll::Channel *master)
+	{
+		if (auto r = Base::_init(url, master); r)
+			return r;
+
+		if (_create) {
+			_scheme_control.reset(context().scheme_load(scheme_string));
+			if (!_scheme_control.get())
+				return _log.fail(EINVAL, "Failed to load control scheme");
+		}
+
+		return 0;
+	}
 
 	int _open(const tll::ConstConfig &);
 	int _close();
@@ -225,6 +251,13 @@ int MemPub::_open(const tll::ConstConfig &cfg)
 	if (seq >= 0)
 		_log.info("Last seq in the ring: {}", seq);
 
+	Control * marker;
+	while (_ring->write_begin((void **) &marker, sizeof(*marker))) {
+		_ring->shift();
+	}
+	*marker = Control::Connect;
+	_ring->write_end(marker, sizeof(*marker));
+
 	return 0;
 }
 
@@ -235,7 +268,7 @@ int MemPub::_close()
 		while (_ring->write_begin((void **) &marker, sizeof(*marker))) {
 			_ring->shift();
 		}
-		*marker = Control::EndOfData;
+		*marker = Control::Disconnect;
 		_ring->write_end(marker, sizeof(*marker));
 	}
 
@@ -322,13 +355,23 @@ int MemSub::_process(long timeout, int flags)
 	if (size < sizeof(Frame)) {
 		if (size == sizeof(Control)) {
 			auto control = *(const Control *) frame;
-			if (control == Control::EndOfData) {
+			switch (control) {
+			case Control::Connect:
+				_log.info("Publisher connected");
+				if (_create)
+					_callback({.type = TLL_MESSAGE_CONTROL, .msgid = scheme_msgid_connect});
+				break;
+			case Control::Disconnect:
 				_log.info("Publisher is closed");
-				if (!_create)
+				if (_create)
+					_callback({.type = TLL_MESSAGE_CONTROL, .msgid = scheme_msgid_disconnect});
+				else
 					this->close();
-				return 0;
-			} else
+				break;
+			default:
 				return _log.fail(EINVAL, "Unknown control message: {}", (uint32_t) control);
+			}
+			return 0;
 		}
 		return _log.fail(EMSGSIZE, "Got invalid payload size {} < {}", size, sizeof(Frame));
 	}

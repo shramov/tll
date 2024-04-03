@@ -41,6 +41,24 @@ is opened so old clients can not see new data.
 ``size=<SIZE>``, default ``64kb`` - size of ring buffer, for server (``server`` or ``sub-server``)
 only. Client reads ring size from file on open.
 
+Control messages
+----------------
+
+Control scheme exists only for subscriber server. Subscriber client does not need control messages
+since it closes when publisher server is closed.
+
+.. code-block:: yaml
+
+  - name: Connect
+    id: 10
+
+  - name: Disconnect
+    id: 20
+
+``Connect`` and ``Disconnect`` messages signal when publisher client connects and disconnects.
+Messages are bound to data stream so if server connects, pushes some messages and the disconnects
+client will receive ``Connect``, data messages and only then ``Disconnect`` control.
+
 Examples
 --------
 
