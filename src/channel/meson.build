@@ -37,6 +37,7 @@ if rapidjson.found()
 endif
 
 mansources = [
+	'blocks.rst',
 	'common.rst',
 	'direct.rst',
 	'file.rst',
