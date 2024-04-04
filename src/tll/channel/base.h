@@ -129,7 +129,6 @@ class Base
 	std::string name;
 	tll::Config _config;
 	tll::Config _config_defaults;
-	tll_channel_log_msg_format_t _dump = log_msg_format::Disable;
 
 	bool _scheme_cache = true;
 	std::optional<std::string> _scheme_url;
@@ -142,25 +141,15 @@ class Base
 
 	//virtual ~Base() {}
 
-	void _dump_msg(const tll_msg_t *msg, std::string_view text) const
-	{
-		if (_dump == log_msg_format::Disable)
-			return;
-		tll_channel_log_msg(self(), _log.name(), logger::Info, _dump, msg, text.data(), text.size());
-	}
-
 	inline int _callback(tll_msg_t msg) const { return _callback(&msg); }
 
 	inline int _callback_data(const tll_msg_t * msg)
 	{
-		_dump_msg(msg, "Recv");
-		//return tll_channel_callback_data(_this, msg);
 		return tll_channel_callback_data(&internal, msg);
 	}
 
 	inline int _callback(const tll_msg_t * msg) const
 	{
-		_dump_msg(msg, "Recv");
 		return tll_channel_callback(&internal, msg);
 	}
 
@@ -220,7 +209,7 @@ class Base
 		auto dir = reader.getT("dir", None, {{"r", R}, {"w", W}, {"rw", RW}, {"in", R}, {"out", W}, {"inout", RW}});
 		{
 			using namespace tll::channel::log_msg_format;
-			_dump = reader.getT("dump", Disable, {{"no", Disable}, {"yes", Auto}, {"frame", Frame}, {"text", Text}, {"text+hex", TextHex}, {"scheme", Scheme}, {"auto", Auto}});
+			internal.dump = reader.getT("dump", Disable, {{"no", Disable}, {"yes", Auto}, {"frame", Frame}, {"text", Text}, {"text+hex", TextHex}, {"scheme", Scheme}, {"auto", Auto}});
 		}
 		//_log = { fmt::format("tll.channel.{}.{}", T::param_prefix(), name) };
 		if (!reader)
@@ -398,7 +387,6 @@ class Base
 			} else
 				return _log.fail(EINVAL, "Post in invalid state {}", tll_state_str(s));
 		}
-		_dump_msg(msg, "Post");
 		auto r = static_cast<ChannelT *>(this)->_post(msg, flags);
 		if (r)
 			_log.error("Post failed: {}", strerror(r));

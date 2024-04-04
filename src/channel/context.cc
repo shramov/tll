@@ -678,6 +678,8 @@ int tll_channel_process(tll_channel_t *c, long timeout, int flags)
 int tll_channel_post(tll_channel_t *c, const tll_msg_t *msg, int flags)
 {
 	if (!c || !c->impl) return EINVAL;
+	if (c->internal->dump)
+		tll_channel_log_msg(c, "tll.channel.impl", TLL_LOGGER_INFO, c->internal->dump, msg, "Post", 4);
 	auto r = (*c->impl->post)(c, msg, flags);
 	if (!r && msg->type == TLL_MESSAGE_DATA && c->internal->stat) {
 		auto p = tll::stat::acquire(c->internal->stat);

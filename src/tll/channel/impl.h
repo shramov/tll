@@ -63,6 +63,28 @@ typedef struct tll_channel_callback_pair_t
 	unsigned mask;
 } tll_channel_callback_pair_t;
 
+/// Message flags for @ref tll_channel_log_msg function
+typedef enum {
+	TLL_MESSAGE_LOG_DISABLE = 0,	///< Disable logging
+	TLL_MESSAGE_LOG_FRAME = 1,	///< Log only frame data (msgid, seq, size, ...)
+	TLL_MESSAGE_LOG_TEXT = 2,	///< Log body as ASCII text (replacing unprintable symbols)
+	TLL_MESSAGE_LOG_TEXT_HEX = 3,	///< Log body as ASCII text and hex representation
+	TLL_MESSAGE_LOG_SCHEME = 4,	///< Log decomposed body as fields from scheme
+	TLL_MESSAGE_LOG_AUTO = 5,	///< Log with scheme if it's available, text with hex otherwise
+} tll_channel_log_msg_format_t;
+
+/** Format message and write it to logger
+ *
+ * @param c channel object
+ * @param log name logger object that is used to write result
+ * @param level logging level
+ * @param format desired format
+ * @param msg message object
+ * @param text additional text
+ * @param tlen length of additional text or -1 if it has trailing \0
+ */
+int tll_channel_log_msg(const tll_channel_t * c, const char * log, tll_logger_level_t level, tll_channel_log_msg_format_t format, const tll_msg_t * msg, const char * text, int tlen);
+
 typedef enum {
 	TLL_CHANNEL_INTERNAL_V0 = 0,
 	TLL_CHANNEL_INTERNAL_V1 = 1,
@@ -81,6 +103,8 @@ typedef struct tll_channel_internal_t
 	unsigned caps;
 	unsigned dcaps;
 	int fd;
+	tll_channel_log_msg_format_t dump;
+
 	tll_config_t * config;
 	tll_channel_list_t * children;
 
@@ -111,6 +135,8 @@ int tll_channel_internal_child_del(tll_channel_internal_t *ptr, const tll_channe
 
 static inline int tll_channel_callback_data(const tll_channel_internal_t * in, const tll_msg_t * msg)
 {
+	if (in->dump)
+		tll_channel_log_msg(in->self, "tll.channel.impl", TLL_LOGGER_INFO, in->dump, msg, "Recv", 4);
 	if (in->stat) {
 		tll_stat_page_t * p = tll_stat_page_acquire(in->stat);
 		if (p) {
@@ -141,6 +167,8 @@ static inline int tll_channel_callback(const tll_channel_internal_t * in, const 
 {
 	if (msg->type == TLL_MESSAGE_DATA)
 		return tll_channel_callback_data(in, msg);
+	if (in->dump)
+		tll_channel_log_msg(in->self, "tll.channel.impl", TLL_LOGGER_INFO, in->dump, msg, "Recv", 4);
 	{
 		tll_channel_callback_pair_t * cb = in->cb;
 		for (unsigned i = 0; i < in->cb_size; i++) {
@@ -150,28 +178,6 @@ static inline int tll_channel_callback(const tll_channel_internal_t * in, const 
 	}
 	return 0;
 }
-
-/// Message flags for @ref tll_channel_log_msg function
-typedef enum {
-	TLL_MESSAGE_LOG_DISABLE = 0,	///< Disable logging
-	TLL_MESSAGE_LOG_FRAME = 1,	///< Log only frame data (msgid, seq, size, ...)
-	TLL_MESSAGE_LOG_TEXT = 2,	///< Log body as ASCII text (replacing unprintable symbols)
-	TLL_MESSAGE_LOG_TEXT_HEX = 3,	///< Log body as ASCII text and hex representation
-	TLL_MESSAGE_LOG_SCHEME = 4,	///< Log decomposed body as fields from scheme
-	TLL_MESSAGE_LOG_AUTO = 5,	///< Log with scheme if it's available, text with hex otherwise
-} tll_channel_log_msg_format_t;
-
-/** Format message and write it to logger
- *
- * @param c channel object
- * @param log name logger object that is used to write result
- * @param level logging level
- * @param format desired format
- * @param msg message object
- * @param text additional text
- * @param tlen length of additional text or -1 if it has trailing \0
- */
-int tll_channel_log_msg(const tll_channel_t * c, const char * log, tll_logger_level_t level, tll_channel_log_msg_format_t format, const tll_msg_t * msg, const char * text, int tlen);
 
 #ifdef __cplusplus
 } // extern "C"
