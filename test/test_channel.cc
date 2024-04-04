@@ -127,6 +127,7 @@ TEST(Channel, Register)
 	ASSERT_EQ(ctx.reg(&Echo::impl, "alias"), 0);
 	auto c = ctx.channel("alias://;name=alias");
 	ASSERT_NE(c.get(), nullptr);
+	ASSERT_EQ(c->internal->version, TLL_CHANNEL_INTERNAL_VERSION_CURRENT);
 	c.reset();
 
 	ASSERT_EQ(ctx.unreg(&Echo::impl, "alias"), 0);

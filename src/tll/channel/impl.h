@@ -63,9 +63,17 @@ typedef struct tll_channel_callback_pair_t
 	unsigned mask;
 } tll_channel_callback_pair_t;
 
+typedef enum {
+	TLL_CHANNEL_INTERNAL_V0 = 0,
+	TLL_CHANNEL_INTERNAL_V1 = 1,
+	TLL_CHANNEL_INTERNAL_VERSION_CURRENT = TLL_CHANNEL_INTERNAL_V1,
+} tll_channel_internal_version_t;
+
 typedef struct tll_channel_internal_t
 {
 	tll_state_t state;
+	int version;
+
 	tll_channel_t * self;
 
 	const char * name;
