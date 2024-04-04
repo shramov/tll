@@ -16,6 +16,7 @@ cdef extern from "tll/logger.h":
         tll_logger_level_t level
 
     cdef tll_logger_t * tll_logger_new(const char *name, int len)
+    cdef tll_logger_t * tll_logger_copy(const tll_logger_t * log)
     cdef void tll_logger_free(tll_logger_t * cfg)
     cdef void tll_logger_set(const char * name, int len, tll_logger_level_t level)
 
@@ -23,6 +24,10 @@ cdef extern from "tll/logger.h":
     cdef int tll_logger_log(tll_logger_t * log, tll_logger_level_t lvl, const char * buf, size_t size)
 
     cdef int tll_logger_config(const tll_config_t *)
+
+cdef class Logger:
+    cdef tll_logger_t * ptr
+    cdef char style
 
 cdef extern from "tll/logger/impl.h":
     ctypedef struct tll_logger_impl_t:

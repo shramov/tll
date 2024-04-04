@@ -27,9 +27,6 @@ _Level = Level # Rename needed for python3.6
 cdef class Logger:
     Level = _Level
 
-    cdef tll_logger_t * ptr
-    cdef char style
-
     def __cinit__(self, name, style='{'):
         n = s2b(name)
         self.ptr = tll_logger_new(n, len(n))
