@@ -230,6 +230,7 @@ class Base
 		if (dir & W) internal.caps |= caps::Output;
 
 		internal.name = name.c_str();
+		internal.logger = _log.ptr();
 
 		switch (channelT()->child_policy()) {
 		case ChildPolicy::Never:
@@ -248,6 +249,8 @@ class Base
 		auto r = channelT()->_init(url, master);
 
 		if (r) return r;
+
+		internal.logger = tll_logger_copy(_log.ptr());
 
 		if (_stat_enable)
 			internal.stat = new stat::Block<typename T::StatType>(name);
