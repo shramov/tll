@@ -33,6 +33,7 @@ cdef extern from "tll/channel/impl.h":
         unsigned caps
         unsigned dcaps
         int fd
+        tll_channel_log_msg_format_t dump
         tll_config_t * config
         tll_channel_list_t * children
 
