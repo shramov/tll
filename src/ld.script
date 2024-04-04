@@ -155,3 +155,8 @@ TLL_0.0.0 {
 
 	local: *;
 };
+
+TLL_0.2.0 {
+	global:
+		tll_channel_internal_init;
+} TLL_0.0.0;

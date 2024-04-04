@@ -46,11 +46,25 @@ int tll_channel_list_del(tll_channel_list_t **l, const tll_channel_t *c)
 	return ENOENT;
 }
 
-void tll_channel_internal_init(tll_channel_internal_t *ptr)
+void tll_channel_internal_init_v0(tll_channel_internal_t *ptr)
 {
 	memset(ptr, 0, offsetof(tll_channel_internal_t, reserved));
 	ptr->fd = -1;
 }
+
+void tll_channel_internal_init_v1(tll_channel_internal_t *ptr)
+{
+	memset(ptr, 0, offsetof(tll_channel_internal_t, reserved) + sizeof(ptr->reserved));
+	ptr->version = TLL_CHANNEL_INTERNAL_V1;
+	ptr->fd = -1;
+}
+
+#if defined(__linux__) || defined(__FreeBSD__)
+__asm__(".symver tll_channel_internal_init_v0,tll_channel_internal_init@TLL_0.0.0");
+__asm__(".symver tll_channel_internal_init_v1,tll_channel_internal_init@@TLL_0.2.0");
+#else
+void tll_channel_internal_init(tll_channel_internal_t *ptr) { return tll_channel_internal_init_v1(ptr); }
+#endif
 
 void tll_channel_internal_clear(tll_channel_internal_t *ptr)
 {
