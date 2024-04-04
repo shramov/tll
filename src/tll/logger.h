@@ -209,6 +209,7 @@ protected:
 	tll_logger_t * _log = nullptr;
 
 public:
+	Logger(const tll_logger_t * ptr) : _log(tll_logger_copy(ptr)) {}
 	Logger(const Logger &rhs) : _log(tll_logger_copy(rhs._log)) {}
 	Logger(std::string_view n) : _log(tll_logger_new(n.data(), n.size())) {}
 	~Logger() { tll_logger_free(_log); _log = 0; }
@@ -218,6 +219,9 @@ public:
 		std::swap(_log, rhs._log);
 		return *this;
 	}
+
+	tll_logger_t * ptr() { return _log; }
+	const tll_logger_t * ptr() const { return _log; }
 
 	using level_t = tll_logger_level_t;
 	static auto constexpr Trace = TLL_LOGGER_TRACE;
