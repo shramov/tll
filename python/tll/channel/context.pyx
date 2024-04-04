@@ -90,6 +90,12 @@ cdef class Internal:
             tll_logger_free(self.internal.logger)
         self.internal.logger = tll_logger_copy(ptr)
 
+    @property
+    def dump(self): return self.internal.dump
+
+    @dump.setter
+    def dump(self, v): self.internal.dump = v
+
     cdef callback(self, const tll_msg_t * msg):
         return tll_channel_callback(&self.internal, msg)
 
