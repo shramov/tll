@@ -48,7 +48,7 @@ int tll_channel_list_del(tll_channel_list_t **l, const tll_channel_t *c)
 
 void tll_channel_internal_init_v0(tll_channel_internal_t *ptr)
 {
-	memset(ptr, 0, offsetof(tll_channel_internal_t, reserved));
+	memset(ptr, 0, offsetof(tll_channel_internal_t, logger));
 	ptr->fd = -1;
 }
 
@@ -78,6 +78,10 @@ void tll_channel_internal_clear(tll_channel_internal_t *ptr)
 	free(ptr->data_cb);
 	ptr->data_cb = NULL;
 	ptr->data_cb_size = 0;
+
+	if (ptr->version >= 1)
+		tll_logger_free(ptr->logger);
+	ptr->logger = NULL;
 }
 
 static int _state_callback(const tll_channel_t * c, const tll_msg_t *msg, void * data)
