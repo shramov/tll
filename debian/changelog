@@ -1,3 +1,60 @@
+tll (0.2.0) unstable; urgency=medium
+
+  * channel:
+    Internal structure versioning
+    Add reserved space in tll_msg_t structure
+    Add logger field to internal structure
+    Move dump into common C code
+    Better C++ callback support
+    Check for duplicate channel names
+    Use different automatic channel names
+  * config:
+    Better C++ callback support
+    Handle errors with broken links (#10)
+    Warn about deprecated config format
+  * control: Fix incorrect check for channel lists
+  * quantile: Fix incorrect check for channel lists
+  * direct: Inherit data and control scheme from master
+  * doc: Bunc of manpages
+  * examples: Resolve server and client configs
+  * file:
+    File implementation protocol is based on IO
+    Set Pending cap on successful read
+    Use cached scheme load
+  * logger: Access tll_logger_t pointer in C++ Logger
+  * mem: Fix ignored message type in full frame mode
+  * network: Add resolve member function to hostport
+  * processor: Fail on string open parameters
+  * pub: Include peer name in logs
+  * pub+mem: Publish-subscribe channel over shared memory
+  * python:
+    Add resolve client script
+    Improved chrono types, basic math, comparison and string conversion
+    Correct order of channel destruction in mock helper
+    Do not pack presence map field
+    Use logger and dump fields in channel internal structure
+  * resolve: Short form of service/channel parameters
+  * ring:
+    C++ implementation compatible with C ring
+    Drop buffer pointer from ring structure
+    Fix iterator race in full ring
+    More effective offset wrapping
+    Use atomics in C implementation
+  * scheme: Add reserved space
+  * schemegen: Create directories for output file
+  * scheme: Incorrect formatting of large bit fields
+  * stream:
+    Check for -1/-1 values in block seq reports
+    Fix bunch errors that make client stuck without data and any error messages
+    Fix invalid log message when requesting block
+  * tcp:
+    Basic SCTP support
+    Support ephemeral ports
+  * udp: Split common code
+  * yaml: Fix ignored message mask for control messages
+
+ -- Pavel Shramov <shramov@mexmat.net>  Thu, 04 Apr 2024 15:12:09 +0300
+
 tll (0.1.1) unstable; urgency=medium
 
   * channel:
