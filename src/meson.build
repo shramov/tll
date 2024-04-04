@@ -21,7 +21,7 @@ sources += configure_file(output : 'scheme-config.h', configuration : configurat
 }))
 
 
-if host_machine.system() == 'linux'
+if host_machine.system() in ['linux', 'freebsd']
   version_script = ['-Wl,--version-script,@0@/@1@'.format(meson.current_source_dir(), 'ld.script')]
 else
   version_script = []
