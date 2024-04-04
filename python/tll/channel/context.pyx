@@ -11,6 +11,7 @@ from ..config cimport Config, Url
 from ..error import TLLError
 from ..s2b cimport *
 from ..stat cimport List as StatList
+from ..logger cimport tll_logger_free, tll_logger_copy, Logger
 from ..logger import Logger
 
 import importlib
@@ -73,6 +74,21 @@ cdef class Internal:
             raise RuntimeError("Can not change stat block")
         self.stat_obj = stat
         self.internal.stat = &self.stat_obj.block
+
+    @property
+    def logger(self):
+        return None
+
+    @logger.setter
+    def logger(self, l):
+        if not isinstance(l, Logger):
+            raise ValueError(f'Invalid argument type, expected Logger got {type(l)}: {l}')
+        cdef tll_logger_t * ptr = (<Logger> l).ptr
+        if self.internal.logger == ptr:
+            return
+        if self.internal.logger:
+            tll_logger_free(self.internal.logger)
+        self.internal.logger = tll_logger_copy(ptr)
 
     cdef callback(self, const tll_msg_t * msg):
         return tll_channel_callback(&self.internal, msg)
