@@ -233,7 +233,7 @@ cdef class Base:
         self.config['url'] = url.copy()
 
         self.internal.name = str(url.get("name", "noname"))
-        self.log = Logger("tll.channel.{}".format(self.name))
+        self.internal.logger = self.log = Logger("tll.channel.{}".format(self.name))
 
         if self.CHILD_POLICY == ChildPolicy.Never:
             pass
@@ -265,6 +265,8 @@ cdef class Base:
 
         self.log.info("Init channel")
         self._init(url, master)
+
+        self.internal.logger = self.log
 
     def free(self):
         self.log.info("Destroy channel")

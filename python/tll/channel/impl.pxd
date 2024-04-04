@@ -3,7 +3,7 @@
 
 from .channel cimport *
 from .common cimport tll_state_t
-from ..logger cimport tll_logger_level_t
+from ..logger cimport tll_logger_t, tll_logger_level_t
 from ..stat cimport tll_stat_block_t
 
 cdef extern from "tll/channel/impl.h":
@@ -40,6 +40,8 @@ cdef extern from "tll/channel/impl.h":
         tll_channel_callback_pair_t * cb
 
         tll_stat_block_t * stat
+
+        tll_logger_t * logger
 
     cdef void tll_channel_internal_init(tll_channel_internal_t *ptr)
     cdef void tll_channel_internal_clear(tll_channel_internal_t *ptr)
