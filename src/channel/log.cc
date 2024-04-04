@@ -41,6 +41,13 @@ std::string msg2hex(const tll_msg_t * msg)
 	return body;
 }
 
+tll::Logger _logger_create(const tll_channel_t * c, const char * name)
+{
+	if (c->internal->version >= 1 && c->internal->logger)
+		return { c->internal->logger };
+	return { name };
+}
+
 int tll_channel_log_msg(const tll_channel_t * c, const char * _log, tll_logger_level_t level, tll_channel_log_msg_format_t format, const tll_msg_t * msg, const char * _text, int tlen)
 {
 	using namespace tll::channel;
@@ -49,7 +56,7 @@ int tll_channel_log_msg(const tll_channel_t * c, const char * _log, tll_logger_l
 		return 0;
 
 	auto text = tll::string_view_from_c(_text, tlen);
-	tll::Logger log(_log);
+	auto log = _logger_create(c, _log);
 
 	if (msg->type == TLL_MESSAGE_STATE) {
 		log.log(level, "{} message: type: {}, msgid: {}", text, "State", tll_state_str((tll_state_t) msg->msgid));
