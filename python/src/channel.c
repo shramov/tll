@@ -101,7 +101,7 @@ struct tll_channel_module_t mod = {
 	.free = pyfree,
 };
 
-tll_channel_module_t * channel_module()
+tll_channel_module_t * tll_channel_module()
 {
 	return &mod;
 }
