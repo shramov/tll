@@ -1,3 +1,4 @@
+#define _GNU_SOURCE 1
 #include <dlfcn.h>
 #include <errno.h>
 #include <Python.h>
@@ -13,6 +14,18 @@ static PyThreadState * pystate = NULL;
 static int pyinit(struct tll_channel_module_t * m, tll_channel_context_t * ctx, const tll_config_t * cfg)
 {
 	tll_logger_t * log = tll_logger_new("tll.python", -1);
+
+	Dl_info info = {};
+	if (!dladdr(Py_IsInitialized, &info)) {
+		tll_logger_printf(log, TLL_LOGGER_ERROR, "Failed to get dlinfo of python library: %s", dlerror());
+		return EINVAL;
+	}
+
+	tll_logger_printf(log, TLL_LOGGER_DEBUG, "Reload python with RTLD_GLOBAL: %s", info.dli_fname);
+	if (!dlopen(info.dli_fname, RTLD_GLOBAL | RTLD_NOLOAD | RTLD_NOW)) {
+		tll_logger_printf(log, TLL_LOGGER_ERROR, "Failed to reload %s with RTLD_GLOBAL: %s", info.dli_fname, dlerror());
+		return EINVAL;
+	}
 
 	if (!Py_IsInitialized()) {
 		tll_logger_printf(log, TLL_LOGGER_INFO, "Initialize embedded Python interpreter");
@@ -96,7 +109,6 @@ static tll_channel_impl_t *channels[] = { &python_impl, &prefix_impl, NULL };
 struct tll_channel_module_t mod = {
 	.version = TLL_CHANNEL_MODULE_VERSION,
 	.impl = channels,
-	.flags = TLL_CHANNEL_MODULE_DLOPEN_GLOBAL,
 	.init = pyinit,
 	.free = pyfree,
 };
