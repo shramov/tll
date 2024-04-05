@@ -283,11 +283,8 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		if (f->version > TLL_CHANNEL_MODULE_VERSION)
 			return log.fail(EINVAL, "Mismatched module version: expected {}, got {}", TLL_CHANNEL_MODULE_VERSION, f->version);
 
-		if (f->flags & TLL_CHANNEL_MODULE_DLOPEN_GLOBAL) {
-			log.debug("Reload with RTLD_GLOBAL");
-			if (!dlopen(path.c_str(), RTLD_GLOBAL | RTLD_NOLOAD | RTLD_NOW))
-				return log.fail(EINVAL, "Failed to load: failed to reload with RTLD_GLOBAL: {}", dlerror());
-		}
+		if (f->flags & TLL_CHANNEL_MODULE_DLOPEN_GLOBAL)
+			log.warning("TLL_CHANNEL_MODULE_DLOPEN_GLOBAL flag is deprecated and ignored");
 
 		if (f->init) {
 			auto r = 0;
