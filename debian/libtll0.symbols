@@ -1,3 +1,4 @@
 libtll.so.0 libtll0 #MINVER#
 * Build-Depends-Package: libtll-dev
  (symver)TLL_0.0.0 0.0.0
+ (symver)TLL_0.2.0 0.2.0
