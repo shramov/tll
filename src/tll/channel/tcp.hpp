@@ -747,7 +747,7 @@ int TcpServer<T, C>::_post(const tll_msg_t *msg, int flags)
 }
 
 template <typename T, typename C>
-void TcpServer<T, C>::_cleanup()
+void TcpServer<T, C>::_process_cleanup()
 {
 	if (!_cleanup_flag) return;
 
@@ -784,9 +784,11 @@ int TcpServer<T, C>::_cb_other(const tll_channel_t *c, const tll_msg_t *msg)
 		if (msg->msgid == state::Error) {
 			this->channelT()->_on_child_error(socket);
 			_cleanup_flag = true;
+			this->_update_dcaps(dcaps::Pending | dcaps::Process);
 		} else if (msg->msgid == state::Closing) {
 			this->channelT()->_on_child_closing(socket);
 			_cleanup_flag = true;
+			this->_update_dcaps(dcaps::Pending | dcaps::Process);
 		}
 	} else if (msg->type == TLL_MESSAGE_CONTROL)
 		this->_callback(msg);
@@ -835,7 +837,7 @@ int TcpServer<T, C>::_cb_data(const tll_channel_t *c, const tll_msg_t *msg)
 template <typename T, typename C>
 int TcpServer<T, C>::_cb_socket(const tll_channel_t *c, const tll_msg_t *msg)
 {
-	_cleanup();
+	_process_cleanup();
 
 	if (msg->type != TLL_MESSAGE_DATA) {
 		if (msg->type == TLL_MESSAGE_STATE) {

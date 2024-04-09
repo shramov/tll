@@ -116,6 +116,52 @@ class _test_tcp_base:
 
         assert [(m.type, m.msgid, m.addr) for m in s.result] == [(C.Type.Control, s.scheme_control['Disconnect'].msgid, addr)]
 
+    def test_cleanup(self):
+        s, c = self.s, self.c
+
+        s.open()
+        assert s.state == s.State.Active
+        assert len(s.children) == self._children_count()
+
+        spoll = select.poll()
+        for i in s.children:
+            spoll.register(i.fd, select.POLLIN)
+        cpoll = select.poll()
+
+        c.open()
+        if c.state == c.State.Opening:
+            assert c.state == c.State.Opening
+            assert c.dcaps == c.DCaps.Process | c.DCaps.PollOut
+            cpoll.register(c.fd, select.POLLOUT)
+
+            assert cpoll.poll(100) == [(c.fd, select.POLLOUT)]
+            c.process()
+
+        assert spoll.poll(100) != []
+        for i in s.children:
+            i.process()
+
+        assert c.state == c.State.Active
+        assert c.dcaps == c.DCaps.Process | c.DCaps.PollIn
+
+        spoll.register(s.children[-1].fd, select.POLLIN)
+
+        assert [(m.type, m.msgid) for m in s.result] == [(C.Type.Control, s.scheme_control['Connect'].msgid)]
+        c.close()
+        assert c.state == c.State.Closed
+
+        assert s.dcaps == c.DCaps.Zero
+        with pytest.raises(TLLError):
+            for i in range(100):
+                s.post(b'xxx', seq=i, addr=s.result[-1].addr)
+        assert spoll.poll(100) != []
+        for i in s.children:
+            i.process()
+        assert s.dcaps == c.DCaps.Process | c.DCaps.Pending
+        s.process()
+        assert s.dcaps == c.DCaps.Zero
+        assert [(m.type, m.msgid) for m in s.result[-1:]] == [(C.Type.Control, s.scheme_control['Disconnect'].msgid)]
+
     def test_disconnect(self):
         s, c = self.s, self.c
 

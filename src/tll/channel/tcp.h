@@ -291,6 +291,15 @@ class TcpServer : public Base<T>
 	void _on_child_error(tcp_socket_t *) {}
 	void _on_child_closing(tcp_socket_t *);
 
+	int _process(long timeout, int flags)
+	{
+		if (_cleanup_flag)
+			this->_process_cleanup();
+		this->_update_dcaps(0, dcaps::Process | dcaps::Pending);
+		return 0;
+	}
+	void _process_cleanup();
+
  protected:
 	// Hooks
 	int _on_accept(tll_channel_t * c) { return 0; }
@@ -317,7 +326,6 @@ class TcpServer : public Base<T>
 	int _cb_socket(const tll_channel_t *c, const tll_msg_t *msg);
 
 	int _bind(tll::network::sockaddr_any &addr);
-	void _cleanup();
 	void _cleanup(tcp_socket_t *);
 	tcp_socket_t * _lookup(const tll_addr_t &addr);
 };
