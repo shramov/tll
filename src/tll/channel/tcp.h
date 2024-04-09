@@ -23,7 +23,7 @@ namespace tll::channel {
 struct tcp_socket_addr_t
 {
 	int fd = -1;
-	int seq = 0;
+	unsigned seq = 0;
 
 	static const tcp_socket_addr_t * cast(const tll_addr_t * ptr)
 	{
@@ -156,7 +156,7 @@ class TcpSocket : public Base<T>
 	int _process(long timeout, int flags);
 	int _process_output();
 
-	void bind(int fd, int seq = 0) { this->_update_fd(fd); _msg_addr = { fd, seq }; }
+	void bind(int fd, unsigned seq = 0) { this->_update_fd(fd); _msg_addr = { fd, seq }; }
 	const tcp_socket_addr_t & msg_addr() const { return _msg_addr; }
 
 	int setup(const tcp_settings_t &settings, int af);
@@ -258,7 +258,7 @@ class TcpServer : public Base<T>
 	network::AddressFamily _af = network::AddressFamily::UNSPEC;
 	std::string _host;
 	unsigned short _port;
-	int _addr_seq = 0;
+	unsigned _addr_seq = 0;
 
 	using tcp_server_t = TcpServer<T, C>;
 	using tcp_server_socket_t = TcpServerSocket<T>;

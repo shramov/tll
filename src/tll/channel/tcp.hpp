@@ -871,7 +871,7 @@ int TcpServer<T, C>::_cb_socket(const tll_channel_t *c, const tll_msg_t *msg)
 	if (!client)
 		return this->_log.fail(EINVAL, "Failed to cast to tcp socket type, invalid socket protocol {}", _socket_url.proto());
 	//r.release();
-	client->bind(fd);
+	client->bind(fd, _addr_seq++);
 	client->setup(_settings, conn->addr->sa_family);
 	tll_channel_callback_add(r.get(), _cb_other, this, TLL_MESSAGE_MASK_STATE | TLL_MESSAGE_MASK_CONTROL);
 	tll_channel_callback_add(r.get(), _cb_data, this, TLL_MESSAGE_MASK_DATA);
