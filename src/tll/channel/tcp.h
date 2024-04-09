@@ -134,6 +134,11 @@ class TcpSocket : public Base<T>
  public:
 	static constexpr std::string_view channel_protocol() { return "tcp"; }
 
+	/// How to handle send errors: change state or ignore them
+	enum class SendErrorPolicy { State, Ignore };
+	/// Send error policy settings
+	static constexpr auto send_error_policy() { return SendErrorPolicy::State; }
+
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::ConstConfig &);
 	int _close();
@@ -171,6 +176,19 @@ class TcpSocket : public Base<T>
 
 	/// Hook called when output buffer is fully sent
 	void _on_output_ready();
+
+	/// Handle send errors
+	int _on_send_error(int error)
+	{
+		switch (this->send_error_policy()) {
+		case SendErrorPolicy::State:
+			this->state(tll::state::Error);
+			break;
+		case SendErrorPolicy::Ignore:
+			break;
+		}
+		return error;
+	}
 
  protected:
 	std::chrono::nanoseconds _timestamp;

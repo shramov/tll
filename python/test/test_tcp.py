@@ -116,7 +116,8 @@ class _test_tcp_base:
 
         assert [(m.type, m.msgid, m.addr) for m in s.result] == [(C.Type.Control, s.scheme_control['Disconnect'].msgid, addr)]
 
-    def test_cleanup(self):
+    @pytest.mark.parametrize('mode', ['process', 'post'])
+    def test_cleanup(self, mode):
         s, c = self.s, self.c
 
         s.open()
@@ -151,12 +152,18 @@ class _test_tcp_base:
         assert c.state == c.State.Closed
 
         assert s.dcaps == c.DCaps.Zero
-        with pytest.raises(TLLError):
-            for i in range(100):
-                s.post(b'xxx', seq=i, addr=s.result[-1].addr)
-        assert spoll.poll(100) != []
-        for i in s.children:
-            i.process()
+        if mode == 'post':
+            # Force post error
+            with pytest.raises(TLLError):
+                for i in range(100):
+                    s.post(b'xxx', seq=i, addr=s.result[-1].addr)
+            assert s.children[-1].state == s.State.Error
+        else:
+            # Poll for closed event
+            assert spoll.poll(100) != []
+            for i in s.children:
+                i.process()
+            assert s.children[-1].state == s.State.Closed
         assert s.dcaps == c.DCaps.Process | c.DCaps.Pending
         s.process()
         assert s.dcaps == c.DCaps.Zero

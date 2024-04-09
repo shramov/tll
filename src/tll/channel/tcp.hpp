@@ -139,7 +139,7 @@ int TcpSocket<T>::_post_data(const tll_msg_t *msg, int flags)
 	this->_log.trace("Post {} bytes of data", msg->size);
 	int r = send(this->fd(), msg->data, msg->size, MSG_NOSIGNAL | MSG_DONTWAIT);
 	if (r < 0)
-		return this->_log.fail(errno, "Failed to post data: {}", strerror(errno));
+		return this->_on_send_error(this->_log.fail(errno, "Failed to post data: {}", strerror(errno)));
 	else if ((size_t) r != msg->size)
 		return this->_log.fail(errno, "Failed to post data (truncated): {}", strerror(errno));
 	return 0;
@@ -308,7 +308,7 @@ int TcpSocket<T>::_sendmsg(const iovec * iov, size_t N)
 	auto r = sendmsg(this->fd(), &msg, MSG_NOSIGNAL | MSG_DONTWAIT);
 	if (r < 0) {
 		if (errno != EAGAIN)
-			return this->_log.fail(EINVAL, "Failed to send {} bytes of data: {}", full, strerror(errno));
+			return this->_on_send_error(this->_log.fail(EINVAL, "Failed to send {} bytes of data: {}", full, strerror(errno)));
 		r = 0;
 	}
 	if (r < (ssize_t) full) {
@@ -348,7 +348,7 @@ int TcpSocket<T>::_process_output()
 	if (r < 0) {
 		if (errno == EAGAIN)
 			return 0;
-		return this->_log.fail(errno, "Failed to send pending data: {}", strerror(errno));
+		return this->_on_send_error(this->_log.fail(errno, "Failed to send pending data: {}", strerror(errno)));
 	}
 
 	_wbuf.done(r);
