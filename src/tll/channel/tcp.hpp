@@ -773,7 +773,7 @@ void TcpServer<T, C>::_cleanup(tcp_socket_t * c)
 {
 	this->_log.debug("Cleanup client {} @{}", c->name, (void *) c);
 	this->_child_del(*c);
-	delete c;
+	delete c->self();
 }
 
 template <typename T, typename C>
