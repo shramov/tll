@@ -160,6 +160,23 @@ async def test_many(asyncloop, server, client):
         assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, data)
 
 @asyncloop_run
+async def test_cleanup(asyncloop, server, client):
+    server.open()
+    assert len(server.children) == 1
+    client.open()
+    assert await client.recv_state() == client.State.Active
+    assert len(server.children) == 2
+    client.close()
+
+    for i in range(0, 100):
+        server.post(b'xxx', seq=i, msgid=10)
+        if server.children[-1].state != server.State.Active:
+            break
+    assert server.children[-1].state == server.State.Closed
+    server.process()
+    assert len(server.children) == 1
+
+@asyncloop_run
 async def test_client(asyncloop, server):
     server.open()
 

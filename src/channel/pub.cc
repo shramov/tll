@@ -240,9 +240,9 @@ int ChPubSocket::_process_data(bool pollout)
 			return EAGAIN;
 		} else if (errno == EPIPE) {
 			_log.warning("Send to '{}' failed: {}", _peer, strerror(errno));
-			return EPIPE;
+			return _on_send_error(EPIPE);
 		}
-		return _log.fail(EINVAL, "Send to '{}' failed: {}", _peer, strerror(errno));
+		return _on_send_error(_log.fail(EINVAL, "Send to '{}' failed: {}", _peer, strerror(errno)));
 	}
 
 	_log.trace("Sent {} bytes to client", r);
