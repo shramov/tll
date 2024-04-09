@@ -58,18 +58,22 @@ int tll_channel_log_msg(const tll_channel_t * c, const char * _log, tll_logger_l
 	auto text = tll::string_view_from_c(_text, tlen);
 	auto log = _logger_create(c, _log);
 
+	std::string addr;
+	if (msg->addr.u64)
+		addr = fmt::format(", addr: 0x{:x}", msg->addr.u64);
+
 	if (msg->type == TLL_MESSAGE_STATE) {
 		log.log(level, "{} message: type: {}, msgid: {}", text, "State", tll_state_str((tll_state_t) msg->msgid));
 		return 0;
 	} else if (msg->type == TLL_MESSAGE_CHANNEL) {
 		if (level <= TLL_LOGGER_INFO)
 			level = TLL_LOGGER_TRACE;
-		log.log(level, "{} message: type: {}, msgid: {}, seq: {}, size: {}, addr: {:016x}",
-				text, "Channel", msg->msgid, msg->seq, msg->size, msg->addr.u64);
+		log.log(level, "{} message: type: {}, msgid: {}, seq: {}, size: {}{}",
+				text, "Channel", msg->msgid, msg->seq, msg->size, addr);
 		return 0;
 	} else if (msg->type != TLL_MESSAGE_DATA && msg->type != TLL_MESSAGE_CONTROL) {
-		log.log(level, "{} message: type: {}, msgid: {}, seq: {}, size: {}, addr: {:016x}",
-				text, msg->type, msg->msgid, msg->seq, msg->size, msg->addr.u64);
+		log.log(level, "{} message: type: {}, msgid: {}, seq: {}, size: {}{}",
+				text, msg->type, msg->msgid, msg->seq, msg->size, addr);
 		return 0;
 	}
 
@@ -94,8 +98,8 @@ int tll_channel_log_msg(const tll_channel_t * c, const char * _log, tll_logger_l
 	if (!scheme && format == log_msg_format::Frame)
 		name = "";
 
-	std::string header = fmt::format("{} message: type: {}, msgid: {}{}, seq: {}, size: {}, addr: {:016x}",
-			text, msg->type == TLL_MESSAGE_DATA ? "Data" : "Control", msg->msgid, name, msg->seq, msg->size, msg->addr.u64);
+	std::string header = fmt::format("{} message: type: {}, msgid: {}{}, seq: {}, size: {}{}",
+			text, msg->type == TLL_MESSAGE_DATA ? "Data" : "Control", msg->msgid, name, msg->seq, msg->size, addr);
 
 	if (format == log_msg_format::Frame) {
 		log.log(level, "{}", header);
