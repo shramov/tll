@@ -178,7 +178,11 @@ int StreamClient::_on_active()
 		state(tll::state::Active);
 		return 0;
 	}
-	_log.debug("Stream channel active, open request channel from seq {}", *_open_seq);
+	if (_open_seq)
+		_log.debug("Stream channel active, open request channel from seq {}", *_open_seq);
+	else
+		_log.debug("Stream channel active, open request channel from block");
+
 	return _request->open(_request_open);
 }
 
