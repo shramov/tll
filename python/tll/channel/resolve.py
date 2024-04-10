@@ -11,6 +11,17 @@ class Service:
         self.tags = tags
         self.channels = {}
 
+    def match(self, request):
+        return request == self.service or request == '*' or request in self.tags
+
+    def lookup(self, request):
+        if request == '*':
+            return self.channels.values()
+        r = self.channels.get(request, None)
+        if r is not None:
+            return [r]
+        return []
+
 class Channel:
     def __init__(self, service, name, config):
         self.service = service
@@ -88,10 +99,15 @@ class Resolve(Logic):
     def  _subs_get(self, service, channel, tags):
         r = set()
         if sub := self._subs.get(service):
-            r = set(sub.get(channel))
+            r.update(sub.get(channel))
+            r.update(sub.get('*'))
+        if sub := self._subs.get('*'):
+            r.update(sub.get(channel))
+            r.update(sub.get('*'))
         for t in tags:
             if sub := self._subs.get(t):
                 r.update(sub.get(channel))
+                r.update(sub.get('*'))
         return r
 
     def _logic(self, channel, msg):
@@ -199,11 +215,10 @@ class Resolve(Logic):
                 return
 
             for service in self._exports.values():
-                if service.service != msg.service and msg.service not in service.tags:
+                if not service.match(msg.service):
                     continue
 
-                channel = service.channels.get(msg.channel, None)
-                if channel is not None:
+                for channel in service.lookup(msg.channel):
                     self._reply(service, channel, addr)
 
     def _drop_service(self, key):

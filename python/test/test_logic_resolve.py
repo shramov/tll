@@ -94,3 +94,33 @@ async def test_standalone(asyncloop, resolve):
 
     ci.post({'service': 'tag', 'channel': 'a'}, name='Request', addr=20)
     assert ci.unpack(await ci.recv()).as_dict() == {'service': 'service', 'channel': 'a', 'host': 'host', 'tags': ['tag'], 'config': [{'key': 'tll.proto', 'value': 'a'}]}
+
+@pytest.mark.parametrize('service,channel,result',
+                         [('service', 'a', ['a']),
+                          ('*', '*', ['a', 'b']),
+                          ('service', '*', ['a', 'b']),
+                          ('tag', '*', ['a', 'b']),
+                          ('*', 'a', ['a']),
+                         ])
+@asyncloop_run
+async def test_wildcard(asyncloop, resolve, service, channel, result):
+    resolve.open(skip=['uplink'])
+
+    ci = resolve.io('input')
+
+    ci.post({'service': service, 'channel': channel}, name='Request', addr=10)
+    with pytest.raises(TimeoutError): await ci.recv(0.0001)
+
+    ci.post({'service': 'service', 'host': 'host', 'tags': ['tag']}, name='ExportService', addr=20)
+    ci.post({'service': 'service', 'channel': 'a', 'config': [{'key': 'tll.proto', 'value': 'a'}]}, name='ExportChannel', addr=20)
+    ci.post({'service': 'service', 'channel': 'b', 'config': [{'key': 'tll.proto', 'value': 'b'}]}, name='ExportChannel', addr=20)
+
+    for r in result:
+        m = ci.unpack(await ci.recv())
+        assert (m.service, m.channel) == ('service', r)
+
+    ci.post({'service': service, 'channel': channel}, name='Request', addr=10)
+
+    for r in result:
+        m = ci.unpack(await ci.recv())
+        assert (m.service, m.channel) == ('service', r)
