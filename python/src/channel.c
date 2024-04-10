@@ -15,19 +15,19 @@ static int pyinit(struct tll_channel_module_t * m, tll_channel_context_t * ctx, 
 {
 	tll_logger_t * log = tll_logger_new("tll.python", -1);
 
-	Dl_info info = {};
-	if (!dladdr(Py_IsInitialized, &info)) {
-		tll_logger_printf(log, TLL_LOGGER_ERROR, "Failed to get dlinfo of python library: %s", dlerror());
-		return EINVAL;
-	}
-
-	tll_logger_printf(log, TLL_LOGGER_DEBUG, "Reload python with RTLD_GLOBAL: %s", info.dli_fname);
-	if (!dlopen(info.dli_fname, RTLD_GLOBAL | RTLD_NOLOAD | RTLD_NOW)) {
-		tll_logger_printf(log, TLL_LOGGER_ERROR, "Failed to reload %s with RTLD_GLOBAL: %s", info.dli_fname, dlerror());
-		return EINVAL;
-	}
-
 	if (!Py_IsInitialized()) {
+		Dl_info info = {};
+		if (!dladdr(Py_IsInitialized, &info)) {
+			tll_logger_printf(log, TLL_LOGGER_ERROR, "Failed to get dlinfo of python library: %s", dlerror());
+			return EINVAL;
+		}
+
+		tll_logger_printf(log, TLL_LOGGER_DEBUG, "Reload python with RTLD_GLOBAL: %s", info.dli_fname);
+		if (!dlopen(info.dli_fname, RTLD_GLOBAL | RTLD_NOLOAD | RTLD_NOW)) {
+			tll_logger_printf(log, TLL_LOGGER_ERROR, "Failed to reload %s with RTLD_GLOBAL: %s", info.dli_fname, dlerror());
+			return EINVAL;
+		}
+
 		tll_logger_printf(log, TLL_LOGGER_INFO, "Initialize embedded Python interpreter");
 		Py_InitializeEx(0);
 
