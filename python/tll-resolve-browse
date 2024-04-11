@@ -10,11 +10,12 @@ from tll.channel import Context
 from tll.config import Url
 from tll import asynctll, logger
 
-parser = argparse.ArgumentParser(description='Browse for exported channels in TLL resolve server')
-parser.add_argument('service', metavar='SERVICE', type=str,
-                    help='service name or tag')
-parser.add_argument('channel', metavar='CHANNEL', type=str,
-                    help='channel name')
+parser = argparse.ArgumentParser(description='Browse for exported channels in TLL resolve server',
+                                 usage='%(prog)s -s SERVER [SERVICE [CHANNEL]]')
+parser.add_argument('service', metavar='SERVICE', type=str, nargs='?', default='*',
+                    help='service name or tag, if not given - ask for all services')
+parser.add_argument('channel', metavar='CHANNEL', type=str, nargs='?', default='*',
+                    help='channel name, if not given - ask for all channels in the service')
 parser.add_argument('-s', '--server', dest='server', type=str,
                     required=True,
                     help='resolve server address, if protocol is missing - default is tcp://')
