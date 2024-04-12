@@ -81,14 +81,22 @@ int Processor::_init(const tll::Channel::Url &url, Channel * master)
 		return _log.fail(EINVAL, "Empty processor config");
 	_cfg = *sub;
 
-	_ipc = context().channel(fmt::format("ipc://;mode=server;broadcast=yes;name={}/ipc;dump=no;tll.internal=no", name));
+	auto curl = child_url_parse("ipc://;mode=server;broadcast=yes", "ipc");
+	if (!curl)
+		return _log.fail(EINVAL, "Failed to parse ipc url: {}", curl.error());
+	curl->set("tll.internal", "no");
+	curl->set("scheme", processor_scheme::scheme_string);
+	_ipc = context().channel(*curl);
 	if (!_ipc.get())
 		return _log.fail(EINVAL, "Failed to create IPC channel for processor");
 	_ipc->callback_add(this, TLL_MESSAGE_MASK_DATA);
 	_child_add(_ipc.get(), "ipc");
 	loop.add(_ipc.get());
 
-	_timer = context().channel(fmt::format("timer://;clock=realtime;name={}/timer;dump=no;tll.internal=yes", name));
+	curl = child_url_parse("timer://;clock=realtime", "timer");
+	if (!curl)
+		return _log.fail(EINVAL, "Failed to parse timer url: {}", curl.error());
+	_timer = context().channel(*curl);
 	if (!_timer.get())
 		return _log.fail(EINVAL, "Failed to create timer channel for processor");
 	_timer->callback_add(pending_process, this, TLL_MESSAGE_MASK_DATA);

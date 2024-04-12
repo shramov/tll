@@ -234,7 +234,7 @@ processor.objects:
     init: ipc://;mode=client;master=_tll_resolve_master
     depends: control
   control-processor:
-    init: ipc://;mode=client;master=processor/ipc;scheme=channel://processor;dump=yes
+    init: ipc://;mode=client;master=processor/ipc;dump=yes
     depends: control
   tcp:
     init: echo+tcp://::1:{ports.TCP6};mode=server;tll.resolve.export=yes;dump=yes
