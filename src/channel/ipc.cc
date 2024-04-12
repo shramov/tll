@@ -52,6 +52,11 @@ int ChIpc::_open(const ConstConfig &url)
 	_markers = master->_markers;
 	_addr = master->addr();
 
+	if (!_scheme && master->_scheme) {
+		_log.debug("Inherit scheme from master {}", master->name);
+		_scheme.reset(master->_scheme->ref());
+	}
+
 	_post_control(ipc_scheme::Connect::meta_id());
 	return 0;
 }

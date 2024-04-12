@@ -589,6 +589,23 @@ def test_ipc():
 
     with pytest.raises(TLLError): s.post(b'aaa', msgid=40, seq=400, addr=s.result[-1].addr)
 
+def test_ipc_scheme(context):
+    s = context.Channel('ipc://', mode='server', name='server', scheme='yamls://[{name: Server}]')
+    c0 = context.Channel('ipc://', mode='client', master=s, name='c0')
+    c1 = context.Channel('ipc://', mode='client', master=s, name='c1', scheme='yamls://[{name: Client}]')
+
+    s.open()
+    c0.open()
+    c1.open()
+
+    assert [m.name for m in s.scheme.messages] == ['Server']
+    assert [m.name for m in c0.scheme.messages] == ['Server']
+    assert [m.name for m in c1.scheme.messages] == ['Client']
+
+    s.close()
+
+    assert [m.name for m in c0.scheme.messages] == ['Server']
+
 def test_ipc_broadcast():
     s = Accum('ipc://', mode='server', name='server', dump='yes', broadcast='yes', context=ctx)
     c0 = Accum('ipc://', mode='client', name='c0', dump='yes', master=s, context=ctx)
