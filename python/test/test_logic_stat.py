@@ -49,6 +49,7 @@ channel: stat://;tll.channel.timer=timer;node=test-node
 
     fields.update(sum=1, min=2, max=3, last=4)
     groups.update(int=10, float=0.5)
+    groups.update(int=1)
     groups.update(float=0.1)
     timer.post(b'')
     
@@ -74,5 +75,5 @@ channel: stat://;tll.channel.timer=timer;node=test-node
     assert msg.node == 'test-node'
     assert msg.name == 'groups'
     assert [f.name for f in msg.fields] == ['int', 'float']
-    assert msg.fields[0].as_dict() == {'name': 'int', 'unit': Unit.NS, 'value': {'igroup': {'count': 1, 'min': 10, 'max': 10, 'avg': 10}}}
+    assert msg.fields[0].as_dict() == {'name': 'int', 'unit': Unit.NS, 'value': {'igroup': {'count': 2, 'min': 1, 'max': 10, 'avg': 5.5}}}
     assert msg.fields[1].as_dict() == {'name': 'float', 'unit': Unit.Unknown, 'value': {'fgroup': {'count': 2, 'min': 0.1, 'max': 0.5, 'avg': 0.3}}}

@@ -192,7 +192,7 @@ int Stat::_dump(tll_stat_iter_t * iter)
 				group.set_min(min->value);
 				group.set_max(max->value);
 				if (count->value)
-					group.set_avg(sum->value / count->value);
+					group.set_avg(double(sum->value) / count->value);
 			}
 			continue;
 		}
