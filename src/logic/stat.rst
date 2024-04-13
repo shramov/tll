@@ -35,7 +35,10 @@ Init parameters
 
 ``node=<string>`` (default empty) - node name set in generated messages.
 
-``secondary=<bool>`` (default ``false``) - skip stat pages that are not explicitely listed in
+``header-level={debug|info}`` (default ``debug``) - log level of the message that is printed before
+each page dump.
+
+``secondary=<bool>`` (default ``false``) - skip stat pages that are not explicitly listed in
 ``page.*`` parameters.
 
 ``page.*`` - list of page matching rules:

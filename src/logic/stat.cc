@@ -23,6 +23,7 @@ class Stat : public tll::LogicBase<Stat>
 	tll::Channel * _timer = nullptr;
 	bool _secondary;
 	std::string _node;
+	tll::Logger::level_t _header_level = tll::Logger::Debug;
 
 	struct page_rule_t
 	{
@@ -63,6 +64,7 @@ int Stat::_init(const tll::Channel::Url &url, tll::Channel *)
 	auto reader = channel_props_reader(url);
 	_secondary = reader.getT("secondary", false);
 	_node = reader.getT<std::string>("node", "");
+	_header_level = reader.getT("header-level", tll::Logger::Debug, {{"debug", tll::Logger::Debug}, {"info", tll::Logger::Info}});
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -102,6 +104,7 @@ int Stat::logic(const tll::Channel * c, const tll_msg_t *msg)
 		return 0;
 	if (c != _timer)
 		return 0;
+	_log.log(_header_level, "Dump stat pages");
 	auto i = tll_stat_list_begin(_stat);
 	for (; i != nullptr; i = tll_stat_iter_next(i))
 		_dump(i);
