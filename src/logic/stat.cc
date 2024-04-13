@@ -45,7 +45,17 @@ class Stat : public tll::LogicBase<Stat>
 
 	int logic(const tll::Channel * c, const tll_msg_t *msg);
 	int _dump(tll_stat_iter_t * i);
-	std::string _dump(const tll::stat::Field & v);
+	std::string _dump(const tll::stat::Field & v)
+	{
+		switch (v.type()) {
+		case TLL_STAT_INT: return _dump(v, v.value);
+		case TLL_STAT_FLOAT: return _dump(v, v.fvalue);
+		}
+		return fmt::format("{}: unknown type {}", v.name(), v.type());
+	}
+
+	template <typename T>
+	std::string _dump(const tll::stat::Field & v, T value);
 
 	template <typename T>
 	std::string _group(std::string_view name, tll_stat_unit_t unit, int64_t count, T sum, T min, T max);
@@ -257,30 +267,26 @@ std::string format_field(std::string_view name, std::string_view suffix, std::pa
 }
 }
 
-std::string Stat::_dump(const tll::stat::Field & v)
+template <typename T>
+std::string Stat::_dump(const tll::stat::Field & v, T value)
 {
 	std::string_view name = v.name();
+
+	if (v.method() != tll::stat::Sum) {
+		if (value == tll::stat::default_value<T>(v.method()))
+			return fmt::format("{}: -", name);
+	}
 
 	std::string_view suffix = "";
 	switch (v.unit()) {
 	case tll::stat::Bytes:
-		if (v.type() == TLL_STAT_INT)
-			return format_field(name, "b", shorten_bytes(v.value));
-		else
-			return format_field(name, "b", shorten_bytes(v.fvalue));
+		return format_field(name, "b", shorten_bytes(value));
 	case tll::stat::Ns:
-		if (v.type() == TLL_STAT_INT)
-			return format_field(name, "ns", shorten_time(v.value));
-		else
-			return format_field(name, "ns", shorten_time(v.fvalue));
+		return format_field(name, "ns", shorten_time(value));
 	default: break;
 	}
 
-	switch (v.type()) {
-	case TLL_STAT_INT: return fmt::format("{}: {}{}", name, v.value, suffix);
-	case TLL_STAT_FLOAT: return fmt::format("{}: {}{}", name, v.fvalue, suffix);
-	}
-	return fmt::format("{}: unknown type {}", name, v.type());
+	return fmt::format("{}: {}{}", name, v.value, suffix);
 }
 
 template <typename T>
