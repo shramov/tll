@@ -10,6 +10,7 @@
 
 #include "tll/channel/autoseq.h"
 
+#include "tll/util/lz4block.h"
 #include "tll/util/memoryview.h"
 
 struct iovec;
@@ -46,6 +47,12 @@ class File : public tll::channel::AutoSeq<File<TIO>>
 
 	std::string _filename;
 
+	tll::lz4::StreamDecode _lz4_decode;
+	tll::const_memory _lz4_decode_last = {};
+	ssize_t _lz4_decode_offset = -1;
+	tll::lz4::StreamEncode _lz4_encode;
+	std::vector<char> _lz4_buf;
+
 	enum class Compression : uint8_t { None = 0, LZ4 = 1} _compression;
 	bool _autoclose = true;
 	bool _end_of_data = false;
@@ -77,6 +84,41 @@ private:
 
 	template <typename ... Args>
 	int _write_datav(Args && ... args);
+
+	template <typename ... Args>
+	tll::const_memory _compress_datav(Args && ... args)
+	{
+		constexpr unsigned N = sizeof...(Args);
+		std::array<const_memory, N> data({const_memory(std::forward<Args>(args))...});
+
+		size_t size = 0;
+		auto view = _lz4_encode.view();
+		for (unsigned i = 0; i < N; i++) {
+			memcpy(view.data(), data[i].data, data[i].size);
+			size += data[i].size;
+			view = view.view(data[i].size);
+		}
+		return _lz4_encode.compress(_lz4_buf, size, 0);
+	}
+
+	int _lz4_init(size_t block)
+	{
+		_lz4_buf.resize(LZ4_compressBound(block));
+		if (_lz4_encode.init(block))
+			return this->_log.fail(EINVAL, "Failed to init lz4 encoder with block size {}", block);
+		if (_lz4_decode.init(block))
+			return this->_log.fail(EINVAL, "Failed to init lz4 decoder with block size {}", block);
+		_lz4_decode_offset = -1;
+		_lz4_decode_last = {};
+		return 0;
+	}
+
+	void _lz4_reset()
+	{
+		_lz4_encode.reset();
+		_lz4_decode.reset();
+		_lz4_decode_offset = -1;
+	}
 
 	int _write_block(size_t offset);
 

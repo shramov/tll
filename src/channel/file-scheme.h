@@ -5,7 +5,7 @@
 
 namespace file_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJyFks1OwzAQhO99ir2tVCWS3YJrcoOe4RWQk7rFIraj2EGCyu+OHdqQnyJuq9nRzCevczBCywLw0ftWlZ2XuAI4KlkfXBEngBzOF4sYLBn4zyZJLirmhGHm/BB1d8uVX9uepRepSB0KoGx7TygnjEZBmk5finFvddNK55Q1WMD5J6xTxvOs90UNX6yRcUlC+BNbx65Xp75GQCmEsiW2bPuyiY8vbNWIa7DuJ6JtfBxcIkz7SIiJGMM8q6xt9T4t3G4Wja56k/r/Zz/W4uSmYezuNk2pvMOQwTxiuPEoZ/37N0YnfOrJrzfkhLLdjj+Q1TdjobO6)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJyFksFOwzAMhu97Ct8ioVZK2MhCbwyJE/AAIITSzhvRmnRqUiSY+u6k7VrSlomb5Xy2/99ODEZqTIDcOVeqtHJIFgA7hfnWJj4CiOF0RuSAROC+jk3K+ozZk3pCfsq8+ouK+2lP6GQzSG0TYHx5Q5mgnPkEmkqfB5P7Qh9LtFYVhiRw6ppVyjgRtZzPkceXlX9jEZDnwqAPad2ISZXruzzkcm/H9XwVdQS8vtUX7Wqv8d2q78BIU8z43C6WrcgRJ2ZYFvgZ0NDktCDNi+ww7rq8nlE2+0D9/0127R4GqlvLFBpOHJBXv18juOCm1dafUFDG12txSxc/YuiwqA==)";
 
 struct Attribute
 {
@@ -30,6 +30,9 @@ struct Attribute
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct Meta
@@ -41,6 +44,7 @@ struct Meta
 	enum class Compression: uint8_t
 	{
 		None = 0,
+		LZ4 = 1,
 	};
 
 	struct Flags: public tll::scheme::Bits<uint64_t>
@@ -93,6 +97,9 @@ struct Meta
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct Block
@@ -114,6 +121,9 @@ struct Block
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 } // namespace file_scheme
@@ -125,6 +135,7 @@ struct tll::conv::dump<file_scheme::Meta::Compression> : public to_string_from_s
 	static inline std::string_view to_string_buf(const file_scheme::Meta::Compression &v, Buf &buf)
 	{
 		switch (v) {
+		case file_scheme::Meta::Compression::LZ4: return "LZ4";
 		case file_scheme::Meta::Compression::None: return "None";
 		default: break;
 		}

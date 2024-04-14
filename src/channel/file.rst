@@ -16,8 +16,8 @@ Description
 
 Channel implements file storage for reading and writing. Data is stored in sequential blocks so
 search with logarithmic time is supported (however inside block linear search is used). File
-contains metadata with scheme, block size and compression type (currently unsupported) so when user
-opens it for reading it does not need to know exact parameters used to create this file. New data is
+contains metadata with scheme, block size and compression type (none or lz4) so when user
+opens it for reading he does not need to know exact parameters used to create this file. New data is
 appended to the end of the file and there is no way to change old entries.
 
 Init parameters
@@ -41,9 +41,17 @@ Following init parameters are used only for writing channel (``dir=w``):
 
 ``autoseq=<bool>`` (default ``no``) - ignore message seq and fill it with contiguous incrementing
 sequence. When file is reopened - use last seq as starting point, otherwise start from 0;
+
 ``block={SIZE}`` (default ``1mb``) - block size, used only in write mode.
+
 ``extra-space={SIZE}`` (default ``0b``) - keep up to this amount of empty space in the end of the
 file. Without this non-zero option file can not be read in ``mmap`` mode. Used only in write mode.
+
+``compression={none|lz4}`` (default ``none``) - compression method:
+
+ - ``none`` - compression is disabled
+ - ``lz4`` - lz4 compression in streaming mode, when message is appended message to the block
+   its current content is used for compression.
 
 Read init parameters
 ^^^^^^^^^^^^^^^^^^^^

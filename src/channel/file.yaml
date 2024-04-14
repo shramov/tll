@@ -6,7 +6,7 @@
 - name: Meta
   id: 0x6174654d
   enums:
-    Compression: {type: uint8, enum: {None: 0}}
+    Compression: {type: uint8, enum: {None: 0, LZ4: 1}}
   bits:
     Flags: {type: uint64}
   fields:

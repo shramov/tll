@@ -372,3 +372,33 @@ def test_mmap_read(context, filename):
     for _ in range(4):
         r.process()
     assert [(m.seq, len(m.data)) for m in r.result] == [(i, 512) for i in range(4)]
+
+@pytest.mark.parametrize("io", ['posix', 'mmap'])
+@pytest.mark.parametrize("compress", ['none', 'lz4'])
+def test_compress(context, filename, io, compress):
+    writer = Accum(f'file://{filename}', name='writer', dump='frame', context=context, dir='w', block='4kb', compression=compress)
+    reader = Accum(f'file://{filename}', name='reader', dump='frame', context=context, autoclose='no', io=io)
+
+    writer.open()
+
+    data = bytes(range(0, 0x100)) + bytes(range(0, 0x100, 2)) + bytes(range(1, 0x100, 2))
+    for i in range(100):
+        if i % 17 == 0:
+            writer.close()
+            writer.open()
+        writer.post(data * (i % 7 + 1), seq=i, msgid=i + 10)
+    reader.open()
+    for i in range(100):
+        reader.process()
+        assert [(m.msgid, m.seq) for m in reader.result[-1:]] == [(i + 10, i)]
+        assert reader.result[-1].data.tobytes() == data * (i % 7 + 1)
+    reader.process()
+    assert reader.result[-1].type == reader.Type.Control
+
+    for oseq in range(0, 100, 7):
+        reader.post(b'', type=reader.Type.Control, name='Seek', seq=oseq)
+        reader.result = []
+        for i in range(oseq, 100):
+            reader.process()
+            assert [(m.msgid, m.seq) for m in reader.result[-1:]] == [(i + 10, i)]
+            assert reader.result[-1].data.tobytes() == data * (i % 7 + 1)

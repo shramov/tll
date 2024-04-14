@@ -189,14 +189,11 @@ int File<TIO>::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 	auto reader = this->channel_props_reader(url);
 	_block_init = reader.template getT("block", util::Size {1024 * 1024});
-	_compression = reader.template getT("compress", Compression::None, {{"no", Compression::None}, {"lz4", Compression::LZ4}});
+	_compression = reader.template getT("compression", Compression::None, {{"none", Compression::None}, {"lz4", Compression::LZ4}});
 	_autoclose = reader.template getT("autoclose", true);
 	_tail_extra_size = reader.template getT("extra-space", util::Size { 0 });
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
-
-	if (_compression != Compression::None)
-		return this->_log.fail(EINVAL, "Compression not supported");
 
 	_filename = url.host();
 
@@ -252,6 +249,11 @@ int File<TIO>::_open(const ConstConfig &props)
 		if (_io.init(this->_log, _block_size))
 			return this->_log.fail(EINVAL, "Failed to init io");
 
+		if (_compression == Compression::LZ4) {
+			if (auto r = _lz4_init(_block_size); r)
+				return r;
+		}
+
 		if (auto r = _file_bounds(); r && r != EAGAIN)
 			return this->_log.fail(EINVAL, "Failed to load file bounds");
 
@@ -267,6 +269,11 @@ int File<TIO>::_open(const ConstConfig &props)
 		}
 		this->_update_dcaps(dcaps::Process | dcaps::Pending);
 	} else {
+		if (_compression == Compression::LZ4) {
+			if (auto r = _lz4_init(_block_size); r)
+				return r;
+		}
+
 		auto overwrite = reader.getT("overwrite", false);
 		if (!reader)
 			return this->_log.fail(EINVAL, "Invalid params: {}", reader.error());
@@ -414,6 +421,9 @@ int File<TIO>::_read_meta()
 	case file_scheme::Meta::Compression::None:
 		_compression = Compression::None;
 		break;
+	case file_scheme::Meta::Compression::LZ4:
+		_compression = Compression::LZ4;
+		break;
 	default:
 		return this->_log.fail(EINVAL, "Compression {} not supported", (uint8_t) comp);
 	}
@@ -480,6 +490,11 @@ int File<TIO>::_shift_block(size_t offset)
 	this->_log.trace("Shift block to 0x{:x}", _io.block_end);
 	if (auto r = _io.block(offset); r)
 		return this->_log.fail(r, "Failed to shift block: {}", strerror(r));
+
+	if (_compression == Compression::LZ4) {
+		this->_log.debug("Reset encoder/decoder at new block {}", _io.offset);
+		_lz4_reset();
+	}
 
 	frame_size_t frame;
 	if (auto r = _read_frame_nocheck(&frame); r)
@@ -548,6 +563,13 @@ int File<TIO>::_file_bounds()
 		else if (r)
 			return r;
 		_seq = msg.seq;
+		if ((this->internal.caps & caps::Output) && _compression == Compression::LZ4) {
+			frame_t meta = { &msg };
+			auto r = _compress_datav(const_memory { &meta, sizeof(meta) }, const_memory { msg.data, msg.size });
+			if (!r.data)
+				return this->_log.fail(EINVAL, "Failed to compress data");
+			this->_log.debug("Recompress data at {}: {} -> {}", _io.offset, sizeof(meta) + msg.size, r.size);
+		}
 		_shift(frame);
 	} while (true);
 
@@ -656,6 +678,9 @@ int File<TIO>::_block_seq(size_t block, tll_msg_t *msg)
 		return this->_log.fail(EINVAL, "Failed to prepare block: {}", strerror(r));
 	}
 
+	if (_compression == Compression::LZ4)
+		_lz4_reset();
+
 	// Skip metadata
 	frame_size_t frame;
 	if (auto r = _read_frame(&frame); r)
@@ -746,13 +771,28 @@ int File<TIO>::_write_datav(Args && ... args)
 	iov[N + 1].iov_base = &tail;
 	iov[N + 1].iov_len = sizeof(tail);
 
-	size_t size = sizeof(frame) + 1;
+	size_t iovsize = N + 2;
+	size_t size = 0;
 
 	for (unsigned i = 0; i < N; i++) {
 		iov[i + 1].iov_base = (void *) data[i].data;
 		iov[i + 1].iov_len = data[i].size;
 		size += data[i].size;
 	}
+
+	if (_compression == Compression::LZ4) {
+		auto r = _compress_datav(std::forward<Args>(args)...);
+		if (!r.data)
+			return this->_log.fail(EINVAL, "Failed to compress data");
+		this->_log.debug("Original size: {}, compressed size: {}", size, r.size);
+		iov[1].iov_base = (void *) r.data;
+		iov[1].iov_len = r.size;
+		size = r.size;
+		iov[2] = iov[N + 1];
+		iovsize = 3;
+	}
+
+	size += sizeof(frame) + 1;
 
 	if (size > _block_size)
 		return this->_log.fail(EMSGSIZE, "Full size too large: {}, block size is {}", size, _block_size);
@@ -765,6 +805,18 @@ int File<TIO>::_write_datav(Args && ... args)
 
 		if (auto r = _io.block(_io.block_end); r)
 			return this->_log.fail(EINVAL, "Failed to prepare block: {}", strerror(r));
+
+		if (_compression == Compression::LZ4) {
+			// Recompress
+			_lz4_encode.reset();
+			auto r = _compress_datav(std::forward<Args>(args)...);
+			if (!r.data)
+				return this->_log.fail(EINVAL, "Failed to compress data");
+			this->_log.debug("Recompress, original size: {}, compressed size: {}", size, r.size);
+			iov[1].iov_base = (void *) r.data;
+			iov[1].iov_len = r.size;
+			size = r.size + sizeof(frame) + 1;
+		}
 	}
 
 	if (_io.offset + _block_size == _io.block_end) { // Write block meta
@@ -774,7 +826,7 @@ int File<TIO>::_write_datav(Args && ... args)
 
 	frame = size;
 	this->_log.trace("Write frame {} at {}", frame, _io.offset);
-	if (_check_write(size, _io.writev(iov, N + 2)))
+	if (_check_write(size, _io.writev(iov, iovsize)))
 		return EINVAL;
 
 	_shift(size);
@@ -843,6 +895,15 @@ int File<TIO>::_read_frame_nocheck(frame_size_t *ptr)
 template <typename TIO>
 int File<TIO>::_read_data(size_t size, tll_msg_t *msg)
 {
+	if (_compression == Compression::LZ4 && _lz4_decode_offset == (ssize_t) _io.offset && _lz4_decode_last.data) {
+		auto meta = (frame_t *) _lz4_decode_last.data;
+		msg->msgid = meta->msgid;
+		msg->seq = meta->seq;
+		msg->size = _lz4_decode_last.size - sizeof(*meta);
+		msg->data = meta + 1;
+		return 0;
+	}
+
 	this->_log.trace("Read {} bytes of data at {} + {}", size, _io.offset, sizeof(frame_size_t));
 	auto r = _io.read(size + 1, sizeof(frame_size_t));
 
@@ -854,11 +915,21 @@ int File<TIO>::_read_data(size_t size, tll_msg_t *msg)
 
 	if ((((const uint8_t *) r.data)[size] & 0x80) == 0) // No tail marker
 		return EAGAIN;
+	r.size -= 1;
+
+	if (_compression == Compression::LZ4) {
+		_lz4_decode_last = _lz4_decode.decompress(r.data, r.size);
+		if (!_lz4_decode_last.data)
+			return this->_log.fail(EINVAL, "Failed to decompress {} bytes of data at 0x{:x}", r.size, _io.offset);
+		this->_log.debug("Original size: {}, decompressed size: {}", r.size, _lz4_decode_last.size);
+		r = _lz4_decode_last;
+		_lz4_decode_offset = _io.offset;
+	}
 
 	auto meta = (frame_t *) r.data;
 	msg->msgid = meta->msgid;
 	msg->seq = meta->seq;
-	msg->size = size - sizeof(*meta);
+	msg->size = r.size - sizeof(*meta);
 	msg->data = meta + 1;
 
 	return 0;
