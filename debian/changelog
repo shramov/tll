@@ -1,3 +1,29 @@
+tll (0.2.1) unstable; urgency=medium
+
+  * channel:
+      Drop DLOPEN_GLOBAL flag from channel module
+      Show address in dumps only when it's not zero
+  * debian: Update symbols file
+  * ipc: Inherit scheme from server if not set
+  * processor: Set scheme for ipc channel
+  * pub: Handle send errors
+  * python:
+      Reload python library with RTLD_GLOBAL and only on initialization
+  * resolve:
+      Make service and channel arguments optional
+      Support wildcard requests
+  * stat:
+      Include log message before page dump
+      Incorrect average in integer groups
+      Replace missing min/max values with '-'
+  * tcp:
+      Cleanup closed sockets in process
+      Fix memory leak in tcp server
+      Handle send errors
+      Use seq in client address so reconnected client has unique addr
+
+ -- Pavel Shramov <shramov@mexmat.net>  Mon, 15 Apr 2024 08:35:49 +0300
+
 tll (0.2.0) unstable; urgency=medium
 
   * channel:
