@@ -18,8 +18,6 @@ parser.add_argument("config", type=str, help="configuration file")
 parser.add_argument("-D", dest='defs', metavar='KEY=VALUE', action='append', default=[], help='extra config variables')
 
 def main():
-    tll.logger.init()
-
     args = parser.parse_args()
     if '://' not in args.config:
         args.config = 'yaml://' + args.config
@@ -35,10 +33,12 @@ def main():
     return run(cfg)
 
 def run(cfg):
-    try:
-        tll.logger.configure(cfg.sub('logger', throw=False))
-    finally:
-        logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)-7s %(name)s: %(message)s')
+    tll.logger.configure(cfg.sub('logger', throw=False))
+
+    if tll.logger.pylog.registered:
+        logging.basicConfig(level=logging.DEBUG, format='>>> %(asctime)s %(levelname)-7s %(name)s: %(message)s')
+    else:
+        tll.logger.basicConfig(force=True)
 
     context = Context(cfg.sub("processor.defaults", create=False, throw=False) or Config())
 

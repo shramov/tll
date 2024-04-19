@@ -194,9 +194,12 @@ def configure(config):
     if isinstance(config, dict):
         config = Config.from_dict(config)
 
+    if config.get('type', None) == 'python':
+        init()
+
     tll_logger_config((<Config>config)._ptr);
 
-def basicConfig():
+def basicConfig(force=False):
     if pylog.registered:
         raise RuntimeError("TLL logs are redirected to Python, can not install Python -> TLL redirection")
-    logging.basicConfig(level=logging.DEBUG, handlers=[TLLHandler(logging.DEBUG)])
+    logging.basicConfig(level=logging.DEBUG, handlers=[TLLHandler(logging.DEBUG)], force=force)
