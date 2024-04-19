@@ -8,7 +8,7 @@
   enums:
     Compression: {type: uint8, enum: {None: 0, LZ4: 1}}
   bits:
-    Flags: {type: uint64}
+    Flags: {type: uint64, bits: [DeltaSeq]}
   fields:
     - {name: meta_size, type: uint16}
     - {name: version, type: uint8}

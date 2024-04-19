@@ -5,7 +5,7 @@
 
 namespace file_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJyFksFOwzAMhu97Ct8ioVZK2MhCbwyJE/AAIITSzhvRmnRqUiSY+u6k7VrSlomb5Xy2/99ODEZqTIDcOVeqtHJIFgA7hfnWJj4CiOF0RuSAROC+jk3K+ozZk3pCfsq8+ouK+2lP6GQzSG0TYHx5Q5mgnPkEmkqfB5P7Qh9LtFYVhiRw6ppVyjgRtZzPkceXlX9jEZDnwqAPad2ISZXruzzkcm/H9XwVdQS8vtUX7Wqv8d2q78BIU8z43C6WrcgRJ2ZYFvgZ0NDktCDNi+ww7rq8nlE2+0D9/0127R4GqlvLFBpOHJBXv18juOCm1dafUFDG12txSxc/YuiwqA==)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJyFkktPwzAMx+/7FL5FQqmUsNFlvfEQJ+DCDYRQ2rkjok1HkyLB1O9O0q5dHyBulv3z628HoGWOEZBLa0sVVxbJAiBVmG1N5CyAAA5HRPYIBfu19y7jPHpH6gn5KbPqNyrout2jlb6R2kbAw+UF44KF3DlQV/mxMbku8n2JxqhCkwgObbFKaStowzkfuXtauRinQB4Kjc5ktR8mVrarcpvJnRnnhyvaEvDcTXyDmZWP+OGGLtLUoHWVKBj17YK8fqn/FCV3m7x67rSub8HDuShYNquMODHDksHWPTqUYpoQZ0XyPq66PJ9RJnnD/P/LpY1aPdWKN4X6RxiQZ6cHGtz5qpmtO7RgPFyvxYYtfgC4Z7zr)";
 
 struct Attribute
 {
@@ -50,9 +50,12 @@ struct Meta
 	struct Flags: public tll::scheme::Bits<uint64_t>
 	{
 		using tll::scheme::Bits<uint64_t>::Bits;
+		constexpr auto DeltaSeq() const { return get(0, 1); };
+		constexpr Flags & DeltaSeq(bool v) { set(0, 1, v); return *this; };
 		static std::map<std::string_view, value_type> bits_descriptor()
 		{
 			return {
+				{ "DeltaSeq", static_cast<value_type>(Bits::mask(1)) << 0 },
 			};
 		}
 	};

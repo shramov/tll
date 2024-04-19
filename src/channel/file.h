@@ -36,8 +36,8 @@ class File : public tll::channel::AutoSeq<File<TIO>>
 
 	IO _io = {};
 
-	long long _seq_begin;
-	long long _seq;
+	long long _seq = -1;
+	long long _seq_begin = -1;
 
 	size_t _block_size = 0;
 	size_t _block_init = 0;
@@ -53,7 +53,9 @@ class File : public tll::channel::AutoSeq<File<TIO>>
 	tll::lz4::StreamEncode _lz4_encode;
 	std::vector<char> _lz4_buf;
 
+	long long _delta_seq_base = 0;
 	enum class Compression : uint8_t { None = 0, LZ4 = 1} _compression;
+	bool _delta_seq_enable = false;
 	bool _autoclose = true;
 	bool _end_of_data = false;
 
@@ -76,14 +78,12 @@ private:
 
 	size_t _data_size(frame_size_t frame) { return frame - sizeof(frame) - 1; }
 
-	int _write_data(const void *data, size_t size) { return _write_datav(tll::const_memory { data, size }); }
 	int _write_raw(const void *data, size_t size)
 	{
 		return _check_write(size, _io.write(data, size));
 	}
 
-	template <typename ... Args>
-	int _write_datav(Args && ... args);
+	int _write_data(frame_t * meta, tll::const_memory data);
 
 	template <typename ... Args>
 	tll::const_memory _compress_datav(Args && ... args)

@@ -373,10 +373,11 @@ def test_mmap_read(context, filename):
         r.process()
     assert [(m.seq, len(m.data)) for m in r.result] == [(i, 512) for i in range(4)]
 
+@pytest.mark.parametrize("delta", ['no', 'yes'])
 @pytest.mark.parametrize("io", ['posix', 'mmap'])
 @pytest.mark.parametrize("compress", ['none', 'lz4'])
-def test_compress(context, filename, io, compress):
-    writer = Accum(f'file://{filename}', name='writer', dump='frame', context=context, dir='w', block='4kb', compression=compress)
+def test_compress(context, filename, io, delta, compress):
+    writer = Accum(f'file://{filename};delta-seq={delta}', name='writer', dump='frame', context=context, dir='w', block='4kb', compression=compress)
     reader = Accum(f'file://{filename}', name='reader', dump='frame', context=context, autoclose='no', io=io)
 
     writer.open()
