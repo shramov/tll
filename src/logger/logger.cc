@@ -182,6 +182,9 @@ struct logger_context_t
 		if (impl == nullptr)
 			impl = &tll::logger::logger_context_t::stdio;
 
+		if (impl == this->impl)
+			return 0;
+
 		std::list<tll::util::refptr_t<Logger>> loggers;
 
 		tll_logger_impl_t * old = nullptr;
