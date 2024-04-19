@@ -190,7 +190,7 @@ int File<TIO>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	auto reader = this->channel_props_reader(url);
 	_block_init = reader.template getT("block", util::Size {1024 * 1024});
 	_compression = reader.template getT("compression", Compression::None, {{"none", Compression::None}, {"lz4", Compression::LZ4}});
-	_delta_seq_enable = reader.template getT("delta-seq", false); // Depend on compression
+	_delta_seq_enable = reader.template getT("delta-seq", _compression != Compression::None); // Depend on compression
 	_autoclose = reader.template getT("autoclose", true);
 	_tail_extra_size = reader.template getT("extra-space", util::Size { 0 });
 	if (!reader)
