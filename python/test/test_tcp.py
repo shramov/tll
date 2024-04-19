@@ -471,7 +471,7 @@ async def test_sctp(asyncloop, client):
     c.open()
 
     try:
-        assert c.State.Active == await c.recv_state(0.01)
+        assert c.State.Active == await c.recv_state()
 
         m = await s.recv()
         addr = m.addr
