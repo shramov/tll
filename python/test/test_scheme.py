@@ -855,6 +855,13 @@ def test_pmap():
     assert m.as_dict() == {'f0':100, 'f2':200, 'pmap': 0xff}
     assert u.as_dict() == {'f0':100, 'f2':200, 'f3':0}
 
+    u.f0 = None
+    assert u.as_dict() == {'f2':200, 'f3': 0}
+    u.f0 = None
+    assert u.as_dict() == {'f2':200, 'f3': 0}
+    u.f3 = None
+    assert u.as_dict() == {'f2':200}
+
 def test_inline():
     scheme = '''yamls://
 - name: a

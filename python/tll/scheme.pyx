@@ -993,13 +993,18 @@ class Data(object):
         f = self.SCHEME.get(k, None)
         if f is None:
             raise AttributeError(f"No such field in {self.SCHEME.name}: {k}")
+        if v is None:
+            if hasattr(self, k):
+                object.__delattr__(self, k)
+            return
         object.__setattr__(self, k, f.convert(v))
 
     def __delattr__(self, k):
         f = self.SCHEME.get(k, None)
         if f is None:
             raise AttributeError(f"No such field in {self.SCHEME.name}: {k}")
-        object.__delattr__(self, k)
+        if hasattr(self, k):
+            object.__delattr__(self, k)
 
     def __repr__(self):
         return "<{}.Data.{} object at {:x}>".format(self.__module__, self.__class__.__name__, id(self))
