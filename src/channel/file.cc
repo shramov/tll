@@ -23,6 +23,20 @@
 using namespace tll;
 using namespace tll::file;
 
+template <>
+struct tll::conv::dump<Compression> : public to_string_from_string_buf<Compression>
+{
+	template <typename Buf>
+	static std::string_view to_string_buf(const Compression &v, Buf &buf)
+        {
+		switch (v) {
+		case Compression::None: return "none";
+		case Compression::LZ4: return "lz4";
+		}
+		return "unknown";
+	}
+};
+
 static constexpr std::string_view control_scheme = R"(yamls://
 - name: Seek
   id: 10
@@ -347,6 +361,7 @@ int File<TIO>::_open(const ConstConfig &props)
 	}
 
 	this->config_info().setT("block", util::Size { _block_size });
+	this->config_info().setT("compression", _compression);
 	return 0;
 }
 
@@ -433,7 +448,7 @@ int File<TIO>::_read_meta()
 
 	_delta_seq_enable = meta.get_flags().DeltaSeq();
 
-	this->_log.info("Meta info: block size {}, compression {}, delta seq: {}", _block_size, (uint8_t) _compression, _delta_seq_enable);
+	this->_log.info("Meta info: block size {}, compression {}, delta seq: {}", _block_size, _compression, _delta_seq_enable);
 
 	if (_compression == Compression::None)
 		_delta_seq_enable = false;

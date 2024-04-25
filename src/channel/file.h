@@ -28,6 +28,8 @@ struct __attribute__((packed)) frame_t
 	int64_t seq = 0;
 };
 
+enum class Compression : uint8_t { None = 0, LZ4 = 1};
+
 template <typename TIO>
 class File : public tll::channel::AutoSeq<File<TIO>>
 {
@@ -54,7 +56,7 @@ class File : public tll::channel::AutoSeq<File<TIO>>
 	std::vector<char> _lz4_buf;
 
 	long long _delta_seq_base = 0;
-	enum class Compression : uint8_t { None = 0, LZ4 = 1} _compression;
+	Compression _compression;
 	bool _delta_seq_enable = false;
 	bool _autoclose = true;
 	bool _end_of_data = false;

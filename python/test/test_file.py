@@ -381,6 +381,7 @@ def test_compress(context, filename, io, delta, compress):
     reader = Accum(f'file://{filename}', name='reader', dump='frame', context=context, autoclose='no', io=io)
 
     writer.open()
+    assert writer.config['info.compression'] == compress
 
     data = bytes(range(0, 0x100)) + bytes(range(0, 0x100, 2)) + bytes(range(1, 0x100, 2))
     for i in range(100):
@@ -389,6 +390,7 @@ def test_compress(context, filename, io, delta, compress):
             writer.open()
         writer.post(data * (i % 7 + 1), seq=i, msgid=i + 10)
     reader.open()
+    assert reader.config['info.compression'] == compress
     for i in range(100):
         reader.process()
         assert [(m.msgid, m.seq) for m in reader.result[-1:]] == [(i + 10, i)]
