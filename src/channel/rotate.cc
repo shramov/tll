@@ -16,6 +16,8 @@ static constexpr std::string_view control_scheme_read = R"(yamls://
   id: 10
 - name: EndOfData
   id: 20
+- name: Rotate
+  id: 150
 )";
 static constexpr std::string_view control_scheme_write = R"(yamls://
 - name: Rotate
@@ -265,7 +267,6 @@ int Rotate::_on_closed()
 		close();
 		return 0;
 	}
-
 	{
 		auto lock = _files->lock();
 		_open_cfg.set("filename", (++_current_file)->second.filename);
@@ -273,6 +274,11 @@ int Rotate::_on_closed()
 	}
 
 	notify();
+
+	if (_state == State::Read) {
+		tll_msg_t msg = { .type = TLL_MESSAGE_CONTROL, .msgid = control_rotate_msgid };
+		_callback(&msg);
+	}
 	return 0;
 }
 

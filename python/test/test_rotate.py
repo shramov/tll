@@ -22,7 +22,7 @@ async def test_basic(asyncloop, tmp_path):
     assert [m.name for m in w.scheme_control.messages] == ['Rotate']
 
     assert r.scheme_load(w.Type.Control) is not None
-    assert [m.name for m in r.scheme_control.messages] == ['Seek', 'EndOfData']
+    assert [m.name for m in r.scheme_control.messages] == ['Seek', 'EndOfData', 'Rotate']
 
     assert not os.path.exists(tmp_path / 'rotate.current.dat')
 
@@ -48,7 +48,10 @@ async def test_basic(asyncloop, tmp_path):
 
     for i in range(30):
         m = await r.recv()
-        assert (m.seq, m.data.tobytes()) == (i, b'xxx' * (i % 10 + 1))
+        assert (m.type, m.seq, m.data.tobytes()) == (r.Type.Data, i, b'xxx' * (i % 10 + 1))
+        if i % 10 == 0:
+            m = await r.recv()
+            assert (m.type, m.msgid, m.seq) == (r.Type.Control, r.scheme_control.messages.Rotate.msgid, 0)
 
     m = await r.recv()
     assert (m.type, m.msgid) == (m.Type.Control, r.scheme_control.messages.EndOfData.msgid)
@@ -66,7 +69,10 @@ async def test_basic(asyncloop, tmp_path):
 
     for i in range(30, 50):
         m = await r.recv()
-        assert (m.seq, m.data.tobytes()) == (i, b'xxx' * (i % 10 + 1))
+        assert (m.type, m.seq, m.data.tobytes()) == (r.Type.Data, i, b'xxx' * (i % 10 + 1))
+        if i % 10 == 0:
+            m = await r.recv()
+            assert (m.type, m.msgid, m.seq) == (r.Type.Control, r.scheme_control.messages.Rotate.msgid, 0)
 
     r.close()
     assert r.state == r.State.Closed
@@ -88,6 +94,9 @@ async def test_basic(asyncloop, tmp_path):
     for i in range(35, 50):
         m = await r.recv()
         assert (m.seq, m.data.tobytes()) == (i, b'xxx' * (i % 10 + 1))
+        if i % 10 == 0:
+            m = await r.recv()
+            assert (m.type, m.msgid, m.seq) == (r.Type.Control, r.scheme_control.messages.Rotate.msgid, 0)
 
     m = await r.recv()
     assert (m.type, m.msgid) == (m.Type.Control, r.scheme_control.messages.EndOfData.msgid)
@@ -156,7 +165,11 @@ async def test_autoclose(asyncloop, tmp_path):
 
     for i in range(10):
         m = await r.recv()
-        assert m.seq == i
+        assert (m.type, m.seq) == (r.Type.Data, i)
         assert r.state == r.State.Active
+        if i % 3 == 0:
+            m = await r.recv()
+            name = 'Rotate' if r.state != r.State.Closed else 'EndOfData'
+            assert (m.type, m.msgid, m.seq) == (r.Type.Control, r.scheme_control[name].msgid, 0)
 
     assert (await r.recv_state()) == r.State.Closed
