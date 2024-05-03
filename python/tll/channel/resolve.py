@@ -157,10 +157,9 @@ class Resolve(Logic):
                 self.log.info(f"Input channel {channel.name} is closing, clear exported services")
                 for v in [x for x in self._exports.values() if x.addr[0] == channel]:
                     self._drop_service(v.service)
-                for sub in self._subs.items():
-                    for c in sub.disconnect_channel(channel):
-                        if self._uplink and self._uplink.state == self._uplink.State.Active:
-                            self._uplink.post({'service': sub.service, 'channel': c}, name='Unsubscribe')
+                for c in self.disconnect_channel(channel):
+                    if self._uplink and self._uplink.state == self._uplink.State.Active:
+                        self._uplink.post({'service': sub.service, 'channel': c}, name='Unsubscribe')
             return
         elif msg.type != msg.Type.Data:
             return
