@@ -76,7 +76,14 @@ struct IOBase
 	size_t block_end = 0;
 	size_t block_size = 0;
 
-	int init(const tll::Logger &log, size_t block_size) { this->block_size = block_size; return 0; }
+	enum Mode { Read, Write };
+
+	int init(const tll::Logger &log, size_t block_size, Mode mode)
+	{
+		this->block_size = block_size;
+		return 0;
+	}
+
 	void reset()
 	{
 		fd = -1;
@@ -108,10 +115,10 @@ struct IOPosix : public IOBase
 
 	std::vector<char> buf;
 
-	int init(const tll::Logger &log, size_t block)
+	int init(const tll::Logger &log, size_t block, Mode mode)
 	{
 		buf.resize(block);
-		return IOBase::init(log, block);
+		return IOBase::init(log, block, mode);
 	}
 
 	int writev(const struct iovec * iov, size_t size)
@@ -142,13 +149,25 @@ struct IOMMap : public IOBase
 
 	size_t block_start = 0;
 	void * base = nullptr;
+	int mmap_prot = 0;
+	int mmap_flags = 0;
 
-	int init(const tll::Logger &log, size_t block)
+	int init(const tll::Logger &log, size_t block, Mode mode)
 	{
 		auto page = sysconf(_SC_PAGE_SIZE);
 		if (block % page != 0)
 			return log.fail(EINVAL, "Block size {} is not multiple of the page size {}", block, page);
-		return IOBase::init(log, block);
+		switch(mode) {
+		case Read:
+			mmap_prot = PROT_READ;
+			mmap_flags = MAP_SHARED | MAP_POPULATE;
+			break;
+		case Write:
+			mmap_prot = PROT_READ | PROT_WRITE;
+			mmap_flags = MAP_SHARED;
+			break;
+		}
+		return IOBase::init(log, block, mode);
 	}
 
 	void unmap()
@@ -168,7 +187,7 @@ struct IOMMap : public IOBase
 	{
 		unmap();
 		block_start = start;
-		if (auto r = mmap(nullptr, block_size, PROT_READ, MAP_SHARED | MAP_POPULATE, fd, block_start); r == MAP_FAILED)
+		if (auto r = mmap(nullptr, block_size, mmap_prot, mmap_flags, fd, block_start); r == MAP_FAILED)
 			return errno;
 		else
 			base = r;
@@ -178,6 +197,22 @@ struct IOMMap : public IOBase
 	tll::const_memory read(size_t size, size_t off = 0)
 	{
 		return { static_cast<char *>(base) + offset - block_start + off, size };
+	}
+
+	int writev(const struct iovec * iov, size_t size)
+	{
+		auto off = 0;
+		for (auto ptr = iov; ptr != iov + size; ptr++) {
+			memcpy(static_cast<char *>(base) + offset - block_start + off, ptr->iov_base, ptr->iov_len);
+			off += ptr->iov_len;
+		}
+		return off;
+	}
+
+	int write(const void * data, size_t size)
+	{
+		memcpy(static_cast<char *>(base) + offset - block_start, data, size);
+		return size;
 	}
 };
 
@@ -216,8 +251,8 @@ int File<TIO>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	if ((this->internal.caps & caps::InOut) == caps::InOut)
 		return this->_log.fail(EINVAL, "file:// can be either read-only or write-only, need proper dir in parameters");
 
-	if (_io.name() == "mmap" && (this->internal.caps & caps::Output))
-		return this->_log.fail(EINVAL, "io=mmap is not supported in write mode yet");
+	if (_io.name() == "mmap" && _tail_extra_size == 0)
+		_tail_extra_size = 1;
 
 	if (this->internal.caps & caps::Input) {
 		this->_scheme_control.reset(this->context().scheme_load(control_scheme));
@@ -261,7 +296,7 @@ int File<TIO>::_open(const ConstConfig &props)
 		if (auto r = _read_meta(); r)
 			return this->_log.fail(EINVAL, "Failed to read metadata");
 
-		if (_io.init(this->_log, _block_size))
+		if (_io.init(this->_log, _block_size, IOBase::Read))
 			return this->_log.fail(EINVAL, "Failed to init io");
 
 		if (_compression == Compression::LZ4) {
@@ -332,7 +367,7 @@ int File<TIO>::_open(const ConstConfig &props)
 			this->_log.info("Keep up to extra {} blocks at file end", _tail_extra_blocks);
 		}
 
-		if (_io.init(this->_log, _block_size))
+		if (_io.init(this->_log, _block_size, IOBase::Write))
 			return this->_log.fail(EINVAL, "Failed to init io");
 
 		if (auto r = _file_bounds(); r && r != EAGAIN)

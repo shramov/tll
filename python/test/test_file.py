@@ -241,10 +241,11 @@ def test_autoclose(context, filename, writer):
     assert reader.state == reader.State.Closed
 
 @pytest.mark.fuzzy
-@pytest.mark.parametrize("io", ['posix', 'mmap'])
-def test_fuzzy(filename, io):
-    writer = Accum(f'file://{filename}', name='writer', dump='frame', context=context, dir='w', block='4kb')
-    reader = Accum(f'file://{filename}', name='reader', dump='frame', context=context, autoclose='no', io=io)
+@pytest.mark.parametrize("rio", ['posix', 'mmap'])
+@pytest.mark.parametrize("wio", ['posix', 'mmap'])
+def test_fuzzy(filename, rio, wio):
+    writer = Accum(f'file://{filename}', name='writer', dump='frame', context=context, dir='w', block='4kb', io=wio)
+    reader = Accum(f'file://{filename}', name='reader', dump='frame', context=context, autoclose='no', io=rio)
     data = []
     start = random.randrange(0, 10000)
 
@@ -379,7 +380,7 @@ def test_mmap_read(context, filename):
 @pytest.mark.parametrize("io", ['posix', 'mmap'])
 @pytest.mark.parametrize("compress", ['none', 'lz4'])
 def test_compress(context, filename, io, compress):
-    writer = Accum(f'file://{filename}', name='writer', dump='frame', context=context, dir='w', block='4kb', compression=compress)
+    writer = Accum(f'file://{filename}', name='writer', dump='frame', context=context, dir='w', block='4kb', compression=compress, io=io)
     reader = Accum(f'file://{filename}', name='reader', dump='frame', context=context, autoclose='no', io=io)
 
     writer.open()
