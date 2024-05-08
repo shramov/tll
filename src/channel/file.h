@@ -57,7 +57,6 @@ class File : public tll::channel::AutoSeq<File<TIO>>
 
 	long long _delta_seq_base = 0;
 	Compression _compression;
-	bool _delta_seq_enable = false;
 	bool _autoclose = true;
 	bool _end_of_data = false;
 

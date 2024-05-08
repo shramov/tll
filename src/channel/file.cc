@@ -204,14 +204,10 @@ int File<TIO>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	auto reader = this->channel_props_reader(url);
 	_block_init = reader.template getT("block", util::Size {1024 * 1024});
 	_compression = reader.template getT("compression", Compression::None, {{"none", Compression::None}, {"lz4", Compression::LZ4}});
-	_delta_seq_enable = reader.template getT("delta-seq", _compression != Compression::None); // Depend on compression
 	_autoclose = reader.template getT("autoclose", true);
 	_tail_extra_size = reader.template getT("extra-space", util::Size { 0 });
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
-
-	if (_compression == Compression::None)
-		_delta_seq_enable = false;
 
 	_filename = url.host();
 
@@ -446,12 +442,7 @@ int File<TIO>::_read_meta()
 		return this->_log.fail(EINVAL, "Compression {} not supported", (uint8_t) comp);
 	}
 
-	_delta_seq_enable = meta.get_flags().DeltaSeq();
-
-	this->_log.info("Meta info: block size {}, compression {}, delta seq: {}", _block_size, _compression, _delta_seq_enable);
-
-	if (_compression == Compression::None)
-		_delta_seq_enable = false;
+	this->_log.info("Meta info: block size {}, compression {}", _block_size, _compression);
 
 	std::string_view scheme = meta.get_scheme();
 	if (scheme.size()) {
@@ -478,7 +469,6 @@ int File<TIO>::_write_meta()
 	meta.set_meta_size(meta.meta_size());
 	meta.set_block(_block_size);
 	meta.set_compression((file_scheme::Meta::Compression)_compression);
-	meta.set_flags(meta.get_flags().DeltaSeq(_delta_seq_enable));
 
 	if (this->_scheme) {
 		auto s = this->_scheme->dump("yamls+gz");
@@ -805,10 +795,8 @@ int File<TIO>::_write_data(frame_t * meta, tll::const_memory data)
 
 	if (_compression == Compression::LZ4) {
 		_delta_seq_base = meta->seq;
-		if (_delta_seq_enable) {
-			if (_seq != -1)
-				meta->seq -= _seq;
-		}
+		if (_seq != -1)
+			meta->seq -= _seq;
 
 		auto r = _compress_datav(const_memory { meta, sizeof(*meta) }, data);
 		if (!r.data)
@@ -843,8 +831,7 @@ int File<TIO>::_write_data(frame_t * meta, tll::const_memory data)
 			return r;
 
 		if (recompress && _compression == Compression::LZ4) {
-			if (_delta_seq_enable)
-				meta->seq = _delta_seq_base;
+			meta->seq = _delta_seq_base;
 
 			// Recompress
 			_lz4_encode.reset();
@@ -933,8 +920,7 @@ int File<TIO>::_read_data(size_t size, tll_msg_t *msg)
 		auto meta = (frame_t *) _lz4_decode_last.data;
 		msg->msgid = meta->msgid;
 		msg->seq = meta->seq;
-		if (_delta_seq_enable)
-			msg->seq = _delta_seq_base;
+		msg->seq = _delta_seq_base;
 		msg->size = _lz4_decode_last.size - sizeof(*meta);
 		msg->data = meta + 1;
 		return 0;
@@ -968,7 +954,7 @@ int File<TIO>::_read_data(size_t size, tll_msg_t *msg)
 	msg->size = r.size - sizeof(*meta);
 	msg->data = meta + 1;
 
-	if (_delta_seq_enable) {
+	if (_compression == Compression::LZ4) {
 		msg->seq += _delta_seq_base;
 		_delta_seq_base = msg->seq;
 	}
