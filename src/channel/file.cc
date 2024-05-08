@@ -586,7 +586,7 @@ int File<TIO>::_file_bounds()
 			auto r = _compress_datav(const_memory { &meta, sizeof(meta) }, const_memory { msg.data, msg.size });
 			if (!r.data)
 				return this->_log.fail(EINVAL, "Failed to compress data");
-			this->_log.debug("Recompress data at {}: {} -> {}", _io.offset, sizeof(meta) + msg.size, r.size);
+			this->_log.trace("Recompress data at {}: {} -> {}", _io.offset, sizeof(meta) + msg.size, r.size);
 		}
 		_shift(frame);
 	} while (true);
@@ -801,7 +801,7 @@ int File<TIO>::_write_data(frame_t * meta, tll::const_memory data)
 		auto r = _compress_datav(const_memory { meta, sizeof(*meta) }, data);
 		if (!r.data)
 			return this->_log.fail(EINVAL, "Failed to compress data");
-		this->_log.debug("Original size: {}, compressed size: {}", size, r.size);
+		this->_log.trace("Original size: {}, compressed size: {}", size, r.size);
 		iov[1].iov_base = (void *) r.data;
 		iov[1].iov_len = r.size;
 		size = r.size;
@@ -838,7 +838,7 @@ int File<TIO>::_write_data(frame_t * meta, tll::const_memory data)
 			auto r = _compress_datav(const_memory { meta, sizeof(*meta) }, data);
 			if (!r.data)
 				return this->_log.fail(EINVAL, "Failed to compress data");
-			this->_log.debug("Recompress, original size: {}, compressed size: {}", size, r.size);
+			this->_log.trace("Recompress, original size: {}, compressed size: {}", size, r.size);
 			iov[1].iov_base = (void *) r.data;
 			iov[1].iov_len = r.size;
 			size = r.size + sizeof(frame) + 1;
@@ -943,7 +943,7 @@ int File<TIO>::_read_data(size_t size, tll_msg_t *msg)
 		_lz4_decode_last = _lz4_decode.decompress(r.data, r.size);
 		if (!_lz4_decode_last.data)
 			return this->_log.fail(EINVAL, "Failed to decompress {} bytes of data at 0x{:x}", r.size, _io.offset);
-		this->_log.debug("Original size: {}, decompressed size: {}", r.size, _lz4_decode_last.size);
+		this->_log.trace("Original size: {}, decompressed size: {}", r.size, _lz4_decode_last.size);
 		r = _lz4_decode_last;
 		_lz4_decode_offset = _io.offset;
 	}
