@@ -39,9 +39,8 @@ async def test(asyncloop, tmp_path):
     assert m.type == m.Type.Control
     assert s.unpack(m).SCHEME.name == 'Connect'
 
-    await asyncloop.sleep(0.01)
+    assert await c.recv_state() == c.State.Active
     assert c.children[0].state == c.State.Active
-    assert c.state == c.State.Active
 
     m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (20, 10, b'bbb')
@@ -705,7 +704,7 @@ async def test_ring_autoclose(asyncloop, tmp_path):
         s.post(b'aaa', msgid=10, seq=i)
 
     c.open(seq='0', mode='seq')
-    assert await c.recv_state(0.01) == c.State.Active
+    assert await c.recv_state() == c.State.Active
 
     m = await s.recv()
     assert m.type == m.Type.Control
@@ -737,7 +736,7 @@ async def test_ring_autoclose(asyncloop, tmp_path):
         m = await c.recv()
         assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'aaa')
 
-    assert await c.recv_state(0.01) == c.State.Error
+    assert await c.recv_state() == c.State.Error
 
 @asyncloop_run
 async def test_export_client(asyncloop, tmp_path):
