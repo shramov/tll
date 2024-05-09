@@ -331,31 +331,34 @@ def test_tail_extra(context, filename, extra):
         assert filename.stat().st_size < 1024
 
     for i in range(2):
-        writer.post(b'a' * 512)
+        writer.post(b'a' * 256)
 
-    size = 1024 + 5 + 16 + 512 + 1
-    if extra == 1:
-        size = (2 + extra) * 1024
-    elif extra:
+    size = META_SIZE + 2 * (16 + 256 + 1)
+    if extra:
         size = (1 + extra) * 1024
     assert filename.stat().st_size == size
 
     writer.close()
     writer.open()
 
-    if extra:
-        size = (2 + extra) * 1024
     assert filename.stat().st_size == size
 
-    for i in range(2):
-        writer.post(b'a' * 512)
+    for i in range(3):
+        writer.post(b'a' * 256)
+
+    size = 1024 + 4 + 1 + 2 * (16 + 256 + 1)
+    if extra == 1:
+        size = (2 + extra) * 1024
+    elif extra:
+        size = (1 + extra) * 1024 # Not resized, extra space was at the end
+    assert filename.stat().st_size == size
 
     r = Accum(f'file://{filename}', name='reader', dump='frame', dir='r', context=context, block='4kb')
     r.open()
 
-    for _ in range(4):
+    for _ in range(5):
         r.process()
-    assert [(m.seq, len(m.data)) for m in r.result] == [(i, 512) for i in range(4)]
+    assert [(m.seq, len(m.data)) for m in r.result] == [(i, 256) for i in range(5)]
 
 def test_mmap_read(context, filename):
     writer = context.Channel(f'file://{filename}', name='writer', dump='frame', dir='w', block='4kb', autoseq='yes', **{'extra-space': f'16kb'})

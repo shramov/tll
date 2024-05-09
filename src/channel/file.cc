@@ -550,7 +550,7 @@ int File<TIO>::_file_bounds()
 
 	_seq_begin = msg.seq;
 
-	for (auto last = (size + _block_size - 1) / _block_size - 1; last > 0; last--) {
+	for (auto last = (size + _block_size - 1) / _block_size - 1; last >= 0; last--) {
 		auto r = _block_seq(last, &msg);
 		if (r == 0)
 			break;
