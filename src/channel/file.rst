@@ -29,8 +29,7 @@ Init parameters
 read mode.
 
 ``io={posix|mmap}`` (default ``posix``) - IO type used inside: ``posix`` is based on ``read`` and
-``write`` syscalls, ``mmap`` uses mapped memory to read data. Currently ``mmap`` is only supported
-for reading but provides much better speed.
+``write`` syscalls, ``mmap`` uses mapped memory to read and write data.
 
 ``scheme={SCHEME}`` - file scheme, ignored in read mode if present in metadata.
 
