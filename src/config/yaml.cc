@@ -234,7 +234,7 @@ tll_config_t * yaml_load(std::string_view filename)
 	auto fp = fopen(fn.c_str(), "r");
 	if (!fp)
 		return _log.fail(nullptr, "Failed to open file '{}': {}", filename, strerror(errno));
-	std::unique_ptr<FILE, decltype(&fclose)> _fp = { fp, fclose };
+	std::unique_ptr<FILE, int (*)(FILE *)> _fp = { fp, fclose };
 	yaml_parser_t parser;
 	if (!yaml_parser_initialize(&parser))
 		return _log.fail(nullptr, "Failed to init yaml parser");
