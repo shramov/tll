@@ -512,24 +512,30 @@ def test_time_point():
     scheme = S.Scheme("""yamls://
 - name: msg
   fields:
+    - {name: ns, type: uint64, options.type: time_point, options.resolution: ns}
     - {name: us, type: int64, options.type: time_point, options.resolution: us}
     - {name: fms, type: double, options.type: time_point, options.resolution: ms}
     - {name: second, type: uint32, options.type: time_point, options.resolution: second}
     - {name: day, type: int32, options.type: time_point, options.resolution: day}
 """)
 
-    now = datetime.datetime(2021, 1, 27, 21, 47, 49, 123456)
-
     msg = scheme['msg']
-    m = msg.object(us = now, fms=now, second = now, day = now)
+    for now in [datetime.datetime(2021, 1, 27, 21, 47, 49, 123456), TimePoint.from_str("2000-01-02T03:04:05.123456789")]:
+        m = msg.object(ns = now, us = now, fms=now, second = now, day = now)
 
-    assert m.us.value == int(now.timestamp()) * 1000000 + now.microsecond
-    assert m.fms.value == now.timestamp() * 1000
-    assert m.second.value == int(now.timestamp())
-    assert m.day.value == m.second.value // 86400
+        if isinstance(now, TimePoint):
+            assert m.ns.value == now.value
+            assert m.us.value == now.value // 1000
+            now = now.datetime
+        else:
+            assert m.ns.value == int(now.timestamp()) * 1000000000 + now.microsecond * 1000
+            assert m.us.value == int(now.timestamp()) * 1000000 + now.microsecond
+        assert m.fms.value == pytest.approx(now.timestamp() * 1000, 0.001)
+        assert m.second.value == int(now.timestamp())
+        assert m.day.value == m.second.value // 86400
 
-    u = msg.unpack(memoryview(m.pack()))
-    assert u.as_dict() == m.as_dict()
+        u = msg.unpack(memoryview(m.pack()))
+        assert u.as_dict() == m.as_dict()
 
 def test_duration():
     scheme = S.Scheme("""yamls://
