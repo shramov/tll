@@ -447,6 +447,28 @@ async def test_rotate(asyncloop, tmp_path):
 
     assert (tmp_path / "storage.10.dat").exists()
 
+@asyncloop_run
+async def test_rotate_on_block(asyncloop, tmp_path):
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage=rotate+file://{tmp_path}/storage;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml;rotate-on-block=rotate')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+
+    s.open()
+    assert s.scheme_control is not None
+    assert 'Rotate' in [m.name for m in s.scheme_control.messages]
+    assert 'Block' in [m.name for m in s.scheme_control.messages]
+
+    s.post(b'xxx', seq=10)
+
+    s.post({}, name='Block', type=s.Type.Control)
+    assert not (tmp_path / "storage.10.dat").exists()
+
+    s.post({'type': 'other'}, name='Block', type=s.Type.Control)
+    assert not (tmp_path / "storage.10.dat").exists()
+
+    s.post({'type': 'rotate'}, name='Block', type=s.Type.Control)
+    assert (tmp_path / "storage.10.dat").exists()
+
 class Aggregate(Base):
     PROTO = 'aggr'
     SCHEME_CONTROL = '''yamls://

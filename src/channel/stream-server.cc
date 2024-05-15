@@ -51,6 +51,7 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 	_init_message = reader.getT("init-message", std::string());
 	_init_seq = reader.getT<unsigned long>("init-seq", 0);
 	_init_block = reader.getT("init-block", std::string(url.sub("blocks") ? "default" : ""));
+	_rotate_on_block = reader.getT("rotate-on-block", std::string());
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
@@ -576,14 +577,54 @@ int StreamServer::Client::on_storage_state(tll_state_t s)
 	return 0;
 }
 
+int StreamServer::_try_rotate_on_block(const tll::scheme::Message * message, const tll_msg_t * msg)
+{
+	if (_rotate_on_block.empty())
+		return 0;
+	if (message->name != std::string_view("Block"))
+		return 0;
+
+	if (msg->size < message->size)
+		return _log.fail(EINVAL, "Message is too short: {} < minimum {}", msg->size, message->size);
+
+	if (!_control_storage) // No control scheme for storage, Rotate not available
+		return 0;
+
+	auto rotate = _control_storage->lookup("Rotate");
+	if (!rotate) // No Rotate message
+		return 0;
+
+	auto field = message->lookup("type");
+	if (!field)
+		return _log.fail(EINVAL, "Can not rotate, no 'type' field in Block message");
+
+	if (field->type == field->Bytes) {
+		auto view = tll::make_view(*msg).view(field->offset);
+		auto name = std::string_view(view.dataT<char>(), strnlen(view.dataT<char>(), field->size));
+		if (name == "")
+			name = "default";
+		if (name != _rotate_on_block)
+			return 0;
+	} else
+		return _log.fail(EINVAL, "Invalid 'type' field type: {}, expected byte string", field->type);
+
+	_log.info("Rotate on block '{}'", _rotate_on_block);
+	tll_msg_t rmsg = { .type = TLL_MESSAGE_CONTROL, .msgid = rotate->msgid };
+	return _storage->post(&rmsg);
+}
+
 int StreamServer::_post(const tll_msg_t * msg, int flags)
 {
 	if (msg->type == TLL_MESSAGE_CONTROL) {
 		if (!msg->msgid)
 			return 0;
-		if (_control_blocks && _control_blocks->lookup(msg->msgid)) {
-			if (auto r = _blocks->post(msg); r)
-				return _log.fail(r, "Failed to send control message {} to blocks", msg->msgid);
+		if (_control_blocks) {
+			if (auto m = _control_blocks->lookup(msg->msgid); m) {
+				if (auto r = _blocks->post(msg); r)
+					return _log.fail(r, "Failed to send control message {} to blocks", msg->msgid);
+				if (auto r = _try_rotate_on_block(m, msg); r)
+					return _log.fail(r, "Failed to send Rotate control message to storage");
+			}
 		}
 
 		if (_control_storage && _control_storage->lookup(msg->msgid)) {

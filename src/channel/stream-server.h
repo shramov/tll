@@ -80,6 +80,8 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	long long _init_seq;
 	std::string _init_block;
 
+	std::string _rotate_on_block;
+
  public:
 	static constexpr std::string_view channel_protocol() { return "stream+"; }
 	static constexpr auto process_policy() { return ProcessPolicy::Never; }
@@ -141,6 +143,7 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	int _request_disconnect(std::string_view name, const tll_addr_t & addr);
 
 	int _on_storage_load(const tll_msg_t * msg);
+	int _try_rotate_on_block(const tll::scheme::Message * message, const tll_msg_t * msg);
 };
 
 } // namespace tll::channel
