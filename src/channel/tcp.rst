@@ -78,8 +78,14 @@ feature is supporeted only on Linux.
 
 ``rcvbuf=<size>`` (default 0) - set specific recv buffer size
 
-``buffer-size=<size>`` (default ``64kb``) - size of internal buffer used for receiving messages
-before passing them to user.
+``buffer-size=<size>`` (default ``64kb``) - size of internal buffers used for receiving messages
+before passing them to user and storing data that is not possible to sent to user.
+
+``recv-buffer-size=<size>`` (default ``buffer-size``) - size if receiving buffer, overrides
+``buffer-side``.
+
+``send-buffer-size=<size>`` (default ``buffer-size``) - size if sending buffer, overrides
+``buffer-side``.
 
 Open parameters
 ~~~~~~~~~~~~~~~

@@ -41,7 +41,8 @@ struct tcp_socket_addr_t
 struct tcp_settings_t {
 	size_t sndbuf = 0;
 	size_t rcvbuf = 0;
-	size_t buffer_size = 1024;
+	size_t snd_buffer_size = 1024;
+	size_t rcv_buffer_size = 1024;
 	bool timestamping = false;
 	bool keepalive = true;
 	bool nodelay = false;
