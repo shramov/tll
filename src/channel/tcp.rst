@@ -87,6 +87,11 @@ before passing them to user and storing data that is not possible to sent to use
 ``send-buffer-size=<size>`` (default ``buffer-size``) - size if sending buffer, overrides
 ``buffer-side``.
 
+``send-buffer-hwm=<size>`` (default ``0``) - high watermark for send buffer. If connection is
+blocked - store up to this value amount of bytes in send buffer and only after it report
+``WriteFull`` control message and start to return ``EAGAIN`` error on post. Can not be larger
+then 80% of send buffer size.
+
 Open parameters
 ~~~~~~~~~~~~~~~
 

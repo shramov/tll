@@ -487,3 +487,37 @@ async def test_sctp(asyncloop, client):
     finally:
         s.close()
         c.close()
+
+@asyncloop_run
+async def test_send_hwm(asyncloop, tmp_path):
+    base = f'tcp://{tmp_path}/server.sock;dump=frame;send-buffer-size=1mb'
+    s = asyncloop.Channel(f'{base};send-buffer-hwm=512kb', mode='server', name='server')
+    c = asyncloop.Channel(f'{base};send-buffer-hwm=512kb', name='client')
+    craw = asyncloop.Channel(f'{base}', name='client-raw')
+
+    s.open()
+    c.open()
+
+    m = await s.recv()
+    assert m.type == m.Type.Control
+    addr = m.addr
+
+    craw.open()
+
+    m = await s.recv()
+    assert m.type == m.Type.Control
+
+    data = b'x' * 64 * 1024
+    for i in range(8):
+        s.post(data, seq=i, addr=addr)
+        c.post(data, seq=i)
+        craw.post(data, seq=i)
+        if craw.result:
+            break
+
+    for j in range(8):
+        s.post(data, seq=i + j, addr=addr)
+        c.post(data, seq=i + j)
+
+    assert [(m.type, m.msgid) for m in s.result] == [(s.Type.Control, s.scheme_control.messages.WriteFull.msgid)]
+    assert [(m.type, m.msgid) for m in c.result] == [(s.Type.Control, s.scheme_control.messages.WriteFull.msgid)]

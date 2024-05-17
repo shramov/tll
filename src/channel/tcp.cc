@@ -20,6 +20,9 @@ using namespace tll;
 template <typename T, typename F>
 class FramedSocket : public tll::channel::TcpSocket<T>
 {
+ protected:
+	size_t _send_hwm = 0;
+
  public:
 	using Frame = F;
 	using FrameT = tll::frame::FrameT<Frame>;
@@ -30,21 +33,66 @@ class FramedSocket : public tll::channel::TcpSocket<T>
 	int _post_data(const tll_msg_t *msg, int flags);
 	int _process(long timeout, int flags);
 
-	//void _on_output_full() {};
+	void _on_output_full()
+	{
+		if (this->_wbuf.size() > _send_hwm)
+			Base::_on_output_full();
+	};
+
+	void send_hwm(size_t hwm)
+	{
+		_send_hwm = hwm;
+	}
 
  private:
 	int _pending();
 };
 
 template <typename T>
-class FramedSocket<T, void> : public tll::channel::TcpSocket<T> {};
+class FramedSocket<T, void> : public tll::channel::TcpSocket<T>
+{
+ protected:
+	size_t _send_hwm = 0;
+
+ public:
+	using Base = tll::channel::TcpSocket<T>;
+	void _on_output_full()
+	{
+		if (this->_wbuf.size() > _send_hwm)
+			Base::_on_output_full();
+	};
+
+	void send_hwm(size_t hwm)
+	{
+		_send_hwm = hwm;
+	}
+};
 
 template <typename Frame>
 class ChTcpClient : public tll::channel::TcpClient<ChTcpClient<Frame>, FramedSocket<ChTcpClient<Frame>, Frame>>
 {
  public:
+	using Base = tll::channel::TcpClient<ChTcpClient<Frame>, FramedSocket<ChTcpClient<Frame>, Frame>>;
+
 	static constexpr std::string_view param_prefix() { return "tcp"; }
 	static constexpr std::string_view channel_protocol() { return "tcp-client"; } // Only visible in logs
+
+	int _init(const tll::Channel::Url &url, tll::Channel *master)
+	{
+		if (auto r = Base::_init(url, master); r)
+			return r;
+
+		auto reader = this->channel_props_reader(url);
+		auto hwm = reader.template getT("send-buffer-hwm", tll::util::Size { 0 });
+		if (!reader)
+			return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
+		if (hwm > this->_settings.snd_buffer_size * 0.8)
+			return this->_log.fail(EINVAL, "Send HWM is too large: {} > 80% of send buffer {}", hwm, this->_settings.snd_buffer_size);
+		if (hwm)
+			this->_log.debug("Store up to {} of data on blocked connection", hwm);
+		this->_send_hwm = hwm;
+		return 0;
+	}
 };
 
 template <typename Frame>
@@ -58,8 +106,11 @@ class ChFramedSocket : public FramedSocket<ChFramedSocket<Frame>, Frame>
 template <typename Frame>
 class ChTcpServer : public tll::channel::TcpServer<ChTcpServer<Frame>, ChFramedSocket<Frame>>
 {
+	size_t _send_hwm = 0;
  public:
 	using Base = tll::channel::TcpServer<ChTcpServer<Frame>, ChFramedSocket<Frame>>;
+	using Socket = ChFramedSocket<Frame>;
+
 	static constexpr std::string_view channel_protocol() { return "tcp"; }
 
 	int _init(const tll::Channel::Url &url, tll::Channel *master)
@@ -71,6 +122,24 @@ class ChTcpServer : public tll::channel::TcpServer<ChTcpServer<Frame>, ChFramedS
 		} else {
 			this->_socket_url.set("frame", tll::frame::FrameT<Frame>::name()[0]);
 		}
+
+		auto reader = this->channel_props_reader(url);
+		auto hwm = reader.template getT("send-buffer-hwm", tll::util::Size { 0 });
+		if (!reader)
+			return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
+		if (hwm > this->_settings.snd_buffer_size * 0.8)
+			return this->_log.fail(EINVAL, "Send HWM is too large: {} > 80% of send buffer {}", hwm, this->_settings.snd_buffer_size);
+		if (hwm)
+			this->_log.debug("Store up to {} of data on blocked connection", hwm);
+		this->_send_hwm = hwm;
+		return 0;
+	}
+
+	int _on_accept(tll::Channel * c) {
+		auto socket = tll::channel_cast<Socket>(c);
+		if (!socket)
+			return this->_log.fail(EINVAL, "Can not cast {} to socket channel", c->name());
+		socket->send_hwm(this->_send_hwm);
 		return 0;
 	}
 };
@@ -151,7 +220,7 @@ int FramedSocket<T, F>::_post_data(const tll_msg_t *msg, int flags)
 		return 0;
 
 	if (this->_wbuf.size()) {
-		if (this->_wbuf.size() > this->_wbuf.capacity() / 2)
+		if (this->_wbuf.size() > _send_hwm)
 			return EAGAIN;
 		this->_log.trace("Store {} + {} bytes of data", FrameT::frame_skip_size(), msg->size);
 		if constexpr (FrameT::frame_skip_size() != 0) {
@@ -160,8 +229,8 @@ int FramedSocket<T, F>::_post_data(const tll_msg_t *msg, int flags)
 			this->_store_output(&frame, sizeof(frame));
 		}
 		this->_store_output(msg->data, msg->size);
-		//if (this->_wbuf.size() > this->_wbuf.capacity() / 2)
-		//	Base::_on_output_full();
+		if (this->_wbuf.size() > _send_hwm)
+			_on_output_full();
 		return 0;
 	}
 
