@@ -77,7 +77,9 @@ struct ReopenData
 			}
 			break;
 		case state::Closing:
-			if (state == state::Active) {
+			if (state == state::Opening) {
+				reopen_wait = true;
+			} else if (state == state::Active) {
 				if (tll::time::now() - active_ts < timeout_tremble)
 					reopen_wait = true;
 			}
