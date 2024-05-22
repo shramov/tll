@@ -18,6 +18,7 @@ int Object::init(const tll::Channel::Url &url)
 	auto reader = tll::make_props_reader(chain);
 
 	shutdown = reader.getT("shutdown-on", Shutdown::None, {{"none", Shutdown::None}, {"close", Shutdown::Close}, {"error", Shutdown::Error}});
+	reopen.timeout_open = reader.getT("open-timeout", reopen.timeout_open);
 	reopen.timeout_min = reader.getT("reopen-timeout", reopen.timeout_min);
 	reopen.timeout_max = reader.getT("reopen-timeout-max", reopen.timeout_max);
 	reopen.timeout_tremble = reader.getT("reopen-active-min", reopen.timeout_tremble);

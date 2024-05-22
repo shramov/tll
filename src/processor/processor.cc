@@ -36,7 +36,7 @@ void Processor::decay(Object * obj, bool root)
 	if (!root)
 		obj->decay = true;
 
-	if (obj->reopen.next != tll::time::epoch) {
+	if (obj->reopen.pending()) {
 		_log.debug("Disable pending reopen of object {}", obj->name());
 		pending_del(obj->reopen.next, obj);
 		obj->reopen.next = {};
@@ -542,6 +542,8 @@ void Processor::update(const Channel *c, tll_state_t s)
 	o->on_state(s);
 	switch (s) {
 	case state::Opening:
+		if (o->reopen.pending())
+			pending_add(o->reopen.next, o);
 		break;
 	case state::Active:
 		for (auto & d : o->rdepends) {
@@ -705,6 +707,9 @@ int Processor::pending_process(const tll_msg_t * msg)
 		_log.debug("Pending action on {}", o->name());
 		if (o->state == tll::state::Closed) {
 			activate(*o);
+		} else if (o->state == tll::state::Opening && now > o->reopen.next) {
+			_log.warning("Open timeout for channel {}", o->name());
+			post<scheme::Deactivate>( o, { o });
 		}
 	}
 
