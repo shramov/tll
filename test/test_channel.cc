@@ -424,7 +424,7 @@ TEST(Channel, Reopen)
 	auto ctx = tll::channel::Context(tll::Config());
 	ASSERT_EQ(ctx.reg(&Reopen::impl), 0);
 	ASSERT_EQ(ctx.reg(&ReopenChild::impl), 0);
-	Accum s = ctx.channel("reopen://;child=reopen-child://;reopen-timeout-min=100us;reopen-timeout-max=3s;reopen-active-min=100us;name=reopen");
+	Accum s = ctx.channel("reopen://;child=reopen-child://;reopen-timeout-min=100us;reopen-timeout-max=3s;reopen-active-min=100us;open-timeout=0s;name=reopen");
 	ASSERT_NE(s.get(), nullptr);
 
 	s->open();
@@ -502,4 +502,53 @@ TEST(Channel, Reopen)
 	timer->process();
 	ASSERT_EQ(c->state(), tll::state::Opening);
 	ASSERT_EQ(timer->dcaps() & tll::dcaps::Process, 0u);
+}
+
+TEST(Channel, ReopenOpenTimeout)
+{
+	auto ctx = tll::channel::Context(tll::Config());
+	ASSERT_EQ(ctx.reg(&Reopen::impl), 0);
+	ASSERT_EQ(ctx.reg(&ReopenChild::impl), 0);
+	Accum s = ctx.channel("reopen://;child=reopen-child://;reopen-timeout-min=100us;reopen-active-min=100us;open-timeout=100us;name=reopen");
+	ASSERT_NE(s.get(), nullptr);
+
+	auto c = static_cast<tll::Channel *>(s->children()->channel);
+	auto timer = static_cast<tll::Channel *>(s->children()->next->channel);
+
+	ASSERT_STREQ(c->name(), "reopen/child");
+	ASSERT_STREQ(timer->name(), "reopen/reopen-timer");
+
+	tll_msg_t msg = {};
+	msg.type = TLL_MESSAGE_CONTROL;
+	msg.msgid = tll::state::Error;
+
+	for (auto i = 0; i < 2; i++) {
+		s->open();
+		ASSERT_EQ(s->state(), tll::state::Active);
+
+		ASSERT_EQ(c->state(), tll::state::Opening);
+
+		ASSERT_EQ(timer->state(), tll::state::Active);
+		ASSERT_NE(timer->dcaps() & tll::dcaps::Process, 0u);
+
+		usleep(100);
+		timer->process();
+		ASSERT_EQ(c->state(), tll::state::Closed);
+		ASSERT_NE(timer->dcaps() & tll::dcaps::Process, 0u);
+
+		usleep(100);
+		timer->process();
+		ASSERT_EQ(c->state(), tll::state::Opening);
+
+		c->post(&msg);
+		ASSERT_EQ(c->state(), tll::state::Error);
+
+		usleep(1);
+		timer->process();
+
+		ASSERT_EQ(c->state(), tll::state::Closed);
+
+		s->close();
+		ASSERT_EQ(c->state(), tll::state::Closed);
+	}
 }

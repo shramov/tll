@@ -23,6 +23,7 @@ struct ReopenData
 	time_point next = {};
 	time_point active_ts = {};
 
+	duration timeout_open = std::chrono::seconds(30);
 	duration timeout_min = std::chrono::seconds(1);
 	duration timeout_max = std::chrono::seconds(30);
 	duration timeout_tremble = std::chrono::milliseconds(1);
@@ -30,6 +31,8 @@ struct ReopenData
 	bool reopen_wait = false;
 	unsigned count = 0;
 	ConstConfig open_params;
+
+	bool pending() const { return next != time_point {}; }
 
 	void reset()
 	{
@@ -57,6 +60,8 @@ struct ReopenData
 			active_ts = {};
 			if (timeout() < timeout_max)
 				count++;
+			if (timeout_open > duration {0})
+				next = tll::time::now() + timeout_open;
 			break;
 		case state::Active:
 			active_ts = tll::time::now();
@@ -121,6 +126,7 @@ public:
 	{
 		if constexpr (T::reopen_init_policy()) {
 			auto reader = this->channelT()->channel_props_reader(url);
+			_reopen_data.timeout_open = reader.getT("open-timeout", _reopen_data.timeout_open);
 			_reopen_data.timeout_min = reader.getT("reopen-timeout-min", _reopen_data.timeout_min);
 			_reopen_data.timeout_max = reader.getT("reopen-timeout-max", _reopen_data.timeout_max);
 			_reopen_data.timeout_tremble = reader.getT("reopen-active-min", _reopen_data.timeout_tremble);
@@ -189,7 +195,7 @@ public:
 		if (state == state::Error) { // Async close
 			this->_log.debug("Channel failed, schedule close");
 			_reopen_rearm(tll::time::now());
-		} else if (_reopen_data.next != tll::time::epoch) {
+		} else if (_reopen_data.pending()) {
 			_reopen_rearm(_reopen_data.next);
 		}
 		return 0;
@@ -203,6 +209,10 @@ public:
 			_reopen_data.channel->close();
 		else if (_reopen_data.state == state::Closed && tll::time::now() >= _reopen_data.next)
 			_reopen_data.open();
+		else if (_reopen_data.state == state::Opening && tll::time::now() >= _reopen_data.next) {
+			this->_log.warning("Open timeout for channel {}", _reopen_data.channel->name());
+			_reopen_data.channel->close();
+		}
 		return 0;
 	}
 
