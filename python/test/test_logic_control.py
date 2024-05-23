@@ -49,6 +49,9 @@ channel: control://;tll.channel.processor=processor;tll.channel.input=input;name
     ci.post({'channel': 'input'}, name='ChannelClose')
     assert ci.unpack(await ci.recv()).SCHEME.name == 'Ok'
 
+    ci.post({}, name='Ping')
+    assert ci.unpack(await ci.recv()).SCHEME.name == 'Pong'
+
 @asyncloop_run
 async def test_uplink(asyncloop, path_srcdir):
     scheme = path_srcdir / "src/logic/control.yaml"

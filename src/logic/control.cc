@@ -240,6 +240,12 @@ int Control::_on_external(tll::Channel * channel, const tll_msg_t * msg)
 		return _result_wrap("set log level", channel, msg, _set_log_level(msg));
 	case control_scheme::ChannelClose::meta_id():
 		return _result_wrap("channel close", channel, msg, _channel_close(msg));
+	case control_scheme::Ping::meta_id(): {
+		tll_msg_t m = { .type = TLL_MESSAGE_DATA, .msgid = control_scheme::Pong::meta_id() };
+		m.addr = msg->addr;
+		channel->post(&m);
+		break;
+	}
 	default:
 		break;
 	}

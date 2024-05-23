@@ -5,7 +5,7 @@
 
 namespace control_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJydVE1TwjAQvfsrcusFZmjFqtwcUMcZPw5+jcfYLCVjSWqSogzDf3cTUtoitQ4X2CRv3nv7dqFPBJ3DiARjKaY8vQYTHBHC2YiEAyymHDKmR1gR0icrj82pmQU9Ypa5PWmjuEiD9VG/yfVCswJKtqid7QOWe8iamIXj6pS8FKwUPB5Ujw8f5e2wdnuplFTlw0m7P3C4P7QfwdzK9BYWkJV0saUDUcwdW0uKCqb8u7P1zPFuUQUX5gyPMjdcCj0iq8C+BNYo6gXrntO192PFDU9ohm8nPRJM4L1IsQ57Ze+YB9Y3YiqxjLB8UjSxVAOsX6kS1g9Gud71pCAplOYLOMjXvfQSb6Ctn3U9S0MNTIp5Xk3sPN55fs4Zfm4BYRjVwyYehcyrjTdnrZK/SIx1vul4nEkNzPuxB9+yywsnIpc+vXpiDzn4aEIXzf75JjMqRH10LQPWzu0WtTG/L5Ladg/D6KxC3IHWNHWJdOycG8lWCnMJ43/ukhQYRubXZ0INtZn9Wgz71d0wfDY8xMNfEMqYau7WHhCzLv74XfpYrqT6oqoW3Wncmg/DmXf6b+qW4df/jDaTd7tVyZ5HB6zKD7scpTI=)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJydlE1v2zAMhu/9Fbr5kgCxl7ppbkPSDQO6tkC/sKNmMa5QR/IkOV0Q+L+PUuRYTuN66MWmKIJ8+ZD2mAi6hjmJFlKseP4dTHRGCGdzEk/QWHEomJ6jRciY7HxsSc1LNCJmW9qTNoqLPKrPxt1cT7SooMmW9Gd7he2JZN2Yjcs1WPJKsKbgl0l7efvaeKeB90opqZqL83594OI+qH0P5lrm17CBokmX2nQgqrXL1kNRwYr/HWy9cHkPURUXZoZHWRouhZ6TXWRvIisU60X1yNW1/oXihme0wLvzEYmW8LvK0Y5HTe/IA+0fYiXRTNB8UDSzqSZoP1MlrB5EWR9rUpBVSvMNfErXjfQlfoG2euqA5Z0t6SFeBMO6k61/FvjvDTWwrNZlO+HL9Oj6sWT4PATEcRIOh/goVLLb9+JaaeV+zYztdE9oUUgNzOu3B4/I8cUJyq2nHRK+LcGjjB3K0/uQvVAhwlH3LIR2ag9Re/H1CSTB1zCNk1kb8RO0prkjMrCjboSHUsglTv9z96RAGIVftyU11DJ7t0j2Ndww/OloSKfvQihjqruLJ4KYVfHBd+yxfJPqjaoA3UXay4fhzAf1d+s28MOf137ybrfaspfJJ1blH7h2sUU=)";
 
 struct ConfigGet
 {
@@ -29,6 +29,9 @@ struct ConfigGet
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct ConfigValue
@@ -56,6 +59,9 @@ struct ConfigValue
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct ConfigEnd
@@ -77,6 +83,9 @@ struct ConfigEnd
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct Ok
@@ -98,6 +107,9 @@ struct Ok
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct Error
@@ -122,6 +134,9 @@ struct Error
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct SetLogLevel
@@ -170,6 +185,57 @@ struct SetLogLevel
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
+};
+
+struct Ping
+{
+	static constexpr size_t meta_size() { return 0; }
+	static constexpr std::string_view meta_name() { return "Ping"; }
+	static constexpr int meta_id() { return 70; }
+
+	template <typename Buf>
+	struct binder_type : public tll::scheme::Binder<Buf>
+	{
+		using tll::scheme::Binder<Buf>::Binder;
+
+		static constexpr auto meta_size() { return Ping::meta_size(); }
+		static constexpr auto meta_name() { return Ping::meta_name(); }
+		static constexpr auto meta_id() { return Ping::meta_id(); }
+		void view_resize() { this->_view_resize(meta_size()); }
+	};
+
+	template <typename Buf>
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
+};
+
+struct Pong
+{
+	static constexpr size_t meta_size() { return 0; }
+	static constexpr std::string_view meta_name() { return "Pong"; }
+	static constexpr int meta_id() { return 80; }
+
+	template <typename Buf>
+	struct binder_type : public tll::scheme::Binder<Buf>
+	{
+		using tll::scheme::Binder<Buf>::Binder;
+
+		static constexpr auto meta_size() { return Pong::meta_size(); }
+		static constexpr auto meta_name() { return Pong::meta_name(); }
+		static constexpr auto meta_id() { return Pong::meta_id(); }
+		void view_resize() { this->_view_resize(meta_size()); }
+	};
+
+	template <typename Buf>
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct StateDump
@@ -191,6 +257,9 @@ struct StateDump
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct StateUpdate
@@ -229,6 +298,9 @@ struct StateUpdate
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct StateDumpEnd
@@ -250,6 +322,9 @@ struct StateDumpEnd
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct Message
@@ -293,6 +368,9 @@ struct Message
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct MessageForward
@@ -321,6 +399,9 @@ struct MessageForward
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct ChannelClose
@@ -345,6 +426,9 @@ struct ChannelClose
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 } // namespace control_scheme

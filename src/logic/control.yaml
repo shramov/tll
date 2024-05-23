@@ -27,6 +27,12 @@
     - {name: level, type: uint8, options.type: enum, enum: { Trace: 0, Debug: 1, Info: 2, Warning: 3, Error: 4, Critical: 5 }}
     - {name: recursive, type: uint8, options.type: enum, enum: { No: 0, Yes: 1 }}
 
+- name: Ping
+  id: 70
+
+- name: Pong
+  id: 80
+
 # Copy of processor.yaml
 
 - name: StateDump
