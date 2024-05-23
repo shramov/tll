@@ -851,9 +851,10 @@ int File<TIO>::_write_data(frame_t * meta, tll::const_memory data)
 
 	if (_io.offset + size > _io.block_end) {
 		frame_size_t frame = -1;
-
-		if (_write_raw(&frame, sizeof(frame)))
-			return EINVAL;
+		if (_io.offset + sizeof(frame) < _io.block_end) {
+			if (_write_raw(&frame, sizeof(frame)))
+				return EINVAL;
+		}
 
 		if (auto r = _io.block(_io.block_end); r)
 			return this->_log.fail(EINVAL, "Failed to prepare block: {}", strerror(r));

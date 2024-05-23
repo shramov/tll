@@ -408,3 +408,14 @@ def test_compress(context, filename, io, compress):
             reader.process()
             assert [(m.msgid, m.seq) for m in reader.result[-1:]] == [(i + 10, i)]
             assert reader.result[-1].data.tobytes() == data * (i % 7 + 1)
+
+def test_skip_frame_trim(context, filename):
+    writer = Accum(f'file://{filename}', name='writer', dump='frame', context=context, dir='w', block='1kb', io='posix')
+    writer.open()
+    writer.post(b'x' * (1024 - (5 + 16 + 1) - 2), seq=0)
+    assert filename.stat().st_size == 1024 + 1024 - 2
+    writer.post(b'x' * 4, seq=1)
+    assert filename.stat().st_size == 1024 * 2 + 5 + 16 + 4 + 1
+    f = filename.open('rb')
+    f.seek(2 * 1024 - 2)
+    assert f.read(2) == b'\0\0'
