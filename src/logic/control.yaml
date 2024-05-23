@@ -33,6 +33,11 @@
 - name: Pong
   id: 80
 
+- name: Hello
+  id: 90
+  fields:
+    - {name: service, type: string}
+
 # Copy of processor.yaml
 
 - name: StateDump

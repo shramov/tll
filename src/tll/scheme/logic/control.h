@@ -5,7 +5,7 @@
 
 namespace control_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJydlE1v2zAMhu/9Fbr5kgCxl7ppbkPSDQO6tkC/sKNmMa5QR/IkOV0Q+L+PUuRYTuN66MWmKIJ8+ZD2mAi6hjmJFlKseP4dTHRGCGdzEk/QWHEomJ6jRciY7HxsSc1LNCJmW9qTNoqLPKrPxt1cT7SooMmW9Gd7he2JZN2Yjcs1WPJKsKbgl0l7efvaeKeB90opqZqL83594OI+qH0P5lrm17CBokmX2nQgqrXL1kNRwYr/HWy9cHkPURUXZoZHWRouhZ6TXWRvIisU60X1yNW1/oXihme0wLvzEYmW8LvK0Y5HTe/IA+0fYiXRTNB8UDSzqSZoP1MlrB5EWR9rUpBVSvMNfErXjfQlfoG2euqA5Z0t6SFeBMO6k61/FvjvDTWwrNZlO+HL9Oj6sWT4PATEcRIOh/goVLLb9+JaaeV+zYztdE9oUUgNzOu3B4/I8cUJyq2nHRK+LcGjjB3K0/uQvVAhwlH3LIR2ag9Re/H1CSTB1zCNk1kb8RO0prkjMrCjboSHUsglTv9z96RAGIVftyU11DJ7t0j2Ndww/OloSKfvQihjqruLJ4KYVfHBd+yxfJPqjaoA3UXay4fhzAf1d+s28MOf137ybrfaspfJJ1blH7h2sUU=)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJydVE1v4jAQvfdX+JYLSCRLU+C2gu6H1N1W6rbVHt1kSK0aO2s7tAjx33dsHOK0hFS9wHhmNO/NmwdDIugKZiSaS7FkxXcw0RkhLJ+ReITBkgHP9QwjQoZk63tLap6iATGb0r60UUwU0e5s2J51T3kF9bSke9ozbI4Ma/es3axeyEuR14BfRk3x+rnOjoPspVJS1YXzbn7g+k5g34K5ksUVrIHX41I7DkS1ctM6VFSwZK+9q3M399BVMWEm+JSlYVLoGdlGthJZoogX7QYO1+bnihmWUY618wGJFvBYFRjHg3p31APjn2IpMUww/KNoZkeNMH6gSlg+KOXuLScFWaU0W8OneP2WHuIvaMtnF2h5YyG9iBfBsW5kk58E+R/AuawL0+4jalBrlp200K2hBhbVqmzMMk3flO/KHD8PDXGchHcmvguX2u5hnCrN5l8zY0Xbiz3nUkPupbAPr7Y7FdKTG3+48FjXJfirxO4qx7fNnqgQoWs6vKUd20PXnvwxSYIf1jhOJk3HL9CaFk6RHrs7NxygUJc4/aCNpUAxuHfughpqNXvnSfvVvzD8a3FIx+9aaJ6rtq2PNOWWxQkveVm+SfVCVSDdRdqpT4437+Xfxq3FD/8H95d33mpgp8knrPIf+N7HBA==)";
 
 struct ConfigGet
 {
@@ -229,6 +229,33 @@ struct Pong
 		static constexpr auto meta_name() { return Pong::meta_name(); }
 		static constexpr auto meta_id() { return Pong::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
+	};
+
+	template <typename Buf>
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
+};
+
+struct Hello
+{
+	static constexpr size_t meta_size() { return 8; }
+	static constexpr std::string_view meta_name() { return "Hello"; }
+	static constexpr int meta_id() { return 90; }
+
+	template <typename Buf>
+	struct binder_type : public tll::scheme::Binder<Buf>
+	{
+		using tll::scheme::Binder<Buf>::Binder;
+
+		static constexpr auto meta_size() { return Hello::meta_size(); }
+		static constexpr auto meta_name() { return Hello::meta_name(); }
+		static constexpr auto meta_id() { return Hello::meta_id(); }
+		void view_resize() { this->_view_resize(meta_size()); }
+
+		std::string_view get_service() const { return this->template _get_string<tll_scheme_offset_ptr_t>(0); }
+		void set_service(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(0, v); }
 	};
 
 	template <typename Buf>

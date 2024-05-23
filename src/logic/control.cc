@@ -125,8 +125,10 @@ int Control::_init(const tll::Channel::Url &url, tll::Channel * master)
 	auto resolve = _channels.get<Resolve>().size() > 0;
 
 	auto reader = channel_props_reader(url);
+	_service = reader.getT<std::string>("service", "");
 	if (resolve) {
-		_service = reader.getT<std::string>("service");
+		if (_service.empty())
+			return _log.fail(EINVAL, "Empty service name, mandatory when resolve is enabled");
 		_hostname = reader.getT<std::string>("hostname", "");
 		_service_tags = reader.getT("service-tags", std::vector<std::string>());
 	}
@@ -193,6 +195,16 @@ int Control::callback_tag(TaggedChannel<Input> *c, const tll_msg_t *msg)
 int Control::callback_tag(TaggedChannel<Uplink> *c, const tll_msg_t *msg)
 {
 	if (msg->type == TLL_MESSAGE_STATE && msg->msgid == tll::state::Active) {
+		auto data = control_scheme::Hello::bind_reset(_buf);
+		data.set_service(_service);
+
+		tll_msg_t m = { .type = TLL_MESSAGE_DATA, .msgid = data.meta_id() };
+		m.addr = msg->addr;
+		m.data = data.view().data();
+		m.size = data.view().size();
+
+		c->post(&m);
+
 		return _on_processor_active();
 	} else if (msg->type != TLL_MESSAGE_DATA) {
 		return 0;
