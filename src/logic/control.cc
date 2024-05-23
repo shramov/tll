@@ -196,6 +196,7 @@ int Control::callback_tag(TaggedChannel<Uplink> *c, const tll_msg_t *msg)
 {
 	if (msg->type == TLL_MESSAGE_STATE && msg->msgid == tll::state::Active) {
 		auto data = control_scheme::Hello::bind_reset(_buf);
+		data.set_version((uint16_t) control_scheme::Version::Current);
 		data.set_service(_service);
 
 		tll_msg_t m = { .type = TLL_MESSAGE_DATA, .msgid = data.meta_id() };

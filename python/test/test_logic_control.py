@@ -74,7 +74,7 @@ channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;na
 
     m = tinput.unpack(await tinput.recv())
     assert m.SCHEME.name == 'Hello'
-    assert m.as_dict() == {'service': 'service-name'}
+    assert m.as_dict() == {'version': 1, 'service': 'service-name'}
 
     m = await tproc.recv()
     assert tproc.unpack(m).SCHEME.name == 'StateDump'

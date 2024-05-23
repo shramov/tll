@@ -5,7 +5,12 @@
 
 namespace control_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJydVE1v4jAQvfdX+JYLSCRLU+C2gu6H1N1W6rbVHt1kSK0aO2s7tAjx33dsHOK0hFS9wHhmNO/NmwdDIugKZiSaS7FkxXcw0RkhLJ+ReITBkgHP9QwjQoZk63tLap6iATGb0r60UUwU0e5s2J51T3kF9bSke9ozbI4Ma/es3axeyEuR14BfRk3x+rnOjoPspVJS1YXzbn7g+k5g34K5ksUVrIHX41I7DkS1ctM6VFSwZK+9q3M399BVMWEm+JSlYVLoGdlGthJZoogX7QYO1+bnihmWUY618wGJFvBYFRjHg3p31APjn2IpMUww/KNoZkeNMH6gSlg+KOXuLScFWaU0W8OneP2WHuIvaMtnF2h5YyG9iBfBsW5kk58E+R/AuawL0+4jalBrlp200K2hBhbVqmzMMk3flO/KHD8PDXGchHcmvguX2u5hnCrN5l8zY0Xbiz3nUkPupbAPr7Y7FdKTG3+48FjXJfirxO4qx7fNnqgQoWs6vKUd20PXnvwxSYIf1jhOJk3HL9CaFk6RHrs7NxygUJc4/aCNpUAxuHfughpqNXvnSfvVvzD8a3FIx+9aaJ6rtq2PNOWWxQkveVm+SfVCVSDdRdqpT4437+Xfxq3FD/8H95d33mpgp8knrPIf+N7HBA==)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJydVF1v2jAUfe+v8JtfQCIZTYG3CboPqVsrdeu0Ry+5pFaDndkOG6r477t2HOIAIVNf4Mb36Nybc44zJoJtYEEovSIERLXRCywIoU+gNJeCLsir2ZWIqLgwUTJyIDyky0opEAYB0X5/NW54llKsef4RjCXkGXYnWKw5FJmnHpNXjy2ZeaYjUvNTbRQXOT3hemJFBQ1b3M/2ArszZF3M1nENjrwVWTPw3aRt3r80p9Pg9FYpqZrGdf9+4HAXZj+CuZP5HWyhaOiSSWhLj4oK1vzv4KsXjveAsnbO8FGWBm3W1lHboXZRnEf3gdOKG56yAnvXI0JX8KvKre2j5t1RD6w/i7XEMsbym2KppZpg/YMpYfdBKffHOylIK4zZFt6011fpR/wEfRzDBzvSi3gTmPUg2/NZcP4JikI2jXm/iVt/LTr7RsmJ2hrUlqcXo/ZomIFVtSnbUM2To/b3MsPfAyCK4qNr6lDdSzprFXqfGitubcqykBoyL5l98K44S3E9ufMGh6bel+Ddi5x751VJn5kQYbp6MqjdtgdUvfw5SYILOI3iWYv4AlqzHOjwtXCpOYyqXfq/uEuBYhQ+4StmmNXsJLv2b/iF4Xdnh2R6AmFZprpxOgPK7BYXsuRl+SDVH6YC6W6SXn0y9Hxw/+7cRvzwe1k777LVjp3Hb4jKP3Ww6K0=)";
+
+enum class Version: uint16_t
+{
+	Current = 1,
+};
 
 struct ConfigGet
 {
@@ -240,7 +245,7 @@ struct Pong
 
 struct Hello
 {
-	static constexpr size_t meta_size() { return 8; }
+	static constexpr size_t meta_size() { return 10; }
 	static constexpr std::string_view meta_name() { return "Hello"; }
 	static constexpr int meta_id() { return 90; }
 
@@ -254,8 +259,12 @@ struct Hello
 		static constexpr auto meta_id() { return Hello::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
 
-		std::string_view get_service() const { return this->template _get_string<tll_scheme_offset_ptr_t>(0); }
-		void set_service(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(0, v); }
+		using type_version = uint16_t;
+		type_version get_version() const { return this->template _get_scalar<type_version>(0); }
+		void set_version(type_version v) { return this->template _set_scalar<type_version>(0, v); }
+
+		std::string_view get_service() const { return this->template _get_string<tll_scheme_offset_ptr_t>(2); }
+		void set_service(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(2, v); }
 	};
 
 	template <typename Buf>
@@ -459,6 +468,20 @@ struct ChannelClose
 };
 
 } // namespace control_scheme
+
+template <>
+struct tll::conv::dump<control_scheme::Version> : public to_string_from_string_buf<control_scheme::Version>
+{
+	template <typename Buf>
+	static inline std::string_view to_string_buf(const control_scheme::Version &v, Buf &buf)
+	{
+		switch (v) {
+		case control_scheme::Version::Current: return "Current";
+		default: break;
+		}
+		return tll::conv::to_string_buf<uint16_t, Buf>((uint16_t) v, buf);
+	}
+};
 
 template <>
 struct tll::conv::dump<control_scheme::SetLogLevel::level> : public to_string_from_string_buf<control_scheme::SetLogLevel::level>

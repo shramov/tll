@@ -1,3 +1,6 @@
+- enums:
+    Version: {type: uint16, enum: {Current: 1}}
+
 - name: ConfigGet
   id: 10
   fields:
@@ -36,6 +39,7 @@
 - name: Hello
   id: 90
   fields:
+    - {name: version, type: uint16}
     - {name: service, type: string}
 
 # Copy of processor.yaml
