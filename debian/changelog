@@ -1,3 +1,23 @@
+tll (0.2.2) unstable; urgency=medium
+
+  * config: Compilation issues on ubuntu 24.04
+  * control: Add Ping/Pong messages
+  * control: Add version into Hello message
+  * control: Send Hello on uplink connect
+  * file:
+      Write mode for using mmap IO
+      LZ4 block compression
+  * logger: Check if new impl is same as already registered
+  * python:
+      Fix cython deprecation warning
+      Setting field in the message to None is same as deleting it
+      Better conversion of TimePoint values in scheme messages
+  * resolve: Fix disconnect exception in logic
+  * stream: Optional rotation on Block messages
+  * tcp: Configurable high watermark
+
+ -- Pavel Shramov <shramov@mexmat.net>  Fri, 24 May 2024 16:50:35 +0300
+
 tll (0.2.1) unstable; urgency=medium
 
   * channel:
