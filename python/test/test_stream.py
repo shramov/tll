@@ -20,7 +20,7 @@ async def test(asyncloop, tmp_path):
     s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
-    assert [x.name for x in s.children] == ['server/stream', 'server/request']
+    assert [x.name for x in s.children] == ['server/stream', 'server/request', 'server/storage']
     assert [x.name for x in c.children] == ['client/stream', 'client/request']
 
     s.open()
@@ -202,6 +202,8 @@ async def test_block(asyncloop, tmp_path, req, result):
     common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
     s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+
+    assert [x.name for x in s.children] == ['server/stream', 'server/request', 'server/storage', 'server/blocks']
 
     s.open()
     assert s.state == s.State.Active # No need to wait
@@ -660,9 +662,6 @@ async def test_ring(asyncloop, tmp_path):
     s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
-    assert [x.name for x in s.children] == ['server/stream', 'server/request']
-    assert [x.name for x in c.children] == ['client/stream', 'client/request']
-
     s.open()
     assert s.state == s.State.Active # No need to wait
 
@@ -716,9 +715,6 @@ async def test_ring_autoclose(asyncloop, tmp_path):
     s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server;storage.autoclose=yes')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
-    assert [x.name for x in s.children] == ['server/stream', 'server/request']
-    assert [x.name for x in c.children] == ['client/stream', 'client/request']
-
     s.open()
     assert s.state == s.State.Active # No need to wait
 
@@ -735,7 +731,7 @@ async def test_ring_autoclose(asyncloop, tmp_path):
     m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (0, 10, b'aaa')
 
-    assert [x.name for x in s.children] == ['server/stream', 'server/request', 'server/storage/client']
+    assert [x.name for x in s.children] == ['server/stream', 'server/request', 'server/storage', 'server/storage/client']
 
     assert s.dcaps == s.DCaps.Zero
 
@@ -749,7 +745,7 @@ async def test_ring_autoclose(asyncloop, tmp_path):
     assert s.dcaps == s.DCaps.Process | s.DCaps.Pending
     s.process()
     assert s.dcaps == s.DCaps.Zero
-    assert [x.name for x in s.children] == ['server/stream', 'server/request']
+    assert [x.name for x in s.children] == ['server/stream', 'server/request', 'server/storage']
 
     for i in range(10, 20):
         s.post(b'bbb', msgid=10, seq=i)

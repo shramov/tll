@@ -137,6 +137,9 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 
 	_request->callback_add(_on_request, this, TLL_MESSAGE_MASK_ALL);
 	_child_add(_request.get(), "request");
+	_child_add(_storage.get(), "storage");
+	if (_blocks)
+		_child_add(_blocks.get(), "blocks");
 
 	return 0;
 }
