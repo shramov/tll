@@ -62,7 +62,7 @@ template <typename T>
 unsigned long long _reduce(const T &v) { return reduce<T>::call(v); }
 
 template <typename F, typename... Args>
-auto timeit(size_t count, std::string_view name, F f, Args... args)
+[[gnu::noinline]] auto timeit(size_t count, std::string_view name, F f, Args... args)
 {
 	using namespace std::chrono;
 
