@@ -18,6 +18,8 @@ namespace tll::channel {
 
 struct ReopenData
 {
+	enum class Action { None, Open, Close };
+
 	Channel * channel = nullptr;
 	tll_state_t state = state::Closed;
 	time_point next = {};
@@ -97,6 +99,19 @@ struct ReopenData
 			break;
 		}
 		state = s;
+	}
+
+	Action on_timer(tll::Logger &log, tll::time_point now)
+	{
+		if (state == state::Error)
+			return Action::Close;
+		else if (state == state::Closed && now >= next)
+			return Action::Open;
+		else if (state == state::Opening && now >= next) {
+			log.warning("Open timeout for channel {}", channel->name());
+			return Action::Close;
+		}
+		return Action::None;
 	}
 
 	int open()
@@ -205,13 +220,15 @@ public:
 	{
 		if (!_reopen_data.channel)
 			return 0;
-		if (_reopen_data.state == state::Error)
-			_reopen_data.channel->close();
-		else if (_reopen_data.state == state::Closed && tll::time::now() >= _reopen_data.next)
+		switch (_reopen_data.on_timer(this->_log, tll::time::now())) {
+		case ReopenData::Action::Open:
 			_reopen_data.open();
-		else if (_reopen_data.state == state::Opening && tll::time::now() >= _reopen_data.next) {
-			this->_log.warning("Open timeout for channel {}", _reopen_data.channel->name());
+			break;
+		case ReopenData::Action::Close:
 			_reopen_data.channel->close();
+			break;
+		case ReopenData::Action::None:
+			break;
 		}
 		return 0;
 	}

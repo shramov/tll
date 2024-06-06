@@ -705,11 +705,15 @@ int Processor::pending_process(const tll_msg_t * msg)
 	for (auto it = _pending.begin(); it != _pending.end() && it->first < now; it = _pending.erase(it)) {
 		auto o  = it->second;
 		_log.debug("Pending action on {}", o->name());
-		if (o->state == tll::state::Closed) {
+		switch (o->reopen.on_timer(_log, now)) {
+		case channel::ReopenData::Action::Open:
 			activate(*o);
-		} else if (o->state == tll::state::Opening && now > o->reopen.next) {
-			_log.warning("Open timeout for channel {}", o->name());
+			break;
+		case channel::ReopenData::Action::Close:
 			post<scheme::Deactivate>( o, { o });
+			break;
+		case channel::ReopenData::Action::None:
+			break;
 		}
 	}
 
