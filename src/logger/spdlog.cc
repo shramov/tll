@@ -32,10 +32,12 @@
 #include <spdlog/sinks/ansicolor_sink.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/daily_file_sink.h>
-#include <spdlog/sinks/rotating_file_sink.h>
 #ifndef _WIN32
 #include <spdlog/sinks/syslog_sink.h>
 #endif
+
+#include <logger/rotating_file_sink.h>
+#include <logger/rotating_file_sink-inl.h>
 
 namespace {
 spdlog::level::level_enum tll2spdlog(tll_logger_level_t l)
@@ -287,14 +289,10 @@ struct spdlog_impl_t : public tll_logger_impl_t
 					auto max_size = reader.getT<tll::util::Size>("max-size", 64 * 1024 * 1024);
 					auto max_files = reader.getT("max-files", 5u);
 					auto rotate_on_open = reader.getT("rotate-on-open", false);
+					auto compress_begin = reader.getT("compress-begin", 0u);
 					if (!reader)
 						return log.fail(EINVAL, "Invalid parameters for sink {}: {}", *type, reader.error());
-#if SPDLOG_VERSION < 10500
-					sink.sink.reset(new spdlog::sinks::rotating_file_sink_mt(filename, max_size, max_files));
-					(void) rotate_on_open;
-#else
-					sink.sink.reset(new spdlog::sinks::rotating_file_sink_mt(filename, max_size, max_files, rotate_on_open));
-#endif
+					sink.sink.reset(new spdlog::sinks::rotating_file_sink_mt(filename, max_size, max_files, rotate_on_open, compress_begin));
 #ifndef _WIN32
 				} else if (*type == "syslog") {
 					auto ident = reader.getT<std::string>("ident", "");

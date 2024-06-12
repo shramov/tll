@@ -4,7 +4,7 @@
 #pragma once
 
 #ifndef SPDLOG_HEADER_ONLY
-    #include <spdlog/sinks/rotating_file_sink.h>
+    #include <logger/rotating_file_sink.h>
 #endif
 
 #include <spdlog/common.h>
@@ -20,6 +20,11 @@
 #include <string>
 #include <tuple>
 
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <zlib.h>
+
 namespace spdlog {
 namespace sinks {
 
@@ -29,11 +34,13 @@ SPDLOG_INLINE rotating_file_sink<Mutex>::rotating_file_sink(
     std::size_t max_size,
     std::size_t max_files,
     bool rotate_on_open,
+    std::size_t compress_begin,
     const file_event_handlers &event_handlers)
     : base_filename_(std::move(base_filename)),
       max_size_(max_size),
       max_files_(max_files),
-      file_helper_{event_handlers} {
+      file_helper_{event_handlers},
+      compress_begin_(compress_begin) {
     if (max_size == 0) {
         throw_spdlog_ex("rotating sink constructor: max_size arg cannot be zero");
     }
@@ -60,6 +67,8 @@ SPDLOG_INLINE filename_t rotating_file_sink<Mutex>::calc_filename(const filename
 
     filename_t basename, ext;
     std::tie(basename, ext) = details::file_helper::split_by_extension(filename);
+    if (compress_begin_ > 0 && index >= compress_begin_)
+        ext += ".gz";
     return fmt_lib::format(SPDLOG_FILENAME_T("{}.{}{}"), basename, index, ext);
 }
 
@@ -110,14 +119,17 @@ SPDLOG_INLINE void rotating_file_sink<Mutex>::rotate_() {
         if (!path_exists(src)) {
             continue;
         }
+
         filename_t target = calc_filename(base_filename_, i);
 
-        if (!rename_file_(src, target)) {
+        bool compress = i == compress_begin_;
+
+        if (!rename_file_(src, target, compress)) {
             // if failed try again after a small delay.
             // this is a workaround to a windows issue, where very high rotation
             // rates can cause the rename to fail with permission denied (because of antivirus?).
             details::os::sleep_for_millis(100);
-            if (!rename_file_(src, target)) {
+            if (!rename_file_(src, target, compress)) {
                 file_helper_.reopen(
                     true);  // truncate the log file anyway to prevent it to grow beyond its limit!
                 current_size_ = 0;
@@ -134,10 +146,44 @@ SPDLOG_INLINE void rotating_file_sink<Mutex>::rotate_() {
 // return true on success, false otherwise.
 template <typename Mutex>
 SPDLOG_INLINE bool rotating_file_sink<Mutex>::rename_file_(const filename_t &src_filename,
-                                                           const filename_t &target_filename) {
+                                                           const filename_t &target_filename, bool compress) {
     // try to delete the target file in case it already exists.
     (void)details::os::remove(target_filename);
+    if (compress)
+        compress_file_(src_filename, target_filename);
+
     return details::os::rename(src_filename, target_filename) == 0;
+}
+
+template <typename Mutex>
+SPDLOG_INLINE bool rotating_file_sink<Mutex>::compress_file_(const filename_t &src_filename,
+                                                             const filename_t &target_filename) {
+    auto ifd = open(src_filename.c_str(), O_RDONLY);
+    if (!ifd)
+        return false;
+    struct stat istat;
+    fstat(ifd, &istat);
+    auto ptr = mmap(nullptr, istat.st_size, PROT_READ, MAP_PRIVATE, ifd, 0);
+    if (ptr == MAP_FAILED) {
+        close(ifd);
+        return false;
+    }
+    bool failed = false;
+    auto fp = gzopen(target_filename.c_str(), "wb");
+    if (fp) {
+        failed = gzwrite(fp, ptr, istat.st_size) == 0;
+    } else
+        failed = true;
+    munmap(ptr, istat.st_size);
+    close(ifd);
+    if (fp && gzclose(fp))
+        failed = true;
+
+    if (failed) {
+        (void)details::os::remove(target_filename);
+        return false;
+    }
+    return true;
 }
 
 }  // namespace sinks
