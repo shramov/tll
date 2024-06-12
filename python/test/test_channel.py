@@ -249,13 +249,14 @@ def test_alias():
     ctx.alias('alias', 'aprefix+echo://')
 
     c = ctx.Channel('aecho://;name=echo')
-    assert str(Url(c.config.sub('url'))) == 'echo://;name=echo'
+    assert str(Url(c.config.sub('init'))) == 'echo://;name=echo'
+    assert str(Url(c.config.sub('url'))) == 'echo://;name=echo' # Compatibility
 
     c = ctx.Channel('aprefix+aecho://;name=prefix')
-    assert str(Url(c.config.sub('url'))) == 'prefix+aecho://;name=prefix'
+    assert str(Url(c.config.sub('init'))) == 'prefix+aecho://;name=prefix'
 
     c = ctx.Channel('alias://;name=alias')
-    assert str(Url(c.config.sub('url'))) == 'prefix+echo://;name=alias'
+    assert str(Url(c.config.sub('init'))) == 'prefix+echo://;name=alias'
 
 def test_logic():
     ctx = C.Context()
