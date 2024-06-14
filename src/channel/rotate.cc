@@ -133,6 +133,14 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 		_open_cfg.set("filename", _last_filename);
 		_state = State::Write;
 	}
+
+	if ((internal.caps & caps::Output) && _scheme_url) {
+		_log.debug("Loading scheme from {}...", _scheme_url->substr(0, 64));
+		_scheme.reset(context().scheme_load(*_scheme_url, _scheme_cache));
+		if (!_scheme)
+			return state_fail(EINVAL, "Failed to load scheme from {}...", _scheme_url->substr(0, 64));
+	}
+
 	return _child->open(_open_cfg);
 }
 
@@ -241,6 +249,10 @@ int Rotate::_on_active()
 {
 	if (state() == tll::state::Active)
 		return 0;
+	if (_state != State::Read && _state != State::Write)
+		return 0;
+	if (internal.caps & caps::Input)
+		_scheme.reset(_child->scheme()->ref());
 	auto scheme = _child->scheme(TLL_MESSAGE_CONTROL);
 	if (scheme) {
 		auto message = scheme->lookup("EndOfData");

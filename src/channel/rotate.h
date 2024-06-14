@@ -61,9 +61,14 @@ class Rotate : public Prefix<Rotate>
 
 	const Scheme * scheme(int type) const
 	{
-		if (type == TLL_MESSAGE_CONTROL)
+		switch (type) {
+		case TLL_MESSAGE_DATA:
+			return _scheme.get();
+		case TLL_MESSAGE_CONTROL:
 			return _scheme_control.get();
-		return Base::scheme(type);
+		default:
+			return Base::scheme(type);
+		}
 	}
 
 	std::optional<const tll_channel_impl_t *> _init_replace(const tll::Channel::Url &url, tll::Channel *master);
