@@ -44,6 +44,35 @@ extern "C" {
 
 struct tll_scheme_t;
 struct tll_scheme_t * tll_scheme_load(const char * url, int ulen);
+
+/**
+ * Select list that will be changed
+ *
+ * Search paths are used in the following order:
+ *
+ *  - TLL_SCHEME_PATH environment variable, list of paths separated by ':' character
+ *  - user defined list, controlled through API
+ *  - default list, ${DATADIR}/tll/scheme and /usr/share/tll/scheme if DATADIR is not /usr/share
+ */
+enum tll_scheme_path_mode_t {
+	/// User defined list, accessable from API
+	TLL_SCHEME_PATH_USER,
+	/// Parsed from environment
+	TLL_SCHEME_PATH_ENV,
+	/// Default search path, compiled in
+	TLL_SCHEME_PATH_DEFAULT,
+};
+
+/**
+ * Add path to the list of directories searched for scheme files
+ */
+int tll_scheme_path_add(const char * path, int plen, enum tll_scheme_path_mode_t mode);
+
+/**
+ * Remove path from the list of directories searched for scheme files
+ */
+int tll_scheme_path_remove(const char * path, int plen, enum tll_scheme_path_mode_t mode);
+
 /**
  * Deep copy scheme structure except user fields
  */

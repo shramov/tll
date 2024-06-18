@@ -125,25 +125,75 @@ int fix_offset_ptr_options(tll_scheme_field_t * f)
 	}
 	return 0;
 }
-
-std::list<std::filesystem::path> scheme_search_path()
-{
-	std::filesystem::path p(DATADIR);
-	std::list<std::filesystem::path> deflist = {p / "tll" / "scheme"};
-	if (p != "/usr/share")
-		deflist.push_back("/usr/share/tll/scheme");
-
-	auto v = getenv("TLL_SCHEME_PATH");
-	if (!v)
-		return deflist;
-	std::list<std::filesystem::path> r;
-	tll::splitl<':', true>(r, v);
-	r.insert(r.end(), deflist.begin(), deflist.end());
-	return r;
-}
 }
 
 namespace tll::scheme::internal {
+
+struct SearchPath {
+	using List = std::list<std::filesystem::path>;
+	List env;
+	List user;
+	List defaults;
+
+	SearchPath()
+	{
+		std::filesystem::path datadir(DATADIR);
+		defaults = {datadir / "tll" / "scheme"};
+		if (datadir != "/usr/share")
+			defaults.push_back("/usr/share/tll/scheme");
+
+		if (auto v = getenv("TLL_SCHEME_PATH"); v)
+			tll::splitl<':', true>(env, v);
+	}
+
+	List list()
+	{
+		List r;
+		r.insert(r.end(), env.begin(), env.end());
+		r.insert(r.end(), user.begin(), user.end());
+		r.insert(r.end(), defaults.begin(), defaults.end());
+		return r;
+	}
+
+	List * list_mode(tll_scheme_path_mode_t mode)
+	{
+		switch (mode) {
+		case TLL_SCHEME_PATH_USER:
+			return &user;
+		case TLL_SCHEME_PATH_ENV:
+			return &env;
+		case TLL_SCHEME_PATH_DEFAULT:
+			return &defaults;
+		default:
+			return nullptr;
+		}
+	}
+
+	int add(std::string_view path, tll_scheme_path_mode_t mode)
+	{
+		auto list = list_mode(mode);
+		if (!list)
+			return EINVAL;
+
+		if (std::find(list->begin(), list->end(), path) == list->end())
+			list->push_front(path);
+
+		return EINVAL;
+	}
+
+	int remove(std::string_view path, tll_scheme_path_mode_t mode)
+	{
+		auto list = list_mode(mode);
+		if (!list)
+			return EINVAL;
+
+		if (auto it = std::find(list->begin(), list->end(), path); it != list->end()) {
+			list->erase(it);
+			return 0;
+		}
+		return ENOENT;
+	}
+};
 
 inline std::optional<tll_scheme_field_type_t> parse_type_int(std::string_view type)
 {
@@ -1289,13 +1339,29 @@ int Field::parse_type(tll::Config &cfg, std::string_view type)
 
 } // namespace tll::scheme::internal
 
+static tll::scheme::internal::SearchPath tll_scheme_search_path;
+
+int tll_scheme_path_add(const char * path, int plen, enum tll_scheme_path_mode_t mode)
+{
+	if (!path)
+		return EINVAL;
+	return tll_scheme_search_path.add(tll::string_view_from_c(path, plen), mode);
+}
+
+int tll_scheme_path_remove(const char * path, int plen, enum tll_scheme_path_mode_t mode)
+{
+	if (!path)
+		return EINVAL;
+	return tll_scheme_search_path.remove(tll::string_view_from_c(path, plen), mode);
+}
+
 tll_scheme_t * tll_scheme_load(const char * curl, int ulen)
 {
 	tll::Logger _log = {"tll.scheme"};
 	if (!curl) return _log.fail(nullptr, "Failed to load config: null string");
 
 	tll::scheme::internal::Scheme::Search search;
-	search.search = scheme_search_path();
+	search.search = tll_scheme_search_path.list();
 
 	std::string_view url(curl, (ulen == -1)?strlen(curl):ulen);
 	auto lurl = tll::scheme::internal::Scheme::lookup(url, search);

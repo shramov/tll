@@ -160,3 +160,9 @@ TLL_0.2.0 {
 	global:
 		tll_channel_internal_init;
 } TLL_0.0.0;
+
+TLL_0.3.0 {
+	global:
+		tll_scheme_path_add;
+		tll_scheme_path_remove;
+} TLL_0.2.0;
