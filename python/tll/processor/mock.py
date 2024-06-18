@@ -60,6 +60,33 @@ class Mock:
         for w in self._processor.workers:
             w.open()
 
+    def close(self, force=False):
+        if self._control:
+            self._control.close(force)
+        if self._processor:
+            self._processor.close(force)
+
+        for c in self._channels.values():
+            c.close(force)
+
+    def __del__(self):
+        self.destroy()
+
+    def destroy(self):
+        self.close(True)
+
+        if self._control:
+            self._control.free()
+        self._control = None
+
+        if self._processor:
+            self._processor.free()
+        self._processor = None
+
+        for c in self._channels.values():
+            c.free()
+        self._channels = {}
+
     @property
     def processor(self):
         return self._processor
