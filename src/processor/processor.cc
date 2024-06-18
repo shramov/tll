@@ -103,6 +103,14 @@ int Processor::_init(const tll::Channel::Url &url, Channel * master)
 	_child_add(_timer.get(), "timer");
 	loop.add(_timer.get());
 
+	for (auto &[_, c] : _root.browse("processor.scheme-path.**")) {
+		auto v = c.get();
+		if (!v)
+			continue;
+		_log.debug("Add scheme search path '{}'", *v);
+		tll_scheme_path_add(v->data(), v->size(), TLL_SCHEME_PATH_USER);
+	}
+
 	if (auto r = Base::_init(url, master); r)
 		return _log.fail(EINVAL, "Failed to init base");
 
@@ -422,6 +430,14 @@ void Processor::_free()
 	if (_timer) {
 		loop.del(_timer.get());
 		_timer.reset();
+	}
+
+	for (auto &[_, c] : _root.browse("processor.scheme-path.**")) {
+		auto v = c.get();
+		if (!v)
+			continue;
+		_log.debug("Add scheme search path '{}'", *v);
+		tll_scheme_path_remove(v->data(), v->size(), TLL_SCHEME_PATH_USER);
 	}
 
 	_root.unlink("sys");

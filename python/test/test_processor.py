@@ -7,8 +7,10 @@ from tll.channel import Context
 from tll.channel.base import Base
 from tll.channel.logic import Logic
 from tll.config import Config
+from tll.error import TLLError
 from tll.processor import Processor
 from tll.processor.mock import Mock
+from tll.scheme import Scheme
 
 import pytest
 
@@ -268,3 +270,28 @@ processor.objects:
 
     mock.io('input').post(b'xxx')
     assert (await o.recv()).data.tobytes() == b'xxx'
+
+@asyncloop_run
+async def test_scheme_path(asyncloop, tmp_path):
+    filename = 'scheme-path-test.yaml'
+    open(tmp_path / filename, 'w').write('''- name: SchemePathTest''')
+
+    with pytest.raises(RuntimeError):
+        Scheme('yaml://' + filename)
+
+    mock = Mock(asyncloop, f'''yamls://
+name: processor
+processor.scheme-path: [{tmp_path}]
+processor.objects:
+  null:
+    url: null://;scheme=yaml://{filename}
+''')
+
+    mock.open()
+
+    assert [m.name for m in Scheme('yaml://' + filename).messages] == ['SchemePathTest']
+
+    mock.destroy()
+
+    with pytest.raises(RuntimeError):
+        Scheme('yaml://' + filename)
