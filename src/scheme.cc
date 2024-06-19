@@ -178,7 +178,7 @@ struct SearchPath {
 		if (std::find(list->begin(), list->end(), path) == list->end())
 			list->push_front(path);
 
-		return EINVAL;
+		return 0;
 	}
 
 	int remove(std::string_view path, tll_scheme_path_mode_t mode)
