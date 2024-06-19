@@ -952,3 +952,19 @@ def test_sha256(with_scheme_hash):
     with pytest.raises(OSError): scheme.dump('shaXXX')
 
     assert ssha == 'sha256://' + hashlib.sha256(yamls[len('yamls://'):].encode('ascii')).hexdigest()
+
+def test_scheme_path(tmp_path):
+    filename = 'scheme-path-test.yaml'
+    open(tmp_path / filename, 'w').write('''- name: SchemePathTest''')
+
+    with pytest.raises(RuntimeError):
+        S.Scheme('yaml://' + filename)
+
+    S.path_add(tmp_path)
+
+    assert [m.name for m in S.Scheme('yaml://' + filename).messages] == ['SchemePathTest']
+
+    S.path_remove(tmp_path)
+
+    with pytest.raises(RuntimeError):
+        S.Scheme('yaml://' + filename)

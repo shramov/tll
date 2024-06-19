@@ -13,7 +13,7 @@ from collections import OrderedDict, namedtuple
 import copy
 from decimal import Decimal, DecimalException
 import enum
-from .error import TLLError
+from .error import TLLError, wrap as error_wrap
 from .buffer cimport *
 from . import chrono
 from . import bits as B
@@ -1287,3 +1287,16 @@ cdef class Scheme:
             raise ValueError("No msgid in message")
         m = self.find(msg.msgid)
         return m.reflection(msg.data)
+
+class PathMode(enum.Enum):
+    User = TLL_SCHEME_PATH_USER
+    Env = TLL_SCHEME_PATH_ENV
+    Default = TLL_SCHEME_PATH_DEFAULT
+
+def path_add(path, mode = PathMode.User):
+    p = s2b(path)
+    error_wrap(tll_scheme_path_add(p, len(p), mode.value), f"Failed to add search path {path} with mode {mode}")
+
+def path_remove(path, mode = PathMode.User):
+    p = s2b(path)
+    error_wrap(tll_scheme_path_remove(p, len(p), mode.value), f"Failed to remove search path {path} with mode {mode}")

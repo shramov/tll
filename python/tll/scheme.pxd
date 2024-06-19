@@ -141,6 +141,14 @@ cdef extern from "tll/scheme.h":
 
     cdef char * tll_scheme_dump(const tll_scheme_t * ptr, const char * format)
 
+    cdef enum tll_scheme_path_mode_t:
+        TLL_SCHEME_PATH_USER
+        TLL_SCHEME_PATH_ENV
+        TLL_SCHEME_PATH_DEFAULT
+
+    cdef int tll_scheme_path_add(const char * path, int plen, tll_scheme_path_mode_t mode)
+    cdef int tll_scheme_path_remove(const char * path, int plen, tll_scheme_path_mode_t mode)
+
 cdef extern from "tll/scheme/types.h":
     ctypedef struct tll_scheme_offset_ptr_t:
         unsigned offset
