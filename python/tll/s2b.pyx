@@ -1,5 +1,6 @@
 # vim: sts=4 sw=4 et
 
+import pathlib
 from .s2b cimport *
 from cpython.version cimport PY_MAJOR_VERSION
 from cpython.object cimport Py_EQ, Py_NE, Py_GE, Py_GT, Py_LE, Py_LT
@@ -9,6 +10,8 @@ cpdef object s2b(object s):
         if isinstance(s, unicode):
             return s.encode('utf-8', errors='replace')
         return s
+    if isinstance(s, pathlib.Path):
+        s = str(s)
     if isinstance(s, str):
         return s.encode('utf-8', errors='replace')
     return s
