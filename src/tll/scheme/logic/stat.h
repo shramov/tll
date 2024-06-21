@@ -5,7 +5,7 @@
 
 namespace stat_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJy1kz1PwzAQhvf+Cm+WUCqVDwHKyBBUCRBSVRbE4BI3WCTnqLELVeX/ztlxPuSSZIHJ5/j1e4/vLnMCrOAxoXRGCAddVDEGhNBHrj5kSmNyVIcSBVqAuo2cBL/RB1YpPLyMUMm+MbqwkQCMzjFa6QKjhTG12RqEGrS6Oyhe+XtPK2+1hk+QX+BN5g3l8oXlmlvWreB56mHn5OjPi5o6InWm5hUmkO2dS6tCnusr2kuT/EuaVOpNzvt5lvc7qcvhPO9Sg+oMdAMa0GDZT94SSLBHExK2z8ZQk79HbZOMsA5opmAtomXVICQ41t+p7dIZbXASb3ArS+Wu4XDaExxCWqmdgIyaEETbyW4N3JxPTIFDwq1bY/LayESg86NuotZoGyiSE4XIXJM6j7ppfY9A4dtq3nrVe2aZm32R4k+5GK6dTHswTYFGCzwgqv072VndPzP7Acq9XcQ=)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJy1VF1LwzAUfd+vyFtAWthUVProw2TgRBjzRWRkbdYF26Q0yXSM/Hdv0vTDlm4v+pQb7sm5534lRJzkNEIYTxAShWKCywidcFwUofXIgsQUg18qojYy3tOc4gDhAy0lYK1nhg28pVznMgIDIbykai8S8J3UsQByzbh6CBzEcj8TqcB5AzRL8g3WtbWYJZuBtdI5WFNjKrI1Z2qU6vGoqPTvXlaeas0/ufjiniSsM1y8kUxTm+eO0SzxYkN08v68Uh2gKlKdhenBDo6lQYGeu1vcCTP/lzCJ0NuMduMsnkqhi/E4sdBctQS6FtpTA2Uf5NKDQI8uQMghPSd1/vdSmyBntI5gLom1Eq1Wzd0yjKq2R0u0hUm8h2tnh6ynWp2S8RSbvhBtJ7shcHN+YQqcJLi6M0LvNYz1cH7UTdAQ7XqI+QDBUteklqNqWpejh/BtNR+d6r2S1M0+S2App+O1E0lHTF2gswUeASmWD7bxVxdKKkWmlf+suLS/V90Z+3hTCHg17E4lvKW+qgbDTH4A5xiNyw==)";
 
 enum class Method: uint8_t
 {
@@ -47,6 +47,9 @@ struct IValue
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct FValue
@@ -74,6 +77,9 @@ struct FValue
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct IGroup
@@ -109,6 +115,9 @@ struct IGroup
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct FGroup
@@ -144,6 +153,9 @@ struct FGroup
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct Field
@@ -210,11 +222,14 @@ struct Field
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct Page
 {
-	static constexpr size_t meta_size() { return 24; }
+	static constexpr size_t meta_size() { return 32; }
 	static constexpr std::string_view meta_name() { return "Page"; }
 	static constexpr int meta_id() { return 10; }
 
@@ -234,13 +249,20 @@ struct Page
 		std::string_view get_name() const { return this->template _get_string<tll_scheme_offset_ptr_t>(8); }
 		void set_name(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(8, v); }
 
+		using type_time = std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<int64_t, std::nano>>;
+		type_time get_time() const { return this->template _get_scalar<type_time>(16); }
+		void set_time(type_time v) { return this->template _set_scalar<type_time>(16, v); }
+
 		using type_fields = tll::scheme::binder::List<Buf, Field::binder_type<Buf>, tll_scheme_offset_ptr_t>;
-		const type_fields get_fields() const { return this->template _get_binder<type_fields>(16); }
-		type_fields get_fields() { return this->template _get_binder<type_fields>(16); }
+		const type_fields get_fields() const { return this->template _get_binder<type_fields>(24); }
+		type_fields get_fields() { return this->template _get_binder<type_fields>(24); }
 	};
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 } // namespace stat_scheme

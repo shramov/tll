@@ -1,4 +1,7 @@
-- enums:
+- options:
+    version: 1
+    cpp-namespace: stat_scheme
+  enums:
     Unit: {type: uint8, enum: { Unknown: 0, Bytes: 1, NS: 2}}
     Method: {type: uint8, enum: { Sum: 0, Min: 1, Max: 2, Last: 3}}
 
@@ -43,4 +46,5 @@
   fields:
     - {name: node, type: string}
     - {name: name, type: string}
+    - {name: time, type: int64, options.type: time_point, options.resolution: ns}
     - {name: fields, type: '*Field'}

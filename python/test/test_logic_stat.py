@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # vim: sts=4 sw=4 et
 
+import datetime
 import pytest
 
 from tll.asynctll import asyncloop_run
@@ -51,8 +52,9 @@ channel: stat://;tll.channel.timer=timer;node=test-node
     groups.update(int=10, float=0.5)
     groups.update(int=1)
     groups.update(float=0.1)
+    now = datetime.datetime.now()
     timer.post(b'')
-    
+
     Unit = stat.scheme.enums['Unit'].klass
     Method = stat.scheme.enums['Method'].klass
 
@@ -62,6 +64,7 @@ channel: stat://;tll.channel.timer=timer;node=test-node
     msg = stat.unpack(m)
     assert msg.node == 'test-node'
     assert msg.name == 'fields'
+    assert msg.time.datetime - now < datetime.timedelta(milliseconds=100)
     assert [f.name for f in msg.fields] == ['sum', 'min', 'max', 'last']
     assert msg.fields[0].as_dict() == {'name': 'sum', 'unit': Unit.Unknown, 'value': {'ivalue': {'method': Method.Sum, 'value': 1}}}
     assert msg.fields[1].as_dict() == {'name': 'min', 'unit': Unit.Bytes, 'value': {'fvalue': {'method': Method.Min, 'value': 2}}}
@@ -74,6 +77,7 @@ channel: stat://;tll.channel.timer=timer;node=test-node
     msg = stat.unpack(m)
     assert msg.node == 'test-node'
     assert msg.name == 'groups'
+    assert msg.time.datetime - now < datetime.timedelta(milliseconds=100)
     assert [f.name for f in msg.fields] == ['int', 'float']
     assert msg.fields[0].as_dict() == {'name': 'int', 'unit': Unit.NS, 'value': {'igroup': {'count': 2, 'min': 1, 'max': 10, 'avg': 5.5}}}
     assert msg.fields[1].as_dict() == {'name': 'float', 'unit': Unit.Unknown, 'value': {'fgroup': {'count': 2, 'min': 0.1, 'max': 0.5, 'avg': 0.3}}}

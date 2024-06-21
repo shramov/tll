@@ -159,6 +159,7 @@ int Stat::_dump(tll_stat_iter_t * iter)
 	if (_node.size())
 		data.set_node(_node);
 	data.set_name(name);
+	data.set_time(tll::time::now());
 	auto fields = data.get_fields();
 	fields.resize(page->size);
 	auto size = 0;
