@@ -419,3 +419,20 @@ def test_skip_frame_trim(context, filename):
     f = filename.open('rb')
     f.seek(2 * 1024 - 2)
     assert f.read(2) == b'\0\0'
+
+def test_scheme_override(context, filename):
+    writer = context.Channel(f'file://{filename}', name='writer', dir='w', scheme='yamls://[{name: Old}]')
+    writer.open()
+    writer.close()
+
+    r0 = context.Channel(f'file://{filename}', name='r0')
+    r1 = context.Channel(f'file://{filename}', name='r0', scheme='yamls://[{name: New}]')
+
+    r0.open()
+    r1.open()
+
+    assert r0.scheme != None
+    assert r1.scheme != None
+
+    assert [m.name for m in r0.scheme.messages] == ['Old']
+    assert [m.name for m in r1.scheme.messages] == ['New']

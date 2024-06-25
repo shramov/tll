@@ -480,7 +480,10 @@ int File<TIO>::_read_meta()
 	this->_log.info("Meta info: block size {}, compression {}", _block_size, _compression);
 
 	std::string_view scheme = meta.get_scheme();
-	if (scheme.size()) {
+	if (this->_scheme) {
+		if (scheme.size())
+			this->_log.info("Ignore scheme from meta, use explicit init parameter");
+	} else  if (scheme.size()) {
 		auto s = this->context().scheme_load(scheme);
 		if (!s)
 			return this->_log.fail(EINVAL, "Failed to load scheme");
