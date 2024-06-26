@@ -98,6 +98,10 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 	std::map<std::string, scheme::SchemePtr, std::less<>> scheme_cache;
 	std::map<void *, tll_channel_module_t *> modules;
 	std::shared_mutex scheme_cache_lock;
+	mutable std::shared_mutex channel_lock;
+
+	auto rlock() const { return std::shared_lock<std::shared_mutex>(channel_lock); }
+	auto wlock() { return std::unique_lock<std::shared_mutex>(channel_lock); }
 
 	unsigned _noname_idx = 0;
 
@@ -164,8 +168,9 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 
 	tll_channel_t * get(std::string_view name) const
 	{
+		auto lock = rlock();
 		auto it = channels.find(name);
-		if (it == channels.end()) return 0;
+		if (it == channels.end()) return nullptr;
 		return it->second;
 	}
 
@@ -174,6 +179,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		if (name.empty())
 			name = impl->name;
 		_log.debug("Register channel {} as {}", impl->name, name);
+		auto lock = wlock();
 		if (!registry.emplace(name, impl).second)
 			return _log.fail(EEXIST, "Failed to register '{}': duplicate name", name);
 		return 0;
@@ -183,6 +189,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 	{
 		if (name.empty())
 			name = impl->name;
+		auto lock = wlock();
 		auto it = registry.find(name);
 		if (it == registry.end())
 			return _log.fail(ENOENT, "Failed to unregister '{}': not found", name);
@@ -205,7 +212,9 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 			if (!v || v->empty()) continue;
 			return _log.fail(EINVAL, "Aliases has non-empty field '{}'", *v);
 		}
+
 		tll::Channel::Url url = cfg.copy();
+		auto lock = wlock();
 		auto r = lookup(cfg);
 		if (r == nullptr)
 			return _log.fail(ENOENT, "Failed to register '{}': can not resolve protocol '{}'", name, cfg.proto());
@@ -219,6 +228,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 	{
 		if (name.empty())
 			return _log.fail(EINVAL, "Failed to unregister: Empty alias name");
+		auto lock = wlock();
 		auto it = registry.find(name);
 		if (it == registry.end())
 			return _log.fail(ENOENT, "Failed to unregister '{}': not found", name);
@@ -488,6 +498,7 @@ int tll_channel_impl_unregister(tll_channel_context_t *ctx, const tll_channel_im
 const tll_channel_impl_t * tll_channel_impl_get(const tll_channel_context_t *ctx, const char *name)
 {
 	if (!ctx || !name) return nullptr;
+	auto lock = ctx->rlock();
 	auto r = ctx->lookup(name);
 	if (r == nullptr)
 		return nullptr;
@@ -555,6 +566,7 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 {
 	tll::Channel::Url url = _url.copy();
 	if (!impl) {
+		auto lock = rlock();
 		impl = lookup(url);
 		if (!impl)
 			return _log.fail(nullptr, "Channel '{}' not found", url.proto());
@@ -571,6 +583,7 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 		return _log.fail(nullptr, "Invalid tll.internal parameter: {}", internal.error());
 
 	if (!master && url.has("master")) {
+		auto lock = rlock();
 		auto pi = url.get("master");
 		auto it = channels.find(*pi);
 		if (it == channels.end())
@@ -608,6 +621,7 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 	} while (true);
 
 	if (!*internal && c->internal->name) {
+		auto lock = wlock();
 		auto dup = !channels.emplace(c->internal->name, c.get()).second;
 		if (dup) {
 			_log.warning("Duplicate channel name: {}", c->internal->name);
@@ -622,6 +636,7 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 			c->internal->stat->name = c->internal->name;
 		} else
 			_log.info("Stat name for channel {}: '{}'", c->internal->name, c->internal->stat->name);
+		auto lock = wlock();
 		stat_list.add(c->internal->stat);
 	}
 
@@ -648,10 +663,12 @@ void tll_channel_free(tll_channel_t *c)
 		tll_channel_close(c, 1);
 
 	if (c->internal->stat) {
+		auto lock = c->context->wlock();
 		c->context->stat_list.remove(c->internal->stat);
 	}
 
 	if ((tll_channel_caps(c) & caps::Custom) == 0) {
+		auto lock = c->context->wlock();
 		auto it = c->context->channels.find(name);
 		if (it->second == c)
 			c->context->channels.erase(it);
