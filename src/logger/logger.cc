@@ -118,10 +118,11 @@ struct logger_context_t
 	void free(Logger * log)
 	{
 		//printf("Del logger %s %p\n", log->name.c_str(), log);
-		if (log->refcnt() != 0) return;
 
 		{
 			wlock_t l(lock);
+			if (log->refcnt() != 0) return;
+
 			auto it = _loggers.find(log->name);
 			if (it != _loggers.end())
 				_loggers.erase(it);
