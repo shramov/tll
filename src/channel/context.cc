@@ -103,7 +103,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 	auto rlock() const { return std::shared_lock<std::shared_mutex>(channel_lock); }
 	auto wlock() { return std::unique_lock<std::shared_mutex>(channel_lock); }
 
-	unsigned _noname_idx = 0;
+	std::atomic<unsigned> _noname_idx = 0;
 
 	Config config;
 	Config config_defaults;
