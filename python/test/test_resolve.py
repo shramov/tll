@@ -48,7 +48,6 @@ def test_resolve(context, url):
     c.post(b'xxx', msgid=200)
     assert [(m.msgid, m.data.tobytes()) for m in server.result] == [(100, b'xxx'), (200, b'xxx')]
 
-
 def test_scheme_hash(context, with_scheme_hash):
     scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/resolve.yaml"
     rserver = Accum('direct://', name='resolve-server', dump='yes', scheme=f'yaml://{scheme}', context=context)
@@ -86,3 +85,25 @@ def test_scheme_hash(context, with_scheme_hash):
     assert [(m.msgid, m.data.tobytes()) for m in server.result] == [(100, b'xxx'), (200, b'xxx')]
     assert c.scheme != None
     assert [m.name for m in c.scheme.messages] == ['Message']
+
+def test_scheme_override(context):
+    scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/resolve.yaml"
+    rserver = Accum('direct://', name='resolve-server', dump='yes', scheme=f'yaml://{scheme}', context=context)
+    c = context.Channel('resolve://;resolve.service=service;resolve.channel=channel;name=resolve', scheme='yamls://[{name: Outer}]')
+
+    rserver.open()
+
+    body = {'init.tll.proto': 'null', 'init.scheme': 'yamls://[{name: Inner}]'}
+
+    c.open()
+    assert c.state == c.State.Opening
+    assert rserver.result != []
+    assert rserver.unpack(rserver.result[0]).as_dict() == {'service': 'service', 'channel': 'channel'}
+    rserver.post({'config': [{'key': k, 'value': v} for k,v in body.items()]}, name='ExportChannel')
+
+    assert c.state == c.State.Active
+    assert c.children[1].name == 'resolve/resolve'
+    assert c.children[1].scheme != None
+    assert [m.name for m in c.children[1].scheme.messages] == ['Inner']
+    assert c.scheme != None
+    assert [m.name for m in c.scheme.messages] == ['Outer']

@@ -24,6 +24,8 @@ class Resolve : public tll::channel::Prefix<Resolve>
  public:
 	static constexpr std::string_view channel_protocol() { return "resolve"; }
 
+	static constexpr auto prefix_scheme_policy() { return Base::PrefixSchemePolicy::Override; }
+
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
 	void _free()
 	{
