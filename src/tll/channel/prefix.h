@@ -37,9 +37,24 @@ public:
 	static constexpr auto post_opening_policy() { return Base<T>::PostPolicy::Enable; }
 	static constexpr auto post_closing_policy() { return Base<T>::PostPolicy::Enable; }
 
+	enum class PrefixSchemePolicy
+	{
+		Derive, ///< Scheme is derived from child channel
+		Override, ///< Prefix can hold scheme different from its child
+	};
+	static constexpr auto prefix_scheme_policy() { return PrefixSchemePolicy::Derive; }
+
 	const Scheme * scheme(int type) const
 	{
 		this->_log.trace("Request scheme {}", type);
+		if (type == TLL_MESSAGE_DATA) {
+			switch (this->channelT()->prefix_scheme_policy()) {
+			case PrefixSchemePolicy::Derive:
+				return _child->scheme(type);
+			case PrefixSchemePolicy::Override:
+				return this->_scheme.get();
+			}
+		}
 		return _child->scheme(type);
 	}
 
@@ -157,6 +172,15 @@ public:
 			if (this->channelT()->_on_client_export(*client))
 				return this->_log.fail(EINVAL, "Failed to export client parameters");
 		}
+
+
+		if (this->channelT()->prefix_scheme_policy() == PrefixSchemePolicy::Override) {
+			if (this->_scheme_url)
+				this->_scheme_load(*this->_scheme_url);
+			else if (auto s = _child->scheme(); s)
+				this->_scheme.reset(s->ref());
+		}
+
 		this->state(tll::state::Active);
 		return 0;
 	}
