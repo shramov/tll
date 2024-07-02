@@ -60,7 +60,7 @@ class Base
  public:
 	typedef T ChannelT;
 	ChannelT * channelT() { return static_cast<ChannelT *>(this); }
-	const ChannelT * channelT() const { return static_cast<ChannelT *>(this); }
+	const ChannelT * channelT() const { return static_cast<const ChannelT *>(this); }
 
 	static tll::channel_impl<ChannelT> impl;
 
@@ -296,10 +296,8 @@ class Base
 		}
 
 		if (ChannelT::scheme_policy() == SchemePolicy::Normal && _scheme_url) {
-			_log.debug("Loading scheme from {}...", _scheme_url->substr(0, 64));
-			_scheme.reset(context().scheme_load(*_scheme_url, _scheme_cache));
-			if (!_scheme)
-				return state_fail(EINVAL, "Failed to load scheme from {}...", _scheme_url->substr(0, 64));
+			if (auto r = _scheme_load(*_scheme_url); r)
+				return state_fail(r, "Failed to load data scheme");
 		}
 		auto r = static_cast<ChannelT *>(this)->_open(cfg);
 		if (r)
@@ -498,6 +496,25 @@ class Base
 		msg.size = sizeof(fd);
 		_callback(msg);
 		return fd;
+	}
+
+	int _scheme_load(std::string_view str, int type = TLL_MESSAGE_DATA)
+	{
+		_log.debug("Loading scheme from {}...", str.substr(0, 64));
+		scheme::ConstSchemePtr r { context().scheme_load(str, _scheme_cache) };
+		if (!r)
+			return _log.fail(EINVAL, "Failed to load scheme from {}...", str.substr(0, 64));
+		switch (type) {
+		case TLL_MESSAGE_DATA:
+			_scheme.swap(r);
+			break;
+		case TLL_MESSAGE_CONTROL:
+			_scheme_control.swap(r);
+			break;
+		default:
+			return state_fail(EINVAL, "Invalid scheme type: {}, has to be one of data or control", type);
+		}
+		return 0;
 	}
 };
 
