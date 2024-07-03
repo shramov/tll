@@ -16,6 +16,8 @@
 #include <rapidjson/memorystream.h>
 #include <rapidjson/error/en.h>
 
+#include "tll/channel.h"
+#include "tll/logger.h"
 #include "tll/scheme.h"
 #include "tll/scheme/types.h"
 #include "tll/scheme/util.h"
@@ -481,9 +483,7 @@ class JSON
 	{
 		_name_field = props.template getT<std::string>("name-field", "_tll_name");
 		_seq_field = props.template getT<std::string>("seq-field", "_tll_seq");
-		auto name = props.get("default-message");
-		if (name)
-			_default_name = *name;
+		_default_name = props.get("default-message");
 		if (!props)
 			return _log.fail(EINVAL, "Failed to init JSON parameters: {}", props.error());
 		return 0;
@@ -541,11 +541,6 @@ class JSON
 		scheme->user = meta;
 		scheme->user_free = &meta_free<scheme_meta_t>;
 		for (auto & m : util::list_wrap(scheme->messages)) {
-			if (_default_name && m.name == *_default_name) {
-				_log.debug("Bind default message {}", *_default_name);
-				_default_message = &m;
-			}
-
 			meta->index.emplace(m.name, &m);
 			if (m.msgid)
 				meta->index_id.emplace(m.msgid, &m);
@@ -576,8 +571,11 @@ class JSON
 					mmeta->pointers.push_back(&f);
 			}
 		}
-		if (_default_name && !_default_message)
-			return _log.fail(EINVAL, "Default message '{}' not found in scheme", *_default_name);
+		if (_default_name) {
+			_default_message = scheme->lookup(*_default_name);
+			if (!_default_message)
+				return _log.fail(EINVAL, "Default message '{}' not found in scheme", *_default_name);
+		}
 		std::swap(_scheme, scheme);
 		return 0;
 	}
@@ -802,8 +800,13 @@ inline std::optional<const_memory> JSON::decode(const tll_msg_t *msg, tll_msg_t 
 			//string(json).substr(o, 10) << "...'" << endl;
 		}
 	}
-	if (!handler.msg)
-		return _log.fail(std::nullopt, "Failed to lookup message name");
+	if (!handler.msg) {
+		if (!_default_message)
+			return _log.fail(std::nullopt, "Failed to lookup message name");
+		else
+			_log.debug("Use default decode message '{}'", _default_message->name);
+		handler.msg = _default_message;
+	}
 	message = handler.msg;
 	out->seq = handler.seq.value_or(0);
 

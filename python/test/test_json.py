@@ -12,6 +12,10 @@ import pytest
 
 WITH_JSON = Context().has_impl('json+')
 
+@pytest.fixture
+def context():
+    return Context()
+
 '''
     def test_list_overflow(self):
         self.input.post(json.dumps({'_tll_name':'list_sub', 'f1':[float(i) for i in range(5)]}).encode('utf-8'))
@@ -102,7 +106,7 @@ def test_simple(t, v):
     ('uint32', 123123123),
     ('uint64', 123123123123),
 ])
-def test_enum(t,v):
+def test_enum(context, t,v):
     scheme = '''yamls://
 - name: msg
   id: 10
@@ -115,8 +119,8 @@ def test_enum(t,v):
     - {name: f1, type: e2}
     - {name: g1, type: int64}
 ''' % {'t': t, 'v': v}
-    s = Accum('json+direct://', scheme=scheme, name='json', dump='scheme')
-    c = Accum('direct://', name='raw', master=s, dump='text')
+    s = Accum('json+direct://', scheme=scheme, name='json', dump='scheme', context=context)
+    c = Accum('direct://', name='raw', master=s, dump='text', context=context)
     s.open()
     c.open()
 
@@ -130,3 +134,26 @@ def test_enum(t,v):
     assert [(m.msgid, m.seq) for m in s.result] == [(10, 100)]
     r = s.unpack(s.result[0])
     assert r.as_dict() == {'g0': -1, 'g1': -1, 'f0': r.f0.A, 'f1': r.f1.C}
+
+def test_default_message(context):
+    scheme = '''yamls://
+- name: Default
+  id: 10
+  fields:
+    - {name: f0, type: int64}
+- name: Data
+  id: 20
+  fields:
+    - {name: f0, type: double}
+'''
+    s = Accum('json+direct://;default-message=Default', scheme=scheme, name='json', dump='yes', context=context)
+    c = context.Channel('direct://', name='raw', master=s, dump='text')
+    s.open()
+    c.open()
+
+    c.post(json.dumps({'f0': 123.456, '_tll_name': 'Data', '_tll_seq': 100}).encode('utf-8'))
+    c.post(json.dumps({'f0': 1000}).encode('utf-8'))
+
+    assert [(m.msgid, m.seq) for m in s.result] == [(20, 100), (10, 0)]
+    assert s.unpack(s.result[0]).as_dict() == {'f0': 123.456}
+    assert s.unpack(s.result[1]).as_dict() == {'f0': 1000}
