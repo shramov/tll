@@ -25,7 +25,7 @@ struct ReopenData
 	time_point next = {};
 	time_point active_ts = {};
 
-	duration timeout_open = std::chrono::seconds(30);
+	duration timeout_open = std::chrono::seconds(300);
 	duration timeout_min = std::chrono::seconds(1);
 	duration timeout_max = std::chrono::seconds(30);
 	duration timeout_tremble = std::chrono::milliseconds(1);
