@@ -8,7 +8,7 @@ tll-channel-steam-server
 Synopsis
 --------
 
-``stream+{ONLINE-CHANNEL}://{ONLINE-HOST};request={REQUEST://HOST};storage={STORAGE://DATA};[blocks={BLOCKS://DATA};mode=server``
+``stream+{ONLINE-CHANNEL}://{ONLINE-HOST};request={REQUEST://HOST};storage={STORAGE://DATA};[blocks={BLOCKS://DATA}];mode=server``
 
 Description
 -----------
