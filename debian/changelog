@@ -1,3 +1,38 @@
+tll (0.3.0) unstable; urgency=medium
+
+  * channel:
+    Move flag field in tll_msg_t
+    Rename 'url' to 'init' in config
+    Split scheme load helper function
+    Thread safe context operations
+    Use atomic counter for channels without name
+  * docs: Stream client and server manpages
+  * file: Override scheme with init parameters
+  * json: Default message for decoding
+  * logger: Fix race condition on logger init/free
+  * prefix: Prefix scheme policy
+  * processor:
+    Configurable scheme search path
+    Open timeout check
+  * python:
+    Allow using pathlib.Path as string parameter
+    Close/destroy functions for processor mock
+    Expose scheme search path API
+    Rename 'url' to 'init' in config
+  * refptr:
+    Explicit memory ordering for counter operations
+    Make refptr::reset compatible with std pointers
+  * reopen: Open timeout check
+  * resolve: Enable child scheme override
+  * rotate:
+    Emit Rotate control message on file change
+    Store scheme on open
+  * scheme: Search path manipulation functions
+  * stat: Add timestamp field
+  * stream: Add storage and blocks channels as childs
+
+ -- Pavel Shramov <shramov@mexmat.net>  Fri, 05 Jul 2024 13:51:28 +0300
+
 tll (0.2.2) unstable; urgency=medium
 
   * config: Compilation issues on ubuntu 24.04
