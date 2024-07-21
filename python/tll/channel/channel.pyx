@@ -129,6 +129,7 @@ cdef class CCallback:
     cdef object _func_ref
     cdef object _chan_ref
     cdef unsigned int _mask
+    cdef unsigned int _mask_state
 
     def __cinit__(self):
         self._reset()
@@ -146,7 +147,7 @@ cdef class CCallback:
             return
 
         cdef int r0 = tll_channel_callback_del(self._channel, ccallback_cb, <void *>self, self._mask)
-        cdef int r1 = tll_channel_callback_del(self._channel, ccallback_destroy_cb, <void *>self, MsgMask.State)
+        cdef int r1 = tll_channel_callback_del(self._channel, ccallback_destroy_cb, <void *>self, self._mask_state)
 
         self._reset()
 
@@ -155,6 +156,7 @@ cdef class CCallback:
 
     def __init__(self, channel : Channel, func, mask = MsgMask.All):
         self._mask = mask
+        self._mask_state = MsgMask.State
         self._chan_ref = weakref.ref(channel)
 
         if isinstance(func, weakref.ref):
