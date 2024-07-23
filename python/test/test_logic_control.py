@@ -481,3 +481,36 @@ channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;na
     mock.channel.open()
 
     assert mock.channel.config.sub('info').as_dict() == {'config': {'a': '0', 'b': {'c': '1'}}}
+
+@asyncloop_run
+async def test_state_dump(asyncloop, mock, path_srcdir):
+    scheme = path_srcdir / "src/logic/control.yaml"
+
+    mock.init(asyncloop, f'''yamls://
+mock:
+  input: direct://;scheme=channel://logic:input;dump=frame
+  processor: direct://;scheme=channel://logic:input
+channel: control://;tll.channel.processor=processor;tll.channel.input=input;name=logic;service=mock
+''')
+
+    mock.open()
+
+    tproc, tinput = mock.io('processor', 'input')
+
+    tinput.post({}, name='StateDump')
+    m = await tinput.recv()
+    assert m.type == m.Type.Data
+    assert tinput.unpack(m).SCHEME.name == 'StateDumpEnd'
+
+    tproc.post({'channel': 'test', 'state': 'Error'}, name='StateUpdate')
+
+    tinput.post({}, name='StateDump')
+    m = await tinput.recv()
+    assert tinput.unpack(m).as_dict(only={'channel', 'state'}) == {'channel': 'test', 'state': tinput.State.Error}
+    m = await tinput.recv()
+    assert tinput.unpack(m).SCHEME.name == 'StateDumpEnd'
+
+    tproc.post({'channel': 'test', 'state': 'Destroy'}, name='StateUpdate')
+
+    tinput.post({}, name='StateDump')
+    assert tinput.unpack(await tinput.recv()).SCHEME.name == 'StateDumpEnd'
