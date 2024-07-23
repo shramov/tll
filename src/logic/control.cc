@@ -16,6 +16,9 @@
 #include <sys/param.h>
 #include <unistd.h>
 
+#include <map>
+#include <set>
+
 namespace tll::channel {
 
 struct Processor : public Tag<TLL_MESSAGE_MASK_ALL> { static constexpr std::string_view name() { return "processor"; } };
@@ -28,6 +31,7 @@ class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
 
 	std::set<std::pair<uint64_t, tll::Channel *>> _addr;
 	std::vector<char> _buf;
+	std::map<std::string, tll_state_t, std::less<>> _state_cache;
 
 	tll::json::JSON _json = { _log };
 
@@ -247,6 +251,28 @@ int Control::_on_external(tll::Channel * channel, const tll_msg_t * msg)
 		channel->post(&m);
 		break;
 	}
+	case control_scheme::StateDump::meta_id(): {
+		auto data = control_scheme::StateUpdate::bind(_buf);
+
+		tll_msg_t m = { .type = TLL_MESSAGE_DATA, .msgid = data.meta_id(), .addr = msg->addr };
+
+		for (auto &[c, s]: _state_cache) {
+			data.view().resize(0);
+			data.view().resize(data.meta_size());
+			data.set_channel(c);
+			data.set_state((control_scheme::StateUpdate::State) s);
+			m.data = data.view().data();
+			m.size = data.view().size();
+			channel->post(&m);
+		}
+
+		m.msgid = control_scheme::StateDumpEnd::meta_id();
+		m.data = nullptr;
+		m.size = 0;
+		channel->post(&m);
+
+		break;
+	}
 	case control_scheme::MessageForward::meta_id():
 		return _result_wrap("forward message", channel, msg, _message_forward(msg));
 	case control_scheme::SetLogLevel::meta_id():
@@ -391,9 +417,17 @@ int Control::callback_tag(TaggedChannel<Processor> *, const tll_msg_t *msg)
 		if (msg->size < data.meta_size())
 			return _log.fail(EMSGSIZE, "Message size too small: {} < min {}",
 				msg->size, data.meta_size());
-		_log.debug("Channel {} state {}", data.get_channel(), data.get_state());
+		auto channel = data.get_channel();
+		auto state = (tll_state_t) data.get_state();
+		_log.debug("Channel {} state {}", channel, data.get_state());
+
+		if (state != tll::state::Destroy) {
+			_state_cache[std::string(channel)] = state;
+		} else {
+			_state_cache.erase(std::string(channel));
+		}
 		_forward(msg);
-		_on_state_update(data.get_channel(), (tll_state_t) data.get_state());
+		_on_state_update(channel, state);
 		break;
 	}
 	case processor_scheme::StateDumpEnd::meta_id():
