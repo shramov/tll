@@ -332,9 +332,12 @@ cdef class Base:
 
     def _open(self, props): pass
     def _close(self, force : bool = False):
-            self._update_dcaps(0, C.DCaps.Pending | C.DCaps.Process | C.DCaps.PollMask)
-            self.state = C.State.Closed
-            self.scheme = None
+        self.scheme = None
+        self._update_dcaps(0, C.DCaps.Pending | C.DCaps.Process | C.DCaps.PollMask)
+        for c in list(self._children):
+            if c.state != c.State.Closed:
+                c.close(True)
+        self.state = C.State.Closed
 
     def _process(self, timeout, flags): pass
     def _post(self, msg, flags): pass
