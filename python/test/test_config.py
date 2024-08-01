@@ -300,3 +300,20 @@ a: !link /broken
 ''')
 
     with pytest.raises(TLLError): cfg.set('a.b', 'c')
+
+def test_transitive_links():
+    cfg = Config()
+    cfg.set_link('xa.b.c', '/a/b/c')
+    cfg.set_link('ya.b.c', '/xa/b/c')
+    cfg.set('a.b.c', 'd')
+    assert cfg.sub('a.b').as_dict() == {'c': 'd'}
+    assert cfg.sub('xa.b').as_dict() == {'c': 'd'}
+    assert cfg.sub('ya.b').as_dict() == {'c': 'd'}
+
+    cfg = Config()
+    cfg.set_link('xa.b', '/a/b')
+    cfg.set_link('ya.b', '/xa/b')
+    cfg.set('a.b.c', 'd')
+    assert cfg.sub('a.b').as_dict() == {'c': 'd'}
+    assert cfg.sub('xa.b').as_dict() == {'c': 'd'}
+    assert cfg.sub('ya.b').as_dict() == {'c': 'd'}
