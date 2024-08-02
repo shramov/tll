@@ -41,6 +41,57 @@ spdlog::level::level_enum tll2spdlog(tll_logger_level_t l)
 }
 }
 
+#if SPDLOG_VERSION > 10500
+struct thread_name_flag final : public spdlog::custom_flag_formatter
+{
+	static thread_local std::string _name;
+
+	static std::string_view name()
+	{
+		if (_name.size() != 0)
+			return _name;
+
+		char buf[256];
+#ifndef __APPLE__
+		if (pthread_getname_np(pthread_self(), buf, sizeof(buf)) == 0) {
+			_name = buf;
+			return _name;
+		}
+#endif
+
+		_name = tll::conv::to_string(gettid());
+		return _name;
+	}
+
+	static void reset(const char * name) {
+		if (name == nullptr)
+			_name.clear();
+		else
+			_name = name;
+	}
+
+	void format(const spdlog::details::log_msg &, const std::tm &, spdlog::memory_buf_t &dest) override
+	{
+		auto v = name();
+		dest.append(v.data(), v.data() + v.size());
+	}
+
+	std::unique_ptr<custom_flag_formatter> clone() const override
+	{
+		return spdlog::details::make_unique<thread_name_flag>();
+	}
+};
+
+thread_local std::string thread_name_flag::_name;
+#endif
+
+void spdlog_thread_name_set(const char * name)
+{
+#if SPDLOG_VERSION > 10500
+	thread_name_flag::reset(name);
+#endif
+}
+
 struct sink_t
 {
 	spdlog::level::level_enum level = tll2spdlog(tll::Logger::Trace);
@@ -55,8 +106,19 @@ struct sink_t
 			format = default_format;
 		sink_t sink;
 		sink.sink.reset(new spdlog::sinks::ansicolor_stderr_sink_mt);
-		sink.sink->set_pattern(std::string(format));
+		sink.set_pattern(format);
 		return sink;
+	}
+
+	void set_pattern(std::string_view format)
+	{
+#if SPDLOG_VERSION > 10500
+		auto formatter = std::make_unique<spdlog::pattern_formatter>();
+		formatter->add_flag<thread_name_flag>('t').set_pattern(std::string(format));
+		sink->set_formatter(std::move(formatter));
+#else
+		sink->set_pattern(std::string(format));
+#endif
 	}
 };
 
@@ -225,7 +287,7 @@ struct spdlog_impl_t : public tll_logger_impl_t
 				return log.fail(EINVAL, "Failed to create sink {}: {}", *type, e.what());
 			}
 
-			sink.sink->set_pattern(reader.getT("format", format));
+			sink.set_pattern(reader.getT("format", format));
 
 			auto prefix = reader.getT<std::string>("prefix", "");
 			auto additivity = reader.getT("additivity", false);
