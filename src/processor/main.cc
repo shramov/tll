@@ -117,6 +117,11 @@ int main(int argc, char *argv[])
 	for (auto & w : proc->workers())
 		threads.push_back(
 			std::thread([](auto ptr) {
+#ifndef __APPLE__
+				auto name = ptr->config().get("info.worker-name");
+				if (name && name->size())
+					pthread_setname_np(pthread_self(), fmt::format("tll:{}", *name).substr(0, 15).c_str());
+#endif
 				if (ptr->open()) return;
 				ptr->loop()->run();
 			}, w));

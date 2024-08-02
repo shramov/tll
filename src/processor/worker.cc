@@ -27,6 +27,7 @@ int Worker::_init(const tll::Channel::Url &url, tll::Channel *master)
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
+	config_info().set("worker-name", wname);
 	_log = { fmt::format("tll.processor.worker.{}", wname) };
 
 	for (auto i : cpuset) {
