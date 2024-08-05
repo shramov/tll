@@ -65,3 +65,30 @@ class Logic(Base):
 
     def _logic(self, channel, msg):
         pass
+
+class AsyncLogic(Logic):
+    def __init__(self, *a, **kw):
+        super(self).__init__(*a, **kw)
+        self._future = None
+
+    def _open(self, cfg):
+        self._future = self.main(cfg)
+        try:
+            self._future.send(None) # Start future
+        except StopIteration as e:
+            self.log.debug("Future completed in open")
+            self._future = None
+            return
+
+    def close(self, force : bool = False):
+        if self._future is not None:
+            self.log.debug("Terminate future")
+            self._future.send(AsyncCloseException())
+        super(self).close(force)
+
+    def _logic(self, channel, msg):
+        if self._future is not None:
+            self._future.send((channel, msg))
+
+    async def main(self, cfg):
+        pass
