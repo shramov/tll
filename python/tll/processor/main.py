@@ -40,6 +40,8 @@ def run(cfg):
     else:
         tll.logger.basicConfig(force=True)
 
+    if 'name' not in cfg:
+        cfg['name'] = 'processor'
     context = Context(cfg.sub("processor.defaults", create=False, throw=False) or Config())
 
     Processor.load_modules(context, cfg)
