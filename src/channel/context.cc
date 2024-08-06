@@ -50,6 +50,7 @@
 #include "channel/stream-server.h"
 #include "channel/tcp.h"
 #include "channel/timeit.h"
+#include "channel/timeline.h"
 #include "channel/timer.h"
 #include "channel/udp.h"
 #include "channel/yaml.h"
@@ -83,6 +84,7 @@ TLL_DECLARE_IMPL(tll::channel::Rotate);
 TLL_DECLARE_IMPL(ChTcp);
 TLL_DECLARE_IMPL(ChTimer);
 TLL_DECLARE_IMPL(ChTimeIt);
+TLL_DECLARE_IMPL(tll::channel::TimeLine);
 TLL_DECLARE_IMPL(ChUdp);
 TLL_DECLARE_IMPL(ChYaml);
 TLL_DECLARE_IMPL(ChZero);
@@ -133,6 +135,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&tll::channel::StreamServer::impl);
 		reg(&ChTcp::impl);
 		reg(&ChTimeIt::impl);
+		reg(&tll::channel::TimeLine::impl);
 		reg(&ChTimer::impl);
 		reg(&ChUdp::impl);
 		reg(&ChYaml::impl);

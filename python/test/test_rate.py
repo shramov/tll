@@ -4,6 +4,7 @@
 import tll.channel as C
 from tll.error import TLLError
 from tll.test_util import Accum
+from tll.chrono import TimePoint
 
 import pytest
 import select
@@ -79,6 +80,63 @@ def test_input(context):
         c.close()
 
     c.open()
+    child.process()
+
+    assert child.dcaps & child.DCaps.SuspendPermanent
+    assert child.dcaps & child.DCaps.Suspend
+
+    c.suspend()
+    assert c.dcaps & child.DCaps.SuspendPermanent
+    assert c.dcaps & child.DCaps.Suspend
+
+    c.close()
+    assert (child.dcaps & child.DCaps.SuspendPermanent) == 0
+    assert child.dcaps & child.DCaps.Suspend
+
+    c.resume()
+
+    assert (child.dcaps & child.DCaps.SuspendPermanent) == 0
+    assert (child.dcaps & child.DCaps.Suspend) == 0
+
+def test_timeline(context):
+    TP = lambda v: TimePoint(v, 'ns', int)
+
+    c = Accum('timeline+direct://;speed=0.1', name='timeline', dump='frame', context=context)
+    s = context.Channel('direct://', name='source', dump='frame', master=c)
+
+    assert [x.name for x in c.children] == ['timeline/timeline', 'timeline/timer']
+    child, timer = c.children
+
+    c.open()
+    s.open()
+
+    s.post(b'xxx', seq=0)
+
+    assert [(m.data.tobytes(), m.seq) for m in c.result] == [(b'xxx', 0)]
+
+    s.post(b'xxx', seq=1, time=100)
+
+    assert [(m.seq, m.time) for m in c.result] == [(0, TP(0)), (1, TP(100))]
+
+    s.post(b'xxx', seq=2, time=200)
+
+    assert [(m.seq, m.time) for m in c.result] == [(0, TP(0)), (1, TP(100)), (2, TP(200))]
+
+    s.post(b'xxx', seq=3, time=1000100)
+
+    assert [(m.seq, m.time) for m in c.result] == [(0, TP(0)), (1, TP(100)), (2, TP(200))]
+
+    assert child.dcaps & child.DCaps.Suspend
+
+    time.sleep(0.01)
+    timer.process()
+
+    assert [(m.seq, m.time) for m in c.result] == [(0, TP(0)), (1, TP(100)), (2, TP(200)), (3, TP(1000100))]
+
+    assert (child.dcaps & child.DCaps.Suspend) == 0
+
+    s.post(b'xxxzzz', seq=3, time=2000100)
+
     child.process()
 
     assert child.dcaps & child.DCaps.SuspendPermanent

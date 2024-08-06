@@ -22,6 +22,7 @@ channel_sources = files(
 	, 'stream-server.cc'
 	, 'tcp.cc'
 	, 'timeit.cc'
+	, 'timeline.cc'
 	, 'timer.cc'
 	, 'udp.cc'
 	, 'yaml.cc'
