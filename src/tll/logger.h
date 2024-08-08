@@ -88,6 +88,14 @@ typedef struct {
 
 tll_logger_buf_t * tll_logger_tls_buf(void);
 
+/**
+ * Set current thread name included in log message.
+ * Can be longer then OS limit (16 bytes for linux)
+ *
+ * If name is null pointer then old value is reset and will be retrieved from OS on next log call
+ */
+void tll_logger_thread_name_set(const char * name);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif//__cplusplus

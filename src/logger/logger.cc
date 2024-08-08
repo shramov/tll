@@ -322,6 +322,13 @@ tll_logger_buf_t * tll_logger_tls_buf()
 	return &buf;
 }
 
+void tll_logger_thread_name_set(const char * name)
+{
+#ifdef WITH_SPDLOG
+	spdlog_thread_name_set(name);
+#endif
+}
+
 namespace {
 int bufprintf(tll::logger::tls_buf_t * buf, const char * fmt, va_list va)
 {

@@ -163,3 +163,8 @@ TLL_0.3.0 {
 		tll_scheme_path_add;
 		tll_scheme_path_remove;
 } TLL_0.2.0;
+
+TLL_0.4.0 {
+	global:
+		tll_logger_thread_name_set;
+} TLL_0.3.0;
