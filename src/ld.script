@@ -35,7 +35,6 @@ TLL_0.0.0 {
 		tll_channel_log_msg;
 		tll_channel_module_load;
 		tll_channel_module_load_cfg;
-		tll_channel_module_unload;
 		tll_channel_name;
 		tll_channel_new;
 		tll_channel_new_url;
@@ -78,7 +77,6 @@ TLL_0.0.0 {
 		tll_config_unset;
 		tll_config_value;
 		tll_config_value_free;
-		tll_config_value_strdup;
 
 		tll_decimal128_pack;
 		tll_decimal128_unpack;
@@ -146,7 +144,6 @@ TLL_0.0.0 {
 		tll_stat_list_new;
 		tll_stat_list_remove;
 		tll_stat_page_acquire;
-		tll_stat_page_flip;
 		tll_stat_page_release;
 
 		tll_time_now;
