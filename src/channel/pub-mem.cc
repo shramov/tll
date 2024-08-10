@@ -12,6 +12,8 @@
 #include "tll/cppring.h"
 #include "tll/util/size.h"
 
+#include "tll/compat/fallocate.h"
+
 #include <fcntl.h>
 #include <sys/file.h>
 #include <sys/mman.h>
