@@ -42,6 +42,16 @@ spdlog::level::level_enum tll2spdlog(tll_logger_level_t l)
 }
 
 #if SPDLOG_VERSION > 10500
+
+#ifdef __APPLE__
+uint64_t gettid()
+{
+	uint64_t tid = 0;
+	pthread_threadid_np(nullptr, &tid);
+	return tid;
+}
+#endif
+
 struct thread_name_flag final : public spdlog::custom_flag_formatter
 {
 	static thread_local std::string _name;
@@ -51,14 +61,13 @@ struct thread_name_flag final : public spdlog::custom_flag_formatter
 		if (_name.size() != 0)
 			return _name;
 
-		char buf[256];
 #ifndef __APPLE__
+		char buf[256];
 		if (pthread_getname_np(pthread_self(), buf, sizeof(buf)) == 0) {
 			_name = buf;
 			return _name;
 		}
 #endif
-
 		_name = tll::conv::to_string(gettid());
 		return _name;
 	}
