@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # vim: sts=4 sw=4 et
 
-from distutils.core import setup
-from distutils.extension import Extension
+from setuptools import setup, Extension
 from Cython.Distutils import build_ext
 
 setup( name = 'tll'
