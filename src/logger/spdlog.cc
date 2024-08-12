@@ -43,14 +43,18 @@ spdlog::level::level_enum tll2spdlog(tll_logger_level_t l)
 
 #if SPDLOG_VERSION > 10500
 
-#ifdef __APPLE__
-uint64_t gettid()
+static inline uint64_t _gettid()
 {
+#ifdef __APPLE__
 	uint64_t tid = 0;
 	pthread_threadid_np(nullptr, &tid);
 	return tid;
-}
+#elif defined(__FreeBSD__)
+	return pthread_getthreadid_np();
+#else
+	return gettid();
 #endif
+}
 
 struct thread_name_flag final : public spdlog::custom_flag_formatter
 {
@@ -68,7 +72,7 @@ struct thread_name_flag final : public spdlog::custom_flag_formatter
 			return _name;
 		}
 #endif
-		_name = tll::conv::to_string(gettid());
+		_name = tll::conv::to_string(_gettid());
 		return _name;
 	}
 
