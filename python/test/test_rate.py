@@ -31,9 +31,12 @@ def test_post(context):
         with pytest.raises(TLLError): c.post(b'x' * 64)
         assert [(m.type, m.msgid) for m in c.result] == [(c.Type.Control, c.scheme_control.messages.WriteFull.msgid)]
 
-        poll = select.poll()
-        poll.register(timer.fd, select.POLLIN)
-        assert poll.poll(20) != []
+        if timer.fd:
+            poll = select.poll()
+            poll.register(timer.fd, select.POLLIN)
+            assert poll.poll(20) != []
+        else:
+            time.sleep(0.02)
 
         c.result = []
         timer.process()
@@ -66,9 +69,13 @@ def test_input(context):
 
         assert child.dcaps & child.DCaps.Suspend
 
-        poll = select.poll()
-        poll.register(timer.fd, select.POLLIN)
-        assert poll.poll(20) != []
+        if timer.fd:
+            poll = select.poll()
+            poll.register(timer.fd, select.POLLIN)
+            assert poll.poll(20) != []
+        else:
+            time.sleep(0.02)
+
         timer.process()
 
         assert (child.dcaps & child.DCaps.Suspend) == 0
