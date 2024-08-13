@@ -8,6 +8,7 @@ from tll.error import TLLError
 from tll.test_util import Accum
 
 import pytest
+import sys
 
 def test_config():
     with pytest.raises(TypeError): Loop(config='abc')
@@ -15,6 +16,7 @@ def test_config():
     Loop(config={'poll':'yes'})
     Loop(config={'poll':'no'})
 
+@pytest.mark.skipif(sys.platform != 'linux', reason='Event notifications are linux only')
 def test_fd():
     ctx = C.Context()
     l = Loop()
@@ -29,6 +31,7 @@ def test_fd():
     assert l.poll() == c
     assert l.poll() == c
 
+@pytest.mark.skipif(sys.platform != 'linux', reason='Event notifications are linux-only')
 def test_pending_fd():
     ctx = C.Context()
     l = Loop()
