@@ -73,6 +73,23 @@ def test(server, client):
         assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'x' * i)
 
 @asyncloop_run
+async def test_disconnect(asyncloop, server, client):
+    s, c = server, client
+
+    s.open()
+    c.open()
+
+    assert (await s.recv_state()) == s.State.Active
+    assert (await c.recv_state()) == c.State.Active
+
+    assert (await s.recv()).msgid == s.scheme_control['Connect'].msgid
+
+    c.close()
+    assert (await c.recv_state()) == c.State.Closed
+
+    assert (await s.recv()).msgid == s.scheme_control['Disconnect'].msgid
+
+@asyncloop_run
 async def test_more(asyncloop, server, client):
     s, c = server, client
     s.open()

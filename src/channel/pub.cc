@@ -132,7 +132,7 @@ int ChPubSocket::_open(const ConstConfig &url)
 	} else
 		_rbuf.resize(16);
 
-	_dcaps_poll(dcaps::CPOLLOUT);
+	_dcaps_poll(dcaps::CPOLLOUT | dcaps::CPOLLIN);
 	state(state::Active);
 	return 0;
 }
@@ -145,7 +145,7 @@ int ChPubSocket::_close()
 
 int ChPubSocket::_on_active()
 {
-	_dcaps_poll(0);
+	_dcaps_poll(dcaps::CPOLLIN);
 	state(state::Active);
 
 	_iter = _ring->end();
@@ -236,7 +236,7 @@ int ChPubSocket::_process_data(bool pollout)
 	auto r = send(fd(), _ptr, size, MSG_NOSIGNAL | MSG_DONTWAIT);
 	if (r < 0) {
 		if (errno == EAGAIN) {
-			_dcaps_poll(dcaps::CPOLLOUT);
+			_dcaps_poll(dcaps::CPOLLOUT | dcaps::CPOLLIN);
 			return EAGAIN;
 		} else if (errno == EPIPE) {
 			_log.warning("Send to '{}' failed: {}", _peer, strerror(errno));
@@ -250,7 +250,7 @@ int ChPubSocket::_process_data(bool pollout)
 		_ptr += r;
 		for (; _ptr >= (const unsigned char *) _iter->end(); _iter++)
 			_seq = _iter->frame->seq;
-		_dcaps_poll(dcaps::CPOLLOUT);
+		_dcaps_poll(dcaps::CPOLLOUT | dcaps::CPOLLIN);
 		return 0;
 	}
 
@@ -260,7 +260,7 @@ int ChPubSocket::_process_data(bool pollout)
 	if (++_iter != _ring->end())
 		return _process_data();
 
-	_dcaps_poll(0);
+	_dcaps_poll(dcaps::CPOLLIN);
 	return 0;
 }
 
@@ -272,7 +272,8 @@ int ChPubSocket::_process(long timeout, int flags)
 	if (r == EAGAIN) {
 		// Check for connection close
 		_recv(4);
-		rdone(rsize());
+		if (rsize())
+			return _log.fail(EINVAL, "Got unexpected data from client '{}', disconnect him", _peer);
 	}
 	return r;
 }
