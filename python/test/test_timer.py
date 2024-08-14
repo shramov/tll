@@ -8,6 +8,7 @@ from tll.test_util import Accum
 
 import pytest
 import select
+import sys
 import time
 
 ctx = C.Context()
@@ -24,6 +25,8 @@ def test_properties():
     assert c.fd != -1
     assert c.scheme != None
 
+
+@pytest.mark.skipif('linux' not in sys.platform, reason='timerfd not supported')
 @pytest.mark.parametrize("init,open,wait", [
     ('', '', []),
     ('interval=5ms;oneshot=true', '', ['5ms']),
