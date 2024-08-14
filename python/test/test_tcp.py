@@ -460,7 +460,7 @@ def test_mptcp(host, client, server):
 @pytest.mark.skipif(WITHOUT_SCTP, reason="SCTP not available")
 @pytest.mark.parametrize("client", ['::1', '127.0.0.1'])
 async def test_sctp(asyncloop, client):
-    s = asyncloop.Channel(f'tcp://*:{ports.TCP6};af=ipv6;mode=server;dump=frame', name='server', protocol='sctp')
+    s = asyncloop.Channel(f'tcp://{client}:{ports.TCP6};mode=server;dump=frame', name='server', protocol='sctp')
     c = asyncloop.Channel(f'tcp://{client}:{ports.TCP6};mode=client;dump=frame', name='client', protocol='sctp')
 
     s.open()
