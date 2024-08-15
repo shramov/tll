@@ -8,8 +8,14 @@
 #include "channel/blocks.h"
 #include "channel/blocks.scheme.h"
 
-#include <sys/fcntl.h>
+#include <filesystem>
+
+#include <fcntl.h>
+#ifndef WIN32
 #include <unistd.h>
+#else
+#include <io.h>
+#endif
 
 using namespace tll::channel;
 
@@ -57,7 +63,7 @@ int Blocks::_open(const tll::ConstConfig &cfg)
 	if (auto r = Base::_open(cfg); r)
 		return r;
 
-	if (!_master && !access(_filename.c_str(), R_OK)) {
+	if (!_master && std::filesystem::exists(_filename)) {
 		_log.info("Load data blocks from {}", _filename);
 		auto blocks = Config::load("yaml", _filename);
 		if (!blocks)
