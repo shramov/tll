@@ -33,7 +33,9 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/daily_file_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>
+#ifndef _WIN32
 #include <spdlog/sinks/syslog_sink.h>
+#endif
 
 namespace {
 spdlog::level::level_enum tll2spdlog(tll_logger_level_t l)
@@ -292,6 +294,7 @@ struct spdlog_impl_t : public tll_logger_impl_t
 #else
 					sink.sink.reset(new spdlog::sinks::rotating_file_sink_mt(filename, max_size, max_files, rotate_on_open));
 #endif
+#ifndef _WIN32
 				} else if (*type == "syslog") {
 					auto ident = reader.getT<std::string>("ident", "");
 					if (!reader)
@@ -301,6 +304,7 @@ struct spdlog_impl_t : public tll_logger_impl_t
 #else
 					sink.sink.reset(new spdlog::sinks::syslog_sink_mt(ident, LOG_PID, 0, false));
 #endif
+#endif//_WIN32
 				} else {
 					log.error("Unknown sink type {}", *type);
 					continue;
