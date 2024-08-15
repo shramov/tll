@@ -75,7 +75,10 @@ int tll_logger_log(tll_logger_t * log, tll_logger_level_t lvl, const char * buf,
 
 /// Log message with printf-like formatting
 int tll_logger_printf(tll_logger_t * log, tll_logger_level_t lvl, const char * fmt, ...)
-	__attribute__((format(printf, 3, 4)));
+#ifdef __GNUC__
+	__attribute__((format(printf, 3, 4)))
+#endif
+;
 
 typedef struct {
 	char * data;
