@@ -19,11 +19,13 @@ shared_library('tll-logic-stat'
 	, install: true
 	)
 
-shared_library('tll-logic-control'
-	, ['control.cc']
-	, dependencies : [fmt, tll, rapidjson]
-	, install: true
-	)
+if rapidjson.found()
+  shared_library('tll-logic-control'
+                , ['control.cc']
+                , dependencies : [fmt, tll, rapidjson]
+                , install: true
+                )
+endif
 
 mansources = [
 	'forward.rst',
