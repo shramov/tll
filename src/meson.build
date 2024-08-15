@@ -1,7 +1,6 @@
 sources = []
 sources += ['config/config.cc', 'config/yaml.cc']
 sources += ['scheme.cc']
-sources += ['processor/loop.cc']
 sources += ['stat.cc']
 sources += ['time.cc']
 sources += ['ring.c']
