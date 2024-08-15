@@ -9,6 +9,8 @@
 #include <cstddef>
 #include <memory>
 
+#include <tll/compat/align.h>
+
 namespace tll {
 
 template <bool HeadGen = false, bool TailGen = false>
@@ -54,12 +56,12 @@ struct RingT
 	};
 
 	/// Head marker, only updated by reader
-	Pointer<HeadGen> __attribute__((aligned(64))) head;
+	Pointer<HeadGen> TLL_ALIGN(64) head;
 
 	/// Tail marker, only updated by writer
-	Pointer<TailGen> __attribute__((aligned(64))) tail;
+	Pointer<TailGen> TLL_ALIGN(64) tail;
 
-	char __attribute__((aligned(64))) data[];
+	char TLL_ALIGN(64) data[];
 
 	using Size = int32_t;
 

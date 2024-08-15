@@ -13,6 +13,8 @@
 #include <cstddef>
 #include <cerrno>
 
+#include <tll/compat/align.h>
+
 /**
  * Multiple Input - Single Output queue for simple types.
  * Type must have one designated Zero value (by default 0)
@@ -27,16 +29,8 @@ class MarkerQueue {
 
 	typedef std::atomic<T> * pointer_t;
 
-#ifdef _MSC_VER
-#define ALIGN(SIZE) __declspec(align(SIZE))
-#else
-#define ALIGN(SIZE) __attribute__((aligned(SIZE)))
-#endif
-
-	pointer_t ALIGN(64) _head;
-	std::atomic<pointer_t> ALIGN(64) _tail;
-
-#undef ALIGN
+	pointer_t TLL_ALIGN(64) _head;
+	std::atomic<pointer_t> TLL_ALIGN(64) _tail;
 
 	pointer_t _next(pointer_t i)
 	{
