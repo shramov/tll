@@ -72,7 +72,7 @@ void tll_channel_internal_init_v1(tll_channel_internal_t *ptr)
 }
 
 #if !(defined(__linux__) || defined(__FreeBSD__))
-void tll_channel_internal_init(tll_channel_internal_t *ptr) { return tll_channel_internal_init_v1(ptr); }
+void tll_channel_internal_init(tll_channel_internal_t *ptr) { tll_channel_internal_init_v1(ptr); }
 #endif
 
 void tll_channel_internal_clear(tll_channel_internal_t *ptr)
