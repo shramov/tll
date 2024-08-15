@@ -61,7 +61,10 @@ int tll_config_unlink(tll_config_t *, const char * path, int plen);
 int tll_config_remove(tll_config_t *, const char * path, int plen);
 
 /// Delete node, deprecated variant. Always recursive
-__attribute__((deprecated)) int tll_config_del(tll_config_t *, const char * path, int plen, int recursive);
+#ifdef __GNUC__
+__attribute__((deprecated))
+#endif
+int tll_config_del(tll_config_t *, const char * path, int plen, int recursive);
 
 /** Set config subtree
  *
