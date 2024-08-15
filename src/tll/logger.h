@@ -94,6 +94,7 @@ tll_logger_buf_t * tll_logger_tls_buf(void);
 
 #ifdef __cplusplus
 
+#include <iterator>
 #include <string_view>
 #include <fmt/format.h>
 
