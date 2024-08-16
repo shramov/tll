@@ -19,6 +19,8 @@
 #include "tll/util/url.h"
 #include "tll/util/zlib.h"
 
+#include "tll/compat/strndup.h"
+
 #include "scheme-config.h"
 
 #include <errno.h>
