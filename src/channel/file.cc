@@ -9,6 +9,7 @@
 #include "channel/file-init.h"
 #include "channel/file-scheme.h"
 
+#include "tll/compat/pwrite.h"
 #include "tll/util/size.h"
 
 #include <fcntl.h>
@@ -45,19 +46,6 @@ static constexpr std::string_view control_scheme = R"(yamls://
 )";
 static constexpr int control_seek_msgid = 10;
 static constexpr int control_eod_msgid = 20;
-
-#ifdef __APPLE__
-#if MAC_OS_X_VERSION_MIN_REQUIRED <= 1010
-
-ssize_t pwritev(int fd, const struct iovec *iov, int iovcnt, off_t offset)
-{
-	if (lseek(fd, offset, SEEK_SET) < 0)
-		return -1;
-	return writev(fd, iov, iovcnt);
-}
-
-#endif
-#endif
 
 #ifndef __linux__
 #define MAP_POPULATE 0
