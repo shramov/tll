@@ -36,7 +36,7 @@ struct fmt::formatter<T, char, typename std::enable_if<_custom<T>::value>::type>
 	constexpr auto parse(ParseContext &ctx) { return ctx.begin(); }
 
 	template <typename FormatContext>
-	auto format(const T &v, FormatContext &ctx) {
+	auto format(const T &v, FormatContext &ctx) const {
 		return fmt::format_to(ctx.out(), "{}", tll::conv::to_string<T>(v));
 	}
 };
