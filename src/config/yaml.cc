@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <yaml.h>
 
+#include <memory>
 #include <optional>
 #include <variant>
 
