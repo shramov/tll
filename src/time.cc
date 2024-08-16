@@ -6,8 +6,8 @@
  */
 
 #include "tll/util/time.h"
+#include "tll/compat/clock_gettime.h"
 
-#include <sys/time.h>
 #include <time.h>
 
 struct cached_clock_t

@@ -9,6 +9,7 @@
 #define _TLL_CHANNEL_TIMER_H
 
 #include "tll/channel/base.h"
+#include "tll/compat/clock_gettime.h"
 #include "tll/util/time.h"
 
 #include <time.h>
