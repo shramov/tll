@@ -15,7 +15,16 @@
 # define SPDLOG_FMT_EXTERNAL
 #endif
 
-#define SPDLOG_LEVEL_NAMES { "TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "OFF" }
+#define SPDLOG_STRING(x) std::string_view(x)
+#define SPDLOG_LEVEL_NAMES { \
+	SPDLOG_STRING("TRACE"), \
+	SPDLOG_STRING("DEBUG"), \
+	SPDLOG_STRING("INFO"), \
+	SPDLOG_STRING("WARNING"), \
+	SPDLOG_STRING("ERROR"), \
+	SPDLOG_STRING("CRITICAL"), \
+	SPDLOG_STRING("OFF") \
+	}
 
 #include <spdlog/sinks/sink.h>
 #include <spdlog/spdlog.h>
