@@ -24,6 +24,7 @@ inline char * rwrite_uint(char * end, T v, int pad = 0)
 	return ptr;
 }
 
+#ifndef _WIN32
 template <>
 inline char * rwrite_uint(char * end, unsigned __int128 v, int pad)
 {
@@ -43,6 +44,7 @@ inline char * rwrite_uint(char * end, unsigned __int128 v, int pad)
 	} else
 		return rwrite_uint(end, lo, pad);
 }
+#endif
 
 template <typename T>
 struct unpacked_float
