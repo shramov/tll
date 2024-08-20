@@ -2,13 +2,13 @@
 # vim: sts=4 sw=4 et
 
 import argparse
+import importlib.resources
 import logging
 import os
 import pathlib
 import shutil
 import sys
 import tempfile
-import pkg_resources
 
 from mako.lookup import TemplateLookup
 
@@ -65,7 +65,7 @@ parser.add_argument('--timeout', dest='timeout', type=float,
 args, rest = parser.parse_known_args()
 
 lookup = TemplateLookup(
-        args.template_dir + [pkg_resources.resource_filename('tll', 'templates'), '/usr/share/tll/templates'],
+        args.template_dir + [importlib.resources.files('tll.templates'), '/usr/share/tll/templates'],
         input_encoding='utf-8',
         output_encoding='utf-8',
         )
