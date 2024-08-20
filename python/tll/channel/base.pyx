@@ -275,7 +275,8 @@ cdef class Base:
         self.dealloc()
 
     def open(self, props : Config):
-        self.log.info("Open channel")
+        pstr = ';'.join([f'{k}={v}' for (k, v) in props.browse('**')])
+        self.log.info(f"Open channel: {pstr}")
         self.state = C.State.Opening
 
         if self._scheme_url:
