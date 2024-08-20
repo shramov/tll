@@ -2115,6 +2115,7 @@ int tll_scheme_message_fix(tll_scheme_message_t * m)
 	}
 
 	unsigned index = 0;
+	tll::scheme::Field * foptional = nullptr;
 	for (auto &f : list_wrap(m->fields)) {
 		if (tll_scheme_field_fix(&f))
 			return EINVAL;
@@ -2124,6 +2125,8 @@ int tll_scheme_message_fix(tll_scheme_message_t * m)
 		auto optional = reader.getT("optional", *moptional);
 		if (!reader)
 			return EINVAL;
+		if (optional && !foptional)
+			foptional = &f;
 		if (pmap) {
 			if (m->pmap)
 				return EINVAL;
@@ -2133,6 +2136,10 @@ int tll_scheme_message_fix(tll_scheme_message_t * m)
 			f.index = index++;
 		f.offset = offset;
 		offset += f.size;
+	}
+	if (foptional && !m->pmap) {
+		tll::Logger log = {"tll.scheme"};
+		log.warning("Message '{}' has optional field '{}' but missing pmap", m->name, foptional->name);
 	}
 	m->size = offset;
 	return 0;
