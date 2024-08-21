@@ -47,6 +47,7 @@ mansources = [
 	'null.rst',
 	'pub-mem.rst',
 	'pub-tcp.rst',
+	'random.rst',
 	'rate.rst',
 	'stream-server.rst',
 	'stream-client.rst',
