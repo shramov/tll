@@ -22,6 +22,9 @@ class RTT : public Tagged<RTT, Timer, Input, Output>
 	tll_msg_t _msg = {};
 	std::vector<unsigned char> _data;
 
+	tll::time_point _last_timer = {};
+	bool _chained = false;
+
 	tll_msg_t _msg_time = {};
 	struct TimeData {
 		char name[8];
@@ -42,12 +45,15 @@ class RTT : public Tagged<RTT, Timer, Input, Output>
 	int _open(const tll::ConstConfig &cfg)
 	{
 		_msg.seq = -1;
+		_last_timer = tll::time::now();
 		return Base::_open(cfg);
 	}
 
 	int callback_tag(TaggedChannel<Input> * c, const tll_msg_t *msg);
 	int callback_tag(TaggedChannel<Output> * c, const tll_msg_t *msg) { return 0; }
 	int callback_tag(TaggedChannel<Timer> * c, const tll_msg_t *msg);
+
+	int _send();
 };
 
 int RTT::_init(const tll::Channel::Url &url, tll::Channel *)
@@ -60,6 +66,7 @@ int RTT::_init(const tll::Channel::Url &url, tll::Channel *)
 
 	auto reader = channel_props_reader(url);
 	auto size = reader.getT("payload", tll::util::Size { 128 });
+	_chained = reader.getT("chained", false);
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
@@ -93,6 +100,11 @@ int RTT::callback_tag(TaggedChannel<Input> * c, const tll_msg_t *msg)
 		}
 	}
 
+	if (_chained) {
+		_send();
+		_last_timer = {};
+	}
+
 	_time_data.value = dt.count();
 	_callback_data(&_msg_time);
 
@@ -103,7 +115,14 @@ int RTT::callback_tag(TaggedChannel<Timer> * c, const tll_msg_t *msg)
 {
 	if (msg->type != TLL_MESSAGE_DATA)
 		return 0;
-	*(tll::time_point *)_data.data() = tll::time::now();
+	if (_last_timer == tll::time::epoch)
+		return 0;
+	return _send();
+}
+
+int RTT::_send()
+{
+	_last_timer = *(tll::time_point *)_data.data() = tll::time::now();
 
 	_msg.seq++;
 	_output->post(&_msg);
