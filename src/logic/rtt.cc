@@ -9,6 +9,8 @@
 #include <tll/channel/module.h>
 #include <tll/util/size.h>
 
+#include <tll/scheme/logic/quantile.h>
+
 using namespace tll::channel;
 
 struct Timer : public Tag<TLL_MESSAGE_MASK_DATA> { static constexpr std::string_view name() { return "timer"; } };
@@ -19,6 +21,12 @@ class RTT : public Tagged<RTT, Timer, Input, Output>
 
 	tll_msg_t _msg = {};
 	std::vector<unsigned char> _data;
+
+	tll_msg_t _msg_time = {};
+	struct TimeData {
+		char name[8];
+		uint64_t value;
+	} _time_data = {};
  public:
 	using Base = Tagged<RTT, Timer, Input, Output>;
 	static constexpr std::string_view channel_protocol() { return "rtt"; }
@@ -60,6 +68,10 @@ int RTT::_init(const tll::Channel::Url &url, tll::Channel *)
 	_msg.data = _data.data();
 	_msg.size = _data.size();
 
+	_msg_time.msgid = quantile_scheme::Data::meta_id();
+	_msg_time.data = &_time_data;
+	_msg_time.size = sizeof(_time_data);
+
 	return 0;
 }
 
@@ -80,6 +92,10 @@ int RTT::callback_tag(TaggedChannel<Input> * c, const tll_msg_t *msg)
 			this->channelT()->stat()->release(page);
 		}
 	}
+
+	_time_data.value = dt.count();
+	_callback_data(&_msg_time);
+
 	return 0;
 }
 
