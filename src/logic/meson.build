@@ -35,6 +35,7 @@ shared_library('tll-logic-rtt'
 
 mansources = [
 	'forward.rst',
+	'rtt.rst',
 	'stat.rst',
 	'quantile.rst',
 	]
