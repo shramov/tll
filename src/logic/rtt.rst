@@ -38,6 +38,9 @@ be provided, otherwise it is not used.
 
 ``input`` - input channel.
 
+``result`` - optional, post measured time in theese channels in same format as described in `Output
+scheme`_.
+
 Init parameters
 ~~~~~~~~~~~~~~~
 
@@ -72,11 +75,7 @@ lives, and feed it via pair of memory rings::
   ...
     rtt:
       init: rtt://
-      channels: {timer: rtt-timer, output: output, input: input}
-      depends: quantile-forward
-    quantile-forward:
-      init: forward://
-      channels: {input: rtt, output: rtt-mem}
+      channels: {timer: rtt-timer, output: output, input: input, result: rtt-mem}
       depends: rtt-mem
     rtt-mem:
       init: mem://;master=quantile-mem
@@ -87,7 +86,7 @@ lives, and feed it via pair of memory rings::
     quantile:
       worker: stat
       init: quantile://;quantile=50,90,95
-      channels: {input: rtt, timer: stat-timer}
+      channels: {input: quantile-mem, timer: stat-timer}
     ...
 
 Examples

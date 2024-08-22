@@ -14,8 +14,9 @@
 using namespace tll::channel;
 
 struct Timer : public Tag<TLL_MESSAGE_MASK_DATA> { static constexpr std::string_view name() { return "timer"; } };
+struct Result : public Tag<TLL_MESSAGE_MASK_STATE> { static constexpr std::string_view name() { return "result"; } };
 
-class RTT : public Tagged<RTT, Timer, Input, Output>
+class RTT : public Tagged<RTT, Timer, Input, Output, Result>
 {
 	tll::Channel * _output = nullptr;
 
@@ -31,7 +32,7 @@ class RTT : public Tagged<RTT, Timer, Input, Output>
 		uint64_t value;
 	} _time_data = {};
  public:
-	using Base = Tagged<RTT, Timer, Input, Output>;
+	using Base = Tagged<RTT, Timer, Input, Output, Result>;
 	static constexpr std::string_view channel_protocol() { return "rtt"; }
 	static constexpr auto scheme_policy() { return SchemePolicy::Manual; }
 
@@ -52,6 +53,7 @@ class RTT : public Tagged<RTT, Timer, Input, Output>
 
 	int callback_tag(TaggedChannel<Input> * c, const tll_msg_t *msg);
 	int callback_tag(TaggedChannel<Output> * c, const tll_msg_t *msg) { return 0; }
+	int callback_tag(TaggedChannel<Result> * c, const tll_msg_t *msg) { return 0; }
 	int callback_tag(TaggedChannel<Timer> * c, const tll_msg_t *msg);
 
 	int _send();
@@ -114,6 +116,8 @@ int RTT::callback_tag(TaggedChannel<Input> * c, const tll_msg_t *msg)
 	}
 
 	_time_data.value = dt.count();
+	for (auto & [c, _]: _channels.get<Result>())
+		c->post(&_msg_time);
 	_callback_data(&_msg_time);
 
 	return 0;
