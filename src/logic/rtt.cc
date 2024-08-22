@@ -33,6 +33,7 @@ class RTT : public Tagged<RTT, Timer, Input, Output>
  public:
 	using Base = Tagged<RTT, Timer, Input, Output>;
 	static constexpr std::string_view channel_protocol() { return "rtt"; }
+	static constexpr auto scheme_policy() { return SchemePolicy::Manual; }
 
 	struct StatType : public Base::StatType
 	{
@@ -70,6 +71,13 @@ int RTT::_init(const tll::Channel::Url &url, tll::Channel *)
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
+
+	if (_chained && !_output)
+		return _log.fail(EINVAL, "Chained mode is available only with timer/output channels");
+
+	_scheme.reset(context().scheme_load(quantile_scheme::scheme_string));
+	if (!_scheme.get())
+		return _log.fail(EINVAL, "Failed to load quantile scheme");
 
 	_data.resize(sizeof(tll::time_point) + size);
 	_msg.data = _data.data();
