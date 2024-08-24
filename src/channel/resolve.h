@@ -87,7 +87,7 @@ class Resolve : public tll::channel::Prefix<Resolve>
 				return 0;
 			}
 		case tll::state::Closed:
-			if (state() == tll::state::Closed)
+			if (state() == tll::state::Closing)
 				state(tll::state::Closed);
 			return 0;
 		default:

@@ -107,3 +107,21 @@ def test_scheme_override(context):
     assert [m.name for m in c.children[1].scheme.messages] == ['Inner']
     assert c.scheme != None
     assert [m.name for m in c.scheme.messages] == ['Outer']
+
+def test_early_close(context, path_srcdir):
+    scheme = path_srcdir / "src/logic/resolve.yaml"
+    rserver = Accum('direct://', name='resolve-server', dump='yes', scheme=f'yaml://{scheme}', context=context)
+    server = Accum('direct://', name='server', dump='yes', context=context)
+    c = Accum('resolve://service/channel', name='resolve', context=context)
+
+    server.open()
+    rserver.open()
+
+    c.open()
+    assert c.state == c.State.Opening
+    assert rserver.result != []
+    assert rserver.unpack(rserver.result[0]).as_dict() == {'service': 'service', 'channel': 'channel'}
+
+    c.close()
+
+    assert c.state == c.State.Closed
