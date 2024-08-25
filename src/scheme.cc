@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <stdlib.h>
 
+#include <algorithm>
 #include <atomic>
 #include <memory>
 #include <set>
