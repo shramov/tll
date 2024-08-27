@@ -13,6 +13,8 @@
 #include <unistd.h>
 #endif
 
+#include <fmt/chrono.h>
+
 using namespace tll;
 using namespace std::chrono_literals;
 

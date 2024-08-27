@@ -121,6 +121,8 @@ struct conv::dump<std::chrono::duration<T, R>> : public conv::to_string_from_str
 {
 	typedef std::chrono::duration<T, R> value_type;
 
+	static constexpr bool fmt_has_formatter = true;
+
 	template <typename Buf>
 	static std::string_view to_string_buf(const value_type &value, Buf &buf)
 	{
