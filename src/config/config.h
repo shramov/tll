@@ -117,6 +117,8 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 		auto lock = rlock();
 		if (std::holds_alternative<path_t>(data)) {
 			auto cfg = _lookup_link(this);
+			if (!cfg)
+				return std::nullopt;
 			return cfg->get();
 		} else if (std::holds_alternative<std::string>(data)) {
 			auto & v = std::get<std::string>(data);
