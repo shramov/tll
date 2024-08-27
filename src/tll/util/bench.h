@@ -67,13 +67,13 @@ template <typename F, typename... Args>
 	using namespace std::chrono;
 
 	volatile unsigned long long accum = 0;
-	auto start = system_clock::now();
+	auto start = steady_clock::now();
 	asm volatile("": : :"memory");
 	for (auto i = 0u; i < count; i++) {
 		accum = accum ^ _reduce(f(args...));
 		asm volatile("": : :"memory");
 	}
-	nanoseconds dt = system_clock::now() - start;
+	nanoseconds dt = steady_clock::now() - start;
 	(void) accum;
 	fmt::print("Time {}: {:.3f}ms/{}: {}\n", name, std::chrono::duration<double, std::milli>(dt).count(), count, dt / count);
 }
