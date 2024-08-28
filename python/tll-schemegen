@@ -15,6 +15,10 @@ from mako.lookup import TemplateLookup
 from tll import logger
 import tll.scheme as S
 
+if not hasattr(importlib.resources, 'files'):
+    import pkg_resources
+    importlib.resources.files = lambda m: pkg_resources.resource_filename(*m.split('.', 1))
+
 def safe_write(filename, data):
     p = pathlib.Path(filename)
     if not p.parent.exists():
