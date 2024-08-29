@@ -1,3 +1,31 @@
+tll (0.3.1) unstable; urgency=medium
+
+  * bench:
+    Do not depend on conv framework in benchmarks
+    Switch to monotonic clock
+  * config: Check for broken link in Config::get()
+  * doc: Describe build process
+  * logger:
+    Compatibility with fmtlib 10
+    Include thread name in log messages
+  * processor:
+    Set name for worker thread
+  * python:
+    Include open parameters in the log
+    Make Base._close behave same as C++ Base::_close
+    Migrate from distutils to setuptools
+    Use importlib instead of pkg_resources
+  * resolve:
+    Fix disconnect cleanup
+    Incorrect state when channel is closed too early
+  * rtt: Logic to measure round trip times
+  * scheme: Warn about optional fiels without pmap
+  * tests: Make tests less linux-specifi
+  * timeline: Reproduce time delays in data stream
+  * util: Do not use conv::to_string for std::chrono::duration
+
+ -- Pavel Shramov <shramov@mexmat.net>  Thu, 29 Aug 2024 21:05:57 +0300
+
 tll (0.3.0) unstable; urgency=medium
 
   * channel:
