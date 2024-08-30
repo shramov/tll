@@ -875,7 +875,7 @@ int tll_channel_callback_add(tll_channel_t *c, tll_channel_callback_t cb, void *
 		p.mask = TLL_MESSAGE_MASK_DATA;
 		if (callback_add(&in->data_cb, in->data_cb_size, &p))
 			return ENOMEM;
-		_log.info("Data callbacks (add): {}", in->data_cb_size);
+		_log.debug("Data callbacks (add): {}", in->data_cb_size);
 		p.mask = mask;
 		if (mask == 0)
 			return 0;
@@ -894,7 +894,7 @@ int tll_channel_callback_del(tll_channel_t *c, tll_channel_callback_t cb, void *
 		p.mask = TLL_MESSAGE_MASK_DATA;
 		mask ^= TLL_MESSAGE_MASK_DATA;
 		callback_del(in->data_cb, in->data_cb_size, &p);
-		_log.info("Data callbacks (del): {}", in->data_cb_size);
+		_log.debug("Data callbacks (del): {}", in->data_cb_size);
 		p.mask = mask;
 		if (mask == 0)
 			return 0;
