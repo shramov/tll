@@ -2005,14 +2005,25 @@ int tll_scheme_field_fix(tll_scheme_field_t * f)
 	case Field::Double: f->size = 8; break;
 	case Field::Decimal128: f->size = 16; break;
 	case Field::Bytes: if (f->size == 0) f->size = 1; break;
-	case Field::Array:
+	case Field::Array: {
 		if (!f->count_ptr->name) f->count_ptr->name = strdup(fmt::format("{}_count", f->name).c_str());
 		if (!f->type_array->name) f->type_array->name = strdup(f->name);
 		tll_scheme_field_fix(f->count_ptr);
 		tll_scheme_field_fix(f->type_array);
 		f->type_array->offset = f->count_ptr->size;
 		f->size = f->count_ptr->size + f->count * f->type_array->size;
+		auto o = tll::scheme::lookup_name(f->options, "count-type");
+		if (f->count_ptr->type != tll::scheme::internal::default_count_type(f->count) || o) {
+			auto tstr = dump_type(f->count_ptr->type, f->count_ptr);
+			if (o) {
+				free((void *) o->value);
+				o->value = strndup(tstr.data(), tstr.size());
+			} else {
+				f->options = alloc_option("count-type", tstr, f->options);
+			}
+		}
 		break;
+	}
 	case Field::Pointer:
 		switch (f->offset_ptr_version) {
 		case TLL_SCHEME_OFFSET_PTR_DEFAULT: f->size = 8; break;

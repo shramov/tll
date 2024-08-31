@@ -653,3 +653,43 @@ TEST(Scheme, Merge)
 	r = tll::scheme::merge({s1.get(), serr.get()});
 	ASSERT_FALSE(r);
 }
+
+void _check_fix_array_count(size_t count, tll_scheme_field_type_t type, const char * result, const char * option)
+{
+	fmt::print("Fix array: count: {}, type: {}, option: {}, expected result: {}\n", count, type, option ? option : "null", result ? result : "null");
+	using namespace tll::scheme;
+	std::unique_ptr<Field> f { (Field *) calloc(sizeof(Field), 1) };
+	f->name = strdup("test");
+	f->type = Field::Array;
+	f->count_ptr = (Field *) calloc(sizeof(Field), 1);
+	f->count_ptr->type = type;
+	f->type_array = (Field *) calloc(sizeof(Field), 1);
+	f->type_array->type = Field::Int8;
+	f->count = count;
+	if (option) {
+		f->options = (Option *) calloc(sizeof(Option), 1);
+		f->options->name = strdup("count-type");
+		f->options->value = strdup(option);
+	}
+
+	ASSERT_EQ(tll_scheme_field_fix(f.get()), 0);
+	ASSERT_STREQ(f->count_ptr->name, "test_count");
+	ASSERT_STREQ(f->type_array->name, "test");
+	if (result) {
+		ASSERT_NE(f->options, nullptr);
+		ASSERT_STREQ(f->options->name, "count-type");
+		ASSERT_STREQ(f->options->value, result);
+	} else
+		ASSERT_EQ(f->options, nullptr);
+}
+
+TEST(Scheme, FixArrayCount)
+{
+	using namespace tll::scheme;
+	_check_fix_array_count(10, Field::Int32, "int32", nullptr);
+	_check_fix_array_count(10, Field::Int8, nullptr, nullptr);
+	_check_fix_array_count(10, Field::Int8, "int8", "int8");
+	_check_fix_array_count(10, Field::Int8, "int8", "int32");
+	_check_fix_array_count(1000, Field::Int16, nullptr, nullptr);
+	_check_fix_array_count(1000, Field::Int32, "int32", nullptr);
+}
