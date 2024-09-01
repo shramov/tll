@@ -43,6 +43,7 @@ mansources = [
 	'common.rst',
 	'direct.rst',
 	'file.rst',
+	'lz4.rst',
 	'mem.rst',
 	'null.rst',
 	'pub-mem.rst',
