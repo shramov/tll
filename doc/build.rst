@@ -7,6 +7,28 @@ Building
    doubt about dependencies or compile steps - consult ``debian/control``, ``debian/rules`` or CI
    rules for GitHub in ``.github/workflows/ci.yml``.
 
+Building on Debian/Ubuntu
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Project contains build rules for Debian based systems so process can be simplified. To install
+dependencies (assuming that ``build-essential`` package is already installed)::
+
+  sudo apt satisfy \
+    "`perl -e 'use Dpkg::Control::Info; print Dpkg::Control::Info->new()->get_source()->{"Build-Depends"}'`"
+
+Building package::
+
+  dpkg-buildpackage -uc -b -j4
+
+After this command succeded ``.deb`` packages are generated in the parent directory, for example
+``../libtll-dev_{VERSION}_amd64.deb``. If some tests are failing they can be skipped with
+``DEB_BUILD_OPTIONS=nocheck`` environment variable.
+
+If packages are not needed see next section for build steps.
+
+Building on other platforms
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Following packages are required to build TLL:
 
  * meson_ build system
