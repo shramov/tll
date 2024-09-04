@@ -73,7 +73,7 @@ template <typename F, typename... Args>
 	}
 	nanoseconds dt = steady_clock::now() - start;
 	(void) accum;
-	fmt::print("Time {}: {:.3f}/{}: {}\n", name, std::chrono::duration<double, std::milli>(dt), count, dt / count);
+	fmt::print("Time {}: {:.3}/{}: {}\n", name, std::chrono::duration<double, std::milli>(dt), count, dt / count);
 }
 
 } // namespace tll::bench
