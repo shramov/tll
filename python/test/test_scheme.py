@@ -774,6 +774,10 @@ def test_union_pack():
     assert m.u.type == 'sub'
     assert m.u.value.as_dict() == {'s0': 0xbeef}
 
+    assert hasattr(m.u, 'sub')
+    assert not hasattr(m.u, 'array')
+    assert m.u.sub == m.u.value
+
     assert m.as_dict() == {'pre':0xffffffff, 'u': {'sub': {'s0': 0xbeef}}, 'post':0xffffffff}
 
     data = memoryview(m.pack())

@@ -115,6 +115,11 @@ class UnionBase:
             return self.value
         raise KeyError(f"Invalid key: {key}")
 
+    def __getattr__(self, key):
+        if key == self.type:
+            return self.value
+        raise AttributeError(f"Invalid attribute: {key}")
+
 class Union(OrderedDict):
     pass
 
