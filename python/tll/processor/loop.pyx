@@ -33,6 +33,10 @@ cdef class Loop:
             tll_processor_loop_free(self._ptr)
         self._ptr = NULL
 
+    @property
+    def fd(self):
+        return tll_processor_loop_get_fd(self._ptr)
+
     def add(self, channel):
         if not isinstance(channel, Channel):
             raise TypeError("Invalid channel argument: {}".format(channel))
@@ -54,7 +58,7 @@ cdef class Loop:
     def process(self):
         tll_processor_loop_process(self._ptr)
 
-    def step(self, timeout):
+    def step(self, timeout : float = 0):
         error.wrap(tll_processor_loop_step(self._ptr, int(timeout * 1000)), "tll_processor_loop_step failed")
 
     def run(self, timeout):
