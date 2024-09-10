@@ -38,8 +38,14 @@ typedef void (*tll_config_value_callback_free_t)(tll_config_value_callback_t cb,
  */
 int tll_config_has(const tll_config_t *, const char * path, int plen);
 
-/// Get subtree
+/** Get subtree
+ * @key path path to node
+ * @key plen length of path or -1 to calculate it inside function
+ * @param create if not zero (true) and sub node not found - create it
+ * @return New reference to child config or NULL if it not found
+ */
 tll_config_t * tll_config_sub(tll_config_t *, const char * path, int plen, int create);
+/// Get subtree, const variant without create parameter. @see tll_config_sub
 const tll_config_t * tll_config_sub_const(const tll_config_t *, const char * path, int plen);
 
 /// Set plain string value
