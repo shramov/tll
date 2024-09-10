@@ -77,7 +77,7 @@ constexpr channel_module_t<sizeof...(Args)> make_channel_module()
 }
 
 #define TLL_DEFINE_MODULE(...) \
-extern "C" tll_channel_module_t * channel_module() \
+extern "C" tll_channel_module_t * tll_channel_module() \
 { \
 	static auto mod = tll::make_channel_module<__VA_ARGS__>(); \
 	return &mod; \
