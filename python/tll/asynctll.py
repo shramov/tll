@@ -5,6 +5,7 @@ from tll.logger import Logger
 from tll.processor import Loop as PLoop
 import tll.channel as C
 
+import asyncio
 import collections
 import decorator
 import heapq
@@ -16,7 +17,51 @@ import weakref
 class Entry:
     def __init__(self):
         self.ref = 1
-        self.queue = queue.Queue()
+        self.queue = collections.deque()
+        self.future = None
+
+    def reset_future(self, f):
+        self.future = None
+
+    def pop(self):
+        if self.queue:
+            return self.queue.popleft()
+
+    def feed(self, msg):
+        self.queue.append(msg)
+
+        if self.future and (m := self.pop()):
+            self.future.set_result(m)
+            self.future = None
+
+    async def recv(self, timeout):
+        if self.future:
+            raise RuntimeError("Previous recv is not yet finished")
+        if m := self.pop():
+            return m
+
+        f = asyncio.get_running_loop().create_future()
+        f.add_done_callback(self.reset_future)
+        self.future = f
+        if timeout:
+            to = asyncio.get_running_loop().call_later(timeout, f.set_exception, TimeoutError("Timeout waiting for message"))
+            f.add_done_callback(lambda f: to.cancel())
+        return await f
+
+class StateEntry(Entry):
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self.ignore = set()
+
+    def reset_future(self, f):
+        super().reset_future(f)
+        self.ignore = set()
+
+    def pop(self):
+        while self.queue:
+            m = self.queue.popleft()
+            if m not in self.ignore:
+                return m
 
 class AsyncChannel(C.Channel):
     LOOP_KEY = '_pytll_async_loop'
@@ -29,27 +74,25 @@ class AsyncChannel(C.Channel):
         self.MASK = self.MASK if async_mask is None else async_mask
 
         C.Channel.__init__(self, *a, **kw)
+        self._future_state = self._future_data = None
         self._loop = weakref.ref(loop)
-        self._result = collections.deque()
-        self._result_state = collections.deque()
+        self._result = Entry()
+        self._result_state = StateEntry()
         self.callback_add(weakref.ref(self), mask=self.MASK | C.MsgMask.State)
 
     def __call__(self, c, msg):
         if msg.type == msg.Type.State:
             state = C.State(msg.msgid)
-            self._result_state.append(state)
+            self._result_state.feed(state)
             if state in (C.State.Opening, C.State.Active):
                 # Force cache scheme
                 C.Channel._scheme(self, self.Type.Data)
                 C.Channel._scheme(self, self.Type.Control)
 
             if self.MASK & C.MsgMask.State:
-                self._result.append(msg.clone())
+                self._result.feed(msg.clone())
         else:
-            self._result.append(msg.clone())
-        l = self._loop()
-        if l:
-            l._ticks += 1
+            self._result.feed(msg.clone())
 
     @property
     def scheme(self):
@@ -69,64 +112,24 @@ class AsyncChannel(C.Channel):
         return self._scheme_cache[int(t)]
 
     def open(self, *a, **kw):
-        self._result.clear()
-        self._result_state.clear()
+        self.result.clear()
+        self._result_state.queue.clear()
         return C.Channel.open(self, *a, **kw)
 
     @property
     def result(self):
-        return self._result
+        return self._result.queue
 
     async def recv(self, timeout=1.):
-        l = self._loop()
-        if not l:
-            raise RuntimeError("Async TLL loop destroyed, bailing out")
-
-        if self._result:
-            return self._result.popleft()
-        ts = l._timer_arm(timeout)
-        try:
-            while True:
-                await l._wait()
-                if self._result:
-                    return self._result.popleft()
-                if time.time() > ts:
-                    raise TimeoutError("Timeout waiting for message")
-        finally:
-            l._timer_done(ts)
-
-    def _filter_state(self, ignore):
-        while self._result_state:
-            m = self._result_state.popleft()
-            if ignore is not None:
-                if isinstance(ignore, (int, C.State)):
-                    if m == C.State(ignore):
-                        continue
-                elif m in ignore:
-                    continue
-            return m
-        return None
+        return await self._result.recv(timeout)
 
     async def recv_state(self, timeout=1., ignore={C.State.Opening, C.State.Closing}):
-        l = self._loop()
-        if not l:
-            raise RuntimeError("Async TLL loop destroyed, bailing out")
-
-        s = self._filter_state(ignore)
-        if s is not None:
-            return s
-
-        ts = l._timer_arm(timeout)
-        try:
-            while True:
-                await l._wait()
-                s = self._filter_state(ignore)
-                if s is not None:
-                    return s
-                if time.time() > ts:
-                    raise TimeoutError("Timeout waiting for state")
-        finally:
-            l._timer_done(ts)
+        if ignore is None:
+            ignore = set()
+        elif isinstance(ignore, (int, C.State)):
+            ignore = {C.State(ignore)}
+        self._result_state.ignore = ignore
+        return await self._result_state.recv(timeout)
 
 class Loop:
     def __init__(self, context = None, tick_interval = 0.1, config={}):
@@ -137,16 +140,9 @@ class Loop:
         self.tick = 0.01
         self._ticks = 0
         self._state = C.State.Closed
-        self._ctx = C.Context()
-        self._timer = self._ctx.Channel("timer://;clock=realtime;name=asynctll")
-        self._timer_cb_ref = self._timer_cb
-        self._timer.callback_add(self._timer_cb, mask=C.MsgMask.Data)
-        self._timer.open("interval={}ms".format(int(1000 * tick_interval)))
-        self._timer_queue = []
 
         config.setdefault('name', 'tll.python.asynctll/loop')
         self._loop = PLoop(config=config)
-        self._loop.add(self._timer)
 
     def __del__(self):
         self.destroy()
@@ -156,10 +152,6 @@ class Loop:
             return
         self._state = C.State.Destroy
         self.log.debug("Destroy async helper")
-        if self._timer:
-            self._timer.callback_del(self._timer_cb, mask=C.MsgMask.Data)
-            self._timer.close()
-            self._timer = None
         for r in self.channels.keys():
             c.callback_del(self._callback, mask=C.MsgMask.All)
         self.channels = {}
@@ -177,36 +169,6 @@ class Loop:
         self.asyncchannels.add(c)
         self._loop.add(c)
         return c
-
-    def _timer_cb(self, c, m):
-        self.log.trace("Timer cb")
-        self._ticks += 1
-        now = time.time()
-        for ts in self._timer_queue:
-            if ts <= now:
-                self._ticks += 1
-            self._timer.post({'ts':ts}, name='absolute')
-            break
-
-    def _timer_arm(self, timeout):
-        ts = time.time() + timeout
-        self.log.debug("Arm timer {}: {}", timeout, ts)
-        if self._timer_queue == [] or self._timer_queue[0] > ts:
-            self._timer.post({'ts':timeout}, name='relative')
-            self._timer_queue.insert(0, ts)
-        else:
-            heapq.heappush(self._timer_queue, ts)
-        return ts
-
-    def _timer_done(self, ts):
-        self.log.debug("Timer {} done", ts)
-        if ts not in self._timer_queue:
-            return
-        idx = self._timer_queue.index(ts)
-        self._timer_queue.pop(idx)
-        if idx == 0:
-            if self._timer_queue:
-                self._timer.post({'ts':self._timer_queue[0]}, name='absolute')
 
     def channel_add(self, c):
         self.log.debug("Add channel {}", c.name)
@@ -233,67 +195,40 @@ class Loop:
             del self.channels[c]
 
     async def sleep(self, timeout):
-        if timeout == 0:
-            return
-        ts = self._timer_arm(timeout)
-        while time.time() < ts:
-            await self._wait()
-        self._timer_done(ts)
+        await asyncio.sleep(timeout)
 
     async def recv(self, c, timeout=1.):
         if c in self.asyncchannels:
             return await c.recv(timeout)
-        return await self._recv(c, timeout)
-
-    async def _recv(self, c, timeout):
         entry = self.channels.get(c, None)
         if entry is None:
             raise KeyError("Channel {} not processed by loop".format(c.name))
+        return await entry.recv(timeout)
 
-        if not entry.queue.empty():
-            return entry.queue.get()
+    def step(self, timeout: float = 0):
+        self._loop.step(timeout)
 
-        ts = self._timer_arm(timeout)
+    async def _run(self, future):
+        l = asyncio.get_running_loop()
         try:
-            while True:
-                if not entry.queue.empty():
-                    return entry.queue.get()
-                if time.time() > ts:
-                    raise TimeoutError("Timeout waiting for message")
-                await self._wait()
+            l._add_reader(self._loop.fd, self.step)
+            return await future
         finally:
-            self._timer_done(ts)
-
-    @types.coroutine
-    def _wait(self):
-        r = yield None
+            l._remove_reader(self._loop.fd)
 
     def run(self, future):
-        try:
-            future.send(None) # Start future
-            while True:
-                self._loop.step(0.01)
-                if self._ticks:
-                    self.log.trace("Ticks: {}", self._ticks)
-                for _ in range(self._ticks):
-                    future.send(None)
-                self._ticks = 0
-        except StopIteration as e:
-            self.log.debug("Future completed")
-            return e.value
+        asyncio.run(self._run(future))
 
     def _callback(self, channel, msg):
         self.log.debug("Got message for {}", channel.name)
-        self._ticks += 1
         if msg.type == msg.Type.State:
             if msg.msgid == channel.State.Destroy:
                 self.log.debug("Removing channel {}", channel.name)
                 self.channel_del(channel, force=True)
         if msg.type not in (msg.Type.Data, msg.Type.Control):
             return
-        entry = self.channels.get(channel, None)
-        if entry:
-            entry.queue.put(msg.clone())
+        if entry := self.channels.get(channel, None):
+            entry.feed(msg.clone())
 
 @decorator.decorator
 def asyncloop_run(f, asyncloop, *a, **kw):
