@@ -379,7 +379,7 @@ int Rotate::_build_map()
 		auto emplace = map.emplace(first, Files::File { path, last });
 		if (!emplace.second) {
 			auto it = map.find(first);
-			return _log.fail(EINVAL, "Duplicate seq {}: files {} and {}", it->second.filename, path);
+			return _log.fail(EINVAL, "Duplicate seq {}: files {} and {}", last, it->second.filename, path);
 		}
 
 		if (e.path() == _last_filename)
