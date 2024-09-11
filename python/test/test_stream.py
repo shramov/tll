@@ -628,11 +628,19 @@ async def test_stream_aggregate(asyncloop, context, tmp_path):
 
     s.post({'type':'default'}, name='Block', type=s.Type.Control)
     c.open(block='0', mode='block')
+    assert c.State.Active == await c.recv_state()
+    assert [i.name for i in s.children if '/client' in i.name] == ['server/blocks/client']
 
     m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (29, 10, b'xxz')
     m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (30, 20, b'yyz')
+
+    s.result.clear()
+    c.close()
+    assert c.State.Closed == await c.recv_state()
+    assert s.unpack(await s.recv()).SCHEME.name == 'Disconnect'
+    assert [i.name for i in s.children if '/client' in i.name] == []
 
 @asyncloop_run
 async def test_stream_aggregate_error(asyncloop, context, tmp_path):
