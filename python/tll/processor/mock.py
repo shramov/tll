@@ -16,6 +16,8 @@ class Mock:
         self._config = config
         self._context = context or loop.context
         self._channels = {}
+        self._control = None
+        self._processor = None
 
         self._mock(loop)
 
