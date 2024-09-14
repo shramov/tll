@@ -209,12 +209,14 @@ class Loop:
         self._loop.step(timeout)
 
     async def _run(self, future):
-        l = asyncio.get_running_loop()
-        try:
-            l._add_reader(self._loop.fd, self.step)
+        async with self:
             return await future
-        finally:
-            l._remove_reader(self._loop.fd)
+
+    async def __aenter__(self):
+        asyncio.get_running_loop()._add_reader(self._loop.fd, self.step)
+
+    async def __aexit__(self, *a):
+        asyncio.get_running_loop()._remove_reader(self._loop.fd)
 
     def run(self, future):
         asyncio.run(self._run(future))
