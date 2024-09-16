@@ -23,27 +23,37 @@ namespace tll {
 
 namespace getter {
 template <typename Klass, typename T>
-inline result_t<T> getT(const Klass &obj, std::string_view key)
+inline result_t<std::optional<T>> _getT(const Klass &obj, std::string_view key)
 {
 	auto v = tll::getter::getter_api<Klass>::get(obj, key);
 	if (!v || !v->size())
-		return error("Missing value");
+		return std::nullopt;
 	auto r = conv::to_any<T>(*v);
 	if (!r)
 		return error(fmt::format("Invalid value '{}': {}", *v, r.error()));
-	return r;
+	return std::make_optional(std::move(*r));
+}
+
+template <typename Klass, typename T>
+inline result_t<T> getT(const Klass &obj, std::string_view key)
+{
+	auto r = _getT<Klass, T>(obj, key);
+	if (!r)
+		return error(r.error());
+	if (!*r)
+		return error("Missing value");
+	return std::move(**r);
 }
 
 template <typename Klass, typename T>
 inline result_t<T> getT(const Klass &obj, std::string_view key, const T &def)
 {
-	auto v = tll::getter::getter_api<Klass>::get(obj, key);
-	if (!v || !v->size())
-		return def;
-	auto r = conv::to_any<T>(*v);
+	auto r = _getT<Klass, T>(obj, key);
 	if (!r)
-		return error(fmt::format("Invalid value '{}': {}", *v, r.error()));
-	return r;
+		return error(r.error());
+	if (!*r)
+		return def;
+	return std::move(**r);
 }
 
 template <typename Klass, typename T>

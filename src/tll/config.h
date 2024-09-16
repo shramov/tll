@@ -557,37 +557,54 @@ public:
 	}
 };
 
+template <typename T>
+struct ConfigGet
+{
+	static result_t<std::optional<T>> getT(const ConstConfig& cfg, std::string_view key)
+	{
+		return tll::getter::_getT<ConstConfig, T>(cfg, key);
+	}
+};
+
+template <>
+struct ConfigGet<ConfigUrl>
+{
+	static result_t<std::optional<ConfigUrl>> getT(const ConstConfig& cfg, std::string_view key)
+	{
+		auto c = cfg.sub(key);
+		if (!c)
+			return std::nullopt;
+		auto r = ConfigUrl::consume(tll_config_get_url(*c, nullptr, 0));
+		auto err = r.get();
+		if (err)
+			return error(*err);
+		return std::make_optional(r);
+	}
+};
+
 template <bool Const>
 template <typename T>
 result_t<T> ConfigT<Const>::getT(std::string_view key) const
 {
-	if constexpr (std::is_same_v<T, ConfigUrl>) {
-		auto r = ConfigT<Const>::consume(tll_config_get_url(*this, key.data(), key.size()));
-		auto err = r.get();
-		if (err)
-			return error(*err);
-		return r;
+	if (auto r = ConfigGet<T>::getT(*this, key); r) {
+		if (!*r)
+			return error("Missing value");
+		return **r;
 	} else
-		return tll::getter::getT<ConfigT<Const>, T>(*this, key);
+		return error(r.error());
 }
 
 template <bool Const>
 template <typename T>
 result_t<T> ConfigT<Const>::getT(std::string_view key, const T& def) const
 {
-	if constexpr (std::is_same_v<T, ConfigUrl>) {
-		auto c = sub(key);
-		if (!c)
+	if (auto r = ConfigGet<T>::getT(*this, key); r) {
+		if (!*r)
 			return def;
-		auto r = ConfigT<Const>::consume(tll_config_get_url(*c, nullptr, 0));
-		auto err = r.get();
-		if (err)
-			return error(*err);
-		return r;
+		return **r;
 	} else
-		return tll::getter::getT<ConfigT<Const>, T>(*this, key, def);
+		return error(r.error());
 }
-
 
 template <>
 struct conv::dump<ConfigUrl> : public conv::to_string_buf_from_string<ConfigUrl>
