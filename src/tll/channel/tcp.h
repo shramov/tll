@@ -229,6 +229,7 @@ class TcpClient : public S
 	using addr_list_t = std::vector<tll::network::sockaddr_any>;
 	addr_list_t _addr_list;
 	addr_list_t::iterator _addr = _addr_list.end();
+	std::optional<tll::network::hostport> _bind_host;
 
 	tcp_settings_t _settings = {};
 

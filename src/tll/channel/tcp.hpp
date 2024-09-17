@@ -400,11 +400,15 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 		_settings.snd_buffer_size = reader.getT("send-buffer-size", size);
 		_settings.rcv_buffer_size = reader.getT("recv-buffer-size", size);
 	}
+	_bind_host = reader.getT("bind", std::optional<tll::network::hostport> {});
 	_settings.protocol = reader.getT("protocol", tcp_settings_t::Protocol::TCP);
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
 	S::_init(url, master);
+
+	if (_bind_host && _bind_host->set_af(af))
+		return this->_log.fail(EINVAL, "Mismatched address family for bind address: parameter {}, parsed {}", af, _bind_host->af);
 
 	if (_peer) {
 		if (_peer->set_af(af))
@@ -444,6 +448,14 @@ int TcpClient<T, S>::_open(const ConstConfig &url)
 	if (fd == -1)
 		return this->_log.fail(errno, "Failed to create socket: {}", strerror(errno));
 	this->_update_fd(fd);
+
+	if (_bind_host) {
+		addr = _bind_host->resolve(SOCK_STREAM);
+		if (!addr)
+			return this->_log.fail(EINVAL, "Failed to resolve bind host '{}': {}", _bind_host->host, addr.error());
+		if (bind(fd, addr->front(), addr->front().size))
+			return this->_log.fail(EINVAL, "Failed to bind to address {}: {}", *_addr, strerror(errno));
+	}
 
 	if (this->setup(_settings, (*_addr)->sa_family))
 		return this->_log.fail(EINVAL, "Failed to setup socket");
