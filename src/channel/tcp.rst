@@ -42,6 +42,10 @@ is performed in non-blocking mode so user should wait until channel states becom
 sending data. Server binds to all addresses returned by ``getaddrinfo(3)`` and handles multipl
 client connections.
 
+``bind=<address>`` (default is ``*:0``, only in client mode) - bind local side of connection to
+specified address. Can be used for load balancing when several connections to one endpoint are
+placed on different network interfaces.
+
 ``frame={none|std|short|...}`` (default ``std``) - select framing mode:
 
   - ``none`` - disable framing, each chunk of data is passed to user as it is received, output is sent

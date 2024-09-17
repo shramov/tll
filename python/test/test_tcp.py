@@ -527,3 +527,19 @@ async def test_send_hwm(asyncloop, tmp_path):
 
     assert [(m.type, m.msgid) for m in s.result] == [(s.Type.Control, s.scheme_control.messages.WriteFull.msgid)]
     assert [(m.type, m.msgid) for m in c.result] == [(s.Type.Control, s.scheme_control.messages.WriteFull.msgid)]
+
+@asyncloop_run
+async def test_bind(asyncloop):
+    port = ports(af=socket.AF_INET6)
+    s = asyncloop.Channel(f'tcp://::1:{ports.TCP6};mode=server;name=server')
+    c = asyncloop.Channel(f'tcp://::1:{ports.TCP6};mode=client;bind=*:{port}')
+
+    s.open()
+    c.open()
+
+    assert (await c.recv_state()) == c.State.Active
+    m = await s.recv()
+    assert m.type == s.Type.Control
+    m = s.unpack(m)
+    assert m.SCHEME.name == 'Connect'
+    assert m.port == port
