@@ -22,16 +22,26 @@
 namespace tll {
 
 namespace getter {
+template <typename T>
+struct GetT
+{
+	template <typename Klass>
+	static result_t<std::optional<T>> get(const Klass &obj, std::string_view key)
+	{
+		auto v = tll::getter::getter_api<Klass>::get(obj, key);
+		if (!v || !v->size())
+			return std::nullopt;
+		auto r = conv::to_any<T>(*v);
+		if (!r)
+			return error(fmt::format("Invalid value '{}': {}", *v, r.error()));
+		return std::make_optional(std::move(*r));
+	}
+};
+
 template <typename Klass, typename T>
 inline result_t<std::optional<T>> _getT(const Klass &obj, std::string_view key)
 {
-	auto v = tll::getter::getter_api<Klass>::get(obj, key);
-	if (!v || !v->size())
-		return std::nullopt;
-	auto r = conv::to_any<T>(*v);
-	if (!r)
-		return error(fmt::format("Invalid value '{}': {}", *v, r.error()));
-	return std::make_optional(std::move(*r));
+	return GetT<T>::template get<Klass>(obj, key);
 }
 
 template <typename Klass, typename T>
@@ -162,7 +172,6 @@ class PropsReaderT
 	//std::string_view _prefix;
 	std::optional<std::string> _error;
 	using getter_api = typename tll::getter::getter_api<std::remove_cv_t<std::remove_reference_t<U>>>;
-	using string_type = typename getter_api::string_type;
 
 	std::string format(std::string_view key, std::string_view e)
 	{
@@ -170,29 +179,15 @@ class PropsReaderT
 	}
 
 	template <typename T>
-	const T _getT(std::string_view key, const T * def)
-	{
-		if (_error)
-			return def?*def:T();
-		auto v = get(key);
-		if (!v) {
-			if (!def)
-				_error = format(key, "Missing value");
-			return def?*def:T();
-		}
-		auto r = conv::to_any<T>(*v);
-		if (!r) {
-			_error = format(key, fmt::format("Invalid value '{}': {}", *v, r.error()));
-			return def?*def:T();
-		}
-		return std::move(*r);
-	}
+	const T _getT(std::string_view key, const T * def);
 
  public:
+	using string_type = typename getter_api::string_type;
+
 	PropsReaderT(const U url) : _props(url) {}
 
 	bool has(std::string_view key) const { return getter_api::has(_props, key); }
-	decltype(auto) get(std::string_view key) { return getter_api::get(_props, key); }
+	decltype(auto) get(std::string_view key) const { return getter_api::get(_props, key); }
 
 	template <typename T> T getT(std::string_view key) { return _getT<T>(key, nullptr); }
 	template <typename T> T getT(std::string_view key, const T& def) { return _getT<T>(key, &def); }
@@ -217,6 +212,41 @@ class PropsReaderT
 
 template <typename T>
 PropsReaderT<T> make_props_reader(const T &p) { return { p }; }
+
+template <typename U>
+struct getter::getter_api<PropsReaderT<U>>
+{
+	using string_type = typename PropsReaderT<U>::string_type;
+	static auto get(const PropsReaderT<U> &reader, std::string_view key)
+	{
+		return reader.get(key);
+	}
+
+	static bool has(const PropsReaderT<U> &reader, std::string_view key)
+	{
+		return reader.has(key);
+	}
+};
+
+template <typename U>
+template <typename T>
+const T PropsReaderT<U>::_getT(std::string_view key, const T * def)
+{
+	if (_error)
+		return def?*def:T();
+	auto r = getter::_getT<PropsReaderT<U>, T>(*this, key);
+	if (!r) {
+		_error = format(key, r.error());
+		return def?*def:T();
+	}
+	if (!*r) {
+		if (!def)
+			_error = format(key, "Missing value");
+		return def?*def:T();
+	}
+	return std::move(**r);
+}
+
 
 } // namespace tll
 
