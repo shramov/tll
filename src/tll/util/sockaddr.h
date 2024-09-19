@@ -205,38 +205,6 @@ static inline tll::result_t<std::vector<tll::network::sockaddr_any>> resolve(int
 	return l;
 }
 
-struct hostport
-{
-	AddressFamily af = AddressFamily::UNSPEC;
-	std::string host;
-	unsigned short port = 0;
-
-	auto resolve(int socktype) const { return tll::network::resolve(af, socktype, host, port); }
-};
-
-static inline tll::result_t<hostport> parse_hostport(std::string_view host, AddressFamily af = AddressFamily::UNSPEC)
-{
-	hostport r = { af };
-	if (r.af == AddressFamily::UNSPEC && host.find('/') != host.npos)
-		r.af = AddressFamily::UNIX;
-
-	if (r.af == AddressFamily::UNIX) {
-		r.host = host;
-		return r;
-	}
-
-	auto sep = host.find_last_of(':');
-	if (sep == host.npos)
-		error("Invalid host:port pair, no ':' separator found");
-	auto p = conv::to_any<unsigned short>(host.substr(sep + 1));
-	if (!p)
-		return error(fmt::format("Invalid port '{}': {}", host.substr(sep + 1), p.error()));
-
-	r.port = *p;
-	r.host = host.substr(0, sep);
-	return r;
-}
-
 } // tll::network
 
 namespace tll::conv {

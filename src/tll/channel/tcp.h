@@ -9,6 +9,7 @@
 #define _TLL_CHANNEL_TCP_H
 
 #include "tll/channel/base.h"
+#include "tll/util/hostport.h"
 #include "tll/util/sockaddr.h"
 
 #include <array>
