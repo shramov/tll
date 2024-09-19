@@ -175,17 +175,15 @@ int UdpClient<F>::_init(const Channel::Url &url, Channel *master)
 {
 	auto reader = this->channel_props_reader(url);
 	auto af = reader.getT("af", AddressFamily::UNSPEC);
+	_host = reader.template getT<tll::network::hostport>("tll.host");
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
+	if (_host.set_af(af))
+		return this->_log.fail(EINVAL, "Mismatched address family: parameter {}, parsed {}", af, _host.af);
+
 	if (udp_socket_t::_init(url, master))
 		return this->_log.fail(EINVAL, "Failed to init Udp socket");
-
-	auto host = url.host();
-	auto r = network::parse_hostport(host, af);
-	if (!r)
-		return this->_log.fail(EINVAL, "Invalid host string '{}': {}", host, r.error());
-	_host = *r;
 
 	this->_log.debug("Connection to {}:{}", _host.host, _host.port);
 	return 0;
@@ -214,17 +212,15 @@ int UdpServer<F>::_init(const Channel::Url &url, Channel *master)
 {
 	auto reader = this->channel_props_reader(url);
 	auto af = reader.getT("af", AddressFamily::UNSPEC);
+	_host = reader.template getT<tll::network::hostport>("tll.host");
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
+	if (_host.set_af(af))
+		return this->_log.fail(EINVAL, "Mismatched address family: parameter {}, parsed {}", af, _host.af);
+
 	if (udp_socket_t::_init(url, master))
 		return this->_log.fail(EINVAL, "Failed to init Udp socket");
-
-	auto host = url.host();
-	auto r = network::parse_hostport(host, af);
-	if (!r)
-		return this->_log.fail(EINVAL, "Invalid host string '{}': {}", host, r.error());
-	_host = *r;
 
 	this->_log.debug("Listen on {}:{}", _host.host, _host.port);
 	return 0;
