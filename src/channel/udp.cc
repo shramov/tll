@@ -10,6 +10,7 @@
 #include "tll/channel/frame.h"
 #include "tll/channel/lastseq.h"
 #include "tll/channel/udp.h"
+#include "tll/util/hostport.h"
 #include "tll/util/sockaddr.h"
 
 #include <ifaddrs.h>
