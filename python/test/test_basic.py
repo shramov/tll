@@ -505,8 +505,15 @@ class TestUdpUnix(_test_udp_base):
     PROTO = 'udp://./test.sock'
     CLEANUP = ['test.sock']
 
+class TestUdpUnixPath(_test_udp_base):
+    PROTO = 'udp://;tll.host.path=test.sock'
+    CLEANUP = ['test.sock']
+
 class TestUdp4(_test_udp_base):
     PROTO = 'udp://127.0.0.1:{}'.format(ports.UDP4)
+
+class TestUdp4Port(_test_udp_base):
+    PROTO = 'udp://;tll.host.host=127.0.0.1;tll.host.port={}'.format(ports.UDP4)
 
 class TestUdp6(_test_udp_base):
     PROTO = 'udp://::1:{};udp.ttl=1'.format(ports.UDP6)
