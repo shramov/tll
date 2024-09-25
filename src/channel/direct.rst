@@ -49,6 +49,13 @@ following values:
 ``notify-state=<bool>`` - default ``no``, only for master: generate control messages for slave state
 changes.
 
+State messages
+--------------
+
+User can change state of slave channel by posting into master messages with type ``State`` and msgid
+of desired state. This can be used to emulate long open (with ``manual-open=yes``) and channel
+failure (by posting ``Error``).
+
 Examples
 --------
 

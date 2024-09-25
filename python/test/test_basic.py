@@ -213,6 +213,10 @@ def test_direct_state():
     assert [s.unpack(m).as_dict() for m in s.result] == [{'state': s.State.Opening}, {'state': s.State.Active}]
     s.result = []
 
+    assert c.state == c.State.Active
+    s.post(b'', type=s.Type.State, msgid=int(s.State.Error))
+    assert c.state == c.State.Error
+
     c.close()
     assert [s.unpack(m).as_dict() for m in s.result] == [{'state': s.State.Closing}, {'state': s.State.Closed}]
 

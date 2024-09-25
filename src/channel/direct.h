@@ -55,8 +55,15 @@ class ChDirect : public tll::channel::AutoSeq<ChDirect>
 
 	int _post(const tll_msg_t *msg, int flags)
 	{
-		if (_sibling)
+		if (_sibling) {
+			if (msg->type == TLL_MESSAGE_STATE) {
+				auto s = (tll_state_t) msg->msgid;
+				_log.info("Change sibling state {} to {}", _sibling->name, tll_state_str(s));
+				_sibling->state(s);
+				return 0;
+			}
 			_sibling->_callback(_autoseq.update(msg));
+		}
 		return 0;
 	}
 
