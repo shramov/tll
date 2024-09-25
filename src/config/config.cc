@@ -154,8 +154,6 @@ int tll_config_process_imports(tll_config_t *cfg, const char * path, int plen)
 const tll_config_t * tll_config_ref(const tll_config_t * c) { if (c) c->ref(); return c; }
 void tll_config_unref(const tll_config_t * c) { if (c) c->unref(); }
 
-void tll_config_free(tll_config_t * c) { tll_config_unref(c); }
-
 tll_config_t * tll_config_sub(tll_config_t *c, const char *path, int plen, int create)
 {
 	if (!c) return nullptr;
