@@ -77,7 +77,8 @@ int ring_write_begin(ringbuffer_t *ring, void ** data, size_t sz)
 {
     ring_header_t *h = ring->header;
     size_t a = size_aligned(sz + sizeof(ring_size_t));
-    if (a > h->size)
+    // If message is larger then size/2 and tail is in the middle it can never fit
+    if (2 * a > h->size)
 	return ERANGE;
 
     size_t head = atomic_load_explicit(&h->head, memory_order_acquire);

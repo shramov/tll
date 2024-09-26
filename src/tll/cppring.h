@@ -121,7 +121,7 @@ struct RingT
 	int write_begin(void ** data, size_t size)
 	{
 		size_t a = aligned(size + sizeof(Size));
-		if (a > _size)
+		if (2 * a > _size)
 			return ERANGE;
 
 		auto t = tail.load(std::memory_order_relaxed);

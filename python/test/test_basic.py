@@ -273,6 +273,8 @@ def test_mem(fd=True, **kw):
 
     c.open()
 
+    with pytest.raises(TLLError): c.post(b'x' * 512)
+
     if sys.platform.startswith('linux') and fd:
         assert c.fd != None
     else:
