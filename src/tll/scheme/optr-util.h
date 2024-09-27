@@ -8,6 +8,7 @@
 #ifndef _TLL_SCHEME_OPTR_UTIL_H
 #define _TLL_SCHEME_OPTR_UTIL_H
 
+#include "tll/scheme.h"
 #include "tll/scheme/types.h"
 #include "tll/scheme/util.h"
 #include "tll/util/listiter.h"
