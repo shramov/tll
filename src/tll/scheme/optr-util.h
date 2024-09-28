@@ -82,9 +82,11 @@ int optr_resizeT(const tll::scheme::Field * field, memoryview<Buf> buf, size_t s
 
 	auto ptr = buf.template dataT<OPtr>();
 	if (ptr->size == 0) {
+		// Empty list, allocate new in the end
 		ptr->size = size;
 		ptr->offset = buf_size;
 		optr_helper<OPtr>::set_entity(ptr, entity);
+		memset(ptr->data(), 0, entity * size);
 		return 0;
 	}
 
