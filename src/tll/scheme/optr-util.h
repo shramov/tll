@@ -84,6 +84,8 @@ int optr_resizeT(const tll::scheme::Field * field, memoryview<Buf> buf, size_t s
 	if (ptr->size == 0) {
 		// Empty list, allocate new in the end
 		ptr->size = size;
+		if (buf_size > std::numeric_limits<decltype(OPtr::offset)>::max())
+			return ERANGE;
 		ptr->offset = buf_size;
 		optr_helper<OPtr>::set_entity(ptr, entity);
 		memset(ptr->data(), 0, entity * size);
