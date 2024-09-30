@@ -100,6 +100,8 @@ int write_pointer(const tll::scheme::Field * field, View data, const generic_off
 		break;
 	}
 	case TLL_SCHEME_OFFSET_PTR_LEGACY_LONG: {
+		if (ptr.size > std::numeric_limits<uint16_t>::max())
+			return ERANGE;
 		auto p = data.template dataT<tll_scheme_offset_ptr_legacy_long_t>();
 		p->size = ptr.size;
 		p->offset = ptr.offset;
@@ -107,6 +109,10 @@ int write_pointer(const tll::scheme::Field * field, View data, const generic_off
 		break;
 	}
 	case TLL_SCHEME_OFFSET_PTR_LEGACY_SHORT: {
+		if (ptr.size > std::numeric_limits<uint16_t>::max())
+			return ERANGE;
+		if (ptr.offset > std::numeric_limits<uint16_t>::max())
+			return ERANGE;
 		auto p = data.template dataT<tll_scheme_offset_ptr_legacy_short_t>();
 		p->size = ptr.size;
 		p->offset = ptr.offset;

@@ -206,7 +206,8 @@ int ChYaml::_fill(View view, const tll::scheme::Field * field, tll::ConstConfig 
 			ptr.size = v->size() + 1;
 			ptr.entity = 1;
 
-			tll::scheme::write_pointer(field, view, ptr);
+			if (tll::scheme::write_pointer(field, view, ptr))
+				return _log.fail(ERANGE, "Offset string out of range");
 			auto data = view.view(view.size());
 			data.resize(v->size() + 1);
 			memmove(data.data(), v->data(), v->size());
@@ -223,7 +224,8 @@ int ChYaml::_fill(View view, const tll::scheme::Field * field, tll::ConstConfig 
 
 		_log.trace("Write ptr: off {}, size {}, entity {}", ptr.offset, ptr.size, ptr.entity);
 
-		tll::scheme::write_pointer(field, view, ptr);
+		if (tll::scheme::write_pointer(field, view, ptr))
+			return _log.fail(ERANGE, "Offset list out of range");
 		auto data = view.view(view.size());
 		data.resize(ptr.entity * ptr.size);
 		unsigned i = 0;
