@@ -50,8 +50,6 @@ class ChDirect : public tll::channel::AutoSeq<ChDirect>
 
 	void _free()
 	{
-		if (_sibling)
-			_sibling->_sibling = nullptr;
 		_sibling = nullptr;
 	}
 
