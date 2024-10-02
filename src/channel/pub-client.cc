@@ -108,8 +108,11 @@ int ChPubClient::_process_pending()
 	if (!frame)
 		return EAGAIN;
 	auto data = rdataT<void>(sizeof(*frame), frame->size);
-	if (!data)
+	if (!data) {
+		if (sizeof(*frame) + frame->size > _rbuf.capacity())
+			return _log.fail(EMSGSIZE, "Pending message size {} is too large (recv-buffer-size: {})", frame->size, _rbuf.capacity());
 		return EAGAIN;
+	}
 
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	msg.msgid = frame->msgid;
@@ -123,8 +126,8 @@ int ChPubClient::_process_pending()
 
 int ChPubClient::_process_data()
 {
-	if (_process_pending() != EAGAIN)
-		return 0;
+	if (auto r = _process_pending(); r != EAGAIN)
+		return r;
 
 	_log.debug("Fetch data");
 	auto r = _recv();
@@ -132,9 +135,7 @@ int ChPubClient::_process_data()
 		return _log.fail(EINVAL, "Failed to receive data");
 	if (*r == 0)
 		return EAGAIN;
-	if (_process_pending() == EAGAIN)
-		return EAGAIN;
-	return 0;
+	return _process_pending();
 }
 
 int ChPubClient::_process(long timeout, int flags)

@@ -277,3 +277,18 @@ async def test_mem_inverted(asyncloop, tmp_path):
 
         m = await c.recv(0.001)
         assert (m.type, c.unpack(m).SCHEME.name) == (m.Type.Control, "Disconnect")
+
+@asyncloop_run
+async def test_large(asyncloop, tmp_path, client):
+    s = asyncloop.Channel(f'pub+tcp:///{tmp_path}/pub.sock', mode='server', name='server', dump='frame', size='16mb')
+    c = client
+
+    s.open()
+    c.open()
+
+    assert (await c.recv_state()) == c.State.Active
+
+    for i in range(4):
+        s.post(b'x' * 128 * 1024, seq=i)
+
+    assert (await c.recv_state()) == c.State.Error
