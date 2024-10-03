@@ -65,7 +65,11 @@ std::optional<generic_offset_ptr_t> read_pointer(const tll::scheme::Field * fiel
 		auto ptr = data.template dataT<const tll_scheme_offset_ptr_t>();
 		r.size = ptr->size;
 		r.offset = ptr->offset;
-		r.entity = ptr->entity;
+		if (ptr->entity == 0xff) {
+			r.entity = *data.view(r.offset).template dataT<uint32_t>();
+			r.offset += sizeof(uint32_t);
+		} else
+			r.entity = ptr->entity;
 		break;
 	}
 	case TLL_SCHEME_OFFSET_PTR_LEGACY_LONG: {
