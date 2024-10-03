@@ -202,14 +202,12 @@ int ChYaml::_fill(View view, const tll::scheme::Field * field, tll::ConstConfig 
 				return 0;
 
 			tll::scheme::generic_offset_ptr_t ptr;
-			ptr.offset = view.size();
 			ptr.size = v->size() + 1;
 			ptr.entity = 1;
 
-			if (tll::scheme::write_pointer(field, view, ptr))
+			if (tll::scheme::alloc_pointer(field, view, ptr))
 				return _log.fail(ERANGE, "Offset string out of range");
-			auto data = view.view(view.size());
-			data.resize(v->size() + 1);
+			auto data = view.view(ptr.offset);
 			memmove(data.data(), v->data(), v->size());
 			*data.view(v->size()).template dataT<char>() = 0;
 			return 0;
@@ -218,16 +216,14 @@ int ChYaml::_fill(View view, const tll::scheme::Field * field, tll::ConstConfig 
 		auto l = cfg.browse("*", true);
 
 		tll::scheme::generic_offset_ptr_t ptr;
-		ptr.offset = view.size();
 		ptr.size = l.size();
 		ptr.entity = field->type_ptr->size;
 
 		_log.trace("Write ptr: off {}, size {}, entity {}", ptr.offset, ptr.size, ptr.entity);
 
-		if (tll::scheme::write_pointer(field, view, ptr))
+		if (tll::scheme::alloc_pointer(field, view, ptr))
 			return _log.fail(ERANGE, "Offset list out of range");
-		auto data = view.view(view.size());
-		data.resize(ptr.entity * ptr.size);
+		auto data = view.view(ptr.offset);
 		unsigned i = 0;
 		for (auto & [_, c] : l) {
 			if (_fill(data.view(i++ * field->type_ptr->size), field->type_ptr, c))

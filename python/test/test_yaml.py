@@ -376,3 +376,34 @@ config:
     c.process()
     assert c.state == c.State.Closed
     assert [(m.seq, m.data.tobytes()) for m in c.result] == [(10, b'xxx'), (11, b'yyy'), (12, b'zzz')]
+
+def test_pointer_large():
+    cfg = Config.load('''yamls://
+tll.proto: yaml
+name: yaml
+dump: yes
+config:
+  - name: Data
+    seq: 10
+    data:
+      list:
+        - { body: 0000 }
+        - { body: 1111 }
+''')
+    cfg['scheme'] = """yamls://
+- name: Item
+  fields:
+    - {name: body, type: byte266, options.type: string}
+- name: Data
+  id: 10
+  fields:
+    - {name: list, type: '*Item'}
+"""
+    c = Accum(cfg)
+    c.open()
+    c.process()
+
+    assert [m.seq for m in c.result] == [10]
+    m = c.result[0]
+    assert m.data[:12].tobytes() == b'\x08\x00\x00\x00\x02\x00\x00\xff\x0a\x01\x00\x00'
+    assert c.unpack(m).as_dict() == {'list': [{'body': '0000'}, {'body': '1111'}]}
