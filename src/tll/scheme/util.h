@@ -100,7 +100,7 @@ int write_pointer(const tll::scheme::Field * field, View data, const generic_off
 		auto p = data.template dataT<tll_scheme_offset_ptr_t>();
 		p->size = ptr.size;
 		p->offset = ptr.offset;
-		p->entity = ptr.entity;
+		p->entity = std::min(ptr.entity, 0xffu);
 		break;
 	}
 	case TLL_SCHEME_OFFSET_PTR_LEGACY_LONG: {
@@ -123,6 +123,22 @@ int write_pointer(const tll::scheme::Field * field, View data, const generic_off
 		break;
 	}
 	}
+	return 0;
+}
+
+template <typename View>
+int alloc_pointer(const tll::scheme::Field * field, View data, generic_offset_ptr_t &ptr)
+{
+	ptr.offset = data.size();
+	if (auto r = tll::scheme::write_pointer(field, data, ptr); r)
+		return r;
+	auto items = data.view(data.size());
+	if (ptr.entity >= 0xff && field->offset_ptr_version == TLL_SCHEME_OFFSET_PTR_DEFAULT) {
+		items.resize(sizeof(uint32_t) + ptr.entity * ptr.size);
+		*items.template dataT<uint32_t>() = ptr.entity;
+		ptr.offset += 4;
+	} else
+		items.resize(ptr.entity * ptr.size);
 	return 0;
 }
 
