@@ -219,9 +219,13 @@ cdef offset_ptr_t read_optr_default(Py_buffer * buf, unsigned entity):
     if buf.len < <ssize_t>(sizeof(tll_scheme_offset_ptr_t)): return OFFSET_PTR_INVALID
     cdef tll_scheme_offset_ptr_t * ptr = <tll_scheme_offset_ptr_t *>buf.buf
     cdef offset_ptr_t r
-    r.offset = ptr.offset
+    cdef unsigned offset = ptr.offset
     r.size = ptr.size
     r.entity = ptr.entity
+    if ptr.entity == 0xff:
+        r.entity = (<uint32_t *>((<char *> ptr) + offset))[0]
+        offset += 4
+    r.offset = offset
     return r
 
 cdef offset_ptr_t read_optr_legacy_short(Py_buffer * buf, unsigned entity):
@@ -252,12 +256,18 @@ cdef offset_ptr_t read_optr(object src, int optr_type, unsigned entity):
     elif optr_type == TLL_SCHEME_OFFSET_PTR_LEGACY_LONG:
         return read_optr_legacy_long(buf, entity)
 
-cdef int write_optr_default(Py_buffer * buf, offset_ptr_t * ptr):
+cdef int write_optr_default(Py_buffer * buf, offset_ptr_t * ptr, object tail):
     if buf.len < <ssize_t>(sizeof(tll_scheme_offset_ptr_t)): return EMSGSIZE
     cdef tll_scheme_offset_ptr_t * r = <tll_scheme_offset_ptr_t *>buf.buf
+    cdef unsigned char entity[4]
     r.offset = ptr.offset
     r.size = ptr.size
-    r.entity = ptr.entity
+    if ptr.entity >= 0xff:
+        r.entity = 0xff
+        (<uint32_t *>entity)[0] = ptr.entity
+        tail += entity[:4]
+    else:
+        r.entity = ptr.entity
     return 0
 
 cdef int write_optr_legacy_short(Py_buffer * buf, offset_ptr_t * ptr):
@@ -275,11 +285,11 @@ cdef int write_optr_legacy_long(Py_buffer * buf, offset_ptr_t * ptr):
     r.entity = ptr.entity
     return 0
 
-cdef int write_optr(object src, int optr_type,  offset_ptr_t * ptr):
+cdef int write_optr(object src, int optr_type, offset_ptr_t * ptr, object tail):
     if not PyMemoryView_Check(src): return EINVAL
     cdef Py_buffer * buf = PyMemoryView_GET_BUFFER(src)
     if optr_type == TLL_SCHEME_OFFSET_PTR_DEFAULT:
-        return write_optr_default(buf, ptr)
+        return write_optr_default(buf, ptr, tail)
     elif optr_type == TLL_SCHEME_OFFSET_PTR_LEGACY_SHORT:
         return write_optr_legacy_short(buf, ptr)
     elif optr_type == TLL_SCHEME_OFFSET_PTR_LEGACY_LONG:
@@ -471,7 +481,7 @@ cdef class FPointer(FBase):
         ptr.offset = tail_offset + len(tail)
         ptr.size = len(v)
         ptr.entity = self.size
-        if write_optr(dest, self.version, &ptr):
+        if write_optr(dest, self.version, &ptr, tail):
             return None
         b = bytearray(len(v) * ptr.entity)
         view = memoryview(b)
@@ -752,7 +762,7 @@ cdef class FVString(FBase):
         ptr.offset = tail_offset + len(tail)
         ptr.size = len(b) + 1
         ptr.entity = 1
-        if write_optr(dest, self.version, &ptr):
+        if write_optr(dest, self.version, &ptr, None):
             return None
         tail.extend(b + b'\0')
 

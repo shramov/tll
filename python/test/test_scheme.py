@@ -977,3 +977,22 @@ def test_scheme_path(tmp_path):
 
     with pytest.raises(RuntimeError):
         S.Scheme('yaml://' + filename)
+
+def test_large_pointer():
+    scheme = S.Scheme("""yamls://
+- name: Item
+  fields:
+    - {name: body, type: byte266, options.type: string}
+- name: Data
+  fields:
+    - {name: list, type: '*Item'}
+""")
+
+    msg = scheme['Data']
+
+    m = msg.object(list = [{'body': '0'}, {'body': '1'}])
+    data = memoryview(m.pack())
+    assert data[:12].tobytes() == b'\x08\x00\x00\x00\x02\x00\x00\xff\x0a\x01\x00\x00'
+
+    u = msg.unpack(data)
+    assert m.as_dict() == u.as_dict()
