@@ -157,3 +157,30 @@ def test_default_message(context):
     assert [(m.msgid, m.seq) for m in s.result] == [(20, 100), (10, 0)]
     assert s.unpack(s.result[0]).as_dict() == {'f0': 123.456}
     assert s.unpack(s.result[1]).as_dict() == {'f0': 1000}
+
+def test_pointer_large(context):
+    scheme = """yamls://
+- name: Item
+  fields:
+    - {name: body, type: byte266, options.type: string}
+- name: Data
+  id: 10
+  fields:
+    - {name: list, type: '*Item'}
+"""
+    s = Accum('json+direct://', scheme=scheme, name='json', dump='yes', context=context)
+    c = Accum('direct://', name='raw', master=s, dump='text', context=context)
+
+    s.open()
+    c.open()
+
+    c.post(json.dumps({'_tll_name': 'Data', 'list': [{"body": "0000"}, {"body": "1111"}]}).encode('utf-8'))
+
+    assert [m.seq for m in s.result] == [0]
+    m = s.result[0]
+    assert m.data[:12].tobytes() == b'\x08\x00\x00\x00\x02\x00\x00\xff\x0a\x01\x00\x00'
+    assert s.unpack(m).as_dict() == {'list': [{'body': '0000'}, {'body': '1111'}]}
+
+    s.post(s.unpack(m).as_dict(), name='Data')
+
+    assert json.loads(c.result[0].data.tobytes()) == {'_tll_name': 'Data', '_tll_seq': 0, 'list': [{"body": "0000"}, {"body": "1111"}]}

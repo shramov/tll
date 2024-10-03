@@ -205,10 +205,10 @@ struct DataHandler : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Data
 			auto fview = state.fview();
 			if (f->sub_type == Field::ByteString) {
 				scheme::generic_offset_ptr_t ptr = {};
-				ptr.offset = fview.size();
 				ptr.size = str.size() + 1;
 				ptr.entity = 1;
-				scheme::write_pointer(f, fview, ptr);
+				if (scheme::alloc_pointer(f, fview, ptr))
+					return _log.fail(false, "Failed to allocate pointer for {}", f->name);
 				auto sview = fview.view(ptr.offset);
 				sview.resize(ptr.size);
 				memcpy(sview.data(), str.data(), str.size());
@@ -305,8 +305,12 @@ struct DataHandler : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Data
 			auto meta = static_cast<const field_meta_t *>(state.field->user);
 			auto fview = state.fview();
 			_log.debug("Prealloc list {}: {} elements", state.field->name, meta->list_size);
-			scheme::optr_resize(state.field, fview, meta->list_size);
-			state.view = fview.view(scheme::optr_offset(state.field, fview));
+			scheme::generic_offset_ptr_t ptr = {};
+			ptr.size = meta->list_size;
+			ptr.entity = state.field->type_ptr->size;
+			if (scheme::alloc_pointer(state.field, fview, ptr))
+				return _log.fail(false, "Failed to preallocate pointer for {}: size {}", state.field->name, ptr.size);
+			state.view = fview.view(ptr.offset);
 			state.index_max = meta->list_size;
 			state.field = state.field->type_ptr;
 		} else if (state.field->type == Field::Message)
