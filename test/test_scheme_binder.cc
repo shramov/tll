@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "test_compat.h"
+#include "scheme-large-item.h"
 
 #pragma pack(push, 1)
 namespace http_scheme {
@@ -239,4 +240,29 @@ TEST(Scheme, Binder)
 
 	ASSERT_EQ(hi, headers.end());
 	ASSERT_EQ(chi, cheaders.end());
+}
+
+TEST(Scheme, BinderLargeItem)
+{
+	std::vector<char> buf;
+	using namespace std;
+	auto binder = large_item_scheme::Data::bind_reset(buf);
+
+	auto list = binder.get_list();
+	list.resize(2);
+	ASSERT_EQ(buf.size(), binder.meta_size() + 4 + 266 * 2);
+	ASSERT_EQ(std::string_view(buf.data(), 12), "\x08\x00\x00\x00\x02\x00\x00\xff\x0a\x01\x00\x00"sv);
+
+	list[0].set_body("0000");
+	ASSERT_EQ(std::string_view(buf.data(), 12), "\x08\x00\x00\x00\x02\x00\x00\xff\x0a\x01\x00\x00"sv);
+	ASSERT_EQ(std::string_view(buf.data() + 12, 5), "0000\0"sv);
+	ASSERT_EQ(list[0].get_body(), "0000"sv);
+	ASSERT_EQ(list[1].get_body(), ""sv);
+
+	list[1].set_body("1111");
+	ASSERT_EQ(std::string_view(buf.data(), 12), "\x08\x00\x00\x00\x02\x00\x00\xff\x0a\x01\x00\x00"sv);
+	ASSERT_EQ(std::string_view(buf.data() + 12, 5), "0000\0"sv);
+	ASSERT_EQ(std::string_view(buf.data() + 12 + 266, 5), "1111\0"sv);
+	ASSERT_EQ(list[0].get_body(), "0000"sv);
+	ASSERT_EQ(list[1].get_body(), "1111"sv);
 }
