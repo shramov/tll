@@ -60,16 +60,33 @@ struct __attribute__((packed)) offset_ptr_t : public Ptr
 	using iterator = tll::util::offset_iterator<T>;
 	using const_iterator = tll::util::offset_iterator<const T>;
 
-	T * data() { return (T *) (((char *) this) + this->offset); }
-	const T * data() const { return (const T *) (((const char *) this) + this->offset); }
+	T * data() { return (T *) (((char *) this) + data_offset()); }
+	const T * data() const { return (const T *) (((const char *) this) + data_offset()); }
+
+	const void * data_raw() const { return (((const char *) this) + this->offset); }
+
+	size_t data_offset() const
+	{
+		if (std::is_same_v<Ptr, tll_scheme_offset_ptr_t> && this->offset && entity_size() >= 0xff)
+			return this->offset + sizeof(uint32_t);
+		else
+			return this->offset;
+	}
 
 	size_t entity_size() const
 	{
-		if constexpr (std::is_same_v<Ptr, tll_scheme_offset_ptr_legacy_short_t>) {
-			return sizeof(T);
-		} else {
+		if constexpr (std::is_same_v<Ptr, tll_scheme_offset_ptr_t>) {
+			if (this->offset && this->entity == 0xff)
+				return *(const uint32_t *) data_raw();
+			else
+				return this->entity;
+		} else if constexpr (std::is_same_v<Ptr, tll_scheme_offset_ptr_legacy_short_t>) {
+			if constexpr (!std::is_same_v<T, void>)
+				return sizeof(T);
+			else
+				return 1;
+		} else if constexpr (std::is_same_v<Ptr, tll_scheme_offset_ptr_legacy_long_t>)
 			return this->entity;
-		}
 	}
 
 	iterator begin() { return iterator(data(), entity_size()); }

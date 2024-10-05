@@ -168,20 +168,14 @@ class List : public Base<Buf>
 			return sizeof(T);
 	}
 
-	size_t entity_size() const
-	{
-		if constexpr (std::is_same_v<Ptr, tll_scheme_offset_ptr_legacy_short_t>)
-			return entity_size_static();
-		else
-			return optr()->entity;
-	}
+	size_t entity_size() const { return optr()->entity_size(); }
 
 	size_t size() const { return optr()->size; }
 
 	iterator begin()
 	{
 		if constexpr (is_binder)
-			return iterator(this->_buf.view(optr()->offset), entity_size());
+			return iterator(this->_buf.view(optr()->data_offset()), entity_size());
 		else
 			return optr()->begin();
 	}
@@ -189,7 +183,7 @@ class List : public Base<Buf>
 	const_iterator begin() const
 	{
 		if constexpr (is_binder)
-			return const_iterator(this->_buf.view(optr()->offset), entity_size());
+			return const_iterator(this->_buf.view(optr()->data_offset()), entity_size());
 		else
 			return optr()->begin();
 	}
@@ -204,16 +198,24 @@ class List : public Base<Buf>
 			ptr->size = size;
 			return;
 		}
-		const size_t entity = entity_size_static();
-		const auto data_end = ptr->offset + entity * ptr->size;
+		constexpr size_t entity = entity_size_static();
+		constexpr bool entity_header = std::is_same_v<Ptr, tll_scheme_offset_ptr_t> && entity >= 0xff;
+		const auto data_end = ptr->offset + entity * ptr->size + (entity_header ? sizeof(uint32_t) : 0);
 		const auto buf_end = this->_buf.size();
 
 		if (ptr->size && buf_end == data_end) {
-			auto dview = this->_buf.view(ptr->offset);
-			if constexpr (is_binder)
+			auto dview = this->_buf.view(ptr->data_offset());
+			if constexpr (is_binder) // XXX: Is this memset needed?
 				memset(dview.data(), 0, dview.size());
 			dview.resize(entity * size);
 			optr()->size = size;
+		} else if constexpr (entity_header) {
+			this->_buf.resize(buf_end + sizeof(uint32_t) + entity * size);
+			ptr = optr();
+			ptr->size = size;
+			ptr->offset = buf_end;
+			ptr->entity = 0xff;
+			*this->_buf.view(ptr->offset).template dataT<uint32_t>() = entity;
 		} else {
 			this->_buf.resize(buf_end + entity * size);
 			ptr = optr();
