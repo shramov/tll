@@ -7,6 +7,12 @@ import functools
 
 __all__ = ['Resolution', 'Duration', 'TimePoint']
 
+if hasattr(datetime, 'UTC'):
+    def utcfromts(s):
+        return datetime.datetime.fromtimestamp(s, datetime.UTC)
+else:
+    utcfromts = datetime.datetime.utcfromtimestamp
+
 class Resolution(enum.Enum):
     nanosecond = (1, 1000000000)
     microsecond = (1, 1000000)
@@ -164,7 +170,7 @@ class TimePoint(_Base):
 
     def __str__(self):
         seconds = self.seconds
-        d =  datetime.datetime.utcfromtimestamp(seconds)
+        d =  utcfromts(seconds)
         ns = self.convert(Resolution.ns).value
         ns = int(ns - 1000000000 * int(seconds))
         r = d.strftime('%Y-%m-%dT%H:%M:%S')
