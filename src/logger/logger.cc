@@ -15,6 +15,7 @@
 #include <atomic>
 #include <map>
 #include <mutex>
+#include <set>
 #include <shared_mutex>
 #include <string>
 
@@ -212,13 +213,25 @@ struct logger_context_t
 
 	int configure(const tll::ConstConfig &cfg)
 	{
-		auto levels = cfg.sub("levels");
-		if (levels) {
-			for (auto & [k, v] : levels->browse("**")) {
-				if (!v.value()) continue;
-				auto level = tll::conv::to_any<tll_logger_level_t>(*v.get());
-				if (level)
-					set(k, *level, true);
+		if (auto levels = cfg.sub("levels"); levels) {
+			std::set<std::string> skip;
+			for (auto & [k, v] : levels->browse("**", true)) {
+				if (skip.find(k) != skip.end())
+					continue;
+				if (auto l = v.get(); l) {
+					auto level = tll::conv::to_any<tll_logger_level_t>(*l);
+					if (level)
+						set(k, *level, true);
+					continue;
+				}
+
+				auto name = v.get("name");
+				auto level = v.getT<tll_logger_level_t>("level");
+				if (name && level) {
+					skip.insert(k + ".name");
+					skip.insert(k + ".level");
+					set(*name, *level, true);
+				}
 			}
 		}
 

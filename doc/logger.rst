@@ -38,14 +38,16 @@ For example for name ``aaa.bbb.ccc`` following keys will have descending priorit
  - ``aaa.bbb``
  - ``aaa.b*``
 
-Logging levels can be set one by one or from ``Config`` object in one call.
+Logging levels can be set one by one or from ``Config`` object in a single call.
 
-Levels are located in ``levels`` subtree:
+Levels are located in ``levels`` subtree and are specified either in simple
+``prefix: LEVEL`` form or in form of ``{name: prefix, level: LEVEL}`` subtree.
 
 .. code:: yaml
 
   levels:
-    tll: DEBUG
+    tll._: {name: tll, level: INFO}
+    tll.processor.context: DEBUG
     tll.channel.stat: INFO
 
 ``type`` key controls backend type, currently only ``spdlog`` is supported.
