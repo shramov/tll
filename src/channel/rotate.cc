@@ -57,6 +57,8 @@ int Rotate::_on_init(tll::Channel::Url &curl, const tll::Channel::Url &url, tll:
 
 	auto path = std::filesystem::path(curl.host());
 	_directory = path.parent_path();
+	if (_directory.empty())
+		_directory = ".";
 	_fileprefix = path.filename();
 
 	if (_fileprefix.empty())
@@ -337,7 +339,8 @@ int Rotate::_build_map()
 	files->seq_last = &_seq_last;
 	auto current = map.end();
 
-	for (auto & e : std::filesystem::directory_iterator { _directory }) {
+	std::error_code ec;
+	for (auto & e : std::filesystem::directory_iterator { _directory, ec }) {
 		auto filename = e.path().filename();
 		_log.debug("Check file {}", filename.string());
 		if (filename.stem().stem() != _fileprefix) // File name format: {prefix}.seq.dat
@@ -385,6 +388,9 @@ int Rotate::_build_map()
 		if (e.path() == _last_filename)
 			current = emplace.first;
 	}
+
+	if (ec)
+		return _log.fail(EINVAL, "Failed to scan directory '{}': {}", _directory, ec.message());
 
 	_current_file = current;
 	_files = files;
