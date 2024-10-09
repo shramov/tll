@@ -424,8 +424,8 @@ def test_client_scheme():
 @pytest.mark.parametrize("server", ['mptcp', 'tcp'])
 @pytest.mark.parametrize("host", [f"127.0.0.1:{ports.TCP4}", f"::1:{ports.TCP6}", "./tcp.sock"])
 def test_mptcp(host, client, server):
-    s = Accum(f'tcp://{host};mode=server;dump=frame', protocol=server)
-    c = Accum(f'tcp://{host};mode=client;dump=frame', protocol=client)
+    s = Accum(f'tcp://{host};mode=server;dump=frame;nodelay=no', protocol=server)
+    c = Accum(f'tcp://{host};mode=client;dump=frame;nodelay=no', protocol=client)
 
     loop = Loop()
 
