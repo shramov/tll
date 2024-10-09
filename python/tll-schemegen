@@ -114,6 +114,8 @@ if args.channel:
                 sys.exit(1)
             loop.step(1)
     scheme = c.scheme_control if args.control else c.scheme
+    if not scheme:
+        raise SystemExit(f"Channel '{args.scheme}' has no {'control' if args.control else 'data'} scheme")
     c.close()
     del c
 else:
