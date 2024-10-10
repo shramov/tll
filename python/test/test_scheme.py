@@ -876,15 +876,15 @@ def test_inline():
     scheme = '''yamls://
 - name: a
   fields:
-    - {name: a, type: int16}
+    - {name: a, type: int16, options: {common: a, oa: a}}
 - name: b
   fields:
-    - {name: a, type: a, options.inline: yes}
+    - {name: a, type: a, options: {inline: yes, common: b, ob: b}}
     - {name: b, type: int32}
 - name: msg
   id: 10
   fields:
-    - {name: b, type: b, options.inline: yes}
+    - {name: b, type: b, options: {inline: yes, common: c, oc: c}}
     - {name: c, type: int64}
 '''
 
@@ -892,6 +892,11 @@ def test_inline():
     msg = scheme['msg']
 
     assert [(f.name, f.type) for f in msg.fields] == [('a', F.Int16), ('b', F.Int32), ('c', F.Int64)]
+    assert scheme['a']['a'].options == {'common': 'a', 'oa': 'a'}
+    assert scheme['b']['a'].options == {'common': 'b', 'oa': 'a', 'ob': 'b'}
+    assert scheme['b']['b'].options == {}
+    assert scheme['msg']['a'].options == {'common': 'c', 'oa': 'a', 'ob': 'b', 'oc': 'c'}
+    assert scheme['msg']['b'].options == {'common': 'c', 'oc': 'c'}
 
     with pytest.raises(RuntimeError):
         S.Scheme('''yamls://

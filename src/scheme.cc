@@ -747,13 +747,17 @@ struct Message
 					auto msg = lookup(s, f->type_msg);
 					if (!msg)
 						return _log.fail(std::nullopt, "Invalid message name '{}'", f->type_msg);
-					for (auto & mf : msg->fields) {
+					for (auto mf : msg->fields) {
 						_log.trace("Copy inline field {}", mf.name);
 						for (auto & f : m.fields) {
 							if (f.name == mf.name)
 								return _log.fail(std::nullopt, "Duplicate field name {}", mf.name);
 						}
-						m.fields.push_back(mf);
+						for (auto &[k, v]: f->options) {
+							if (k != "inline")
+								mf.options[k] = v;
+						}
+						m.fields.push_back(std::move(mf));
 					}
 					continue;
 				}
