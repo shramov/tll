@@ -33,7 +33,7 @@ void tll_time_cache_enable(int enable);
 #endif
 
 #ifdef __cplusplus
-#include "tll/util/conv.h"
+#include <tll/conv/numeric.h>
 
 #include <chrono>
 #include <cstdint>
