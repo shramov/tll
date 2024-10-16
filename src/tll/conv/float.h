@@ -8,6 +8,12 @@
 #ifndef _TLL_CONV_FLOAT_H
 #define _TLL_CONV_FLOAT_H
 
+#include <tll/conv/base.h>
+
+#include <cstdio>
+#include <cmath>
+#include <limits>
+
 namespace tll::conv {
 
 template <typename T>
@@ -171,6 +177,51 @@ struct parse<unpacked_float<T>>
 		if (!exp)
 			return error("Invalid exponent string: " + std::string(s));
 		r.exponent += *exp;
+		return r;
+	}
+};
+
+template <typename T>
+struct dump<T, typename std::enable_if<std::is_floating_point_v<T>>::type> : public to_string_from_string_buf<T>
+{
+	static constexpr std::string_view _snprintf_format()
+	{
+		if constexpr (std::is_same_v<T, long double>)
+			return "%.*Lg";
+		return "%.*g";
+	}
+
+	static constexpr int _snprintf_precision()
+	{
+		if constexpr (std::is_same_v<T, double>)
+			return std::numeric_limits<T>::max_digits10 - 1;
+		return std::numeric_limits<T>::max_digits10 - 1;
+	}
+
+	template <typename Buf>
+	static std::string_view to_string_buf(const T &value, Buf &buf)
+	{
+		constexpr auto prec = _snprintf_precision();
+		buf.resize(prec + 16);
+		auto l = snprintf(buf.data(), buf.size(), _snprintf_format().data(), prec, value);
+		auto r = std::string_view(buf.data(), std::min<int>(l, buf.size()));
+		return r;
+		//if (r.find('.') != r.npos) return r;
+		//return append(buf, r, ".0");
+	}
+};
+
+template <typename T>
+struct parse<T, typename std::enable_if<std::is_floating_point_v<T>>::type>
+{
+	static result_t<T> to_any(std::string_view s)
+	{
+		auto u = tll::conv::to_any<unpacked_float<unsigned long long>>(s);
+		if (!u)
+			return error(u.error());
+		T r = powl(10, u->exponent) * u->mantissa;
+		if (u->sign)
+			return -r;
 		return r;
 	}
 };
