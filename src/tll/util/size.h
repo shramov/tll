@@ -8,7 +8,7 @@
 #ifndef _TLL_UTIL_SIZE_H
 #define _TLL_UTIL_SIZE_H
 
-#include "tll/util/conv.h"
+#include <tll/conv/numeric.h>
 
 namespace tll::util {
 
