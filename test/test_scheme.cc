@@ -693,3 +693,44 @@ TEST(Scheme, FixArrayCount)
 	_check_fix_array_count(1000, Field::Int16, nullptr, nullptr);
 	_check_fix_array_count(1000, Field::Int32, "int32", nullptr);
 }
+
+#pragma pack(push, 1)
+struct Secret
+{
+	int32_t f0;
+	double f1;
+	std::array<char, 4> f2;
+	std::array<char, 4> f3;
+};
+#pragma pack(pop)
+
+TEST(Scheme, Secret)
+{
+	using namespace tll::scheme;
+	SchemePtr scheme { Scheme::load(R"(yamls://
+- name: Data
+  fields:
+    - {name: f0, type: int32}
+    - {name: f1, type: double}
+    - {name: f2, type: byte4}
+    - {name: f3, type: byte4, options: {type: string}}
+- name: Secret
+  fields:
+    - {name: f0, type: int32, options.tll.secret: yes}
+    - {name: f1, type: double, options.tll.secret: yes}
+    - {name: f2, type: byte4, options.tll.secret: yes}
+    - {name: f3, type: byte4, options: {type: string, tll.secret: yes}}
+)")};
+	ASSERT_TRUE(scheme) << "Failed to load scheme";
+
+	Secret msg = { .f0 = 100, .f1 = 123.456, .f2 = { 'a', 'b', 'c' }, .f3 = { 'd', 'e', 'f' }};
+	tll::const_memory memory = { &msg, sizeof(msg) };
+
+	auto r = tll::scheme::to_string(scheme->messages, tll::make_view(memory));
+	ASSERT_TRUE(r) << "Failed to dump message: " << r.error();
+	ASSERT_EQ(*r, "f0: 100\nf1: 123.456\nf2: \"abc\\x00\"\nf3: \"def\"");
+
+	r = tll::scheme::to_string(scheme->messages->next, tll::make_view(memory));
+	ASSERT_TRUE(r) << "Failed to dump secret message: " << r.error();
+	ASSERT_EQ(*r, "f0: 0\nf1: 0\nf2: \"****\"\nf3: \"****\"");
+}
