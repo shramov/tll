@@ -147,6 +147,8 @@ format_result_t to_strings(const tll::scheme::Field * field, const View &data)
 	if (data.size() < field->size)
 		return unexpected(path_error_t {"", fmt::format("Data size too small: {} < {}", data.size(), field->size)});
 
+	auto secret = tll::getter::getT(field->options, "tll.secret", false).value_or(false);
+
 	switch (field->type) {
 	case Field::Int8:  return to_strings_number(field, *data.template dataT<int8_t>());
 	case Field::Int16: return to_strings_number(field, *data.template dataT<int16_t>());
@@ -161,6 +163,8 @@ format_result_t to_strings(const tll::scheme::Field * field, const View &data)
 		return std::list<std::string> { tll::conv::to_string(*data.template dataT<tll::util::Decimal128>()) };
 	case Field::Bytes: {
 		auto ptr = data.template dataT<const char>();
+		if (secret)
+			return std::list<std::string> {'"' + std::string(field->size, '*') + '"'};
 		if (field->sub_type == Field::ByteString) {
 			return std::list<std::string> {'"' + std::string(ptr, strnlen(ptr, field->size)) + '"'};
 		}
@@ -192,6 +196,10 @@ format_result_t to_strings(const tll::scheme::Field * field, const View &data)
 		else if (ptr->offset + ptr->size * ptr->entity > data.size())
 			return unexpected(path_error_t {"", fmt::format("Offset data out of bounds: offset {} + data {} * entity {} > data size {}", ptr->offset, (unsigned) ptr->size, ptr->entity, data.size())});
 		if (field->sub_type == Field::ByteString) {
+			secret = tll::getter::getT(field->type_ptr->options, "tll.secret", false).value_or(false);
+			if (secret)
+				return std::list<std::string>{'"' + std::string(std::max(ptr->size, 1u) - 1, '*') + '"'};
+
 			std::string_view r;
 			if (ptr->size)
 				r = {data.view(ptr->offset).template dataT<const char>(), ptr->size - 1};
