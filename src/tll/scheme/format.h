@@ -62,8 +62,10 @@ format_result_t to_strings_time_point(Int v)
 }
 
 template <typename Int>
-format_result_t to_strings_number(const tll::scheme::Field * field, Int v)
+format_result_t to_strings_number(const tll::scheme::Field * field, Int v, bool secret)
 {
+	if (secret)
+		v = 0;
 	if constexpr (!std::is_floating_point_v<Int>) {
 		if (field->sub_type == field->Fixed) {
 			tll::conv::unpacked_float<Int> u(v, -field->fixed_precision);
@@ -150,15 +152,15 @@ format_result_t to_strings(const tll::scheme::Field * field, const View &data)
 	auto secret = tll::getter::getT(field->options, "tll.secret", false).value_or(false);
 
 	switch (field->type) {
-	case Field::Int8:  return to_strings_number(field, *data.template dataT<int8_t>());
-	case Field::Int16: return to_strings_number(field, *data.template dataT<int16_t>());
-	case Field::Int32: return to_strings_number(field, *data.template dataT<int32_t>());
-	case Field::Int64: return to_strings_number(field, *data.template dataT<int64_t>());
-	case Field::UInt8:  return to_strings_number(field, *data.template dataT<uint8_t>());
-	case Field::UInt16: return to_strings_number(field, *data.template dataT<uint16_t>());
-	case Field::UInt32: return to_strings_number(field, *data.template dataT<uint32_t>());
-	case Field::UInt64: return to_strings_number(field, *data.template dataT<uint64_t>());
-	case Field::Double: return to_strings_number(field, *data.template dataT<double>());
+	case Field::Int8:  return to_strings_number(field, *data.template dataT<int8_t>(), secret);
+	case Field::Int16: return to_strings_number(field, *data.template dataT<int16_t>(), secret);
+	case Field::Int32: return to_strings_number(field, *data.template dataT<int32_t>(), secret);
+	case Field::Int64: return to_strings_number(field, *data.template dataT<int64_t>(), secret);
+	case Field::UInt8:  return to_strings_number(field, *data.template dataT<uint8_t>(), secret);
+	case Field::UInt16: return to_strings_number(field, *data.template dataT<uint16_t>(), secret);
+	case Field::UInt32: return to_strings_number(field, *data.template dataT<uint32_t>(), secret);
+	case Field::UInt64: return to_strings_number(field, *data.template dataT<uint64_t>(), secret);
+	case Field::Double: return to_strings_number(field, *data.template dataT<double>(), secret);
 	case Field::Decimal128:
 		return std::list<std::string> { tll::conv::to_string(*data.template dataT<tll::util::Decimal128>()) };
 	case Field::Bytes: {
