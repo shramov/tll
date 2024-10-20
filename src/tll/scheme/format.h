@@ -162,6 +162,8 @@ format_result_t to_strings(const tll::scheme::Field * field, const View &data)
 	case Field::UInt64: return to_strings_number(field, *data.template dataT<uint64_t>(), secret);
 	case Field::Double: return to_strings_number(field, *data.template dataT<double>(), secret);
 	case Field::Decimal128:
+		if (secret)
+			return std::list<std::string> { "0.E0" };
 		return std::list<std::string> { tll::conv::to_string(*data.template dataT<tll::util::Decimal128>()) };
 	case Field::Bytes: {
 		auto ptr = data.template dataT<const char>();
@@ -211,8 +213,12 @@ format_result_t to_strings(const tll::scheme::Field * field, const View &data)
 		return to_strings_list(field->type_ptr, data.view(ptr->offset), ptr->size, ptr->entity);
 	}
 	case Field::Message:
+		if (secret)
+			return std::list<std::string> { "{}" };
 		return to_strings(field->type_msg, data);
 	case Field::Union: {
+		if (secret)
+			return std::list<std::string> { "{}" };
 		auto type = read_size(field->type_union->type_ptr, data.view(field->type_union->type_ptr->offset));
 		if (type < 0 || (size_t) type > field->type_union->fields_size)
 			return unexpected(path_error_t {"", fmt::format("Union type out of bounds: {}", type)});
