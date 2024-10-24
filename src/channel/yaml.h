@@ -9,6 +9,7 @@
 #define _TLL_CHANNEL_YAML_H
 
 #include "tll/channel/base.h"
+#include "tll/scheme/encoder.h"
 
 class ChYaml : public tll::channel::Base<ChYaml>
 {
@@ -22,7 +23,7 @@ class ChYaml : public tll::channel::Base<ChYaml>
 
 	bool _autoclose = false;
 	bool _autoseq = false;
-	bool _strict = true;
+	tll::scheme::ConfigEncoder _encoder;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "yaml"; }
@@ -33,18 +34,6 @@ class ChYaml : public tll::channel::Base<ChYaml>
 	int _process(long timeout, int flags);
 
 	int _fill(const tll::Scheme * scheme, tll_msg_t * msg, tll::ConstConfig &cfg);
-
-	template <typename View>
-	int _fill(View view, const tll::scheme::Message * msg, tll::ConstConfig &cfg);
-
-	template <typename View>
-	int _fill(View view, const tll::scheme::Field * msg, tll::ConstConfig &cfg);
-
-	template <typename T>
-	int _fill_numeric(T * ptr, const tll::scheme::Field * msg, std::string_view s);
-
-	template <typename T>
-	int _fill_conv(void * ptr, std::string_view s);
 };
 
 #endif//_TLL_CHANNEL_YAML_H
