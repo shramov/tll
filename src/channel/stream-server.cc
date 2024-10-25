@@ -13,6 +13,7 @@
 #include "channel/blocks.scheme.h"
 
 #include "tll/util/size.h"
+#include "tll/scheme/encoder.h"
 #include "tll/scheme/merge.h"
 
 #include <sys/fcntl.h>
@@ -52,6 +53,7 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 	_init_seq = reader.getT<unsigned long>("init-seq", 0);
 	_init_block = reader.getT("init-block", std::string(url.sub("blocks") ? "default" : ""));
 	_rotate_on_block = reader.getT("rotate-on-block", std::string());
+	_init_config = url.sub("init-message-data").value_or(_init_config);
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
@@ -175,7 +177,14 @@ int StreamServer::_open(const ConstConfig &url)
 		auto message = scheme->lookup(_init_message);
 		if (!message)
 			return _log.fail(EINVAL, "Message '{}' not found in scheme", _init_message);
+
 		initial_buffer.resize(message->size);
+		tll::scheme::ConfigEncoder encoder;
+		encoder.settings.strict = false;
+		if (encoder.encode(tll::make_view(initial_buffer), message, _init_config))
+			return _log.fail(EINVAL, "Failed to encode init message {} at {}: {}",
+					message->name, encoder.format_stack(), encoder.error);
+
 		initial_message.msgid = message->msgid;
 		initial_message.seq = _init_seq;
 		initial_message.data = initial_buffer.data();

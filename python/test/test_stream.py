@@ -260,7 +260,7 @@ async def test_init_message(asyncloop, tmp_path, init_seq, init_block):
    fields: [{name: i32, type: int32}]
 '''
     common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;storage.dump=frame;blocks.dump=frame'
-    s = asyncloop.Channel(f'{common};storage.url=file://{tmp_path}/storage.dat;name=server;mode=server;blocks.url=blocks://{tmp_path}/blocks.yaml;init-message=Initial;init-seq={init_seq};init-block={init_block}', scheme=SCHEME)
+    s = asyncloop.Channel(f'{common};storage.url=file://{tmp_path}/storage.dat;name=server;mode=server;blocks.url=blocks://{tmp_path}/blocks.yaml;init-message=Initial;init-seq={init_seq};init-block={init_block};init-message-data.i64=100', scheme=SCHEME)
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test', scheme=SCHEME)
 
     s.open()
@@ -281,7 +281,7 @@ async def test_init_message(asyncloop, tmp_path, init_seq, init_block):
 
     m = await c.recv()
     assert (m.type, m.seq, m.msgid) == (m.Type.Data, init_seq or 0, 10)
-    assert c.unpack(m).as_dict() == {'i64': 0}
+    assert c.unpack(m).as_dict() == {'i64': 100}
 
     m = await c.recv()
     assert m.type == m.Type.Control

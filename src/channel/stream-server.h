@@ -77,6 +77,7 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	tll::Config _child_open;
 
 	std::string _init_message;
+	tll::ConstConfig _init_config;
 	long long _init_seq;
 	std::string _init_block;
 

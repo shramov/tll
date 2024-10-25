@@ -55,10 +55,13 @@ storage with some form of aggregated data that can be requested using ``block=<u
 ``autoseq=<bool>``, default ``false`` - enable automatic sequence numbers. If old data exists when
 channel is opened - continue from last stored sequence number.
 
-``init-message=<string>``, default empty - initialize empty storage with this message with zeroed body
-and seqence number from ``init-seq`` parameter, can not be used without scheme.
+``init-message=<string>``, default empty - initialize empty storage with this message filled with
+data from ``init-message-data`` subtree and seqence number from ``init-seq`` parameter, can not be
+used without scheme.
 
 ``init-seq=<unsigned>``, default ``0`` - sequence number for initialization message
+
+``init-message-data=<config>`` - subtree describing field values for initialization message.
 
 ``init-block``, default ``default`` - initialize block storage with message from ``init-message``
 parameter with block this block type. Applicable only if ``blocks`` channel is defined.
@@ -96,6 +99,26 @@ localhost addresss ``::1`` and ports 5555 and 5556:
     storage: rotate+file://storage
     blocks: blocks://blocks.yaml
     scheme: yaml://scheme.yaml
+
+Initialize storage (if it is empty) and create first block with non-zeroed message (it has
+``header`` with field ``f0`` and ``f1`` top level field).
+
+.. code-block:: yaml
+
+  server:
+    tll.proto: stream+pub+tcp
+    tll.host: ::1:5555
+    request: tcp://::1:5556
+    mode: server
+    storage: file://storage
+    blocks: some-blocks://params
+    scheme: yaml://scheme.yaml
+    init-message: Heartbeat
+    init-message-data:
+      header: {f0: 100}
+      f1: 123.456
+    init-seq: 100
+    init-block: default
 
 See also
 --------
