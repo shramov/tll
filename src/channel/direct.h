@@ -16,6 +16,7 @@ class ChDirect : public tll::channel::AutoSeq<ChDirect>
 	ChDirect * _sibling = nullptr;
 	bool _sub = false;
 	bool _notify_state = false;
+	bool _manual_open = false;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "direct"; }
@@ -28,12 +29,14 @@ class ChDirect : public tll::channel::AutoSeq<ChDirect>
 		if (auto r = Base::_open(cfg); r)
 			return _log.fail(EINVAL, "Base open failed");
 		if (!_sub) {
-			state(tll::state::Active);
+			if (!_manual_open)
+				state(tll::state::Active);
 			return 0;
 		}
 		_update_state(tll::state::Opening);
 		_sibling->_sibling = this;
-		_update_state(tll::state::Active);
+		if (!_manual_open)
+			_update_state(tll::state::Active);
 		return 0;
 	}
 

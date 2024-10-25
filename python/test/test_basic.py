@@ -220,6 +220,20 @@ def test_direct_state():
     c.close()
     assert [s.unpack(m).as_dict() for m in s.result] == [{'state': s.State.Closing}, {'state': s.State.Closed}]
 
+def test_direct_manual_open(context):
+    s = Accum(f'direct://;manual-open=xxx', name='server', context=context)
+    c = Accum('direct://;manual-open=yes', name='client', master=s, context=context)
+
+    s.open()
+    c.open()
+
+    assert c.state == c.State.Opening
+    s.post(b'', type=s.Type.State, msgid=int(s.State.Active))
+    assert c.state == c.State.Active
+
+    c.close()
+    assert c.state == c.State.Closed
+
 def test_direct_scheme():
     scheme = 'yamls://[{name: Test, id: 10}]'
     s = Accum(f'direct://', name='server', context=ctx, scheme=scheme)

@@ -49,6 +49,9 @@ following values:
 ``notify-state=<bool>`` - default ``no``, only for master: generate control messages for slave state
 changes.
 
+``manual-open=<bool>`` - default ``no``, only for slave: do not change state to ``Active``, user have to do this
+transition manualy, by posting state message to the other side.
+
 State messages
 --------------
 

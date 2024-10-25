@@ -36,6 +36,9 @@ int ChDirect::_init(const tll::Channel::Url &url, tll::Channel * master)
 	auto emulate = reader.getT("emulate-control", std::vector<std::string>{});
 	if (!master)
 		_notify_state = reader.getT("notify-state", false);
+	else
+		_manual_open = reader.getT("manual-open", false);
+
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
