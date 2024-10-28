@@ -18,8 +18,6 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
-#include <array>
-
 using namespace tll;
 using namespace tll::file;
 
