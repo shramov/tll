@@ -83,7 +83,7 @@ class ChTcpClient : public tll::channel::TcpClient<ChTcpClient<Frame>, FramedSoc
 			return r;
 
 		auto reader = this->channel_props_reader(url);
-		auto hwm = reader.template getT("send-buffer-hwm", tll::util::Size { 0 });
+		auto hwm = reader.getT("send-buffer-hwm", tll::util::Size { 0 });
 		if (!reader)
 			return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 		if (hwm > this->_settings.snd_buffer_size * 0.8)
@@ -124,7 +124,7 @@ class ChTcpServer : public tll::channel::TcpServer<ChTcpServer<Frame>, ChFramedS
 		}
 
 		auto reader = this->channel_props_reader(url);
-		auto hwm = reader.template getT("send-buffer-hwm", tll::util::Size { 0 });
+		auto hwm = reader.getT("send-buffer-hwm", tll::util::Size { 0 });
 		if (!reader)
 			return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 		if (hwm > this->_settings.snd_buffer_size * 0.8)
@@ -239,11 +239,11 @@ int FramedSocket<T, F>::_post_data(const tll_msg_t *msg, int flags)
 	if constexpr (FrameT::frame_skip_size() != 0) {
 		Frame frame;
 		FrameT::write(msg, &frame);
-		r = this->template _sendv(tll::memory {(void *) &frame, sizeof(frame)}, *msg);
+		r = this->_sendv(tll::memory {(void *) &frame, sizeof(frame)}, *msg);
 		if (r)
 			return this->_log.fail(r, "Failed to post data");
 	} else {
-		r = this->template _sendv(*msg);
+		r = this->_sendv(*msg);
 	}
 	if (r)
 		return this->_log.fail(r, "Failed to post data");

@@ -429,7 +429,7 @@ int TcpClient<T, S>::_open(const ConstConfig &url)
 	tll::network::hostport peer;
 	if (!_peer) {
 		auto reader = this->channelT()->channel_props_reader(url);
-		auto af = reader.template getT("af", network::AddressFamily::UNSPEC);
+		auto af = reader.getT("af", network::AddressFamily::UNSPEC);
 		auto host = reader.template getT<std::string>("host", "");
 		if (!reader)
 			return this->_log.fail(EINVAL, "Invalid open parameters: {}", reader.error());

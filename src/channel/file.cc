@@ -235,10 +235,10 @@ int File<TIO>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	this->_log.info("Initialize file channel with {} io", _io.name());
 
 	auto reader = this->channel_props_reader(url);
-	_block_init = reader.template getT("block", util::Size {1024 * 1024});
-	_compression = reader.template getT("compression", Compression::None, {{"none", Compression::None}, {"lz4", Compression::LZ4}});
-	_autoclose = reader.template getT("autoclose", true);
-	_tail_extra_size = reader.template getT("extra-space", util::Size { 0 });
+	_block_init = reader.getT("block", util::Size {1024 * 1024});
+	_compression = reader.getT("compression", Compression::None, {{"none", Compression::None}, {"lz4", Compression::LZ4}});
+	_autoclose = reader.getT("autoclose", true);
+	_tail_extra_size = reader.getT("extra-space", util::Size { 0 });
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
