@@ -344,6 +344,12 @@ def test_mem_free():
     del s
     del c
 
+def test_mem_open_order(fd=True, **kw):
+    s = ctx.Channel('mem://;size=1kb', name='server')
+    c = ctx.Channel('mem://', name='client', master=s)
+
+    with pytest.raises(TLLError): c.open()
+
 def check_openpty():
     try:
         m, s = os.openpty()

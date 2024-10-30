@@ -158,6 +158,8 @@ int Mem<F>::_open(const tll::ConstConfig &url)
 	if (_child) {
 		if (!_sibling)
 			return this->_log.fail(EINVAL, "Master channel already destroyed");
+		if (_sibling->state() != tll::state::Active)
+			return this->_log.fail(EINVAL, "Master channel is not active: {}", tll_state_str(_sibling->state()));
 		auto lock = _sibling->_lock();
 		_rin = _sibling->_rout;
 		_rout = _sibling->_rin;
