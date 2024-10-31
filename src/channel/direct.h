@@ -10,11 +10,21 @@
 
 #include "tll/channel/autoseq.h"
 
+#include <memory>
+#include <mutex>
+
 class ChDirect : public tll::channel::AutoSeq<ChDirect>
 {
 	using Base = tll::channel::AutoSeq<ChDirect>;
-	ChDirect * _sibling = nullptr;
-	bool _sub = false;
+	enum Mode { Master = 0, Slave = 1 } _mode = Slave;
+	struct Pointers {
+		ChDirect * master = nullptr;
+		ChDirect * slave = nullptr;
+
+		ChDirect ** get(Mode mode) { if (mode == Master) return &master; else return &slave; }
+	};
+	std::shared_ptr<Pointers> _ptr;
+
 	bool _notify_state = false;
 	bool _manual_open = false;
 
@@ -28,13 +38,8 @@ class ChDirect : public tll::channel::AutoSeq<ChDirect>
 	{
 		if (auto r = Base::_open(cfg); r)
 			return _log.fail(EINVAL, "Base open failed");
-		if (!_sub) {
-			if (!_manual_open)
-				state(tll::state::Active);
-			return 0;
-		}
 		_update_state(tll::state::Opening);
-		_sibling->_sibling = this;
+		*_ptr->get(_mode) = this;
 		if (!_manual_open)
 			_update_state(tll::state::Active);
 		return 0;
@@ -42,30 +47,28 @@ class ChDirect : public tll::channel::AutoSeq<ChDirect>
 
 	int _close()
 	{
-		if (!_sub)
-			return 0;
 		_update_state(tll::state::Closing);
-		if (_sibling)
-			_sibling->_sibling = nullptr;
+		*_ptr->get(_mode) = nullptr;
 		_update_state(tll::state::Closed);
 		return 0;
 	}
 
 	void _free()
 	{
-		_sibling = nullptr;
+		_ptr.reset();
 	}
 
 	int _post(const tll_msg_t *msg, int flags)
 	{
-		if (_sibling) {
+		auto ptr = *_ptr->get(_invert(_mode));
+		if (ptr) {
 			if (msg->type == TLL_MESSAGE_STATE) {
 				auto s = (tll_state_t) msg->msgid;
-				_log.info("Change sibling state {} to {}", _sibling->name, tll_state_str(s));
-				_sibling->state(s);
+				_log.info("Change sibling state {} to {}", ptr->name, tll_state_str(s));
+				ptr->state(s);
 				return 0;
 			}
-			_sibling->_callback(_autoseq.update(msg));
+			ptr->_callback(_autoseq.update(msg));
 		}
 		return 0;
 	}
@@ -75,6 +78,8 @@ class ChDirect : public tll::channel::AutoSeq<ChDirect>
 	void _update_state(tll_state_t state);
 
 	int _merge_control(std::string_view scheme, std::string_view name);
+ private:
+	Mode _invert(Mode m) { return (Mode) (1 - m); }
 };
 
 #endif//_TLL_CHANNEL_DIRECT_H
