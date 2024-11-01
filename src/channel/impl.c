@@ -111,6 +111,10 @@ int tll_channel_internal_child_add(tll_channel_internal_t *ptr, tll_channel_t *c
 		//tll_logger_printf(internal->logger, TLL_LOGGER_ERROR, "Failed to add child '%s': %s", tll_channel_name(c), strerror(r));
 		return r;
 	}
+
+	if ((ptr->caps & TLL_CAPS_PARENT) == 0)
+		tll_logger_printf(ptr->logger, TLL_LOGGER_WARNING, "Adding child '%s', but Parent cap is not set", tll_channel_name(c));
+
 	tll_msg_t msg = {.type = TLL_MESSAGE_CHANNEL, .msgid = TLL_MESSAGE_CHANNEL_ADD};
 	msg.data = &c;
 	msg.size = sizeof(c);
