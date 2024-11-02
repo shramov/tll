@@ -88,7 +88,7 @@ ${cpp.declare_enum(e)}
 <%call expr='union2decl(u)'></%call>
 % endfor
 % for b in scheme.bits.values():
-${cpp.declare_bits(e)}
+${cpp.declare_bits(b)}
 % endfor
 % for msg in scheme.messages:
 struct ${msg.name}
