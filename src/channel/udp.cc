@@ -8,6 +8,7 @@
 #include "channel/udp.h"
 
 #include "tll/channel/frame.h"
+#include "tll/channel/lastseq.h"
 #include "tll/channel/udp.h"
 #include "tll/util/sockaddr.h"
 
@@ -42,9 +43,9 @@ class FramedSocket : public tll::channel::udp::Socket<T>
 };
 
 template <typename Frame>
-class UdpClient : public FramedSocket<UdpClient<Frame>, Frame>
+class UdpClient : public tll::channel::LastSeqTx<UdpClient<Frame>, FramedSocket<UdpClient<Frame>, Frame>>
 {
-	using udp_socket_t = FramedSocket<UdpClient<Frame>, Frame>;
+	using udp_socket_t = tll::channel::LastSeqTx<UdpClient<Frame>, FramedSocket<UdpClient<Frame>, Frame>>;
 
 	tll::network::hostport _host;
 
@@ -54,14 +55,17 @@ class UdpClient : public FramedSocket<UdpClient<Frame>, Frame>
 
 	int _post(const tll_msg_t *msg, int flags)
 	{
-		return udp_socket_t::_send(msg, this->_addr);
+		auto r = udp_socket_t::_send(msg, this->_addr);
+		if (r == 0 && msg->type == TLL_MESSAGE_DATA)
+			this->_last_seq_tx(msg->seq);
+		return r;
 	}
 };
 
 template <typename Frame>
-class UdpServer : public FramedSocket<UdpServer<Frame>, Frame>
+class UdpServer : public tll::channel::LastSeqRx<UdpServer<Frame>, FramedSocket<UdpServer<Frame>, Frame>>
 {
-	using udp_socket_t = FramedSocket<UdpServer<Frame>, Frame>;
+	using udp_socket_t = tll::channel::LastSeqRx<UdpServer<Frame>, FramedSocket<UdpServer<Frame>, Frame>>;
 
 	tll::network::hostport _host;
 	bool _unlink_socket = false;
