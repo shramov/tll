@@ -545,7 +545,7 @@ int Processor::cb(const Channel * c, const tll_msg_t * msg)
 
 void Processor::update(const Channel *c, tll_state_t s)
 {
-	_log.info("Update channel {} state {}", c->name(), tll_state_str(s));
+	_log.debug("Update channel {} state {}", c->name(), tll_state_str(s));
 	auto o = find(c);
 	if (!o)
 		return _log.error("Channel {} not found", c->name());
