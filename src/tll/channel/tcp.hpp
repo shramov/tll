@@ -482,8 +482,6 @@ int TcpClient<T, S>::_process_connect()
 	if (r == 0 || (pfd.revents & (POLLOUT | POLLHUP)) == 0)
 		return EAGAIN;
 
-	this->_log.info("Connected");
-
 	int err = 0;
 	socklen_t len = sizeof(err);
 	if (getsockopt(this->fd(), SOL_SOCKET, SO_ERROR, &err, &len))
@@ -491,6 +489,7 @@ int TcpClient<T, S>::_process_connect()
 	if (err)
 		return this->_log.fail(err, "Failed to connect: {}", strerror(err));
 
+	this->_log.info("Connected");
 	return this->channelT()->_on_connect();
 }
 
