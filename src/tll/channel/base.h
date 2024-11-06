@@ -116,6 +116,10 @@ class Base
 	/// Post in Closing state policy
 	static constexpr auto post_closing_policy() { return PostPolicy::Disable; }
 
+	/// Stat policy: allocate stat structure or allow user to handle it
+	enum class StatPolicy { Normal, Manual };
+	static constexpr auto stat_policy() { return StatPolicy::Normal; }
+
 	tll_channel_internal_t internal = {};
 
 	using StatType = tll_channel_stat_t;
@@ -242,7 +246,7 @@ class Base
 
 		internal.logger = tll_logger_copy(_log.ptr());
 
-		if (_stat_enable)
+		if (ChannelT::stat_policy() == StatPolicy::Normal && _stat_enable)
 			internal.stat = new stat::Block<typename T::StatType>(name);
 
 		return 0;
@@ -258,7 +262,7 @@ class Base
 			close(true);
 		state(state::Destroy);
 		static_cast<ChannelT *>(this)->_free();
-		if (internal.stat)
+		if (ChannelT::stat_policy() == StatPolicy::Normal && internal.stat)
 			delete static_cast<stat::Block<typename T::StatType> *>(internal.stat);
 		_scheme.reset();
 		_scheme_control.reset();
