@@ -23,9 +23,19 @@ struct Worker : public tll::channel::Base<Worker>
 	static constexpr auto open_policy() { return OpenPolicy::Manual; }
 	static constexpr auto process_policy() { return ProcessPolicy::Never; }
 	static constexpr auto child_policy() { return ChildPolicy::Many; }
+	static constexpr auto stat_policy() { return StatPolicy::Manual; }
 	static constexpr std::string_view channel_protocol() { return "tll.worker"; }
 
 	tll::processor::Loop loop;
+
+	struct StatType : public Base::StatType
+	{
+		tll::stat::Integer<tll::stat::Sum, tll::stat::Unknown, 's', 't', 'e', 'p'> step;
+		tll::stat::Integer<tll::stat::Sum, tll::stat::Ns, 'p', 'o', 'l', 'l'> poll;
+		tll_stat_field_t padding[2] = {};
+	};
+
+	std::optional<tll::stat::Block<StatType>> _stat;
 
 	std::list<Object *> objects;
 	struct {
@@ -40,11 +50,7 @@ struct Worker : public tll::channel::Base<Worker>
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
 	int _open(const tll::ConstConfig &);
 	int _close();
-
-	void _free()
-	{
-		_ipc.reset();
-	}
+	void _free();
 
 	using tll::channel::Base<Worker>::post;
 

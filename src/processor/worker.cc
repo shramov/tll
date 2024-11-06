@@ -55,7 +55,20 @@ int Worker::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_ipc->callback_add(this, TLL_MESSAGE_MASK_DATA);
 	_child_add(_ipc.get(), "ipc");
 	loop.add(self());
+
+	if (_stat_enable) {
+		_stat.emplace(name);
+		internal.stat = &*_stat;
+		if (loop.stat(stat()))
+			return _log.fail(EINVAL, "Failed to enable stat on the loop");
+	}
 	return 0;
+}
+
+void Worker::_free()
+{
+	_ipc.reset();
+	internal.stat = nullptr;
 }
 
 int Worker::_open(const ConstConfig &)
