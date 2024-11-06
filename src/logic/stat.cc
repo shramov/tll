@@ -168,6 +168,8 @@ int Stat::_dump(tll_stat_iter_t * iter)
 	auto ptr = static_cast<const tll::stat::Field *>(page->fields);
 	auto end = ptr + page->size;
 	for (; ptr != end; ptr++) {
+		if (ptr->name().empty())
+			continue;
 		auto field = fields[size++];
 		if (r.size())
 			r += ", ";
