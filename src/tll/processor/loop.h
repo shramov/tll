@@ -10,6 +10,7 @@
 
 #include "tll/channel.h"
 #include "tll/logger.h"
+#include "tll/stat.h"
 #include "tll/util/time.h"
 
 #include <errno.h>
@@ -328,6 +329,12 @@ struct tll_processor_loop_t
 #elif defined(WITH_KQUEUE)
 	tll::processor::loop::KQueue _poll;
 #endif
+	using StatStep = tll::stat::Integer<tll::stat::Sum, tll::stat::Unknown, 's', 't', 'e', 'p'>;
+	using StatPoll = tll::stat::Integer<tll::stat::Sum, tll::stat::Ns, 'p', 'o', 'l', 'l'>;
+
+	tll_stat_block_t * _stat = nullptr;
+	unsigned _stat_step_index = -1;
+	unsigned _stat_poll_index = -1;
 
 	tll::duration _poll_interval = std::chrono::milliseconds(10);
 
@@ -373,6 +380,35 @@ struct tll_processor_loop_t
 		return 0;
 	}
 
+	int stat(tll_stat_block_t * block)
+	{
+		if (!block) {
+			_stat = nullptr;
+			return 0;
+		}
+		auto page = tll::stat::acquire(block);
+		if (!page)
+			return _log.fail(EINVAL, "Failed to set stat: unable to acquire page");
+		int step = -1, poll = -1;
+		for (auto i = 0u; i < page->size; i++) {
+			auto f = static_cast<const tll::stat::Field *>(page->fields + i);
+			if (f->name() == "step")
+				step = i;
+			else if (f->name() == "poll")
+				poll = i;
+		}
+		tll::stat::release(block, page);
+		if (step == -1 || poll == -1)
+			return _log.fail(ENOENT, "Failed to set stat: required fields 'step' and 'poll' not found");
+		_log.debug("Stat index: step {}, poll {}", step, poll);
+		_stat_step_index = step;
+		_stat_poll_index = poll;
+		_stat = block;
+		if (_poll_enable)
+			time_cache_enable = false;
+		return 0;
+	}
+
 	bool poll_enable() const { return _poll_enable; }
 	int poll_fd() const
 	{
@@ -411,8 +447,18 @@ struct tll_processor_loop_t
 	tll::Channel * poll(tll::duration timeout)
 	{
 		if (_poll_enable) {
+			tll::time_point start = {};
+			if (_stat)
+				start = tll::time::now();
 			auto r = _poll.poll(timeout);
-			if (time_cache_enable)
+			if (_stat) {
+				std::chrono::nanoseconds dt = tll::time::now() - start;
+				if (auto s = tll::stat::acquire(_stat); s) {
+					static_cast<StatStep *>(s->fields + _stat_step_index)->update(1);
+					static_cast<StatPoll *>(s->fields + _stat_poll_index)->update(dt.count());
+					tll::stat::release(_stat, s);
+				}
+			} else if (time_cache_enable)
 				tll::time::now();
 			if (_poll.is_pending(r)) {
 				_log.trace("Process pending: {} channels", list_pending.size);
@@ -435,6 +481,12 @@ struct tll_processor_loop_t
 			return nullptr;
 		}
 
+		if (_stat) {
+			if (auto s = tll::stat::acquire(_stat); s) {
+				static_cast<StatStep *>(s->fields + _stat_step_index)->update(1);
+				tll::stat::release(_stat, s);
+			}
+		}
 		if (time_cache_enable)
 			tll::time::now();
 		process_list(list_pending);
