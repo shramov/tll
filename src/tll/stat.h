@@ -368,6 +368,12 @@ class BlockT : public tll_stat_block_t
 		this->name = _name.c_str();
 	}
 
+	void init(std::string name)
+	{
+		this->name = name.c_str();
+		std::swap(_name, name);
+	}
+
 	T * derive(page_t * p)
 	{
 		if constexpr (derived)
