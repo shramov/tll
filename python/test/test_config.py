@@ -39,6 +39,13 @@ def test_basic():
     with pytest.raises(KeyError): cfg.unlink('a')
     with pytest.raises(KeyError): cfg.remove('a')
 
+    cfg['a'] = None
+    assert not 'a' in cfg
+    cfg['a'] = 'b'
+    assert cfg['a'] == 'b'
+    cfg['a'] = None
+    assert not 'a' in cfg
+
 def test_copy():
     cfg = Config.load('yamls://{a: 1, b: {x: 2, y: 3}}')
     assert dict(cfg.browse('**')) == {'a':'1', 'b.x':'2', 'b.y':'3'}

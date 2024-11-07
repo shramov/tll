@@ -160,6 +160,10 @@ cdef class Config:
             return self.set_config(key, value)
         elif callable(value):
             return self.set_callback(key, value)
+        elif value is None:
+            if self.has(key):
+                self.remove(key)
+            return
         k = s2b(key)
         v = s2b(value)
         r = tll_config_set(self._ptr, k, len(k), v, len(v))
