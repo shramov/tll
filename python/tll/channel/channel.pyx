@@ -228,7 +228,7 @@ cdef class Channel:
             kw['context'] = context
 
         for k,v in kw.items():
-            curl[k] = str(v)
+            curl[k] = v
 
         self._own = True
         self._ptr = tll_channel_new_url(cptr, curl._ptr, pptr, NULL)
