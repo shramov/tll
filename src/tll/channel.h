@@ -260,7 +260,8 @@ int tll_channel_process(tll_channel_t *c, long timeout, int flags);
 
 /// Flags for tll_channel_post call
 typedef enum {
-	TLL_POST_MORE = 1, ///< More messages will be sent, equivalent of MSG_MORE flag for send(2)
+	TLL_POST_MORE = 0x1, ///< More messages will be sent, equivalent of MSG_MORE flag for send(2)
+	TLL_POST_URGENT = 0x2, ///< Data with high priority, it should not be rejected if possible
 } tll_channel_post_flag_t;
 
 int tll_channel_post(tll_channel_t *c, const tll_msg_t *msg, int flags);
