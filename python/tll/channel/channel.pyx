@@ -75,6 +75,7 @@ _DCaps = DCaps
 class PostFlags(enum.IntFlag):
     Zero = 0
     More = TLL_POST_MORE
+    Urgent = TLL_POST_URGENT
 _PostFlags = PostFlags
 
 class RunGuard:

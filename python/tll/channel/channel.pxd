@@ -59,6 +59,7 @@ cdef extern from "tll/channel.h" nogil:
 
     ctypedef enum tll_channel_post_flag_t:
         TLL_POST_MORE
+        TLL_POST_URGENT
 
     ctypedef struct tll_addr_t:
         int64_t i64
