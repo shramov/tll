@@ -118,7 +118,7 @@ int Rate::_post(const tll_msg_t *msg, int flags)
 	auto now = tll::time::now();
 	_bucket.update(_conf, now);
 
-	if (_bucket.empty())
+	if (_bucket.empty() && !(flags & TLL_POST_URGENT))
 		return EAGAIN;
 
 	if (auto r = _child->post(msg, flags); r)

@@ -161,3 +161,12 @@ def test_timeline(context):
 
     assert (child.dcaps & child.DCaps.SuspendPermanent) == 0
     assert (child.dcaps & child.DCaps.Suspend) == 0
+
+def test_rate_urgent(context):
+    c = context.Channel('rate+null://;speed=1kb;max-window=1kb;name=rate;dump=frame')
+    c.open()
+
+    c.post(b'x' * 1024)
+    with pytest.raises(TLLError): c.post(b'x' * 128)
+    c.post(b'x' * 128, flags=c.PostFlags.Urgent)
+    with pytest.raises(TLLError): c.post(b'x' * 128)
