@@ -765,8 +765,8 @@ template <typename TIO>
 int File<TIO>::_read_seq(frame_size_t frame, tll_msg_t *msg)
 {
 	size_t size = _data_size(frame);
-	if (size < sizeof(frame_t))
-		return this->_log.fail(EINVAL, "Invalid frame size at 0x{:x}: {} too small", _io.offset, frame);
+	if (size < sizeof(frame_size_t))
+		return this->_log.fail(EINVAL, "Invalid frame size at 0x{:x}: {} too small", _io.offset, size);
 
 	return _read_data(size, msg);
 }
@@ -985,6 +985,9 @@ int File<TIO>::_read_data(size_t size, tll_msg_t *msg)
 		_lz4_decode_offset = _io.offset;
 	}
 
+	if (r.size < sizeof(frame_t))
+		return this->_log.fail(EINVAL, "Invalid data size at {}: {} too small", _io.offset, r.size);
+
 	auto meta = (frame_t *) r.data;
 	msg->msgid = meta->msgid;
 	msg->seq = meta->seq;
@@ -1038,7 +1041,7 @@ int File<TIO>::_process(long timeout, int flags)
 	}
 
 	size_t size = _data_size(frame);
-	if (size < sizeof(frame_t))
+	if (size < sizeof(frame_size_t))
 		return this->_log.fail(EINVAL, "Invalid frame size at 0x{:x}: {} too small", _io.offset, frame);
 
 	if (auto r = _read_data(size, &msg); r) {

@@ -436,3 +436,20 @@ def test_scheme_override(context, filename):
 
     assert [m.name for m in r0.scheme.messages] == ['Old']
     assert [m.name for m in r1.scheme.messages] == ['New']
+
+def test_lz4_repeated(context, filename):
+    writer = context.Channel(f'file://{filename}', name='writer', dir='w', compression='lz4', dump='frame')
+    writer.open()
+
+    data = bytes(range(256))
+
+    for i in range(20):
+        writer.post(data, msgid=i // 10, seq=i)
+
+    reader = Accum(f'file://{filename}', name='reader', dump='frame', context=context)
+    reader.open()
+    for i in range(20):
+        reader.process()
+        m = reader.result.pop(0)
+        assert (m.seq, m.msgid) == (i, i // 10)
+        assert m.data.tobytes() == data
