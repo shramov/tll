@@ -389,10 +389,7 @@ class Base
 			} else
 				return _log.fail(EINVAL, "Post in invalid state {}", tll_state_str(s));
 		}
-		auto r = static_cast<ChannelT *>(this)->_post(msg, flags);
-		if (r)
-			_log.error("Post failed: {}", strerror(r));
-		return r;
+		return static_cast<ChannelT *>(this)->_post(msg, flags);
 	}
 
 	int _post(const tll_msg_t *msg, int flags)
