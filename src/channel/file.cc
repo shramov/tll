@@ -18,6 +18,8 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include <mutex>
+
 using namespace tll;
 using namespace tll::file;
 
@@ -239,8 +241,12 @@ int File<TIO>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_compression = reader.getT("compression", Compression::None, {{"none", Compression::None}, {"lz4", Compression::LZ4}});
 	_autoclose = reader.getT("autoclose", true);
 	_tail_extra_size = reader.getT("extra-space", util::Size { 0 });
+	_access_mode = reader.getT("access-mode", 0644u);
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
+
+	if (_access_mode > 0777)
+		return this->_log.fail(EINVAL, "Invalid file access-mode parameter: 0{:o} greater then maximum 0777", _access_mode);
 
 	_filename = url.host();
 
@@ -343,6 +349,8 @@ int File<TIO>::_open(const ConstConfig &props)
 			_io.fd = mkstemp(fn.data());
 			if (_io.fd == -1)
 				return this->_log.fail(EINVAL, "Failed to create temporary file {}: {}", fn, strerror(errno));
+			if (fchmod(_io.fd, _access_mode))
+				return this->_log.fail(EINVAL, "Failed to set file mode of {} to 0{:o}: {}", fn, _access_mode, strerror(errno));
 
 			if (_write_meta()) {
 				return this->_log.fail(EINVAL, "Failed to write metadata");

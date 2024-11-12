@@ -33,6 +33,9 @@ read mode.
 
 ``scheme={SCHEME}`` - file scheme, ignored in read mode if present in metadata.
 
+``access-mode=<unsigned>`` - file mode, default 0644 (octal, ``rw-r--r--``) - access bits set to
+newly created file, can not be greater then 0777.
+
 Write init parameters
 ^^^^^^^^^^^^^^^^^^^^^
 

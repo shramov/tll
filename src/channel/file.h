@@ -59,6 +59,7 @@ class File : public tll::channel::AutoSeq<File<TIO>>
 	Compression _compression;
 	bool _autoclose = true;
 	bool _end_of_data = false;
+	unsigned _access_mode = 0644;
 
 public:
 	static constexpr std::string_view channel_protocol() { return IO::protocol(); }
