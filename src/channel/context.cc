@@ -599,8 +599,21 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 
 	std::set<const tll_channel_impl_t *> impllog;
 
-	auto url_str = conv::to_string(url);
+	std::string url_str = std::string(url.proto()) + "://" + std::string(url.host());
+	std::string url_short = url_str;
+	for (auto & p : url.browse("**")) {
+		auto cvalue = p.second.get();
+		auto value = cvalue.value_or("");
+		if (p.first == "tll.proto" || p.first == "tll.host")
+			continue;
+		url_str += fmt::format(";{}={}", p.first, value);
+		if (value.size() > 80)
+			url_short += fmt::format(";{}={}...", p.first, value.substr(0, 80));
+		else
+			url_short += fmt::format(";{}={}", p.first, value);
+	}
 
+	_log.info("Init channel {}", url_short);
 	do {
 		*c = {};
 		c->context = this;

@@ -223,7 +223,6 @@ cdef class Base:
     def stat(self): return self.internal.stat
 
     def init(self, url, master=None):
-        Logger('tll.python').info('Init channel {}', url)
         self.internal.state = C.State.Closed
         self.config["state"] = "Closed"
         self.config['init'] = url.copy()

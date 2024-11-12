@@ -187,7 +187,6 @@ class Base
 
 	int init(const Channel::Url &url, tll::Channel *master, tll_channel_context_t *ctx)
 	{
-		_log.info("Init channel {}", tll::conv::to_string(url));
 		_config_defaults = context().config_defaults();
 		internal.state = state::Closed;
 		_config.set("state", "Closed");
