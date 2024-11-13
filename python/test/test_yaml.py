@@ -212,7 +212,9 @@ config:
     for i in range(4):
         c.process()
         assert [(m.msgid, m.seq) for m in c.result] == [(10, j) for j in range(i + 1)]
+    assert c.dcaps == c.DCaps.Process | c.DCaps.Pending
     c.process()
+    assert c.dcaps == c.DCaps.Zero
     assert [(m.msgid, m.seq) for m in c.result] == [(10, j) for j in range(4)]
     for i in range(4):
         assert c.unpack(c.result[i]).as_dict() == {'f0': i}

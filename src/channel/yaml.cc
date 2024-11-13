@@ -103,6 +103,7 @@ int ChYaml::_process(long timeout, int flags)
 			close();
 			return 0;
 		}
+		_update_dcaps(0, dcaps::Process | dcaps::Pending);
 		return EAGAIN;
 	}
 
