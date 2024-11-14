@@ -399,6 +399,8 @@ int StreamServer::_on_request_control(const tll_msg_t *msg)
 
 int StreamServer::_on_request_data(const tll_msg_t *msg)
 {
+	Request request;
+	request.addr = msg->addr.u64;
 	if (msg->msgid == stream_scheme::ClientDone::meta_id()) {
 		auto it = _clients.find(msg->addr.u64);
 		if (it == _clients.end())
@@ -411,7 +413,44 @@ int StreamServer::_on_request_data(const tll_msg_t *msg)
 		_clients.erase(it);
 		_request_disconnect(name, msg->addr);
 		return 0;
-	} else if (msg->msgid != stream_scheme::Request::meta_id())
+	} else if (msg->msgid == stream_scheme::Request::meta_id()) {
+		auto req = stream_scheme::Request::bind(*msg);
+		if (msg->size < req.meta_size())
+			return _log.fail(0, "Invalid request size: {} < minimum {}", msg->size, req.meta_size());
+
+		if (req.get_version() != stream_scheme::Version::Current)
+			return _log.fail(0, "Invalid client version: {} differs from server {}", (int) req.get_version(), (int) stream_scheme::Version::Current);
+		request.client = req.get_client();
+		auto data = req.get_data();
+		switch (data.union_type()) {
+		case data.index_seq:
+			request.data = data.unchecked_seq();
+			break;
+		case data.index_block: {
+			auto block = data.unchecked_block();
+			request.data = Request::Block { block.get_block(), block.get_index() };
+			break;
+		}
+		default:
+			return _log.fail(0, "Invalid request from client '{}': unknown union type {}", request.client, data.union_type());
+		}
+	} else if (msg->msgid == stream_scheme::RequestOld::meta_id()) {
+		auto req = stream_scheme::RequestOld::bind(*msg);
+		if (msg->size < req.meta_size())
+			return _log.fail(0, "Invalid request size: {} < minimum {}", msg->size, req.meta_size());
+
+		if (req.get_version() != stream_scheme::Version::Current)
+			return _log.fail(0, "Invalid client version: {} differs from server {}", (int) req.get_version(), (int) stream_scheme::Version::Current);
+		request.client = req.get_client();
+		auto block = req.get_block();
+		auto seq = req.get_seq();
+		if (block.size())
+			request.data = Request::Block { block, req.get_seq() };
+		else if (seq >= 0)
+			request.data = (uint64_t) seq;
+		else
+			return _log.fail(0, "Invalid request from client '{}': negative seq {}", request.client, seq);
+	} else
 		return _log.fail(0, "Invalid message from client: {}", msg->msgid);
 
 	auto r = _clients.emplace(msg->addr.u64, this);
@@ -419,7 +458,7 @@ int StreamServer::_on_request_data(const tll_msg_t *msg)
 	client.msg = {};
 	client.msg.addr = msg->addr;
 
-	if (auto error = client.init(msg); !error) {
+	if (auto error = client.init(request); !error) {
 		_log.error("Failed to init client '{}' from {}: {}", client.name, msg->addr.u64, error.error());
 
 		std::vector<char> data;
@@ -443,30 +482,17 @@ int StreamServer::_on_request_data(const tll_msg_t *msg)
 	return 0;
 }
 
-tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
+tll::result_t<int> StreamServer::Client::init(const StreamServer::Request &req)
 {
 	auto & _log = parent->_log;
 	state = State::Opening;
 	block_end = -1;
 
-	if (msg->msgid != stream_scheme::Request::meta_id())
-		return error(fmt::format("Invalid message id: {}, expected {}", msg->msgid, stream_scheme::Request::meta_id()));
-	auto req = stream_scheme::Request::bind(*msg);
-	if (msg->size < req.meta_size())
-		return error(fmt::format("Invalid request size: {} < minimum {}", msg->size, req.meta_size()));
+	name = req.client;
+	if (std::holds_alternative<Request::Block>(req.data)) {
+		auto &[block, index] = std::get<Request::Block>(req.data);
+		_log.info("Request from client '{}' (addr {}) for block '{}' index {}", name, req.addr, block, index);
 
-	if (req.get_version() != stream_scheme::Version::Current)
-		return error(fmt::format("Invalid client version: {} differs from server {}", (int) req.get_version(), (int) stream_scheme::Version::Current));
-
-	name = req.get_client();
-	seq = req.get_seq();
-	auto block = req.get_block();
-	_log.info("Request from client '{}' (addr {}) for seq {}, block '{}'", name, msg->addr.u64, seq, block);
-
-	if (seq < 0)
-		return error(fmt::format("Negative seq: {}", seq));
-
-	if (block.size()) {
 		if (!parent->_blocks)
 			return error("Requested block, but no block storage configured");
 		auto blocks = parent->context().channel(parent->_blocks_url, parent->_blocks.get());
@@ -475,7 +501,7 @@ tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
 		blocks->callback_add(on_storage, this);
 
 		tll::Config ocfg;
-		ocfg.set("block", tll::conv::to_string(req.get_seq()));
+		ocfg.setT("block", index);
 		ocfg.set("block-type", block);
 
 		if (blocks->open(ocfg))
@@ -502,7 +528,10 @@ tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
 		if (blocks->state() != tll::state::Closed)
 			storage_next = std::move(blocks);
 
-		_log.info("Translated block type '{}' number {} to seq {}, storage seq {}", block, req.get_seq(), seq, block_end);
+		_log.info("Translated block type '{}' number {} to seq {}, storage seq {}", block, index, seq, block_end);
+	} else {
+		seq = std::get<uint64_t>(req.data);
+		_log.info("Request from client '{}' (addr {}) for seq {}", name, req.addr, seq);
 	}
 
 	if (block_end != -1 && block_end > parent->_seq + 1)

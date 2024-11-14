@@ -44,6 +44,7 @@ int StreamClient::_init(const Channel::Url &url, tll::Channel *master)
 	auto size = reader.getT<util::Size>("size", 128 * 1024);
 	_peer = reader.getT<std::string>("peer", "");
 	_report_block_end = reader.getT("report-block-end", true);
+	_protocol_old = reader.getT("protocol", true, {{"old", true}, {"new", false}});
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
@@ -87,11 +88,16 @@ int StreamClient::_open(const ConstConfig &url)
 
 	auto reader = channel_props_reader(url);
 
-	auto r = stream_scheme::Request::bind_reset(_request_buf);
-	r.set_version(stream_scheme::Version::Current);
+	auto rnew = stream_scheme::Request::bind_reset(_request_buf);
+	auto rold = stream_scheme::RequestOld::bind(_request_buf);
+	rold.set_version(stream_scheme::Version::Current); // First field in both messages
 
-	if (_peer.size())
-		r.set_client(_peer);
+	if (_peer.size()) {
+		if (_protocol_old)
+			rold.set_client(_peer);
+		else
+			rnew.set_client(_peer);
+	}
 
 	enum Mode { Undefined, Online, Seq, SeqData, Block };
 	auto mode = reader.getT("mode", Undefined, {{"online", Online}, {"seq", Seq}, {"seq-data", SeqData}, {"block", Block}});
@@ -112,15 +118,25 @@ int StreamClient::_open(const ConstConfig &url)
 			return _log.fail(EINVAL, "Invalid seq parameter: negative value {}", *_open_seq);
 		if (mode == SeqData)
 			++*_open_seq;
-		r.set_seq(*_open_seq);
+		if (_protocol_old)
+			rold.set_seq(*_open_seq);
+		else
+			rnew.get_data().set_seq(*_open_seq);
 
 		_reopen_cfg.set("mode", "seq");
 		_reopen_cfg.set("seq", _config_seq, this);
 	}  else if (mode == Block) {
 		auto block = reader.getT<unsigned>("block");
 		auto type = reader.getT<std::string>("block-type", "default");
-		r.set_seq(block);
-		r.set_block(type);
+
+		if (_protocol_old) {
+			rold.set_seq(block);
+			rold.set_block(type);
+		} else {
+			auto b = rnew.get_data().set_block();
+			b.set_index(block);
+			b.set_block(type);
+		}
 
 		_reopen_cfg.set("mode", "block");
 		_reopen_cfg.setT("block", block);
@@ -240,7 +256,7 @@ int StreamClient::_on_request_closed()
 int StreamClient::_on_request_active()
 {
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
-	msg.msgid = stream_scheme::Request::meta_id();
+	msg.msgid = _protocol_old ? stream_scheme::RequestOld::meta_id() : stream_scheme::Request::meta_id();
 	msg.data = _request_buf.data();
 	msg.size = _request_buf.size();
 	if (auto r = _request->post(&msg); r)
