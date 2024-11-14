@@ -17,10 +17,11 @@ def context():
     return C.Context()
 
 @asyncloop_run
-async def test(asyncloop, tmp_path):
+@pytest.mark.parametrize("protocol", ["old", "new"])
+async def test(asyncloop, tmp_path, protocol):
     common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
     s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server')
-    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test;stream.protocol={protocol}')
 
     assert [x.name for x in s.children] == ['server/stream', 'server/request', 'server/storage']
     assert [x.name for x in c.children] == ['client/stream', 'client/request']
@@ -242,6 +243,7 @@ async def test_reopen(asyncloop, tmp_path):
     assert m.type == m.Type.Control
     assert (m.seq, c.unpack(m).SCHEME.name) == (30, 'Online')
 
+@pytest.mark.parametrize("protocol", ["old", "new"])
 @pytest.mark.parametrize("req,result", [
         ('block=0', [20, 30, 30]),
         ('block=0;block-type=rare', [20, 30, 30]),
@@ -252,10 +254,10 @@ async def test_reopen(asyncloop, tmp_path):
         ('block=0;block-type=unknown', []),
         ])
 @asyncloop_run
-async def test_block(asyncloop, tmp_path, req, result):
+async def test_block(asyncloop, tmp_path, req, result, protocol):
     common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
     s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
-    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test;stream.protocol={protocol}')
 
     assert [x.name for x in s.children] == ['server/stream', 'server/request', 'server/storage', 'server/blocks']
 
@@ -289,9 +291,9 @@ async def test_block(asyncloop, tmp_path, req, result):
         return
 
     m = await c.recv()
-    assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control['EndOfBlock'].msgid, result.pop(0))
+    assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control['EndOfBlock'].msgid, result[0])
 
-    for seq in result[:-1]:
+    for seq in result[1:-1]:
         m = await c.recv()
         assert (m.type, m.seq) == (m.Type.Data, seq)
 
@@ -911,8 +913,8 @@ async def test_request_close(asyncloop, tmp_path, path_srcdir, mode, rseq, oseq)
     request = asyncloop.Channel('direct://', name='request', scheme=f'yaml://{path_srcdir / "src/channel/stream-scheme.yaml"}')
     request.open()
 
-    client = asyncloop.Channel(f'stream+direct://;request=direct://', dump='frame', name='client', mode='client',
-        **{'request.master': 'request', 'request.dump': 'frame', 'direct.dump': 'frame'})
+    client = asyncloop.Channel(f'stream+direct://;request=direct://', dump='frame', name='client', mode='client', protocol='new',
+                               **{'request.master': 'request', 'request.dump': 'frame', 'direct.dump': 'frame'})
     client.open(mode='seq', seq='10')
 
     assert client.children[0].name == 'client/stream'
@@ -923,7 +925,7 @@ async def test_request_close(asyncloop, tmp_path, path_srcdir, mode, rseq, oseq)
 
     m = request.unpack(await request.recv())
     assert m.SCHEME.name == 'Request'
-    assert m.seq == 10
+    assert m.as_dict() == {'version': m.version.Current, 'client': '', 'attributes': [], 'data': {'seq': 10}}
 
     request.post({'last_seq': 20, 'requested_seq': 10, 'block_seq': -1}, name='Reply')
 

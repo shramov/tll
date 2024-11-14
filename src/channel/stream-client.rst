@@ -38,6 +38,10 @@ logs about data request processing.
 ``report-block-end=<bool>``, default ``yes`` - report block end with ``EndOfBlock`` control message,
 can be disabled for backward compatibility.
 
+``protocol={old|new}``, default ``old`` - use old or new request message, since TCP channels have
+``protocol`` parameter too use ``stream.protocol`` in configuration (or, better, use processor
+defaults).
+
 Open parameters
 ---------------
 

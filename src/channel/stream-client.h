@@ -39,6 +39,7 @@ class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::
 
 	tll::Config _reopen_cfg;
 	bool _report_block_end = true;
+	bool _protocol_old = true;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "stream+"; }

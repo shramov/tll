@@ -7,7 +7,7 @@
     - {name: attribute, type: string}
     - {name: value, type: string}
 
-- name: Request
+- name: RequestOld
   id: 11
   fields:
     - {name: version, type: Version}
@@ -15,6 +15,25 @@
     - {name: client, type: string}
     - {name: block, type: string}
     - {name: attributes, type: '*Attribute'}
+
+- name: RequestBlock
+  fields:
+    - {name: block, type: string}
+    - {name: index, type: int64}
+
+- name: Request
+  id: 12
+  unions:
+    Data:
+      union:
+        - {name: seq, type: uint64}
+        - {name: block, type: RequestBlock}
+
+  fields:
+    - {name: version, type: Version}
+    - {name: client, type: string}
+    - {name: attributes, type: '*Attribute'}
+    - {name: data, type: Data}
 
 - name: Reply
   id: 20

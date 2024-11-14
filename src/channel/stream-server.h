@@ -13,6 +13,7 @@
 #include "tll/channel/prefix.h"
 
 #include <list>
+#include <variant>
 
 namespace tll::channel {
 
@@ -29,11 +30,19 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 
 	long long _seq = -1;
 
+	struct Request
+	{
+		std::string_view client;
+		uint64_t addr;
+		using Block = std::pair<std::string_view, int64_t>;
+		std::variant<uint64_t, Block> data;
+	};
+
 	struct Client
 	{
 		Client(StreamServer * s) : parent(s) {}
 		void reset();
-		tll::result_t<int> init(const tll_msg_t * msg);
+		tll::result_t<int> init(const Request &);
 
 		long long seq = -1;
 		long long block_end = -1;
