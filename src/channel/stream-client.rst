@@ -35,6 +35,10 @@ old data from ``request`` channel.
 ``peer=<string>``, default empty - client name that is passed to the server where it is included in
 logs about data request processing.
 
+``protocol={old|new}``, default ``old`` - use old or new request message, since TCP channels have
+``protocol`` parameter too use ``stream.protocol`` in configuration (or, better, use processor
+defaults).
+
 Open parameters
 ---------------
 

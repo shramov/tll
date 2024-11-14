@@ -40,6 +40,7 @@ class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::
 	std::string _peer;
 
 	tll::Config _reopen_cfg;
+	bool _protocol_old = true;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "stream+"; }
