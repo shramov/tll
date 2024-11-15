@@ -275,9 +275,7 @@ template <typename T, typename C>
 class TcpServer : public Base<T>
 {
  protected:
-	network::AddressFamily _af = network::AddressFamily::UNSPEC;
-	std::string _host;
-	unsigned short _port;
+	tll::network::hostport _host;
 	unsigned _addr_seq = 0;
 
 	using tcp_server_t = TcpServer<T, C>;
