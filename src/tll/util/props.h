@@ -38,8 +38,18 @@ struct GetT
 	}
 };
 
+template <typename T>
+struct GetT<std::optional<T>>
+{
+	template <typename Klass>
+	static result_t<std::optional<T>> get(const Klass &obj, std::string_view key)
+	{
+		return GetT<T>::template get<Klass>(obj, key);
+	}
+};
+
 template <typename Klass, typename T>
-inline result_t<std::optional<T>> _getT(const Klass &obj, std::string_view key)
+inline auto _getT(const Klass &obj, std::string_view key)
 {
 	return GetT<T>::template get<Klass>(obj, key);
 }
