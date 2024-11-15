@@ -233,9 +233,17 @@ class TestTcp4(_test_tcp_base):
     ADDR = ('ipv4', 0x0100007f)
     PROTO = 'tcp://127.0.0.1:{}'.format(ports.TCP4)
 
+class TestTcp4Sub(_test_tcp_base):
+    ADDR = ('ipv4', 0x0100007f)
+    PROTO = f'tcp://;tll.host.host=127.0.0.1;tll.host.port={ports.TCP4}'
+
 class TestTcp6(_test_tcp_base):
     ADDR = ('ipv6', socket.inet_pton(socket.AF_INET6, '::1'))
     PROTO = 'tcp://::1:{}'.format(ports.TCP6)
+
+class TestTcp6Sub(_test_tcp_base):
+    ADDR = ('ipv6', socket.inet_pton(socket.AF_INET6, '::1'))
+    PROTO = f'tcp://;tll.host.host=::1;tll.host.port={ports.TCP6}'
 
 @pytest.mark.skipif(sys.platform != 'linux', reason='Network timestamping not supported')
 class TestTcp6TS(_test_tcp_base):
@@ -346,7 +354,7 @@ def test_open_peer():
     s = Accum('tcp://./tcp.sock;mode=server;dump=frame')
     c = Accum('tcp://;mode=client')
     s.open()
-    c.open('af=unix;tcp.host=tcp.sock')
+    c.open('af=unix;tcp.host=./tcp.sock')
 
     for x in s.children:
         x.process()

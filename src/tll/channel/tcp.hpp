@@ -388,6 +388,7 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 	auto reader = this->channel_props_reader(url);
 	auto af = reader.getT("af", network::AddressFamily::UNSPEC);
+	_peer = reader.getT("tll.host", std::optional<tll::network::hostport> {});
 	this->_size = reader.template getT<util::Size>("size", 128 * 1024);
 	_settings.timestamping = reader.getT("timestamping", false);
 	_settings.keepalive = reader.getT("keepalive", true);
@@ -405,13 +406,9 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 	S::_init(url, master);
 
-	auto host = url.host();
-	if (host.size()) {
-		auto r = network::parse_hostport(url.host(), af);
-		if (!r)
-			return this->_log.fail(EINVAL, "Invalid host string '{}': {}", host, r.error());
-		_peer = std::move(*r);
-
+	if (_peer) {
+		if (_peer->set_af(af))
+			return this->_log.fail(EINVAL, "Mismatched address family: parameter {}, parsed {}", af, _peer->af);
 		this->_log.debug("Connection to {}:{}", _peer->host, _peer->port);
 	} else
 		this->_log.debug("Connection address will be provided in open parameters");
@@ -430,15 +427,11 @@ int TcpClient<T, S>::_open(const ConstConfig &url)
 	if (!_peer) {
 		auto reader = this->channelT()->channel_props_reader(url);
 		auto af = reader.getT("af", network::AddressFamily::UNSPEC);
-		auto host = reader.template getT<std::string>("host", "");
+		peer = reader.template getT<tll::network::hostport>("host");
 		if (!reader)
 			return this->_log.fail(EINVAL, "Invalid open parameters: {}", reader.error());
-		if (!host.size())
-			return this->_log.fail(EINVAL, "Remote address not provided in open parameters: missing or empty 'host' parameter");
-		auto r = network::parse_hostport(host, af);
-		if (!r)
-			return this->_log.fail(EINVAL, "Invalid host string '{}': {}", host, r.error());
-		peer = std::move(*r);
+		if (peer.set_af(af))
+			return this->_log.fail(EINVAL, "Mismatched address family: parameter {}, parsed {}", af, peer.af);
 	} else
 		peer = *_peer;
 	auto addr = tll::network::resolve(peer.af, SOCK_STREAM, peer.host, peer.port);
@@ -575,6 +568,7 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = this->channelT()->channel_props_reader(url);
 	auto af = reader.getT("af", network::AddressFamily::UNSPEC);
+	_host = reader.template getT<tll::network::hostport>("tll.host");
 	_settings.timestamping = reader.getT("timestamping", false);
 	_settings.keepalive = reader.getT("keepalive", true);
 	_settings.nodelay = reader.getT("nodelay", true);
@@ -589,6 +583,9 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
+	if (_host.set_af(af))
+		return this->_log.fail(EINVAL, "Mismatched address family: parameter {}, parsed {}", af, _host.af);
+
 	{
 		_socket_url.proto(this->channelT()->channel_protocol());
 		auto r = url.getT<tll::Channel::Url>("socket", _socket_url);
@@ -600,13 +597,6 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 		_socket_url.set("mode", "socket");
 	}
 
-	auto host = url.host();
-	auto r = network::parse_hostport(url.host(), af);
-	if (!r)
-		return this->_log.fail(EINVAL, "Invalid host string '{}': {}", host, r.error());
-	_af = r->af;
-	_host = r->host;
-	_port = r->port;
 
 	this->_scheme_control.reset(this->context().scheme_load(tcp_scheme::scheme_string));
 	if (!this->_scheme_control.get())
@@ -615,7 +605,7 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_client_init.proto(url.proto());
 	_client_init.set("mode", "client");
 
-	this->_log.debug("Listen on {}:{}", _host, _port);
+	this->_log.debug("Listen on {}:{}", _host.host, _host.port);
 	return 0;
 }
 
@@ -625,9 +615,9 @@ int TcpServer<T, C>::_open(const ConstConfig &url)
 	_cleanup_flag = false;
 	_addr_seq = 0;
 
-	auto addr = tll::network::resolve(_af, SOCK_STREAM, _host.c_str(), _port);
+	auto addr = _host.resolve(SOCK_STREAM);
 	if (!addr)
-		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _host, addr.error());
+		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _host.host, addr.error());
 
 	for (auto & a : *addr) {
 		if (this->_bind(a))
@@ -645,7 +635,7 @@ int TcpServer<T, C>::_open(const ConstConfig &url)
 
 	auto af = static_cast<network::AddressFamily>(addr->front()->sa_family);
 	_client_init.set("af", tll::conv::to_string(af));
-	if (af == network::AddressFamily::UNIX || _host != "*") {
+	if (af == network::AddressFamily::UNIX || _host.host != "*") {
 		_client_init.host(tll::conv::to_string(addr->front()));
 		_client_config.set("init", _client_init);
 		this->_config.set("client", _client_config);
@@ -717,10 +707,10 @@ int TcpServer<T, C>::_bind(tll::network::sockaddr_any &addr)
 template <typename T, typename C>
 int TcpServer<T, C>::_close()
 {
-	if (this->_af == AF_UNIX && _sockets.size()) {
-		this->_log.info("Unlink unix socket {}", this->_host);
-		if (unlink(this->_host.c_str()))
-			this->_log.warning("Failed to unlink socket {}: {}", this->_host, strerror(errno));
+	if (this->_host.af == AF_UNIX && _sockets.size()) {
+		this->_log.info("Unlink unix socket {}", this->_host.host);
+		if (unlink(this->_host.host.c_str()))
+			this->_log.warning("Failed to unlink socket {}: {}", this->_host.host, strerror(errno));
 	}
 	for (auto & c : _clients)
 		tll_channel_free(*c.second);
