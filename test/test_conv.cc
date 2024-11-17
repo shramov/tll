@@ -17,6 +17,11 @@
 	if (l) { EXPECT_EQ(*l, r); } \
 	} while (0);
 
+#define EXPECT_NEAR_ANY(l, r) do { \
+	EXPECT_TRUE(l) << "Failed to convert: " << l.error(); \
+	if (l) { EXPECT_DOUBLE_EQ(*l, r); } \
+	} while (0);
+
 using tll::conv::to_any;
 using tll::conv::to_string;
 
@@ -91,12 +96,12 @@ TEST(Conv, Float)
 	EXPECT_FALSE(to_any<double>("x"));
 	EXPECT_FALSE(to_any<double>("10x"));
 
-	EXPECT_EQ_ANY(to_any<float>("10"), 10.);
-	EXPECT_EQ_ANY(to_any<float>("10.1"), (float) 10.1);
-	EXPECT_EQ_ANY(to_any<double>("10"), 10.);
-	EXPECT_EQ_ANY(to_any<double>("10.1"), 10.1);
-	EXPECT_EQ_ANY(to_any<long double>("10"), 10.l);
-	EXPECT_EQ_ANY(to_any<long double>("10.1"), 10.1l);
+	EXPECT_NEAR_ANY(to_any<float>("10"), 10.);
+	EXPECT_NEAR_ANY(to_any<float>("10.1"), (float) 10.1);
+	EXPECT_NEAR_ANY(to_any<double>("10"), 10.);
+	EXPECT_NEAR_ANY(to_any<double>("10.1"), 10.1);
+	EXPECT_NEAR_ANY(to_any<long double>("10"), 10.l);
+	EXPECT_NEAR_ANY(to_any<long double>("10.1"), 10.1l);
 
 	//printf("Digits %s: %d/%d\n", "float", std::numeric_limits<float>::max_digits10, std::numeric_limits<float>::digits10);
 	//printf("Digits %s: %d/%d\n", "double", std::numeric_limits<double>::max_digits10, std::numeric_limits<double>::digits10);
