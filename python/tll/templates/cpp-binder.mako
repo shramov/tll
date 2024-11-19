@@ -62,33 +62,34 @@ def field2type(f):
 def field2code(msg, f):
     t, m = field2type(f)
     pmap, suffix = "", ""
+    prefix = f"static constexpr size_t offset_{f.name} = {f.offset};\n"
     if msg.pmap and f.optional:
         pmap = f"_pmap_set({f.index}); "
         suffix = f"""
 bool has_{f.name}() const {{ return _pmap_get({f.index}); }}"""
     if m == 'scalar':
         return cpp.indent("\t\t",
-f"""using type_{f.name} = {t};
-type_{f.name} get_{f.name}() const {{ return this->template _get_scalar<type_{f.name}>({f.offset}); }}
-void set_{f.name}(type_{f.name} v) {{ {pmap}return this->template _set_scalar<type_{f.name}>({f.offset}, v); }}""" + suffix)
+prefix + f"""using type_{f.name} = {t};
+type_{f.name} get_{f.name}() const {{ return this->template _get_scalar<type_{f.name}>(offset_{f.name}); }}
+void set_{f.name}(type_{f.name} v) {{ {pmap}return this->template _set_scalar<type_{f.name}>(offset_{f.name}, v); }}""" + suffix)
     elif m == 'bytes':
         return cpp.indent("\t\t",
-f"""const {t} & get_{f.name}() const {{ return this->template _get_bytes<{f.size}>({f.offset}); }}
-void set_{f.name}(const {t} &v) const {{ {pmap}return this->template _set_bytes<{f.size}>({f.offset}, {{v.data(), v.size()}}); }}
-void set_{f.name}(std::string_view v) {{ {pmap}return this->template _set_bytestring<{f.size}>({f.offset}, v); }}""" + suffix)
+prefix + f"""const {t} & get_{f.name}() const {{ return this->template _get_bytes<{f.size}>(offset_{f.name}); }}
+void set_{f.name}(const {t} &v) const {{ {pmap}return this->template _set_bytes<{f.size}>(offset_{f.name}, {{v.data(), v.size()}}); }}
+void set_{f.name}(std::string_view v) {{ {pmap}return this->template _set_bytestring<{f.size}>(offset_{f.name}, v); }}""" + suffix)
     elif m == 'bytestring':
         return cpp.indent("\t\t",
-f"""std::string_view get_{f.name}() const {{ return this->template _get_bytestring<{f.size}>({f.offset}); }}
-void set_{f.name}(std::string_view v) {{ {pmap}return this->template _set_bytestring<{f.size}>({f.offset}, v); }}""" + suffix)
+prefix + f"""std::string_view get_{f.name}() const {{ return this->template _get_bytestring<{f.size}>(offset_{f.name}); }}
+void set_{f.name}(std::string_view v) {{ {pmap}return this->template _set_bytestring<{f.size}>(offset_{f.name}, v); }}""" + suffix)
     elif m == 'string':
         return cpp.indent("\t\t",
-f"""std::string_view get_{f.name}() const {{ return this->template _get_string<{cpp.offset_ptr_version(f)}>({f.offset}); }}
-void set_{f.name}(std::string_view v) {{ {pmap}return this->template _set_string<{cpp.offset_ptr_version(f)}>({f.offset}, v); }}""" + suffix)
+prefix + f"""std::string_view get_{f.name}() const {{ return this->template _get_string<{cpp.offset_ptr_version(f)}>(offset_{f.name}); }}
+void set_{f.name}(std::string_view v) {{ {pmap}return this->template _set_string<{cpp.offset_ptr_version(f)}>(offset_{f.name}, v); }}""" + suffix)
     elif m == 'builder':
         return cpp.indent("\t\t",
-f"""using type_{f.name} = {t};
-const type_{f.name} get_{f.name}() const {{ return this->template _get_binder<type_{f.name}>({f.offset}); }}
-type_{f.name} get_{f.name}() {{ return this->template _get_binder<type_{f.name}>({f.offset}); }}""" + suffix)
+prefix + f"""using type_{f.name} = {t};
+const type_{f.name} get_{f.name}() const {{ return this->template _get_binder<type_{f.name}>(offset_{f.name}); }}
+type_{f.name} get_{f.name}() {{ return this->template _get_binder<type_{f.name}>(offset_{f.name}); }}""" + suffix)
 %>\
 <%def name='union2decl_inner(u)' filter='cpp.indent_filter'><%call expr='union2decl(u)'></%call></%def>\
 <%def name='union2decl(u)'>\
