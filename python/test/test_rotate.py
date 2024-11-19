@@ -15,7 +15,7 @@ def context():
 
 @asyncloop_run
 async def test_basic(asyncloop, tmp_path):
-    w = asyncloop.Channel(f'rotate+file://{tmp_path}/rotate', dir='w', name='write', dump='frame')
+    w = asyncloop.Channel(f'rotate+file://{tmp_path}/rotate;filename-key=last', dir='w', name='write', dump='frame')
     r = asyncloop.Channel(f'rotate+file://{tmp_path}/rotate;file.dump=frame', dir='r', name='read', master=w, dump='frame', autoclose='no')
 
     assert w.scheme_load(w.Type.Control) is not None
@@ -37,6 +37,7 @@ async def test_basic(asyncloop, tmp_path):
         w.post(b'xxx' * (i % 10 + 1), seq=i)
         if i % 10 == 0:
             w.post({}, name='Rotate', type=w.Type.Control)
+            assert os.path.exists(tmp_path / f'rotate.{i}.dat')
 
     assert w.config['info.seq-begin'] == '0'
     assert w.config['info.seq'] == '29'
@@ -128,9 +129,9 @@ async def test_reopen_empty(asyncloop, tmp_path):
     assert w.config['info.seq-begin'] == '0'
     assert w.config['info.seq'] == '19'
 
-@asyncloop_run
-async def test_reopen_rotate(asyncloop, tmp_path):
-    w = asyncloop.Channel(f'rotate+file://{tmp_path}/rotate', dir='w', name='write', dump='frame')
+@pytest.mark.parametrize("key", ["first", "last"])
+def test_reopen_rotate(context, tmp_path, key):
+    w = context.Channel(f'rotate+file://{tmp_path}/rotate;filename-key={key}', dir='w', name='write', dump='frame')
 
     w.open()
     assert w.config['info.seq-begin'] == '-1'
@@ -142,11 +143,19 @@ async def test_reopen_rotate(asyncloop, tmp_path):
         w.post(b'xxx' * (i % 10 + 1), seq=i)
     w.close()
     w.open()
+
     assert w.config['info.seq-begin'] == '0'
     assert w.config['info.seq'] == '9'
 
+    for i in range(10, 20):
+        w.post(b'xxx' * (i % 10 + 1), seq=i)
+
+    assert w.config['info.seq-begin'] == '0'
+    assert w.config['info.seq'] == '19'
+
     w.post({}, name='Rotate', type=w.Type.Control)
-    assert os.path.exists(tmp_path / 'rotate.0.dat')
+    idx = 0 if key == "first" else 19
+    assert os.path.exists(tmp_path / f'rotate.{idx}.dat')
 
 @asyncloop_run
 async def test_autoclose(asyncloop, tmp_path):

@@ -52,8 +52,11 @@ int Rotate::_on_init(tll::Channel::Url &curl, const tll::Channel::Url &url, tll:
 {
 	auto reader = channel_props_reader(url);
 	_autoclose = reader.getT("autoclose", true);
+	auto key_first = reader.getT("filename-key", true, {{"first", true}, {"last", false}});
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
+
+	_filename_key = key_first ? "info.seq-begin" : "info.seq";
 
 	auto path = std::filesystem::path(curl.host());
 	_directory = path.parent_path();
@@ -174,8 +177,13 @@ int Rotate::_post_rotate(const tll_msg_t *msg)
 		return 0;
 	}
 
+	auto key = _child->config().get(_filename_key);
+	if (!key)
+		return _log.fail(EINVAL, "File {} has no filename key '{}' in config", _current_file->second.filename, _filename_key);
 	_child->close();
-	auto next = std::filesystem::path(_directory) / fmt::format("{}.{}.dat", _fileprefix, _current_file->first);
+
+	auto next = std::filesystem::path(_directory) / fmt::format("{}.{}.dat", _fileprefix, *key);
+	_log.info("Rename current file {} to {}", _current_file->second.filename, next.string());
 	std::filesystem::rename(_current_file->second.filename, next);
 	{
 		auto lock = _files->lock();

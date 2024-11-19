@@ -49,6 +49,7 @@ class Rotate : public Prefix<Rotate>
 	std::string _fileprefix;
 	std::string _directory;
 	std::string _last_filename;
+	std::string_view _filename_key = "info.seq";
 
 	tll::Config _open_cfg;
 	int _control_eod_msgid = 0;
