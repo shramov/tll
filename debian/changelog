@@ -1,3 +1,51 @@
+tll (0.3.2) unstable; urgency=medium
+
+  * channel:
+      Add TLL_POST_URGENT post flag
+      Change channel module function name
+      Emit warning when child is added but no Parent cap is set
+      Log meta into on failed post
+      Move init log message into common code
+  * direct:
+      Change sibling state
+      Better race condition prevention
+      Manual open mode with delayed Active
+  * file:
+      Add access-mode parameter
+      Fix invalid check for frame size
+  * logger: List notation of node levels
+  * mem: Check that master channel is active in slave open
+  * pub: Check that incoming message fits into the buffer
+  * python:
+      Add Urgent post flag
+      Allow None values in open/init keyword parameters
+      Allow union_field.field_name access
+      Config.set(key, None) is equivalent to remove(key)
+      Fix destruction of partially initialized Mock object
+      Support pointers with large item size
+  * rate: Support urgent post flag
+  * ring: Reject messages greater then buffer size / 2 (fixes #14)
+  * rotate: Configurable filename key
+  * schemegen: Report error when scheme is not available in channel
+  * scheme:
+      Add options to inlined fields
+      Handle entity size in front of the list
+      Hide secret fields in dump
+      Set count-type options for arrays if needed
+      Support lists with large items in binder, json and yaml
+  * stat: Skip empty stat entries
+  * stream: Fill initialization message body
+  * tcp: Fix misleading Connected log message
+  * templates:
+      Fix incorrect handling of global bits in cpp template
+      Use explicit offset_{f.name} variable for offsets in cpp-binder
+  * udp: Last tx/rx seq in stat page
+  * yaml:
+      Clear Process and Pending caps when done
+      Split encoder into library header
+
+ -- Pavel Shramov <shramov@mexmat.net>  Wed, 20 Nov 2024 12:23:54 +0300
+
 tll (0.3.1) unstable; urgency=medium
 
   * bench:
