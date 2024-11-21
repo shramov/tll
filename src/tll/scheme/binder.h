@@ -168,7 +168,13 @@ class List : public Base<Buf>
 			return sizeof(T);
 	}
 
-	size_t entity_size() const { return optr()->entity_size(); }
+	size_t entity_size() const
+	{
+		if constexpr (std::is_same_v<Ptr, tll_scheme_offset_ptr_legacy_short_t>)
+			return entity_size_static();
+		else
+			return optr()->entity_size();
+	}
 
 	size_t size() const { return optr()->size; }
 
@@ -221,7 +227,8 @@ class List : public Base<Buf>
 			ptr = optr();
 			ptr->size = size;
 			ptr->offset = buf_end;
-			ptr->entity = entity;
+			if constexpr (!std::is_same_v<Ptr, tll_scheme_offset_ptr_legacy_short_t>)
+				ptr->entity = entity;
 		}
 	}
 

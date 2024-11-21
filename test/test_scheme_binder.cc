@@ -54,6 +54,13 @@ struct disconnect
 	tll::scheme::String<tll_scheme_offset_ptr_t> error;
 };
 
+struct List
+{
+	tll::scheme::offset_ptr_t<disconnect, tll_scheme_offset_ptr_t> std;
+	tll::scheme::offset_ptr_t<disconnect, tll_scheme_offset_ptr_legacy_long_t> llong;
+	tll::scheme::offset_ptr_t<disconnect, tll_scheme_offset_ptr_legacy_short_t> lshort;
+};
+
 } // namespace http_scheme
 #pragma pack(pop)
 
@@ -131,6 +138,26 @@ struct disconnect : public tll::scheme::Binder<Buf>
 
 	std::string_view get_error() const { return this->template _get_string<tll_scheme_offset_ptr_t>(2); }
 	void set_error(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(2, v); }
+};
+
+template <typename Buf>
+struct List : public tll::scheme::Binder<Buf>
+{
+	using tll::scheme::Binder<Buf>::Binder;
+
+	static constexpr size_t meta_size() { return 20; }
+
+	using type_std = tll::scheme::binder::List<Buf, disconnect<Buf>, tll_scheme_offset_ptr_t>;
+	const type_std get_std() const { return this->template _get_binder<type_std>(0); }
+	type_std get_std() { return this->template _get_binder<type_std>(0); }
+
+	using type_llong = tll::scheme::binder::List<Buf, disconnect<Buf>, tll_scheme_offset_ptr_legacy_long_t>;
+	const type_llong get_llong() const { return this->template _get_binder<type_llong>(8); }
+	type_llong get_llong() { return this->template _get_binder<type_llong>(8); }
+
+	using type_lshort = tll::scheme::binder::List<Buf, disconnect<Buf>, tll_scheme_offset_ptr_legacy_short_t>;
+	const type_lshort get_lshort() const { return this->template _get_binder<type_lshort>(16); }
+	type_lshort get_lshort() { return this->template _get_binder<type_lshort>(16); }
 };
 
 } // namespace http_binder
@@ -265,4 +292,36 @@ TEST(Scheme, BinderLargeItem)
 	ASSERT_EQ(std::string_view(buf.data() + 12 + 266, 5), "1111\0"sv);
 	ASSERT_EQ(list[0].get_body(), "0000"sv);
 	ASSERT_EQ(list[1].get_body(), "1111"sv);
+}
+
+TEST(Scheme, BinderList)
+{
+	std::vector<char> buf;
+	http_binder::List<std::vector<char>> binder(buf);
+	buf.resize(binder.meta_size());
+
+	binder.get_std().resize(2);
+	binder.get_llong().resize(2);
+	binder.get_lshort().resize(2);
+
+	binder.get_std()[0].set_code(1);
+	binder.get_std()[1].set_code(2);
+	binder.get_llong()[0].set_code(3);
+	binder.get_llong()[1].set_code(4);
+	binder.get_lshort()[0].set_code(5);
+	binder.get_lshort()[1].set_code(6);
+
+	auto ptr = (const http_scheme::List *) buf.data();
+	ASSERT_EQ(ptr->std.size, 2);
+	ASSERT_EQ(ptr->llong.size, 2);
+	ASSERT_EQ(ptr->lshort.size, 2);
+	ASSERT_EQ(ptr->std.entity, sizeof(http_scheme::disconnect));
+	ASSERT_EQ(ptr->llong.entity, sizeof(http_scheme::disconnect));
+
+	ASSERT_EQ(ptr->std[0].code, 1);
+	ASSERT_EQ(ptr->std[1].code, 2);
+	ASSERT_EQ(ptr->llong[0].code, 3);
+	ASSERT_EQ(ptr->llong[1].code, 4);
+	ASSERT_EQ(ptr->lshort[0].code, 5);
+	ASSERT_EQ(ptr->lshort[1].code, 6);
 }
