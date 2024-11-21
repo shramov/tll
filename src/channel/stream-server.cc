@@ -307,6 +307,8 @@ int StreamServer::_check_state(tll_state_t s)
 				url.proto(std::string("stream+") + url.proto());
 				url.set("mode", "client");
 				url.set("request", rclient->copy());
+				client.set("children.online", *oclient);
+				client.set("children.request", *_request->config().sub("client"));
 				_config.set("client", client);
 			}
 			state(tll::state::Active);

@@ -8,7 +8,7 @@ from tll.asynctll import asyncloop_run
 import tll.channel as C
 from tll.channel.base import Base
 from tll.error import TLLError
-from tll.test_util import Accum
+from tll.test_util import Accum, ports
 
 @pytest.fixture
 def context():
@@ -820,3 +820,23 @@ async def test_request_close(asyncloop, tmp_path, path_srcdir, mode, rseq, oseq)
     client.children[1].close()
 
     assert client.state == client.State.Error
+
+@asyncloop_run
+async def test_client(asyncloop, tmp_path):
+    s = asyncloop.Channel(f'stream+pub+tcp://::1:{ports.TCP6};request=tcp://127.0.0.1:{ports()}', storage=f'file://{tmp_path}/file.dat', name='server', mode='server')
+    s.open()
+    s.post(b'xxx', seq=10)
+
+    c0 = asyncloop.Channel(s.config.sub('client.init'), name='c0')
+    cfg = s.config.sub('client.children.online.init').copy()
+    cfg['tll.proto'] = 'stream+' + cfg['tll.proto']
+    cfg['request'] = s.config.sub('client.children.request.init').copy()
+    c1 = asyncloop.Channel(cfg, name='c1')
+
+    for c in (c0, c1):
+        c.open(mode='seq', seq='0')
+
+        m = await c.recv()
+        assert (m.type, m.seq) == (m.Type.Data, 10)
+        m = await c.recv()
+        assert (m.type, m.seq) == (m.Type.Control, 10)
