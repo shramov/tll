@@ -168,8 +168,21 @@ channel: control://;tll.channel.processor=processor;tll.channel.input=input;name
     assert la.level == la.Level.Error
     assert lb.level == lb.Level.Error
 
+class ChildExport(Prefix):
+    PROTO = 'child-export+'
+
+    def _on_client_export(self, client):
+        cfg = client.copy()
+        cfg['children'] = Config.from_dict({
+                'first.init.tll.proto': 'first',
+                'first.children.second.init.tll.proto': 'second',
+        })
+        self.config['client'] = cfg
+
 @asyncloop_run
 async def test_resolve(asyncloop, path_srcdir):
+    asyncloop.context.register(ChildExport)
+
     scheme = path_srcdir / "src/logic/resolve.yaml"
     pscheme = path_srcdir / "src/processor/processor.yaml"
 
@@ -189,21 +202,24 @@ channel:
 
     tproc, tinput = mock.io('processor', 'resolve')
 
-    tcp = asyncloop.Channel(f'tcp://::1:{ports.TCP6};mode=server;name=tcp;tll.resolve.export=yes')
+    tcp = asyncloop.Channel(f'child-export+tcp://::1:{ports.TCP6};mode=server;name=tcp;tll.resolve.export=yes')
     tcp.open()
 
     m = await tinput.recv()
     assert tinput.unpack(m).as_dict() == {'service': 'test', 'tags': ['a', 'b'], 'host': 'host'}
 
     tproc.post({'channel': 'tcp', 'state': 'Active'}, name='StateUpdate')
-    m = await tinput.recv(0.001)
-    m = tinput.unpack(m)
-    assert (m.service, m.channel) == ('test', 'tcp')
+    for name in ('tcp', 'tcp/first', 'tcp/first/second'):
+        m = await tinput.recv(0.001)
+        m = tinput.unpack(m)
+        assert (m.service, m.channel) == ('test', name)
 
-    cfg = Config.from_dict({x.key: x.value for x in m.config})
-    assert cfg['init.tll.proto'] == 'tcp'
-    client = asyncloop.Channel(cfg.sub('init'), name='client')
-    client.open()
+        cfg = Config.from_dict({x.key: x.value for x in m.config})
+        assert cfg['init.tll.proto'] == name.split('/')[-1]
+
+        if name == 'tcp':
+            client = asyncloop.Channel(cfg.sub('init'))
+            client.open()
 
     m = await tcp.recv()
     assert tcp.unpack(m).SCHEME.name == 'Connect'

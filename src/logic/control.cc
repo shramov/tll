@@ -40,6 +40,7 @@ class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
 		std::string name;
 		std::string export_name = "";
 		tll::ConstConfig config;
+		std::map<std::string, tll::ConstConfig> children;
 	};
 
 	std::map<std::string, ChannelExport, std::less<>> _exports;
@@ -110,6 +111,8 @@ class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
 	tll::result_t<int> _set_log_level(const tll_msg_t * msg);
 	tll::result_t<int> _channel_close(const tll_msg_t * msg);
 	int _result_wrap(std::string_view, tll::Channel *, const tll_msg_t *, tll::result_t<int>);
+
+	int _post_export(ChannelExport &channel, std::string_view name, const tll::ConstConfig &);
 };
 
 int Control::_init(const tll::Channel::Url &url, tll::Channel * master)
@@ -456,12 +459,23 @@ int Control::_on_state_update(std::string_view name, tll_state_t state)
 	auto client = config.sub("client");
 	if (!client)
 		return 0;
+	it->second.children.clear();
+	_post_export(it->second, it->second.export_name, *client);
+	return 0;
+}
+
+int Control::_post_export(ChannelExport &channel, std::string_view name, const tll::ConstConfig &client)
+{
 	auto data = resolve_scheme::ExportChannel::bind(_buf);
 	data.view().resize(0);
 	data.view().resize(data.meta_size());
 	data.set_service(_service);
-	data.set_channel(it->second.export_name);
-	auto curl = client->browse("**");
+	data.set_channel(name);
+	std::map<std::string, tll::ConstConfig> curl;
+	for (auto & [name, cfg] : client.browse("**")) {
+		if (name.substr(0, strlen("children.")) != "children.")
+			curl.emplace(name, cfg);
+	}
 	data.get_config().resize(curl.size());
 	auto di = data.get_config().begin();
 	for (auto & [name, cfg] : curl) {
@@ -476,6 +490,13 @@ int Control::_on_state_update(std::string_view name, tll_state_t state)
 	msg.size = data.view().size();
 	msg.data = data.view().data();
 	_resolve->post(&msg);
+
+	for (auto [n, cfg] : client.browse("children.*", true)) {
+		auto cname = fmt::format("{}/{}", name, n.substr(strlen("children.")));
+		channel.children.emplace(cname, cfg);
+		_post_export(channel, cname, cfg);
+	}
+
 	return 0;
 }
 
