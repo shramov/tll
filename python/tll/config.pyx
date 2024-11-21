@@ -112,7 +112,7 @@ cdef class Config:
         return Config.wrap(cfg)
 
     def copy(self):
-        return Config.wrap(tll_config_copy(self._ptr), False, self._const)
+        return Config.wrap(tll_config_copy(self._ptr), False)
 
     __copy__ = copy
     def __deepcopy__(self, memo):
