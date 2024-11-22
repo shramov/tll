@@ -49,5 +49,14 @@ int Object::callback(const Channel *c, const tll_msg_t *msg)
 	data.state = s;
 	worker->post(data);
 
+	if (auto block = worker->stat(); block) {
+		if (auto page = block->acquire(); page) {
+			page->state.update(1);
+			if (s == tll::state::Error)
+				page->error.update(1);
+			block->release(page);
+		}
+	}
+
 	return 0;
 }

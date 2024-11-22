@@ -8,7 +8,7 @@
 #ifndef _PROCESSOR_WORKER_H
 #define _PROCESSOR_WORKER_H
 
-#include <string>
+#include <string_view>
 
 #include "processor/deps.h"
 #include "tll/channel/base.h"
@@ -28,14 +28,17 @@ struct Worker : public tll::channel::Base<Worker>
 
 	tll::processor::Loop loop;
 
-	struct StatType : public Base::StatType
+	//< Stat structure for Worker. It is not derived from base struct since worker has no messages
+	struct StatType
 	{
 		tll::stat::Integer<tll::stat::Sum, tll::stat::Unknown, 's', 't', 'e', 'p'> step;
 		tll::stat::Integer<tll::stat::Sum, tll::stat::Ns, 'p', 'o', 'l', 'l'> poll;
-		tll_stat_field_t padding[2] = {};
+		tll::stat::Integer<tll::stat::Sum, tll::stat::Unknown, 's', 't', 'a', 't', 'e'> state;
+		tll::stat::Integer<tll::stat::Sum, tll::stat::Unknown, 'e', 'r', 'r', 'o', 'r'> error;
 	};
 
 	std::optional<tll::stat::Block<StatType>> _stat;
+	auto stat() { return static_cast<stat::BlockT<StatType> *>(internal.stat); }
 
 	std::list<Object *> objects;
 	struct {
