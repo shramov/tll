@@ -55,6 +55,7 @@ mansources = [
 	'stream-client.rst',
 	'tcp.rst',
 	'timeit.rst',
+	'timeline.rst',
 	'timer.rst',
 	'udp.rst',
 	'yaml.rst',
