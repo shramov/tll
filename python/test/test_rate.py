@@ -2,6 +2,7 @@
 # vim: sts=4 sw=4 et
 
 import tll.channel as C
+from tll.config import Config
 from tll.error import TLLError
 from tll.test_util import Accum
 from tll.chrono import TimePoint
@@ -180,3 +181,72 @@ def test_rate_messages(context):
     with pytest.raises(TLLError): c.post(b'x' * 128)
     time.sleep(0.01)
     c.post(b'x' * 128)
+
+def test_rate_buckets(context):
+    cfg = Config.load(
+f'''yamls://
+tll.proto: rate+null
+name: rate
+dump: frame
+speed: 1kb
+max-window: 1kb
+initial: 1kb
+bucket.packets:
+  speed: 100b
+  max-window: 2b
+  initial: 2b
+  unit: message
+''')
+    c = context.Channel(cfg)
+
+    c.open()
+    c.post(b'x' * 1024)
+    with pytest.raises(TLLError): c.post(b'x' * 128)
+    time.sleep(0.01)
+    c.post(b'x' * 128)
+
+    c.close()
+    c.open()
+    c.post(b'x' * 128)
+    c.post(b'x' * 128)
+    with pytest.raises(TLLError): c.post(b'x' * 128)
+
+def test_rate_buckets_input(context):
+    cfg = Config.load(
+f'''yamls://
+tll.proto: rate+direct
+name: rate
+dump: frame
+rate.dir: in
+speed: 1kb
+max-window: 1kb
+initial: 1kb
+bucket.packets:
+  speed: 100b
+  max-window: 2b
+  initial: 2b
+  unit: message
+''')
+    c = Accum(cfg, context = context)
+    client = context.Channel('direct://', name='client', master=c)
+
+    c.open()
+    client.open()
+    client.post(b'x' * 1024)
+    assert (c.children[0].dcaps & c.DCaps.Suspend) == c.DCaps.Suspend
+    time.sleep(0.01)
+    c.children[-1].process()
+    assert (c.children[0].dcaps & c.DCaps.Suspend) == c.DCaps.Zero
+    c.post(b'x' * 128)
+
+    client.close()
+    c.close()
+    c.open()
+    client.open()
+
+    client.post(b'x' * 128)
+    client.post(b'x' * 128)
+    assert (c.children[0].dcaps & c.DCaps.Suspend) == c.DCaps.Suspend
+    time.sleep(0.01)
+    c.children[-1].process()
+    assert (c.children[0].dcaps & c.DCaps.Suspend) == c.DCaps.Zero

@@ -23,29 +23,16 @@ TLL_DEFINE_IMPL(Rate);
 
 int Rate::_init(const Channel::Url &url, tll::Channel *master)
 {
-	using namespace std::chrono;
-
 	if (auto r = Base::_init(url, master); r)
 		return r;
 
-	auto reader = channel_props_reader(url);
+	if (auto r = _parse_bucket(url); r)
+		return r;
 
-	auto interval = reader.getT<rate::Settings::fseconds>("interval", 1s);
-	_conf.unit = reader.getT("unit", Unit::Byte, {{"byte", Unit::Byte}, {"message", Unit::Message}});
-	_conf.speed = reader.getT<tll::util::SizeT<double>>("speed");
-	_conf.limit = reader.getT<tll::util::Size>("max-window", 16 * 1024);
-	_conf.initial = reader.getT<tll::util::Size>("initial", _conf.limit / 2);
-
-	if (!reader)
-		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
-
-	if (interval.count() == 0)
-		return _log.fail(EINVAL, "Zero interval");
-
-	_conf.speed /= interval.count();
-
-	if (_conf.speed == 0) return _log.fail(EINVAL, "Zero speed");
-	if (_conf.limit <= 0) return _log.fail(EINVAL, "Invalid window size: {}", _conf.limit);
+	for (auto & [n, cfg] : url.browse("bucket.*", true)) {
+		if (auto r = _parse_bucket(cfg); r)
+			return _log.fail(EINVAL, "Failed to init bucket {}", n);
+	}
 
 	if ((internal.caps & tll::caps::InOut) == 0)
 		internal.caps |= tll::caps::Output;
@@ -71,13 +58,47 @@ int Rate::_init(const Channel::Url &url, tll::Channel *master)
 	return 0;
 }
 
+int Rate::_parse_bucket(const tll::ConstConfig &cfg)
+{
+	using namespace std::chrono;
+
+	auto reader = channel_props_reader(cfg);
+
+	auto interval = reader.getT<rate::Settings::fseconds>("interval", 1s);
+	rate::Settings _conf;
+
+	_conf.unit = reader.getT("unit", Unit::Byte, {{"byte", Unit::Byte}, {"message", Unit::Message}});
+	_conf.speed = reader.getT<tll::util::SizeT<double>>("speed");
+	_conf.limit = reader.getT<tll::util::Size>("max-window", 16 * 1024);
+	_conf.initial = reader.getT<tll::util::Size>("initial", _conf.limit / 2);
+
+	if (!reader)
+		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
+
+	if (interval.count() == 0)
+		return _log.fail(EINVAL, "Zero interval");
+
+	_conf.speed /= interval.count();
+
+	if (_conf.speed == 0) return _log.fail(EINVAL, "Zero speed");
+	if (_conf.limit <= 0) return _log.fail(EINVAL, "Invalid window size: {}", _conf.limit);
+
+	_buckets.emplace_back(Bucket { .conf = _conf });
+
+	return 0;
+}
+
 int Rate::_on_timer(const tll_msg_t *)
 {
-	auto empty = _bucket.empty();
 	auto now = tll::time::now();
-	_bucket.update(_conf, now);
-	if (empty == _bucket.empty()) {
-		_rearm(_bucket.next(_conf, now));
+	tll::duration next = {};
+	for (auto & b : _buckets) {
+		b.update(b.conf, now);
+		if (b.empty())
+			next = std::max(next, b.next(b.conf, now));
+	}
+	if (next.count()) {
+		_rearm(next);
 		return 0;
 	}
 
@@ -94,14 +115,20 @@ int Rate::_on_data(const tll_msg_t * msg)
 	if (internal.caps & tll::caps::Output)
 		return Base::_on_data(msg);
 
-	const size_t size = _conf.unit == Unit::Byte ? msg->size : 1;
 	auto now = tll::time::now();
-	_bucket.update(_conf, now);
+	tll::duration next = {};
+	for (auto & b : _buckets) {
+		const size_t size = b.conf.unit == Unit::Byte ? msg->size : 1;
+		b.update(b.conf, now);
 
-	_bucket.consume(size);
+		b.consume(size);
 
-	if (_bucket.empty()) {
-		if (_rearm(_bucket.next(_conf, now)))
+		if (b.empty())
+			next = std::max(next, b.next(b.conf, now));
+	}
+
+	if (next.count() != 0) {
+		if (_rearm(next))
 			return _log.fail(EINVAL, "Failed to rearm timer");
 		_child->suspend();
 	}
@@ -116,20 +143,32 @@ int Rate::_post(const tll_msg_t *msg, int flags)
 	if (!(internal.caps & tll::caps::Output))
 		return _child->post(msg, flags);
 
-	const size_t size = _conf.unit == Unit::Byte ? msg->size : 1;
 	auto now = tll::time::now();
-	_bucket.update(_conf, now);
+	bool empty = false;
+	for (auto & b : _buckets) {
+		b.update(b.conf, now);
 
-	if (_bucket.empty() && !(flags & TLL_POST_URGENT))
+		empty = empty || b.empty();
+	}
+
+	if (empty && !(flags & TLL_POST_URGENT))
 		return EAGAIN;
 
 	if (auto r = _child->post(msg, flags); r)
 		return r;
 
-	_bucket.consume(size);
+	tll::duration next = {};
+	for (auto & b : _buckets) {
+		const size_t size = b.conf.unit == Unit::Byte ? msg->size : 1;
 
-	if (_bucket.empty()) {
-		if (_rearm(_bucket.next(_conf, now)))
+		b.consume(size);
+
+		if (b.empty())
+			next = std::max(next, b.next(b.conf, now));
+	}
+
+	if (next.count()) {
+		if (_rearm(next))
 			return _log.fail(EINVAL, "Failed to rearm timer");
 		_callback_control(tcp_client_scheme::WriteFull::meta_id());
 	}

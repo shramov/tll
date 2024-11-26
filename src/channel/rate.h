@@ -17,8 +17,11 @@ class Rate : public tll::channel::Prefix<Rate>
 {
 	std::unique_ptr<tll::Channel> _timer;
 
-	rate::Settings _conf;
-	rate::Bucket _bucket;
+	struct Bucket : public rate::Bucket
+	{
+		rate::Settings conf;
+	};
+	std::vector<Bucket> _buckets;
 
  public:
 	using Base = tll::channel::Prefix<Rate>;
@@ -34,7 +37,8 @@ class Rate : public tll::channel::Prefix<Rate>
 	int _init(const Channel::Url &url, tll::Channel *master);
 	int _open(const tll::ConstConfig &cfg)
 	{
-		_bucket.reset();
+		for (auto & b: _buckets)
+			b.reset();
 		_timer->open();
 		return Base::_open(cfg);
 	}
@@ -58,6 +62,8 @@ class Rate : public tll::channel::Prefix<Rate>
  private:
 	int _on_timer(const tll_msg_t *msg);
 	int _rearm(const tll::duration &dt);
+
+	int _parse_bucket(const tll::ConstConfig &cfg);
 
 	void _callback_control(int msgid)
 	{

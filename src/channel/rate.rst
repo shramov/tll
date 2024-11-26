@@ -27,9 +27,10 @@ Difference from classical token bucket algorithm is that even if message does no
 is handled. This makes implementation more effective - channel does not need to save message until
 it is possible to pass it.
 
-When bucket is fully drained then child channel is suspended in input mode or ``WriteFull`` control
-message is generated in output mode. After at least one token appears in the bucket - ``WriteReady``
-control messages is generated or child is resumed.
+One ore more buckets (depending on initialization parameters) are used to check if it is possible to
+send or receive next message. When at least one bucket is fully drained then child channel is
+suspended in input mode or ``WriteFull`` control message is generated in output mode. After at least
+one token appears in all buckets - ``WriteReady`` control messages is generated or child is resumed.
 
 Implementation is available in header only mode for C++ and can be included from
 ``tll/channel/rate.h`` file.
@@ -41,6 +42,11 @@ Init parameters
 Input is affected only in read-only mode (``r`` or ``in``). Read-write or write-only modes work on
 output stream. To limit input stream on bidirectional channel ``rate.dir=in`` parameter should be
 used.
+
+Bucket settings
+~~~~~~~~~~~~~~~
+
+Following parameters are used to describe bucket settings:
 
 ``speed=<SIZE>`` - mandatory parameter, no default. Add ``speed`` number of bytes into bucket each
 ``interval`` (see below). With default interval value it is equivalent to ``speed`` number of bytes
@@ -56,6 +62,11 @@ with ``initial`` number of tokens.
 
 ``unit={byte|message}`` - default ``byte``. Use data size in bytes or number of message as rate
 tokens.
+
+Any amount of additional buckets can be defined using ``bucket.*`` subtrees. Each subtree holds
+parameters described above: mandatory ``speed`` and optional ``max-window``, ``interval`` and
+others. For example ``bucket.a: { speed: 10kb }`` and ``bucket.b: { speed: 100b, unit: message }``
+declare 2 additional buckets.
 
 Control messages
 ----------------
@@ -86,6 +97,22 @@ be posted):
 
     rate+null://;speed=1b;interval=10s;initial=0b;max-window=4b
 
+Allow sending to UDP 100 messages per second (with burst of 10 messages) with total bandwith limited
+to 100kbit (with burst of 64kb), note that ``unit: message`` setting still require ``b`` suffix for
+speed/size parameters:
+
+.. code-block:: yaml
+
+  server:
+    tll.proto: rate+udp
+    tll.host: HOST:PORT
+    udp.mode: client
+    speed: 100kbit
+    max-window: 64kb
+    bucket.messages:
+      speed: 100b
+      max-window: 10b
+      unit: message
 
 See also
 --------
