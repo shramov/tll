@@ -17,6 +17,7 @@
 #include "tll/channel/tcp-client-scheme.h"
 
 using namespace tll::channel;
+using Unit = rate::Settings::Unit;
 
 TLL_DEFINE_IMPL(Rate);
 
@@ -30,6 +31,7 @@ int Rate::_init(const Channel::Url &url, tll::Channel *master)
 	auto reader = channel_props_reader(url);
 
 	auto interval = reader.getT<rate::Settings::fseconds>("interval", 1s);
+	_conf.unit = reader.getT("unit", Unit::Byte, {{"byte", Unit::Byte}, {"message", Unit::Message}});
 	_conf.speed = reader.getT<tll::util::SizeT<double>>("speed");
 	_conf.limit = reader.getT<tll::util::Size>("max-window", 16 * 1024);
 	_conf.initial = reader.getT<tll::util::Size>("initial", _conf.limit / 2);
@@ -92,7 +94,7 @@ int Rate::_on_data(const tll_msg_t * msg)
 	if (internal.caps & tll::caps::Output)
 		return Base::_on_data(msg);
 
-	size_t size = msg->size;
+	const size_t size = _conf.unit == Unit::Byte ? msg->size : 1;
 	auto now = tll::time::now();
 	_bucket.update(_conf, now);
 
@@ -114,7 +116,7 @@ int Rate::_post(const tll_msg_t *msg, int flags)
 	if (!(internal.caps & tll::caps::Output))
 		return _child->post(msg, flags);
 
-	size_t size = msg->size;
+	const size_t size = _conf.unit == Unit::Byte ? msg->size : 1;
 	auto now = tll::time::now();
 	_bucket.update(_conf, now);
 

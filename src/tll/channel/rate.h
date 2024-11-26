@@ -8,8 +8,6 @@
 #ifndef _TLL_CHANNEL_RATE_H
 #define _TLL_CHANNEL_RATE_H
 
-#include "tll/channel/base.h"
-
 #include "tll/util/time.h"
 
 namespace tll::channel::rate {
@@ -18,6 +16,7 @@ struct Settings
 {
 	using fseconds = std::chrono::duration<double>;
 
+	enum class Unit { Byte, Message } unit = Unit::Byte; ///< What to count - bytes or messages
 	double speed = 0; ///< Tickets per second
 	long long limit = 1000; ///< Maximum number of tickets
 	long long initial = 500; ///< Initial number of tickets

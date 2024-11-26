@@ -18,9 +18,10 @@ Prefix channel that limits rate of input or output message stream using token bu
 By default output is rated - ``post`` call returns ``EAGAIN`` if sending message is not possible
 now.
 
-Each ``interval`` seconds ``speed`` number of bytes (tokens) are added to the bucket limited to
-``max-window`` size. If bucket is not empty (non-negative number of tokens) then message is passed
-and ``msg->size`` number of bytes (tokens) are removed from the bucket.
+Each ``interval`` seconds ``speed`` number of tokens (bytes or number of messages) are added to the
+bucket limited by ``max-window`` size. If bucket is not empty (non-negative number of tokens) then
+message is passed and either ``msg->size`` (if bytes are counted) or ``1`` (if messages are counted)
+tokens are removed from the bucket.
 
 Difference from classical token bucket algorithm is that even if message does not fit into bucket it
 is handled. This makes implementation more effective - channel does not need to save message until
@@ -52,6 +53,9 @@ per second. Granularity of this parameter is 1 byte, even if ``100mbit`` notatio
 
 ``initial=<SIZE>`` - default ``max-window / 2``. When first message is seen bucket is initialized
 with ``initial`` number of tokens.
+
+``unit={byte|message}`` - default ``byte``. Use data size in bytes or number of message as rate
+tokens.
 
 Control messages
 ----------------

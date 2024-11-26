@@ -170,3 +170,13 @@ def test_rate_urgent(context):
     with pytest.raises(TLLError): c.post(b'x' * 128)
     c.post(b'x' * 128, flags=c.PostFlags.Urgent)
     with pytest.raises(TLLError): c.post(b'x' * 128)
+
+def test_rate_messages(context):
+    c = context.Channel('rate+null://;speed=100b;max-window=2b;initial=2b;unit=message;name=rate;dump=frame')
+    c.open()
+
+    c.post(b'x' * 1024)
+    c.post(b'x' * 1024)
+    with pytest.raises(TLLError): c.post(b'x' * 128)
+    time.sleep(0.01)
+    c.post(b'x' * 128)
