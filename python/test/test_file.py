@@ -453,3 +453,14 @@ def test_lz4_repeated(context, filename):
         m = reader.result.pop(0)
         assert (m.seq, m.msgid) == (i, i // 10)
         assert m.data.tobytes() == data
+
+def test_lz4_init(context, filename):
+    w0 = context.Channel(f'file://{filename}', name='writer', dir='w', compression='lz4', dump='frame')
+    w0.open()
+    w0.post(b'xxx', seq=10)
+    w0.close()
+
+    w1 = context.Channel(f'file://{filename}', name='writer', dir='w', dump='frame')
+    w1.open()
+    assert w1.config['info.seq'] == '10'
+    w1.close()

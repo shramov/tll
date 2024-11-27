@@ -238,7 +238,7 @@ int File<TIO>::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 	auto reader = this->channel_props_reader(url);
 	_block_init = reader.getT("block", util::Size {1024 * 1024});
-	_compression = reader.getT("compression", Compression::None, {{"none", Compression::None}, {"lz4", Compression::LZ4}});
+	_compression_init = reader.getT("compression", Compression::None, {{"none", Compression::None}, {"lz4", Compression::LZ4}});
 	_autoclose = reader.getT("autoclose", true);
 	_tail_extra_size = reader.getT("extra-space", util::Size { 0 });
 	_access_mode = reader.getT("access-mode", 0644u);
@@ -272,6 +272,7 @@ int File<TIO>::_open(const ConstConfig &props)
 {
 	auto filename = _filename;
 	_end_of_data = false;
+	_compression = _compression_init;
 
 	if (filename.empty()) {
 		auto fn = props.get("filename");
@@ -323,11 +324,6 @@ int File<TIO>::_open(const ConstConfig &props)
 		}
 		this->_update_dcaps(dcaps::Process | dcaps::Pending);
 	} else {
-		if (_compression == Compression::LZ4) {
-			if (auto r = _lz4_init(_block_size); r)
-				return r;
-		}
-
 		auto overwrite = reader.getT("overwrite", false);
 		if (!reader)
 			return this->_log.fail(EINVAL, "Invalid params: {}", reader.error());
@@ -365,6 +361,11 @@ int File<TIO>::_open(const ConstConfig &props)
 
 			if (auto r = _read_meta(); r)
 				return this->_log.fail(EINVAL, "Failed to read metadata");
+		}
+
+		if (_compression == Compression::LZ4) {
+			if (auto r = _lz4_init(_block_size); r)
+				return r;
 		}
 
 		_tail_extra_blocks = 0;
