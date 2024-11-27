@@ -79,6 +79,8 @@ class Prefix(Base):
     def _on_active(self):
         if client := self._child.config.sub("client", throw=False):
             self._on_client_export(client)
+        for n,c in self._child.config.browse('info.*', True):
+            self.config.set_link(n, f'../../python/{n.replace(".", "/")}')
         self.state = self.State.Active
 
     def _on_closing(self):

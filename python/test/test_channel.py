@@ -214,6 +214,8 @@ def test_prefix():
 
     assert c.state == c.State.Active
     assert cfg.get("state", "") == "Active"
+    assert cfg.get('python.info.echo') == 'yes'
+    assert cfg.get('info.echo') == 'yes'
 
     assert c.scheme != None
     assert [(m.name, m.msgid) for m in c.scheme.messages] == [('Data', 10)]
