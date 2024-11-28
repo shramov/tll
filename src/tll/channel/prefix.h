@@ -84,7 +84,7 @@ public:
 		if (!_child)
 			return this->_log.fail(EINVAL, "Failed to create child channel");
 		_child->callback_add(this, TLL_MESSAGE_MASK_ALL);
-		this->_child_add(_child.get(), proto);
+		this->_child_add(_child.get(), "child");
 
 		return Base<T>::_init(url, master);
 	}
