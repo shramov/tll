@@ -59,6 +59,7 @@ class Rotate : public Prefix<Rotate>
  public:
 	using Base = Prefix<Rotate>;
 	static constexpr std::string_view channel_protocol() { return "rotate+"; }
+	static constexpr auto prefix_config_policy() { return PrefixConfigPolicy::Manual; }
 
 	const Scheme * scheme(int type) const
 	{

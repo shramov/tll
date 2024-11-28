@@ -44,6 +44,21 @@ public:
 	};
 	static constexpr auto prefix_scheme_policy() { return PrefixSchemePolicy::Derive; }
 
+	enum class PrefixConfigPolicy
+	{
+		Extend, ///< Config is derived from child, can be extended by prefix
+		Export, ///< Prefix has no own config info values, create link to child config
+		Manual, ///< Do nothing
+		Normal = Export, ///< Default value
+	};
+	static constexpr auto prefix_config_policy() { return PrefixConfigPolicy::Normal; }
+
+	Config config_info() {
+		static_assert(Base<T>::ChannelT::prefix_config_policy() != PrefixConfigPolicy::Export,
+				"Can not access config info with Export config policy");
+		return Base<T>::config_info();
+	}
+
 	const Scheme * scheme(int type) const
 	{
 		this->_log.trace("Request scheme {}", type);
@@ -179,6 +194,27 @@ public:
 				this->_scheme_load(*this->_scheme_url);
 			else if (auto s = _child->scheme(); s)
 				this->_scheme.reset(s->ref());
+		}
+
+		switch (constexpr auto policy = Base<T>::ChannelT::prefix_config_policy(); policy) {
+		case PrefixConfigPolicy::Export:
+			this->_config.link("info", "../child/info");
+			break;
+		case PrefixConfigPolicy::Extend:
+			// Switch is not constexpr, protect call to config_info with constexpr if
+			if constexpr (policy == PrefixConfigPolicy::Extend) {
+				if (auto sub = this->_config.sub("child.info", false); sub) {
+					//auto info = *this->_config.sub("info", true);
+					auto info = this->config_info();
+					for (auto &[n, _] : sub->browse("*", true)) {
+						if (!info.sub(n, false))
+							info.link(n, std::string("../../child/info/") + n);
+					}
+				}
+			}
+			break;
+		case PrefixConfigPolicy::Manual:
+			break; // Do nothing
 		}
 
 		this->state(tll::state::Active);

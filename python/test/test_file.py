@@ -464,3 +464,11 @@ def test_lz4_init(context, filename):
     w1.open()
     assert w1.config['info.seq'] == '10'
     w1.close()
+
+@pytest.mark.parametrize("prefix", ["timeit", "rate"])
+def test_file_prefix(context, filename, prefix):
+    w = context.Channel(f'{prefix}+file://{filename}', speed='1kb', name='writer', dir='w', compression='lz4', dump='frame')
+    w.open()
+    w.post(b'xxx', seq=10)
+    assert w.config['info.seq'] == '10'
+    assert w.config.sub('info').as_dict() == w.config.sub('child.info').as_dict()
