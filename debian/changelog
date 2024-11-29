@@ -1,3 +1,20 @@
+tll (0.3.3) unstable; urgency=medium
+
+  * binder: Fix incorrect entity size for legacy short lists
+  * resolve: Export child channels
+  * file: Properly init lz4 structures in append mode
+  * prefix:
+    Configurable export of child info config
+    Store child config under fixed name 'child'
+  * processor: Expose worker loop statistics in channel
+  * python:
+    Copy of const Config should be mutable
+    Export child info config in python prefix
+  * rate: Multiple buckets in one channel and per-message rate mode
+  * stream: Export online and request child channels
+
+ -- Pavel Shramov <shramov@mexmat.net>  Fri, 29 Nov 2024 14:46:32 +0300
+
 tll (0.3.2) unstable; urgency=medium
 
   * channel:
