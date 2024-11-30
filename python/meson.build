@@ -12,7 +12,7 @@ if python.language_version().version_compare('== 3.8')
   cython_cflags += ['-Wno-deprecated-declarations']
 endif
 
-shared_library('tll-channel-python'
+shared_library('tll-python'
 	, ['src/channel.c', cython_gen_api.process('tll/channel/context.pyx')]
 	, dependencies : [tll, pyembed, meson.get_compiler('c').find_library('dl')]
 	, install: true
