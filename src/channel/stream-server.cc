@@ -115,9 +115,9 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 	}
 
 	if (auto s = _child->scheme(TLL_MESSAGE_CONTROL); s)
-		_control_child = s;
+		_control_child.reset(s->ref());
 	if (auto s = _request->scheme(TLL_MESSAGE_CONTROL); s) {
-		_control_request = s;
+		_control_request.reset(s->ref());
 		if (auto m = s->lookup("WriteFull"); m)
 			_control_msgid_full = m->msgid;
 		if (auto m = s->lookup("WriteReady"); m)
@@ -126,12 +126,12 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 			_control_msgid_disconnect = m->msgid;
 	}
 	if (auto s = _storage->scheme(TLL_MESSAGE_CONTROL); s)
-		_control_storage = s;
+		_control_storage.reset(s->ref());
 	if (_blocks) {
 		if (auto s = _blocks->scheme(TLL_MESSAGE_CONTROL); s)
-			_control_blocks = s;
+			_control_blocks.reset(s->ref());
 	}
-	auto control = tll::scheme::merge({_control_child, _control_request, _control_storage, _control_blocks});
+	auto control = tll::scheme::merge({_control_child.get(), _control_request.get(), _control_storage.get(), _control_blocks.get()});
 	if (!control)
 		return _log.fail(EINVAL, "Failed to merge control scheme: {}", control.error());
 	_scheme_control.reset(*control);

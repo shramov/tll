@@ -69,10 +69,10 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	int _control_msgid_ready = 0;
 	int _control_msgid_disconnect = 0;
 
-	const tll::Scheme * _control_child = nullptr;
-	const tll::Scheme * _control_request = nullptr;
-	const tll::Scheme * _control_blocks = nullptr;
-	const tll::Scheme * _control_storage = nullptr;
+	std::unique_ptr<const tll::Scheme> _control_child;
+	std::unique_ptr<const tll::Scheme> _control_request;
+	std::unique_ptr<const tll::Scheme> _control_blocks;
+	std::unique_ptr<const tll::Scheme> _control_storage;
 
 	tll::Config _child_open;
 
