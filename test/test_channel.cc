@@ -552,3 +552,67 @@ TEST(Channel, ReopenOpenTimeout)
 		ASSERT_EQ(c->state(), tll::state::Closed);
 	}
 }
+
+TEST(Channel, ReopenInternal)
+{
+	using namespace std::chrono_literals;
+	using namespace tll::state;
+	using Action = tll::channel::ReopenData::Action;
+
+	auto ctx = tll::channel::Context(tll::Config());
+	auto channel = ctx.channel("null://;name=null");
+
+	tll::Logger log("test.reopen");
+	tll::channel::ReopenData reopen;
+	reopen.timeout_min = 1ms;
+	reopen.timeout_max = 10s;
+	reopen.timeout_open = 100us;
+	reopen.timeout_tremble = 200us;
+	reopen.channel = channel.get();
+
+	auto now = tll::time_point(tll::duration(1000));
+
+	// Test open timeout
+	reopen.on_state(Opening, now);
+	ASSERT_EQ(reopen.next - now, reopen.timeout_open);
+	ASSERT_EQ(reopen.on_timer(log, reopen.next - 10ns), Action::None);
+	ASSERT_EQ(reopen.on_timer(log, reopen.next), Action::Close);
+
+	reopen.on_state(Active, now);
+	ASSERT_EQ(reopen.active_ts, now);
+	ASSERT_FALSE(reopen.pending());
+
+	reopen.on_state(Error, now + 1ns); // Less then open timeout
+	ASSERT_FALSE(reopen.pending());
+	ASSERT_EQ(reopen.on_timer(log, now), Action::Close);
+
+	reopen.on_state(Closing, now);
+	ASSERT_FALSE(reopen.pending());
+	reopen.on_state(Closed, now);
+	ASSERT_EQ(reopen.next - now, reopen.timeout_min);
+
+	reopen.on_state(Opening, now);
+	reopen.on_state(Active, now);
+	reopen.on_state(Closing, now + 1ns); // Less then tremble
+	reopen.on_state(Closed, now);
+	ASSERT_EQ(reopen.next - now, 2 * reopen.timeout_min);
+
+	reopen.on_state(Opening, now);
+	reopen.on_state(Error, now); // Error in open
+	reopen.on_state(Closing, now);
+	reopen.on_state(Closed, now);
+	ASSERT_EQ(reopen.next - now, 4 * reopen.timeout_min);
+
+	reopen.on_state(Opening, now);
+	reopen.on_state(Active, now);
+	reopen.on_state(Error, now + 2 * reopen.timeout_tremble); // Error after long activity
+	reopen.on_state(Closing, now);
+	reopen.on_state(Closed, now);
+	ASSERT_EQ(reopen.next - now, 0ns);
+
+	reopen.on_state(Opening, now);
+	reopen.on_state(Active, now);
+	reopen.on_state(Closing, now + 2 * reopen.timeout_tremble); // Close after long activity
+	reopen.on_state(Closed, now + 1ns);
+	ASSERT_EQ(reopen.next - now, 1ns);
+}

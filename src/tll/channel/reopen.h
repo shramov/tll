@@ -56,6 +56,12 @@ struct ReopenData
 
 	void on_state(tll_state_t s)
 	{
+		return on_state(s, tll::time::now());
+	}
+
+	void on_state(tll_state_t s, tll::time_point now)
+	{
+		next = {};
 		switch (s) {
 		case state::Opening:
 			next = {};
@@ -63,31 +69,31 @@ struct ReopenData
 			if (timeout() < timeout_max)
 				count++;
 			if (timeout_open > duration {0})
-				next = tll::time::now() + timeout_open;
+				next = now + timeout_open;
 			break;
 		case state::Active:
-			active_ts = tll::time::now();
+			active_ts = now;
 			break;
 		case state::Error:
 			if (state == state::Opening) {
 				reopen_wait = true;
 			} else if (state == state::Active) {
-				if (tll::time::now() - active_ts < timeout_tremble)
+				if (now - active_ts < timeout_tremble)
 					reopen_wait = true;
 			}
 			break;
 		case state::Closing:
 			if (state == state::Active) {
-				if (tll::time::now() - active_ts < timeout_tremble)
+				if (now - active_ts < timeout_tremble)
 					reopen_wait = true;
 			}
 			break;
 		case state::Closed:
 			if (reopen_wait) {
-				next = tll::time::now() + timeout();
+				next = now + timeout();
 				reopen_wait = false;
 			} else {
-				next = tll::time::now();
+				next = now;
 				count = 0;
 			}
 			break;
@@ -101,7 +107,7 @@ struct ReopenData
 		state = s;
 	}
 
-	Action on_timer(tll::Logger &log, tll::time_point now)
+	Action on_timer(tll::Logger &log, tll::time_point now) const
 	{
 		if (state == state::Error)
 			return Action::Close;
