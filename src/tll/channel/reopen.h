@@ -18,14 +18,16 @@ namespace tll::channel {
 
 struct ReopenData
 {
-	enum class Action { None, Open, Close };
+	enum class Action { None, Open, Close, CloseForced };
 
 	Channel * channel = nullptr;
 	tll_state_t state = state::Closed;
 	time_point next = {};
 	time_point active_ts = {};
+	time_point closing_ts = {};
 
 	duration timeout_open = std::chrono::seconds(300);
+	duration timeout_close = std::chrono::seconds(10);
 	duration timeout_min = std::chrono::seconds(1);
 	duration timeout_max = std::chrono::seconds(30);
 	duration timeout_tremble = std::chrono::milliseconds(1);
@@ -84,6 +86,9 @@ struct ReopenData
 			next = now;
 			break;
 		case state::Closing:
+			if (closing_ts == tll::time::epoch)
+				closing_ts = now;
+			next = closing_ts + timeout_close;
 			if (state == state::Active) {
 				if (now - active_ts < timeout_tremble)
 					reopen_wait = true;
@@ -97,6 +102,7 @@ struct ReopenData
 				next = now;
 				count = 0;
 			}
+			closing_ts = {};
 			break;
 		case state::Destroy:
 			channel = nullptr;
@@ -117,6 +123,9 @@ struct ReopenData
 		else if (state == state::Opening && now >= next) {
 			log.warning("Open timeout for channel {}", channel->name());
 			return Action::Close;
+		} else if (state == state::Closing && now >= next) {
+			log.warning("Close timeout, force close channel {}", channel->name());
+			return Action::CloseForced;
 		}
 		return Action::None;
 	}
@@ -224,12 +233,13 @@ public:
 	{
 		if (!_reopen_data.channel)
 			return 0;
-		switch (_reopen_data.on_timer(this->_log, tll::time::now())) {
+		switch (auto a = _reopen_data.on_timer(this->_log, tll::time::now()); a) {
 		case ReopenData::Action::Open:
 			_reopen_data.open();
 			break;
 		case ReopenData::Action::Close:
-			_reopen_data.channel->close();
+		case ReopenData::Action::CloseForced:
+			_reopen_data.channel->close(a == ReopenData::Action::CloseForced);
 			break;
 		case ReopenData::Action::None:
 			break;
