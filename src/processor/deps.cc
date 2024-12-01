@@ -22,6 +22,7 @@ int Object::init(const tll::Channel::Url &url)
 	reopen.timeout_min = reader.getT("reopen-timeout", reopen.timeout_min);
 	reopen.timeout_max = reader.getT("reopen-timeout-max", reopen.timeout_max);
 	reopen.timeout_tremble = reader.getT("reopen-active-min", reopen.timeout_tremble);
+	reopen.timeout_close = reader.getT("close-timeout", reopen.timeout_close);
 	verbose = reader.getT("tll.processor-verbose", false);
 	if (!reader) {
 		tll::Logger _log("tll.processor");

@@ -24,8 +24,10 @@ struct ReopenData
 	tll_state_t state = state::Closed;
 	time_point next = {};
 	time_point active_ts = {};
+	time_point closing_ts = {};
 
 	duration timeout_open = std::chrono::seconds(300);
+	duration timeout_close = std::chrono::seconds(10);
 	duration timeout_min = std::chrono::seconds(1);
 	duration timeout_max = std::chrono::seconds(30);
 	duration timeout_tremble = std::chrono::milliseconds(1);
@@ -35,6 +37,7 @@ struct ReopenData
 	ConstConfig open_params;
 
 	bool pending() const { return next != time_point {}; }
+	constexpr bool force_close() const { return state == state::Closing; }
 
 	template <typename Reader>
 	int init(Reader &reader)
@@ -94,6 +97,9 @@ struct ReopenData
 			next = now;
 			break;
 		case state::Closing:
+			if (closing_ts == tll::time::epoch)
+				closing_ts = now;
+			next = closing_ts + timeout_close;
 			if (state == state::Active) {
 				if (now - active_ts < timeout_tremble)
 					reopen_wait = true;
@@ -107,6 +113,7 @@ struct ReopenData
 				next = now;
 				count = 0;
 			}
+			closing_ts = {};
 			break;
 		case state::Destroy:
 			channel = nullptr;
@@ -126,6 +133,9 @@ struct ReopenData
 			return Action::Open;
 		else if (state == state::Opening && now >= next) {
 			log.warning("Open timeout for channel {}", channel->name());
+			return Action::Close;
+		} else if (state == state::Closing && now >= next) {
+			log.warning("Close timeout, force close channel {}", channel->name());
 			return Action::Close;
 		}
 		return Action::None;
@@ -235,7 +245,7 @@ public:
 			_reopen_data.open();
 			break;
 		case ReopenData::Action::Close:
-			_reopen_data.channel->close();
+			_reopen_data.channel->close(_reopen_data.force_close());
 			break;
 		case ReopenData::Action::None:
 			break;

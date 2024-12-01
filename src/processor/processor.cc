@@ -38,10 +38,11 @@ void Processor::decay(Object * obj)
 	obj->decay = true;
 
 	_log.debug("Decay subtree of object {}", obj->name());
-	_log.debug("State: {}, opening: {}, ready to close: {}, subtree closed: {}", tll_state_str(obj->state), obj->opening, obj->ready_close(), obj->subtree_closed);
 	for (auto & o : obj->rdepends)
 		decay(o);
 
+	if (obj->state == state::Closing || obj->closing)
+		return;
 	if ((obj->state != state::Closed || obj->opening) && obj->ready_close())
 		deactivate(obj, "decayed leaf ");
 }
@@ -636,6 +637,7 @@ void Processor::update(Object *o, tll_state_t s)
 	o->on_state(s);
 	switch (s) {
 	case state::Opening:
+	case state::Closing:
 		if (o->reopen.pending())
 			pending_add(o->reopen.next, o);
 		break;
@@ -692,6 +694,8 @@ void Processor::deactivate(Object *o, std::string_view msg, bool failure)
 	_log.debug("Dectivate {}object {}", msg, o->name());
 	if (!failure)
 		o->reopen.active_ts = {};
+	if (o->state != state::Closing)
+		o->closing = true;
 	post<scheme::Deactivate>(o, { o });
 }
 

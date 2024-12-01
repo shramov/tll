@@ -139,7 +139,7 @@ int Worker::callback(const Channel * c, const tll_msg_t * msg)
 		auto data = (const scheme::Deactivate *) msg->data;
 		if (data->obj->worker != this) return 0;
 		auto & channel = (*data->obj);
-		auto force = channel->state() == tll::state::Error;
+		auto force = channel->state() == tll::state::Error || channel->state() == tll::state::Closing;
 		_log.info("Deactivate object {}", channel->name());
 		channel->close(force);
 		break;

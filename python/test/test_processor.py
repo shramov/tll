@@ -464,7 +464,7 @@ processor.objects:
   root:
     init: null://
   l0:
-    init: long-close://
+    init: long-close://;close-timeout=1s
     depends: root
   l1:
     init: null://;reopen-timeout=10ms;reopen-active-min=1s
@@ -493,3 +493,22 @@ processor.objects:
     context.get('l0').post(b'')
 
     await mock.wait('root', 'Closed', timeout=1)
+
+@asyncloop_run
+async def test_close_timeout(asyncloop, context):
+    context.register(LongClose)
+
+    cfg = Config.load('''yamls://
+name: processor
+processor.objects:
+  o0:
+    init: long-close://;close-timeout=10ms
+''')
+
+    mock = Mock(asyncloop, cfg)
+    mock.open()
+
+    await mock.wait('o0', 'Active', timeout=0.01)
+
+    context.get('o0').close()
+    await mock.wait('o0', 'Closed', timeout=0.02)

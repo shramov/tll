@@ -620,7 +620,8 @@ TEST(Channel, ReopenInternal)
 	ASSERT_EQ(reopen.on_timer(log, now), Action::Close);
 
 	reopen.on_state(Closing, now);
-	ASSERT_FALSE(reopen.pending());
+	ASSERT_TRUE(reopen.pending());
+	ASSERT_EQ(reopen.next - now, reopen.timeout_close);
 	reopen.on_state(Closed, now);
 	ASSERT_EQ(reopen.next - now, reopen.timeout_min);
 

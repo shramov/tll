@@ -31,6 +31,7 @@ struct Object
 	tll_state_t state_prev = tll::state::Closed;
 	bool decay = false;
 	bool opening = false;
+	bool closing = false;
 	bool verbose = false;
 	bool stage = false;
 	bool subtree_closed = true;
@@ -133,6 +134,9 @@ struct Object
 		switch (s) {
 		case state::Opening:
 			opening = false;
+			break;
+		case state::Closing:
+			closing = false;
 			break;
 		default:
 			break;
