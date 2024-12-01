@@ -583,7 +583,7 @@ TEST(Channel, ReopenInternal)
 	ASSERT_FALSE(reopen.pending());
 
 	reopen.on_state(Error, now + 1ns); // Less then open timeout
-	ASSERT_FALSE(reopen.pending());
+	ASSERT_EQ(reopen.next - now, 1ns); // On error Close action is scheduled
 	ASSERT_EQ(reopen.on_timer(log, now), Action::Close);
 
 	reopen.on_state(Closing, now);

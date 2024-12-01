@@ -81,6 +81,7 @@ struct ReopenData
 				if (now - active_ts < timeout_tremble)
 					reopen_wait = true;
 			}
+			next = now;
 			break;
 		case state::Closing:
 			if (state == state::Active) {
@@ -213,10 +214,7 @@ public:
 		_reopen_data.on_state(state);
 		if (this->state() != state::Active && this->state() != state::Opening)
 			return 0;
-		if (state == state::Error) { // Async close
-			this->_log.debug("Channel failed, schedule close");
-			_reopen_rearm(tll::time::now());
-		} else if (_reopen_data.pending()) {
+		if (_reopen_data.pending()) {
 			_reopen_rearm(_reopen_data.next);
 		}
 		return 0;
