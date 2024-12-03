@@ -40,6 +40,7 @@ class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::
 	std::string _peer;
 
 	tll::Config _reopen_cfg;
+	bool _report_block_end = true;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "stream+"; }
@@ -101,6 +102,7 @@ class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::
 	int _on_request_closed();
 
 	int _report_online();
+	int _report_block();
 	int _post_done(long long seq);
 
 	void _reset_config_cb(tll::Config cfg, std::string_view path)

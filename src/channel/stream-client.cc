@@ -42,6 +42,7 @@ int StreamClient::_init(const Channel::Url &url, tll::Channel *master)
 	auto reader = channel_props_reader(url);
 	auto size = reader.getT<util::Size>("size", 128 * 1024);
 	_peer = reader.getT<std::string>("peer", "");
+	_report_block_end = reader.getT("report-block-end", true);
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
@@ -154,6 +155,19 @@ int StreamClient::_report_online()
 	return 0;
 }
 
+int StreamClient::_report_block()
+{
+	_log.info("Block finished at seq {}", _block_end - 1);
+	tll_msg_t m = {
+		.type = TLL_MESSAGE_CONTROL,
+		.msgid = stream_control_scheme::EndOfBlock::meta_id(),
+		.seq = _block_end - 1,
+	};
+	if (_report_block_end)
+		_callback(&m);
+	return 0;
+}
+
 int StreamClient::_post_done(long long seq)
 {
 	auto data = stream_scheme::ClientDone::bind(_request_buf);
@@ -255,6 +269,7 @@ int StreamClient::_on_request_data(const tll::Channel *, const tll_msg_t *msg)
 			_reopen_cfg.set("mode", "seq");
 			_reopen_cfg.set("seq", _config_seq, this);
 			config_info().set("reopen", _reopen_cfg);
+			_report_block();
 		}
 
 		_seq = msg->seq;
@@ -316,6 +331,8 @@ int StreamClient::_on_request_data(const tll::Channel *, const tll_msg_t *msg)
 			_reopen_cfg.set("seq", _config_seq, this);
 			config_info().set("reopen", _reopen_cfg);
 
+			if (_block_end > 0)
+				_report_block();
 			_report_online();
 			_request->close();
 		} else if (_server_seq < *_open_seq) {

@@ -1,3 +1,5 @@
 - options.cpp-namespace: stream_control_scheme
 - name: Online
   id: 10
+- name: EndOfBlock
+  id: 11

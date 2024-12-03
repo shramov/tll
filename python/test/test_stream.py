@@ -189,11 +189,11 @@ async def test_reopen(asyncloop, tmp_path):
     assert (m.seq, c.unpack(m).SCHEME.name) == (30, 'Online')
 
 @pytest.mark.parametrize("req,result", [
-        ('block=0', [30, 30]),
-        ('block=0;block-type=rare', [30, 30]),
-        ('block=1', [20, 30, 30]),
-        ('block=1;block-type=default', [20, 30, 30]),
-        ('block=0;block-type=last', [30]),
+        ('block=0', [20, 30, 30]),
+        ('block=0;block-type=rare', [20, 30, 30]),
+        ('block=1', [10, 20, 30, 30]),
+        ('block=1;block-type=default', [10, 20, 30, 30]),
+        ('block=0;block-type=last', [30, 30]),
         ('block=10;block-type=rare', []),
         ('block=0;block-type=unknown', []),
         ])
@@ -233,6 +233,9 @@ async def test_block(asyncloop, tmp_path, req, result):
         m = await c.recv_state()
         assert m == c.State.Error
         return
+
+    m = await c.recv()
+    assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control['EndOfBlock'].msgid, result.pop(0))
 
     for seq in result[:-1]:
         m = await c.recv()
@@ -292,6 +295,10 @@ async def test_init_message(asyncloop, tmp_path, init_seq, init_block):
 
     m = await c.recv()
     assert m.type == m.Type.Control
+    assert (m.seq, c.unpack(m).SCHEME.name) == (init_seq or 0, 'EndOfBlock')
+
+    m = await c.recv()
+    assert m.type == m.Type.Control
     assert (m.seq, c.unpack(m).SCHEME.name) == (init_seq or 0, 'Online')
 
 @asyncloop_run
@@ -328,7 +335,7 @@ async def test_autoseq(asyncloop, tmp_path):
 async def test_block_clear(asyncloop, tmp_path):
     common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
     s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
-    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test;report-block-end=no')
 
     s.open()
     assert s.state == s.State.Active # No need to wait
@@ -617,6 +624,9 @@ async def test_stream_aggregate(asyncloop, context, tmp_path):
     assert c.config.sub('info.reopen').as_dict() == {'mode': 'block', 'block': '0', 'block-type': 'default'}
 
     m = await c.recv()
+    assert (m.type, m.msgid, m.seq) == (c.Type.Control, c.scheme_control['EndOfBlock'].msgid, 10)
+
+    m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (20, 10, b'xxz')
     assert c.config.sub('info.reopen').as_dict() == {'mode': 'seq', 'seq': '20'}
 
@@ -806,7 +816,7 @@ async def test_request_close(asyncloop, tmp_path, path_srcdir, mode, rseq, oseq)
     assert m.SCHEME.name == 'Request'
     assert m.seq == 10
 
-    request.post({'last_seq': 20, 'requested_seq': 10}, name='Reply')
+    request.post({'last_seq': 20, 'requested_seq': 10, 'block_seq': -1}, name='Reply')
 
     for s in oseq:
         online.post(b'online', seq=s)

@@ -35,6 +35,9 @@ old data from ``request`` channel.
 ``peer=<string>``, default empty - client name that is passed to the server where it is included in
 logs about data request processing.
 
+``report-block-end=<bool>``, default ``yes`` - report block end with ``EndOfBlock`` control message,
+can be disabled for backward compatibility.
+
 Open parameters
 ---------------
 
@@ -60,11 +63,16 @@ Control messages
 
 Stream client generates ``Online`` control message when it switches from historical data to online.
 Message has empty body and ``seq`` field set to last message sequence number available on the server.
+``EndOfBlock`` message is generated when historical data switches from aggregated part (may be
+empty, in which case it is first message) read from ``blocks`` channel to linear read from
+``storage`` on the server.
 
 .. code-block:: yaml
 
   - name: Online
     id: 10
+  - name: EndOfBlock
+    id: 11
 
 Examples
 --------
