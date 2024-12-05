@@ -787,6 +787,11 @@ struct Scheme
 
 	tll::scheme::Scheme * finalize()
 	{
+		enums.sort([](auto &l, auto &r) { return l.name < r.name; });
+		unions.sort([](auto &l, auto &r) { return l.name < r.name; });
+		bits.sort([](auto &l, auto &r) { return l.name < r.name; });
+		aliases.sort([](auto &l, auto &r) { return l.name < r.name; });
+
 		auto r = (tll::scheme::Scheme *) malloc(sizeof(tll::scheme::Scheme));
 		*r = {};
 		r->options = options.finalize();
