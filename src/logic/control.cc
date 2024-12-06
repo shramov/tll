@@ -472,10 +472,16 @@ int Control::_post_export(ChannelExport &channel, std::string_view name, const t
 	data.set_service(_service);
 	data.set_channel(name);
 	std::map<std::string, tll::ConstConfig> curl;
+
 	for (auto & [name, cfg] : client.browse("**")) {
 		if (name.substr(0, strlen("children.")) != "children.")
 			curl.emplace(name, cfg);
 	}
+	tll::Config hostname;
+	hostname.set(_hostname);
+	for (auto & [k, _]: client.browse("replace.host.**"))
+		curl[std::string(k.substr(strlen("replace.host.")))] = hostname;
+
 	data.get_config().resize(curl.size());
 	auto di = data.get_config().begin();
 	for (auto & [name, cfg] : curl) {

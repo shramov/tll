@@ -193,7 +193,7 @@ mock:
 channel:
   url: control://;tll.channel.processor=processor;tll.channel.resolve=resolve;name=logic
   service: test
-  hostname: host
+  hostname: ::1
   service-tags: 'a,b'
 ''')
 
@@ -202,11 +202,11 @@ channel:
 
     tproc, tinput = mock.io('processor', 'resolve')
 
-    tcp = asyncloop.Channel(f'child-export+tcp://::1:{ports.TCP6};mode=server;name=tcp;tll.resolve.export=yes')
+    tcp = asyncloop.Channel(f'child-export+tcp://*:{ports.TCP6};mode=server;name=tcp;tll.resolve.export=yes')
     tcp.open()
 
     m = await tinput.recv()
-    assert tinput.unpack(m).as_dict() == {'service': 'test', 'tags': ['a', 'b'], 'host': 'host'}
+    assert tinput.unpack(m).as_dict() == {'service': 'test', 'tags': ['a', 'b'], 'host': '::1'}
 
     tproc.post({'channel': 'tcp', 'state': 'Active'}, name='StateUpdate')
     for name in ('tcp', 'tcp/first', 'tcp/first/second'):
