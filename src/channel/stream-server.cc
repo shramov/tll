@@ -300,15 +300,21 @@ int StreamServer::_check_state(tll_state_t s)
 		_log.info("All sub channels are active");
 		if (state() == tll::state::Opening) {
 			auto oclient = _child->config().sub("client");
-			auto rclient = _request->config().sub("client.init");
-			if (oclient && oclient->sub("init") && rclient) {
+			auto rclient = _request->config().sub("client");
+			if (oclient && oclient->sub("init") && rclient && rclient->sub("init")) {
 				auto client = oclient->copy();
 				tll::Channel::Url url = *client.sub("init");
 				url.proto(std::string("stream+") + url.proto());
 				url.set("mode", "client");
-				url.set("request", rclient->copy());
+				url.set("request", rclient->sub("init")->copy());
+
+				for (auto &[prefix, cfg]: rclient->browse("replace.*.*", true)) {
+					for (auto &[k, _]: cfg.browse("**"))
+						client.set(fmt::format("{}.request.{}", prefix, k), "");
+				}
+
 				client.set("children.online", *oclient);
-				client.set("children.request", *_request->config().sub("client"));
+				client.set("children.request", *rclient);
 				_config.set("client", client);
 			}
 			state(tll::state::Active);

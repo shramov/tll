@@ -794,6 +794,29 @@ async def test_export_client(asyncloop, tmp_path):
     assert [m.name for m in c.scheme.messages] == ['Test']
 
 @asyncloop_run
+async def test_export_client_wildcard(asyncloop, tmp_path):
+    scheme = 'yamls://[{name: Test, id: 10}]'
+    server = asyncloop.Channel(f'stream+pub+tcp://*:0;request=tcp://*:0;dump=frame;storage=file:///{tmp_path}/storage.dat;name=server;mode=server', scheme=scheme)
+    server.open()
+    server.post(b'xxx', seq=100)
+
+    assert [m.name for m in server.scheme.messages] == ['Test']
+
+    url = server.config.get_url('client.init').copy()
+    assert url.proto == 'stream+pub+tcp'
+
+    assert [k for k, _ in server.config.sub('client.replace', False).browse('**')] == sorted(['host.init.tll.host.host', 'host.init.request.tll.host.host'])
+    for k, _ in server.config.browse('client.replace.host.init.**'):
+        url[k.split('.', 4)[-1]] = '::1'
+
+    c = asyncloop.Channel(url, name='client')
+    c.open(mode='seq', seq='100')
+    assert await c.recv_state() == c.State.Active
+    assert (await c.recv()).seq == 100
+
+    assert [m.name for m in c.scheme.messages] == ['Test']
+
+@asyncloop_run
 @pytest.mark.parametrize("mode,rseq,oseq", [
         ("request-only", list(range(10, 15)), []),
         ("request+online", list(range(10, 25)), [30]),
