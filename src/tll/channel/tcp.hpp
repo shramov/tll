@@ -16,6 +16,7 @@
 #include "tll/util/size.h"
 #include "tll/util/sockaddr.h"
 
+#include <limits.h>
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -646,12 +647,23 @@ int TcpServer<T, C>::_open(const ConstConfig &url)
 	}
 
 	auto af = static_cast<network::AddressFamily>(addr->front()->sa_family);
-	_client_init.set("af", tll::conv::to_string(af));
 	if (af == network::AddressFamily::UNIX || _host.host != "*") {
 		_client_init.host(tll::conv::to_string(addr->front()));
-		_client_config.set("init", _client_init);
-		this->_config.set("client", _client_config);
+		_client_init.setT("af", af);
+	} else {
+		if (_host.af != network::AddressFamily::UNSPEC)
+			_client_init.setT("af", _host.af);
+		_client_init.setT("tll.host.port", ntohs(addr->front().in()->sin_port));
+		char hostname[HOST_NAME_MAX + 1];
+		hostname[HOST_NAME_MAX] = 0;
+		if (auto r = gethostname(hostname, sizeof(hostname)); r)
+			return this->_log.fail(EINVAL, "Failed to get hostname: {}", strerror(r));
+		_client_init.set("tll.host.host", hostname);
+		_client_config.set("replace.host.init.tll.host.host", "");
 	}
+
+	_client_config.set("init", _client_init);
+	this->_config.set("client", _client_config);
 
 	this->state(state::Active);
 	return 0;

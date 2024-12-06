@@ -2,6 +2,7 @@
 # vim: sts=4 sw=4 et
 
 import tll.channel as C
+from tll.config import Config
 from tll.error import TLLError
 from tll.test_util import Accum, ports
 from tll.processor import Loop
@@ -368,19 +369,30 @@ def test_open_peer():
         , (f"127.0.0.1:{ports.TCP4}", "ipv4")
         , (f"::1:{ports.TCP6}", "ipv6")
         , ((f"localhost:{ports.TCP6}", f"{localhost[0][4][0]}:{ports.TCP6}"), "ipv6" if localhost_af == socket.AF_INET6 else "ipv4")
+        , ((f"*:{ports.TCP4}", {'host': socket.gethostname(), 'port': f"{ports.TCP4}"}), "ipv4")
+        , ((f"*:{ports.TCP6}", {'host': socket.gethostname(), 'port': f"{ports.TCP6}"}), "ipv6")
+        , ((f"*:{ports.TCP6}", {'host': socket.gethostname(), 'port': f"{ports.TCP6}"}), "any")
         ])
 def test_client(host, af):
     if isinstance(host, tuple):
         host, result = host
+        print(host, result)
     else:
         result = host
-    s = Accum(f'tcp://{host};mode=server;dump=frame')
+    s = Accum(f'tcp://{host};mode=server;dump=frame;af={af}')
 
     s.open()
+    config = Config.from_dict({'init': {'tll': {'proto': 'tcp', 'host': result}, 'mode': 'client'}})
+    if af != 'any':
+        config['init.af'] = af
+    if isinstance(result, dict):
+        config['replace.host.init.tll.host.host'] = ''
+    assert s.config.sub('client').as_dict() == config.as_dict()
 
-    assert s.config.sub('client').as_dict() == {'init': {'tll': {'proto': 'tcp', 'host': result}, 'af': af, 'mode': 'client'}}
-
-    c = Accum(s.config.sub('client.init'), name='client')
+    client = s.config.sub('client.init').copy()
+    for k, _ in s.config.browse('client.replace.host.init.**'):
+        client[k.split('.', 4)[-1]] = '::1' if af == 'ipv6' else '127.0.0.1'
+    c = Accum(client, name='client')
     c.open()
 
 @pytest.mark.parametrize("host,af",
