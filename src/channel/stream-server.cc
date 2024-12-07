@@ -238,7 +238,9 @@ int StreamServer::_open(const ConstConfig &url)
 		auto seq = _blocks->config().getT<long long>("info.seq");
 		if (!seq)
 			return _log.fail(EINVAL, "Blocks channel last seq invalid: {}", seq.error());
-		if (*seq != _seq) {
+		if (*seq > _seq) {
+			return _log.fail(EINVAL, "Blocks channel last seq in the future: {}, last storage seq {}", *seq, _seq);
+		} else if (*seq < _seq) {
 			_log.info("Blocks seq is behind storage seq: {} < {}, feed from storage", *seq, _seq);
 			auto url = _storage_url.copy();
 			url.set("autoclose", "yes");
@@ -502,6 +504,9 @@ tll::result_t<int> StreamServer::Client::init(const tll_msg_t *msg)
 
 		_log.info("Translated block type '{}' number {} to seq {}, storage seq {}", block, req.get_seq(), seq, block_end);
 	}
+
+	if (block_end != -1 && block_end > parent->_seq + 1)
+		return error(fmt::format("Error in storage: block end {} in the future, last seq {}", block_end - 1, parent->_seq));
 
 	storage = parent->context().channel(parent->_storage_url, parent->_storage.get());
 	if (!storage)

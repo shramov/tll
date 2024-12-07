@@ -873,3 +873,44 @@ async def test_client(asyncloop, tmp_path):
         assert (m.type, m.seq) == (m.Type.Data, 10)
         m = await c.recv()
         assert (m.type, m.seq) == (m.Type.Control, 10)
+
+@asyncloop_run
+async def test_block_in_future(asyncloop, tmp_path):
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+
+    assert [x.name for x in s.children] == ['server/stream', 'server/request', 'server/storage', 'server/blocks']
+    blocks = s.children[-1]
+
+    s.open()
+    assert s.state == s.State.Active # No need to wait
+
+    for i in range(10):
+        s.post(b'xxx', msgid=10, seq=i)
+    s.post({'type': 'default'}, name='Block', type=s.Type.Control)
+
+    assert yaml.safe_load(open(tmp_path / 'blocks.yaml')) == [{'seq': 9, 'type':'default'}]
+    s.close()
+    s.open()
+
+    c.open(mode='block', block='0')
+
+    m = await c.recv()
+    assert m.seq == 9
+
+    c.close()
+
+    blocks.post(b'', seq=15)
+    blocks.post({'type': 'default'}, name='Block', type=s.Type.Control)
+
+    assert blocks.config['info.seq'] == '15'
+
+    c.open(mode='block', block='0')
+
+    assert (await c.recv_state()) == c.State.Error
+
+    c.close()
+    s.close()
+
+    with pytest.raises(TLLError): s.open()
