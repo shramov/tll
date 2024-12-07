@@ -42,6 +42,8 @@ class _test_tcp_base:
         self.c = Accum(self.PROTO, mode='client', name='client', dump='yes', context=ctx, sndbuf='16kb')
 
     def teardown_method(self):
+        if self.c: self.c.close()
+        if self.s: self.s.close()
         self.c = None
         self.s = None
         for f in self.CLEANUP:
