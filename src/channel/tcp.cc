@@ -17,6 +17,9 @@
 
 using namespace tll;
 
+static constexpr std::string_view write_buffered_scheme = "yamls://[{name: WriteBuffered, id: 11}]";
+static constexpr int write_buffered_msgid = 35;
+
 template <typename T, typename F>
 class FramedSocket : public tll::channel::TcpSocket<T>
 {
@@ -36,7 +39,14 @@ class FramedSocket : public tll::channel::TcpSocket<T>
 	void _on_output_full()
 	{
 		if (this->_wbuf.size() > _send_hwm)
-			Base::_on_output_full();
+			return Base::_on_output_full();
+
+		tll_msg_t msg = {
+			.type = TLL_MESSAGE_CONTROL,
+			.msgid = write_buffered_msgid,
+			.addr = this->_msg_addr,
+		};
+		this->_callback(&msg);
 	};
 
 	void send_hwm(size_t hwm)
