@@ -30,6 +30,7 @@ T ** find_tail(T ** list)
 }
 
 inline bool compare(const tll::scheme::Message * lhs, const tll::scheme::Message * rhs);
+inline bool compare(const tll::scheme::Union * lhs, const tll::scheme::Union * rhs);
 inline bool compare(const tll::scheme::Field * lhs, const tll::scheme::Field * rhs)
 {
 	if (lhs->type != rhs->type)
@@ -44,8 +45,27 @@ inline bool compare(const tll::scheme::Field * lhs, const tll::scheme::Field * r
 		return compare(lhs->type_array, rhs->type_array);
 	case Field::Pointer:
 		return compare(lhs->type_ptr, rhs->type_ptr);
+	case Field::Union:
+		return compare(lhs->type_union, rhs->type_union);
 	default:
 		break;
+	}
+	return true;
+}
+
+inline bool compare(const tll::scheme::Union * lhs, const tll::scheme::Union * rhs)
+{
+	if (std::string_view(lhs->name) != rhs->name)
+		return false;
+	if (!compare(lhs->type_ptr, rhs->type_ptr))
+		return false;
+	if (lhs->union_size != rhs->union_size)
+		return false;
+	if (lhs->fields_size != rhs->fields_size)
+		return false;
+	for (auto i = 0u; i < lhs->fields_size; i++) {
+		if (!compare(lhs->fields + i, rhs->fields + i))
+			return false;
 	}
 	return true;
 }
