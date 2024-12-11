@@ -555,6 +555,8 @@ void Processor::update(const Channel *c, tll_state_t s)
 
 	if (o->verbose)
 		_log.info("Object {} state {}", c->name(), tll_state_str(s));
+	if (o->reopen.pending())
+		pending_del(o->reopen.next, o);
 	o->on_state(s);
 	switch (s) {
 	case state::Opening:
