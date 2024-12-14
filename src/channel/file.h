@@ -105,9 +105,11 @@ private:
 
 	int _lz4_init(size_t block)
 	{
-		_lz4_buf.resize(LZ4_compressBound(block));
-		if (_lz4_encode.init(block))
-			return this->_log.fail(EINVAL, "Failed to init lz4 encoder with block size {}", block);
+		if (this->internal.caps & caps::Output) {
+			_lz4_buf.resize(LZ4_compressBound(block));
+			if (_lz4_encode.init(block))
+				return this->_log.fail(EINVAL, "Failed to init lz4 encoder with block size {}", block);
+		}
 		if (_lz4_decode.init(block))
 			return this->_log.fail(EINVAL, "Failed to init lz4 decoder with block size {}", block);
 		_lz4_decode_offset = -1;
@@ -117,7 +119,8 @@ private:
 
 	void _lz4_reset()
 	{
-		_lz4_encode.reset();
+		if (this->internal.caps & caps::Output)
+			_lz4_encode.reset();
 		_lz4_decode.reset();
 		_lz4_decode_offset = -1;
 	}
