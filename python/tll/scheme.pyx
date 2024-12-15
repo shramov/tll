@@ -800,6 +800,8 @@ cdef unpack_vstring(object src, int optr_version):
     if ptr.size < 0: return None
     if ptr.size == 0:
         return "" #src[sizeof(tll_scheme_offset_ptr_t):sizeof(tll_scheme_offset_ptr_t)]
+    if ptr.offset + ptr.size > len(src):
+        raise ValueError(f"Offset string at {ptr.offset}+{ptr.size} out of tail size {len(src)}")
     r = src[ptr.offset:ptr.offset + ptr.size - 1]
     if PY_MAJOR_VERSION == 2:
         return r.tobytes()
