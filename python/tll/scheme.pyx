@@ -782,8 +782,8 @@ cdef pack_bytes(v, dest, tail, tail_offset):
     if not isinstance(v, memoryview):
         v = memoryview(s2b(v))
     cdef Py_buffer * inbuf = PyMemoryView_GET_BUFFER(v)
-    if buf.len < inbuf.len: return EMSGSIZE
-#        raise TLLError("Dest buffer too small: {} < {}".format(buf.len, inbuf.len))
+    if buf.len < inbuf.len:
+        raise ValueError(f"Dest buffer too small: {buf.len} < {inbuf.len}")
     memcpy(buf.buf, inbuf.buf, inbuf.len)
     #if inbuf.len < buf.len:
     #    memset(buf.buf + inbuf.len, 0, buf.len - inbuf.len)
