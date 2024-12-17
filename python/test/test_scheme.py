@@ -503,10 +503,15 @@ def test_bytes():
         m.f0 = 'abc'
 
     with pytest.raises(ValueError):
-        m.f0 = b'abc'
+        m.f1 = 'abc'
+
+    m.f2 = 'abc'
 
     with pytest.raises(TypeError):
         m.f0 = 1
+
+    with pytest.raises(TypeError):
+        m.f1 = 1
 
 def test_time_point():
     scheme = S.Scheme("""yamls://

@@ -742,7 +742,11 @@ cdef class FFixedString(FBase):
 
     cdef pack(FFixedString self, v, dest, tail, int tail_offset): return pack_bytes(v, dest, tail, tail_offset)
     cdef unpack(FFixedString self, src): return unpack_str(src[:self.size])
-    cdef convert(FFixedString self, v): return convert_str(v)
+    cdef convert(FFixedString self, v):
+        v = convert_str(v)
+        if len(v) > self.size:
+            raise ValueError(f"String too long: {len(v)} > {self.size}")
+        return v
     cdef from_string(FFixedString self, str s): return s
 _SUBTYPES[(Type.Bytes, SubType.ByteString)] = FFixedString
 
