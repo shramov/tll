@@ -47,7 +47,7 @@ template <bool Skip>
 std::list<std::string> splitL(const std::string_view &s)
 {
 	std::list<std::string> r;
-	return tll::splitl<',', Skip>(r, s);
+	return tll::splitl<',', ';', Skip>(r, s);
 }
 
 TEST(Util, SplitT)
@@ -55,10 +55,11 @@ TEST(Util, SplitT)
 	typedef std::list<std::string> list;
 	EXPECT_EQ(splitL<false>(""), list{""});
 	EXPECT_EQ(splitL<true>(""), list{});
-	EXPECT_EQ(splitL<false>(","), (list{"", ""}));
-	EXPECT_EQ(splitL<true>(","), list{});
 	EXPECT_EQ(splitL<false>("a"), (list{"a"}));
 	EXPECT_EQ(splitL<true>("a"), (list{"a"}));
+
+	EXPECT_EQ(splitL<false>(","), (list{"", ""}));
+	EXPECT_EQ(splitL<true>(","), list{});
 	EXPECT_EQ(splitL<false>("a,"), (list{"a", ""}));
 	EXPECT_EQ(splitL<true>("a,"), (list{"a"}));
 	EXPECT_EQ(splitL<false>(",b"), (list{"", "b"}));
@@ -67,6 +68,22 @@ TEST(Util, SplitT)
 	EXPECT_EQ(splitL<true>("a,b"), (list{"a", "b"}));
 	EXPECT_EQ(splitL<false>("a,,b"), (list{"a", "", "b"}));
 	EXPECT_EQ(splitL<true>("a,,b"), (list{"a", "b"}));
+
+	EXPECT_EQ(splitL<false>(";"), (list{"", ""}));
+	EXPECT_EQ(splitL<true>(";"), list{});
+	EXPECT_EQ(splitL<false>("a;"), (list{"a", ""}));
+	EXPECT_EQ(splitL<true>("a;"), (list{"a"}));
+	EXPECT_EQ(splitL<false>(";b"), (list{"", "b"}));
+	EXPECT_EQ(splitL<true>(";b"), (list{"b"}));
+	EXPECT_EQ(splitL<false>("a;b"), (list{"a", "b"}));
+	EXPECT_EQ(splitL<true>("a;b"), (list{"a", "b"}));
+	EXPECT_EQ(splitL<false>("a;;b"), (list{"a", "", "b"}));
+	EXPECT_EQ(splitL<true>("a;;b"), (list{"a", "b"}));
+
+	EXPECT_EQ(splitL<false>("a,;b"), (list{"a", "", "b"}));
+	EXPECT_EQ(splitL<true>("a,;b"), (list{"a", "b"}));
+	EXPECT_EQ(splitL<false>("a;;b"), (list{"a", "", "b"}));
+	EXPECT_EQ(splitL<true>("a;,b"), (list{"a", "b"}));
 }
 
 TEST(Util, SplitIter)

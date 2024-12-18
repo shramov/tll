@@ -38,7 +38,25 @@ inline std::string_view string_view_from_c(const char *base, int len)
 	return { base, (len < 0)?strlen(base):len };
 }
 
-template <char Sep>
+template <char ... Chars>
+struct sep_helper;
+
+template <char C, char ... Chars>
+struct sep_helper<C, Chars...>
+{
+	static constexpr bool match(char c)
+	{
+		return c == C || sep_helper<Chars...>::match(c);
+	}
+};
+
+template <>
+struct sep_helper<>
+{
+	static constexpr bool match(char c) { return false; }
+};
+
+template <char ... Chars>
 struct split_helperT
 {
 	std::string_view data;
@@ -64,7 +82,7 @@ struct split_helperT
 		{
 			if (ptr >= data_end)
 				return data_end;
-			for (; ptr + 1 < data_end && *ptr != Sep; ptr++) {}
+			for (; ptr + 1 < data_end && !sep_helper<Chars...>::match(*ptr); ptr++) {}
 			return ptr;
 		}
 
@@ -72,7 +90,7 @@ struct split_helperT
 		{
 			if (ptr <= data_begin)
 				return data_begin;
-			for (; ptr > data_begin && *(ptr - 1) != Sep; ptr--) {}
+			for (; ptr > data_begin && !sep_helper<Chars...>::match(*(ptr - 1)); ptr--) {}
 			return ptr;
 		}
 
@@ -110,17 +128,17 @@ struct split_helperT
 	iterator end() const { return iterator(data.begin(), data.end() + 1, data.end() + 1); }
 };
 
-template <char Sep>
-inline split_helperT<Sep> split(std::string_view s)
+template <char ... Chars>
+inline split_helperT<Chars...> split(std::string_view s)
 {
 	return { s };
 }
 
-template <char Sep, bool Skip = false, typename T>
+template <char ... Chars, bool Skip = false, typename T>
 inline T & splitl(T & r, std::string_view s)
 {
 	using string_type = typename T::value_type;
-	for (auto i : split<Sep>(s)) {
+	for (auto i : split<Chars...>(s)) {
 		if (Skip && i.empty())
 			continue;
 		r.push_back(string_type(i)); // Explicit constructor for std::string containers
@@ -128,11 +146,11 @@ inline T & splitl(T & r, std::string_view s)
 	return r;
 }
 
-template <char Sep, bool Skip = false>
+template <char ... Chars, bool Skip = false>
 inline std::vector<std::string_view> splitv(std::string_view s)
 {
 	std::vector<std::string_view> r;
-	return std::move(splitl<Sep, Skip>(r, s));
+	return std::move(splitl<Chars..., Skip>(r, s));
 }
 
 } // namespace tll
