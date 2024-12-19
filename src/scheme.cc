@@ -144,7 +144,7 @@ struct SearchPath {
 			defaults.push_back("/usr/share/tll/scheme");
 
 		if (auto v = getenv("TLL_SCHEME_PATH"); v)
-			tll::splitl<':', true>(env, v);
+			tll::splitl<':'>(env, v, true);
 	}
 
 	List list()

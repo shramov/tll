@@ -134,12 +134,12 @@ inline split_helperT<Chars...> split(std::string_view s)
 	return { s };
 }
 
-template <char ... Chars, bool Skip = false, typename T>
-inline T & splitl(T & r, std::string_view s)
+template <char ... Chars, typename T>
+inline T & splitl(T & r, std::string_view s, bool skip = false)
 {
 	using string_type = typename T::value_type;
 	for (auto i : split<Chars...>(s)) {
-		if (Skip && i.empty())
+		if (skip && i.empty())
 			continue;
 		r.push_back(string_type(i)); // Explicit constructor for std::string containers
 	}
@@ -150,7 +150,7 @@ template <char ... Chars, bool Skip = false>
 inline std::vector<std::string_view> splitv(std::string_view s)
 {
 	std::vector<std::string_view> r;
-	return std::move(splitl<Chars..., Skip>(r, s));
+	return std::move(splitl<Chars...>(r, s, Skip));
 }
 
 } // namespace tll

@@ -47,7 +47,7 @@ template <bool Skip>
 std::list<std::string> splitL(const std::string_view &s)
 {
 	std::list<std::string> r;
-	return tll::splitl<',', ';', Skip>(r, s);
+	return tll::splitl<',', ';'>(r, s, Skip);
 }
 
 TEST(Util, SplitT)
