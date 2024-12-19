@@ -197,10 +197,13 @@ cdef class Config:
             raise TLLError(f"Failed to set callback at {key}: {value}", r)
         Py_INCREF(cb)
 
-    def _get(self, decode=True):
-        if tll_config_value(self._ptr) == 0: return None
+    def _get(self, key=None, decode=True):
         cdef int len = 0;
-        cdef char * buf = tll_config_get_copy(self._ptr, NULL, 0, &len)
+        cdef const char * ckey = NULL
+        if key is not None:
+            key = s2b(key)
+            ckey = key
+        cdef char * buf = tll_config_get_copy(self._ptr, ckey, -1, &len)
         if buf == NULL:
             return None
         try:
@@ -212,14 +215,12 @@ cdef class Config:
             tll_config_value_free(buf)
 
     def get(self, key=None, default=DEFAULT_TAG, decode=True):
-        if key is None: return self._get(decode=decode)
-        k = s2b(key)
-        cdef tll_config_t * cfg = tll_config_sub(self._ptr, k, len(k), 0)
-        if cfg == NULL:
+        r = self._get(key, decode=decode)
+        if r is None:
             if default == DEFAULT_TAG:
                 raise KeyError("Key {} not found".format(key))
             return default
-        return Config.wrap(cfg).get(decode=decode)
+        return r
 
     def get_url(self, key=None, default=DEFAULT_TAG):
         cdef Config sub = self
@@ -230,7 +231,7 @@ cdef class Config:
                     raise KeyError(f"Key {key} not found")
                 return default
         r = Config.wrap(tll_config_get_url(sub._ptr, NULL, 0))
-        error = r.get()
+        error = r.get(default=None)
         if error is not None:
             raise ValueError(f"Invalid url at '{key}': {error}")
         return Url(r)

@@ -233,7 +233,7 @@ def test_double_import():
 
     cfg.process_imports('include')
     assert cfg.get('include.inline') == 'yamls://{link: !link /dest}'
-    assert cfg.get('link') == None
+    assert cfg.get('link', None) == None
     cfg['dest'] = 'value'
     assert cfg.get('link') == 'value'
 
