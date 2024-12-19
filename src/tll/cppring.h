@@ -4,6 +4,8 @@
 #ifndef _TLL_CPPRING_H
 #define _TLL_CPPRING_H
 
+#include <sys/types.h>
+
 #include <atomic>
 #include <cerrno>
 #include <cstddef>
@@ -154,6 +156,11 @@ struct RingT
 		*_size_at(t) = size;
 		tail.store(_wrap_size(t + a, _size), std::memory_order_release);
 		return 0;
+	}
+
+	bool empty() const
+	{
+		return head.load(std::memory_order_relaxed) == tail.load(std::memory_order_relaxed);
 	}
 
 	int read(const void **data, size_t *size) const
