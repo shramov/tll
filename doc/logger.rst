@@ -52,6 +52,12 @@ Levels are located in ``levels`` subtree and are specified either in simple
 
 ``type`` key controls backend type, currently only ``spdlog`` is supported.
 
+``async`` key enables (or disables) asyncronous logging. If value is true (``yes``) then new thread
+is spawned, if false (``no``) then existing thread is stopped. If there is no such key - async
+settings are not changed. In async mode messages are stored in internal ring buffer and are passed
+to backend in separate thread. When this mode is disabled (or application exits and static logger
+context is destructed) all entries from buffer are flushed.
+
 spdlog
 ------
 
@@ -94,3 +100,6 @@ For exact meaning of parameters see spdlog-sinks_ documentation of sinks.
 .. _fmt: http://fmtlib.net/
 .. _spdlog: https://github.com/gabime/spdlog
 .. _spdlog-sinks: https://github.com/gabime/spdlog/wiki/4.-Sinks
+
+..
+    vim: sts=4 sw=4 et tw=100

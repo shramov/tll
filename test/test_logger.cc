@@ -7,17 +7,29 @@
 
 #include "gtest/gtest.h"
 
+#include "tll/config.h"
 #include "tll/logger.h"
 #include "tll/logger/impl.h"
 #include "tll/logger/prefix.h"
 
 #include <list>
+#include <mutex>
+#include <thread>
+
+using namespace std::chrono_literals;
 
 struct log_map : public tll_logger_impl_t
 {
 	using log_entry_t = std::pair<tll::Logger::level_t, std::string>;
 
-	std::map<std::string, std::list<log_entry_t>> map;
+	struct Object
+	{
+		std::mutex * lock = nullptr;
+		std::list<log_entry_t> list;
+	};
+
+	std::mutex lock;
+	std::map<std::string, Object> map;
 
 	log_map()
 	{
@@ -32,8 +44,10 @@ struct log_map : public tll_logger_impl_t
 	static int _log(long long ts, const char * category, tll_logger_level_t level, const char * data, size_t size, void * obj)
 	{
 		fmt::print(stderr, "Log: {} {} {}\n", tll::Logger::level_name(level), category, std::string_view(data, size));
-		auto list = static_cast<std::list<log_entry_t> *>(obj);
-		list->push_back({level, std::string(data, size)});
+		auto list = static_cast<Object *>(obj);
+		std::this_thread::sleep_for(1ms);
+		std::unique_lock lock(*list->lock);
+		list->list.push_back({level, std::string(data, size)});
 		return 0;
 	}
 
@@ -41,7 +55,7 @@ struct log_map : public tll_logger_impl_t
 	{
 		fmt::print(stderr, "Create new logger {}\n", category);
 		auto self = static_cast<log_map *>(impl);
-		auto r = self->map.insert({category, {}});
+		auto r = self->map.emplace(category, Object { .lock = &self->lock });
 		return &r.first->second;
 	}
 
@@ -96,7 +110,7 @@ TEST(Logger, Set)
 	tll::Logger l0 { "l0" };
 
 	ASSERT_EQ(impl.map.size(), 1u);
-	auto & list = impl.map["l0"];
+	auto & list = impl.map["l0"].list;
 
 	ASSERT_EQ(l0.level(), tll::Logger::Info);
 	l0.debug("Debug");
@@ -206,7 +220,7 @@ TEST(Logger, Prefix)
 	ASSERT_EQ(l.level(), p0.level());
 
 	ASSERT_EQ(impl.map.size(), 1u);
-	auto & list = impl.map["l0"];
+	auto & list = impl.map["l0"].list;
 	l.info("l0");
 	ASSERT_EQ(list.back().second, "l0");
 
@@ -233,4 +247,67 @@ TEST(Logger, Prefix)
 
 	pinv.info("pinv");
 	pfinv.info("pfinv");
+}
+
+TEST(Logger, Thread)
+{
+	log_map impl;
+	tll_logger_register(&impl);
+
+	tll::Logger l0 { "l0" };
+	// May be not Debug from other tests
+	l0.level() = tll::Logger::Debug;
+	ASSERT_EQ(l0.level(), tll::Logger::Debug);
+
+	ASSERT_EQ(impl.map.size(), 1u);
+	auto & list = impl.map["l0"];
+
+	tll::Config cfg;
+	cfg.set("async", "yes");
+
+	tll::Logger::config(cfg);
+
+	std::this_thread::yield();
+	std::this_thread::sleep_for(1ms);
+	{
+		std::unique_lock<std::mutex> lock(impl.lock);
+		ASSERT_EQ(impl.map.size(), 2u);
+	}
+
+	for (auto i = 0u; i < 50; i++) {
+		std::this_thread::yield();
+		std::this_thread::sleep_for(200us);
+		std::unique_lock<std::mutex> lock(impl.lock);
+		if (impl.map["tll.logger.thread"].list.size())
+			break;
+	}
+
+	{
+		std::unique_lock<std::mutex> lock(impl.lock);
+		ASSERT_EQ(impl.map["tll.logger.thread"].list.size(), 1);
+		ASSERT_EQ(impl.map["tll.logger.thread"].list.front().second, "Logger thread started");
+	}
+
+	for (auto i = 0u; i < 10; i++) {
+		l0.info("text");
+	}
+
+	{
+		std::unique_lock<std::mutex> lock(impl.lock);
+		ASSERT_LE(list.list.size(), 10);
+	}
+
+	cfg.set("async", "no");
+	tll::Logger tlog { "tll.logger.thread" }; // Ref to keep alive map entry
+	tll::Logger::config(cfg);
+
+	{
+		std::unique_lock<std::mutex> lock(impl.lock);
+		ASSERT_EQ(list.list.size(), 10);
+		ASSERT_EQ(impl.map["tll.logger.thread"].list.size(), 2);
+		ASSERT_EQ(impl.map["tll.logger.thread"].list.back().second, "Logger thread finished");
+	}
+
+	tlog = tll::Logger("l0"); // Drop thread logger, check for leaks
+	ASSERT_EQ(impl.map.size(), 1);
 }

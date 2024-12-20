@@ -9,10 +9,10 @@
 #include "tll/logger.h"
 #include "tll/logger/impl.h"
 #include "tll/util/refptr.h"
+#include "tll/util/size.h"
 #include "tll/util/string.h"
 #include "tll/util/time.h"
 
-#include <atomic>
 #include <map>
 #include <mutex>
 #include <set>
@@ -22,8 +22,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#include "logger/common.h"
 #include "logger/config.h"
-
+#include "logger/thread.h"
 #include "logger/util.h"
 
 #ifdef WITH_SPDLOG
@@ -32,33 +33,13 @@
 
 namespace tll::logger {
 
-struct tll_logger_obj_t : tll::util::refbase_t<tll_logger_obj_t, 0>
-{
-	const char * name = "";
-	void * obj = nullptr;
-	tll_logger_impl_t * impl = nullptr;
-
-	~tll_logger_obj_t()
-	{
-		if (obj && impl && impl->log_free)
-			impl->log_free(impl, name, obj);
-	}
-};
-
-struct Logger : public tll_logger_t, public tll::util::refbase_t<Logger>
-{
-	void destroy();
-
-	std::mutex lock;
-	std::string name;
-	tll::util::refptr_t<tll_logger_obj_t> impl;
-};
-
 struct logger_context_t
 {
 	std::shared_mutex lock;
 	typedef std::unique_lock<std::shared_mutex> wlock_t;
 	typedef std::shared_lock<std::shared_mutex> rlock_t;
+
+	std::unique_ptr<Thread> _thread;
 
 	std::map<std::string_view, Logger *, std::less<>> _loggers;
 	std::map<std::string, tll_logger_level_t, std::less<>> _levels_prefix;
@@ -67,6 +48,12 @@ struct logger_context_t
 
 	static tll_logger_impl_t stdio;
 	tll_logger_impl_t * impl = &stdio;
+
+	~logger_context_t()
+	{
+		// Wait for thread to finish if it was spawned
+		_thread.reset();
+	}
 
 	Logger * init(std::string_view name)
 	{
@@ -213,6 +200,20 @@ struct logger_context_t
 
 	int configure(const tll::ConstConfig &cfg)
 	{
+		auto thread = cfg.getT<bool>("async");
+		if (!thread) { // Missing or invalid value, do nothing
+		} else if (*thread) {
+			auto size = cfg.getT<tll::util::Size>("ring-size").value_or(128 * 1024);
+			std::unique_ptr<Thread> tmp { new Thread() };
+			if (tmp->init(size))
+				return 0;
+
+			std::swap(_thread, tmp);
+			if (tmp)
+				tmp->stop();
+		} else if (!*thread)
+			_thread.reset();
+
 		if (auto levels = cfg.sub("levels"); levels) {
 			std::set<std::string> skip;
 			for (auto & [k, v] : levels->browse("**", true)) {
@@ -320,7 +321,10 @@ int tll_logger_log(tll_logger_t * l, tll_logger_level_t level, const char * buf,
 
 	auto ts = tll::time::now();
 
-	return (*impl->impl->log)(ts.time_since_epoch().count(), impl->name, level, buf, len, impl->obj);
+	if (tll::logger::context._thread) {
+		return tll::logger::context._thread->push(log, ts, level, {buf, len});
+	} else
+		return log->impl->log(ts, level, {buf, len});
 }
 
 tll_logger_buf_t * tll_logger_tls_buf()
