@@ -2,7 +2,7 @@
 #define _LOGGER_UTIL_H
 
 #include "tll/logger.h"
-#include "tll/util/conv.h"
+#include "tll/conv/base.h"
 
 constexpr bool icmp(char a, char b)
 {
