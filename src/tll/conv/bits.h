@@ -32,7 +32,7 @@ struct parse<T, typename std::enable_if<std::is_base_of_v<tll::util::Bits<typena
 	{
 		T t;
 		const auto desc = T::bits_descriptor();
-		for (auto v : tll::split<'|'>(s)) {
+		for (auto v : tll::split<'|', ','>(s)) {
 			v = tll::util::strip(v);
 			auto r = tll::conv::select(v, desc);
 			if (r) {

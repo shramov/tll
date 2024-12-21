@@ -179,7 +179,7 @@ int ConfigEncoder::_fill_numeric(T * ptr, const tll::scheme::Field * field, std:
 	if constexpr (!std::is_same_v<T, double>) {
 		if (field->sub_type == field->Bits) {
 			*ptr = 0;
-			for (auto v : tll::split<'|'>(s)) {
+			for (auto v : tll::split<'|', ','>(s)) {
 				v = tll::util::strip(v);
 
 				auto b = field->type_bits->values;

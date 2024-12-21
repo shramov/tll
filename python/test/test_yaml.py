@@ -107,6 +107,8 @@ config.0:
     ('uint16', 'A', 0x3),
     ('int32', 'A |B', 0x3),
     ('int64', 'A | 0x2', 0x3),
+    ('int32', 'A ,B', 0x3),
+    ('int32', 'A | C , B', 0x7),
 ])
 def test_bits(t, s, v):
     scheme = f'''yamls://
