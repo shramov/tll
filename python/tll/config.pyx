@@ -266,12 +266,19 @@ cdef class Config:
         class appender(list):
             def __init__(self, sub):
                 self.sub = sub
+                self.exc = None
             def __call__(self, k, v):
-                if v.value() or self.sub:
-                    self.append((k, v.get()))
+                try:
+                    if v.value() or self.sub:
+                        self.append((k, v.get()))
+                except Exception as e:
+                    self.exc = (str(k), e)
+                    raise
 
         _cb = appender(subpath) if cb is None else cb
-        tll_config_browse(self._ptr, m, len(m), browse_cb, <void *>_cb)
+        if tll_config_browse(self._ptr, m, len(m), browse_cb, <void *>_cb):
+            if cb is None:
+                raise RuntimeError(f"Browse failed on key '{_cb.exc[0]}'") from _cb.exc[1]
         if cb is None:
             return list(_cb)
 
