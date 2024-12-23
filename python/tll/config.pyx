@@ -6,12 +6,13 @@ from .config cimport *
 from .s2b cimport *
 
 from cpython.ref cimport Py_INCREF, Py_DECREF
-from libc.errno cimport ENOENT
+from libc.errno cimport ENOENT, EINVAL
 from libc.stdlib cimport malloc
 from libc.string cimport memcpy
 
 from .conv import getT
 from .error import TLLError
+from .logger import Logger
 
 DEFAULT_TAG = object()
 
@@ -263,24 +264,25 @@ cdef class Config:
 
     def browse(self, mask, subpath=False, cb=None):
         m = s2b(mask)
+        class ExcWrapper:
+            def __init__(self, cb):
+                self.cb = cb
+            def __call__(self, k, v):
+                self.cb(k, v)
+
         class appender(list):
             def __init__(self, sub):
                 self.sub = sub
-                self.exc = None
             def __call__(self, k, v):
-                try:
-                    if v.value() or self.sub:
-                        self.append((k, v.get()))
-                except Exception as e:
-                    self.exc = (str(k), e)
-                    raise
+                if v.value() or self.sub:
+                    self.append((k, v.get()))
 
-        _cb = appender(subpath) if cb is None else cb
+        _cb = ExcWrapper(appender(subpath) if cb is None else cb)
         if tll_config_browse(self._ptr, m, len(m), browse_cb, <void *>_cb):
             if cb is None:
                 raise RuntimeError(f"Browse failed on key '{_cb.exc[0]}'") from _cb.exc[1]
         if cb is None:
-            return list(_cb)
+            return list(_cb.cb)
 
     @staticmethod
     def from_dict(d):
@@ -318,8 +320,15 @@ cdef class Config:
 
 cdef int browse_cb(const char * key, int klen, const tll_config_t *value, void * data):
     cb = <object>data
-    cfg = Config.wrap(<tll_config_t *>value, ref=True, _const=True)
-    cb(b2s(key[:klen]), cfg)
+    pykey = None
+    try:
+        cfg = Config.wrap(<tll_config_t *>value, ref=True, _const=True)
+        pykey = b2s(key[:klen])
+        cb(pykey, cfg)
+    except Exception as e:
+        Logger('tll.python').exception("Exception in browse callback {}", cb)
+        cb.exc = (pykey, e)
+        return EINVAL
     return 0
 
 cdef class Url(Config):
