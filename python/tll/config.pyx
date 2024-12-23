@@ -275,7 +275,7 @@ cdef class Config:
                 self.sub = sub
             def __call__(self, k, v):
                 if v.value() or self.sub:
-                    self.append((k, v.get()))
+                    self.append((k, v.get(default=None)))
 
         _cb = ExcWrapper(appender(subpath) if cb is None else cb)
         if tll_config_browse(self._ptr, m, len(m), browse_cb, <void *>_cb):
