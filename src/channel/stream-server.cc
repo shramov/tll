@@ -111,7 +111,6 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 		curl->remove("scheme");
 		_blocks_url = *curl;
 		_blocks_url.set("dir", "r");
-		_blocks_url.set("dump", "frame");
 		_blocks_url.set("name", fmt::format("{}/blocks/client", name));
 	}
 
