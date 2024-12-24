@@ -65,7 +65,7 @@ typedef struct
 	size_t size;
 } tll_stat_page_t;
 
-typedef struct
+typedef struct tll_stat_block_t
 {
 	tll_stat_page_t * lock;
 	tll_stat_page_t * active;
