@@ -200,20 +200,6 @@ struct logger_context_t
 
 	int configure(const tll::ConstConfig &cfg)
 	{
-		auto thread = cfg.getT<bool>("async");
-		if (!thread) { // Missing or invalid value, do nothing
-		} else if (*thread) {
-			auto size = cfg.getT<tll::util::Size>("ring-size").value_or(128 * 1024);
-			std::unique_ptr<Thread> tmp { new Thread() };
-			if (tmp->init(size))
-				return 0;
-
-			std::swap(_thread, tmp);
-			if (tmp)
-				tmp->stop();
-		} else if (!*thread)
-			_thread.reset();
-
 		if (auto levels = cfg.sub("levels"); levels) {
 			std::set<std::string> skip;
 			for (auto & [k, v] : levels->browse("**", true)) {
@@ -245,8 +231,23 @@ struct logger_context_t
 		}
 
 		if (impl && impl->configure)
-			return (impl->configure)(impl, cfg);
+			(impl->configure)(impl, cfg);
 		// TODO: Reconfigure all loggers
+
+		auto thread = cfg.getT<bool>("async");
+		if (!thread) { // Missing or invalid value, do nothing
+		} else if (*thread) {
+			auto size = cfg.getT<tll::util::Size>("ring-size").value_or(128 * 1024);
+			std::unique_ptr<Thread> tmp { new Thread() };
+			if (tmp->init(size))
+				return 0;
+
+			std::swap(_thread, tmp);
+			if (tmp)
+				tmp->stop();
+		} else if (!*thread)
+			_thread.reset();
+
 		return 0;
 	}
 
