@@ -307,6 +307,23 @@ inline tll_stat_page_t * acquire(tll_stat_block_t * b)
 }
 
 /**
+ * Acquire lock of active stat page, wait for number of iterations
+ *
+ * @param iterations number of spins, 0 mean maximum
+ * @return Pointer or `NULL` if active page is locked by another writer
+ *
+ * For single-writer programs `NULL` check can be omitted.
+ */
+inline tll_stat_page_t * acquire_wait(tll_stat_block_t * b, unsigned iterations = 0)
+{
+	do {
+		if (auto p = acquire(b); p)
+			return p;
+	} while (--iterations > 0);
+	return nullptr;
+}
+
+/**
  * Release lock of active page
  *
  * @param p Pointer to page returned from `acquire` call, not `NULL`
@@ -351,9 +368,8 @@ class BlockT : public tll_stat_block_t
 		this->name = _name.c_str();
 	}
 
-	T * acquire()
+	T * derive(page_t * p)
 	{
-		auto p = (page_t *) tll::stat::acquire(this);
 		if constexpr (derived)
 			return p;
 		else {
@@ -361,6 +377,16 @@ class BlockT : public tll_stat_block_t
 				return nullptr;
 			return &p->data;
 		}
+	}
+
+	T * acquire()
+	{
+		return derive((page_t *) tll::stat::acquire(this));
+	}
+
+	T * acquire_wait(unsigned iterations = 0)
+	{
+		return derive((page_t *) tll::stat::acquire_wait(this));
 	}
 
 	void release(T * p)
