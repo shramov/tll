@@ -8,6 +8,7 @@
 #include "tll/channel.h"
 #include "tll/logger.h"
 #include "tll/processor.h"
+#include "tll/stat.h"
 #include "tll/util/argparse.h"
 
 #include <signal.h>
@@ -70,6 +71,9 @@ int main(int argc, char *argv[])
 	}
 
 	tll::channel::Context context(cfg->sub("processor.defaults").value_or(tll::Config()));
+
+	if (auto stat = tll_logger_stat(); stat)
+		tll_stat_list_add(context.stat_list(), stat);
 
 	std::unique_ptr<tll::Channel> loader;
 	{
