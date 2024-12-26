@@ -49,13 +49,19 @@ typedef struct {
  */
 tll_logger_t * tll_logger_new(const char * name, int len);
 
-//< Free logger object
+/// Free logger object
 void tll_logger_free(tll_logger_t * log);
 
-//< Create copy of logger object, effectively it's same pointer with increased reference
+/// Create copy of logger object, effectively it's same pointer with increased reference
 tll_logger_t * tll_logger_copy(const tll_logger_t * log);
 
 int tll_logger_config(const struct tll_config_t * cfg);
+
+struct tll_stat_block_t;
+/** Get stat block for logger
+ * @return pointer to stat block if it is enabled, otherwise NULL
+ */
+struct tll_stat_block_t * tll_logger_stat();
 
 /**
  * Set logging level for specified path
