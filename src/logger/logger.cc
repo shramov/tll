@@ -8,6 +8,7 @@
 #include "tll/config.h"
 #include "tll/logger.h"
 #include "tll/logger/impl.h"
+#include "tll/stat.h"
 #include "tll/util/refptr.h"
 #include "tll/util/size.h"
 #include "tll/util/string.h"
@@ -33,11 +34,24 @@
 
 namespace tll::logger {
 
+struct Stat
+{
+	tll::stat::Integer<tll::stat::Sum, tll::stat::Unknown, 't', 'o', 't', 'a', 'l'> total; //< All log entries
+	tll::stat::Integer<tll::stat::Sum, tll::stat::Unknown, 'w', 'a', 'r', 'n'> warn; //< Warning messages
+	tll::stat::Integer<tll::stat::Sum, tll::stat::Unknown, 'e', 'r', 'r', 'o', 'r'> error; //< Error or crit
+
+	/// Amount of overflows, messages that can not be pushed to async thread
+	tll::stat::Integer<tll::stat::Sum, tll::stat::Unknown, 'o', 'v', 'e', 'r', 'f', 'l', 'w'> overflow;
+};
+
 struct logger_context_t
 {
 	std::shared_mutex lock;
 	typedef std::unique_lock<std::shared_mutex> wlock_t;
 	typedef std::shared_lock<std::shared_mutex> rlock_t;
+
+	bool _stat_enable = true;
+	tll::stat::Block<Stat> _stat = { "tll.logger" };
 
 	std::unique_ptr<Thread> _thread;
 
@@ -53,6 +67,24 @@ struct logger_context_t
 	{
 		// Wait for thread to finish if it was spawned
 		_thread.reset();
+	}
+
+	tll_stat_block_t * stat()
+	{
+		if (_stat_enable)
+			return &_stat;
+		return nullptr;
+	}
+
+	template <typename F, typename ... Args>
+	void stat_apply(F func, Args ... args)
+	{
+		if (!_stat_enable)
+			return;
+		if (auto p = _stat.acquire_wait(); p) {
+			func(p, std::forward<Args>(args)...);
+			_stat.release(p);
+		}
 	}
 
 	Logger * init(std::string_view name)
@@ -200,6 +232,8 @@ struct logger_context_t
 
 	int configure(const tll::ConstConfig &cfg)
 	{
+		_stat_enable = cfg.getT<bool>("stat").value_or(false);
+
 		if (auto levels = cfg.sub("levels"); levels) {
 			std::set<std::string> skip;
 			for (auto & [k, v] : levels->browse("**", true)) {
@@ -313,6 +347,7 @@ const char * tll_logger_name(const tll_logger_t * log)
 
 int tll_logger_log(tll_logger_t * l, tll_logger_level_t level, const char * buf, size_t len)
 {
+	using namespace tll::logger;
 	auto log = static_cast<tll::logger::Logger *>(l);
 	if (log->level > level) return 0;
 
@@ -322,8 +357,18 @@ int tll_logger_log(tll_logger_t * l, tll_logger_level_t level, const char * buf,
 
 	auto ts = tll::time::now();
 
-	if (tll::logger::context._thread) {
-		return tll::logger::context._thread->push(log, ts, level, {buf, len});
+	context.stat_apply([](auto p, auto level) {
+		p->total = 1;
+		if (level == tll::Logger::Warning) {
+			p->warn = 1;
+		} else if (level > tll::Logger::Warning) {
+			p->error = 1;
+		}
+	}, level);
+	if (context._thread) {
+		if (context._thread->push(log, ts, level, {buf, len}))
+			context.stat_apply([](auto p) { p->overflow = 1; });
+		return 0;
 	} else
 		return log->impl->log(ts, level, {buf, len});
 }
@@ -371,4 +416,9 @@ int tll_logger_printf(tll_logger_t * l, tll_logger_level_t level, const char * f
 		return -1;
 
 	return tll_logger_log(l, level, buf->data(), r);
+}
+
+tll_stat_block_t * tll_logger_stat()
+{
+	return tll::logger::context.stat();
 }
