@@ -69,6 +69,7 @@ void tll_channel_internal_init_v1(tll_channel_internal_t *ptr)
 	memset(ptr, 0, offsetof(tll_channel_internal_t, reserved) + sizeof(ptr->reserved));
 	ptr->version = TLL_CHANNEL_INTERNAL_V1;
 	ptr->fd = -1;
+	ptr->ref = 1;
 }
 
 #if !(defined(__linux__) || defined(__FreeBSD__))

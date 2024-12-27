@@ -616,3 +616,57 @@ TEST(Channel, ReopenInternal)
 	reopen.on_state(Closed, now + 1ns);
 	ASSERT_EQ(reopen.next - now, 1ns);
 }
+
+TEST(Channel, DeleteLater)
+{
+	auto ctx = tll::channel::Context(tll::Config());
+
+	ASSERT_EQ(ctx.reg(&Echo::impl), 0);
+
+	auto c0 = ctx.channel("echo://;name=echo");
+	auto c1 = ctx.channel("zero://;name=zero");
+	auto c2 = ctx.channel("null://;name=null");
+
+	ASSERT_NE(ctx.get("echo"), nullptr);
+	ASSERT_NE(ctx.get("zero"), nullptr);
+	ASSERT_NE(ctx.get("null"), nullptr);
+
+	auto deleter = [](const tll_channel_t * c, const tll_msg_t * m, void * user)
+	{
+		auto flag = (bool *) user;
+		fmt::print("Flag for {}: {}\n", tll_channel_name(c), *flag);
+		if (*flag)
+			return 0;
+		*flag = true;
+		tll_channel_free(const_cast<tll_channel_t *>(c));
+		return 0;
+	};
+
+	bool f0 = false, f1 = false, f2 = false;
+
+	c0->callback_add(deleter, &f0, TLL_MESSAGE_MASK_DATA);
+	c1->callback_add(deleter, &f1, TLL_MESSAGE_MASK_DATA);
+	c2->callback_add(deleter, &f2, TLL_MESSAGE_MASK_STATE);
+
+	c0->open();
+	ASSERT_NE(ctx.get("echo"), nullptr);
+	c0->process();
+	ASSERT_EQ(c0->state(), tll::state::Active);
+
+	c1->open();
+	ASSERT_EQ(c1->state(), tll::state::Active);
+	ASSERT_NE(ctx.get("zero"), nullptr);
+
+	c2->open();
+	ASSERT_EQ(ctx.get("null"), nullptr);
+	c2.release();
+
+	tll_msg_t msg = { .type = TLL_MESSAGE_DATA, .msgid = 10 };
+	ASSERT_EQ(c0->post(&msg), 0);
+	ASSERT_EQ(ctx.get("echo"), nullptr);
+	c0.release();
+
+	c1->process();
+	ASSERT_EQ(ctx.get("zero"), nullptr);
+	c1.release();
+}

@@ -669,11 +669,22 @@ tll_config_t * tll_channel_config(tll_channel_t *c) { if (!c->internal) return 0
 const tll_channel_list_t * tll_channel_children(const tll_channel_t *c) { if (!c->internal) return 0; return c->internal->children; }
 tll_channel_context_t * tll_channel_context(const tll_channel_t *c) { return tll_channel_context_ref(c->context); }
 
+void tll_channel_free_real(tll_channel_t *c);
 void tll_channel_free(tll_channel_t *c)
 {
 	if (!c) return;
+	if (--c->internal->ref == 0)
+		return tll_channel_free_real(c);
+	tll_logger_printf(c->internal->logger, TLL_LOGGER_INFO, "Delete later %d", c->internal->ref);
+}
+
+void tll_channel_free_real(tll_channel_t *c)
+{
 	std::string_view name = tll_channel_name(c);
 
+	if (c->internal->flags)
+		return;
+	c->internal->flags |= 1u;
 	auto state = tll_channel_state(c);
 	if (state != TLL_STATE_DESTROY && state != TLL_STATE_CLOSED)
 		tll_channel_close(c, 1);
@@ -701,10 +712,26 @@ void tll_channel_free(tll_channel_t *c)
 	delete c;
 }
 
+struct ChannelRef
+{
+	const tll_channel_t * _ptr = nullptr;
+	ChannelRef(const tll_channel_t * ptr) : _ptr(ptr)
+	{
+		++_ptr->internal->ref;
+		//tll_logger_printf(_ptr->internal->logger, TLL_LOGGER_WARNING, "Increase ref %d", _ptr->internal->ref);
+	}
+	~ChannelRef() {
+		//tll_logger_printf(_ptr->internal->logger, TLL_LOGGER_WARNING, "Decrease ref %d", _ptr->internal->ref);
+		if (--_ptr->internal->ref == 0)
+			tll_channel_free_real(const_cast<tll_channel_t *>(_ptr));
+	}
+};
+
 int tll_channel_process(tll_channel_t *c, long timeout, int flags)
 {
 	if (!c || !c->impl || !c->internal) return EINVAL;
 	if (!tll::dcaps::need_process(c->internal->dcaps)) return EAGAIN;
+	ChannelRef ref(c);
 	return (*c->impl->process)(c, timeout, flags);
 }
 
@@ -713,6 +740,7 @@ int tll_channel_post(tll_channel_t *c, const tll_msg_t *msg, int flags)
 	if (!c || !c->impl) return EINVAL;
 	if (c->internal->dump)
 		tll_channel_log_msg(c, "tll.channel.impl", TLL_LOGGER_INFO, c->internal->dump, msg, "Post", 4);
+	ChannelRef ref(c);
 	auto r = (*c->impl->post)(c, msg, flags);
 	if (r) {
 		tll_channel_log_msg(c, "tll.channel.impl", TLL_LOGGER_ERROR, TLL_MESSAGE_LOG_FRAME, msg, "Failed to post", -1);
@@ -786,6 +814,7 @@ int tll_channel_resume(tll_channel_t *c)
 #define FORWARD_SAFE_ERR(func, err, c, ...)	\
 {					\
 	if (!c || !c->impl || !c->impl->func) return err;	\
+	ChannelRef ref(c);					\
 	return (*c->impl->func)(c, ##__VA_ARGS__);          	\
 }
 
@@ -794,6 +823,7 @@ int tll_channel_resume(tll_channel_t *c)
 int tll_channel_open(tll_channel_t *c, const char *str, size_t len)
 {
 	if (!c || !c->impl || !c->impl->open) return EINVAL;
+	ChannelRef ref(c);
 	if (!str || !len) {
 		tll::Config cfg;
 		return (*c->impl->open)(c, cfg);
@@ -809,6 +839,7 @@ int tll_channel_open(tll_channel_t *c, const char *str, size_t len)
 int tll_channel_open_cfg(tll_channel_t *c, const tll_config_t *cfg)
 {
 	if (!c || !c->impl || !c->impl->open) return EINVAL;
+	ChannelRef ref(c);
 	if (!cfg) {
 		tll::Config cfg;
 		return (*c->impl->open)(c, cfg);
