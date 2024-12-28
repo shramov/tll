@@ -12,6 +12,21 @@ struct Call : public tll::util::refbase_t<Call>{
 	unsigned call() { return ++value; }
 };
 
+struct NonAtomic
+{
+	volatile unsigned _ref = 1;
+	auto ref() { _ref++; return this; }
+	void unref()
+	{
+		if (--_ref == 0)
+			delete this;
+	}
+
+	volatile unsigned value = 0;
+	unsigned call() { return ++value; }
+};
+
+
 template <typename Ptr> unsigned copy(Ptr &ptr)
 {
 	Ptr copy(ptr);
@@ -33,6 +48,7 @@ int main(int argc, char *argv[])
 	tll::util::refptr_t<Call> rcall(new Call);
 	auto ptr = new Call;
 	Call call;
+	NonAtomic nonatomic;
 
 	prewarm(100ms);
 	timeit(count, "shared_ptr (nothread)", copy<decltype(scall)>, scall);
@@ -43,6 +59,7 @@ int main(int argc, char *argv[])
 	timeit(count, "shared_ptr", copy<decltype(scall)>, scall);
 	timeit(count, "refcnt", copy<decltype(rcall)>, rcall);
 	timeit(count, "ref", ref<Call>, ptr);
+	timeit(count, "nonatomic", ref<NonAtomic>, &nonatomic);
 	timeit(count, "raw", copy<Call *>, &call);
 
 	ptr->unref();
