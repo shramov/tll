@@ -851,7 +851,7 @@ int TcpServer<T, C>::_cb_other(const tll_channel_t *c, const tll_msg_t *msg)
 template <typename T, typename C>
 void TcpServer<T, C>::_on_child_connect(tcp_socket_t *socket, const tcp_connect_t * conn)
 {
-	std::array<char, tcp_scheme::Connect::meta_size()> buf;
+	std::array<char, tcp_scheme::Connect::meta_size()> buf = {};
 	auto connect = tcp_scheme::Connect::bind(buf);
 	if (conn->addr->sa_family == AF_INET) {
 		auto in = (const sockaddr_in *) conn->addr;
