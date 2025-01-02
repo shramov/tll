@@ -428,17 +428,7 @@ class Base
 	Config config_info() { return *_config.sub("info", true); } // Sub can not fail in this case
 
 	tll_state_t state() const { return internal.state; }
-	tll_state_t state(tll_state_t s)
-	{
-		auto old = state();
-		if (s == old)
-			return old;
-		_log.info("State change: {} -> {}", tll_state_str(old), tll_state_str(s));
-		internal.state = s;
-		_config.set("state", tll_state_str(s));
-		_callback({.type = TLL_MESSAGE_STATE, .msgid = s});
-		return old;
-	}
+	tll_state_t state(tll_state_t s) { auto old = internal.state; tll_channel_internal_set_state(&internal, s); return old; }
 
 	template <typename R, typename... Args>
 	[[nodiscard]]
