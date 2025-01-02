@@ -142,3 +142,29 @@ int tll_channel_internal_child_del(tll_channel_internal_t *ptr, const tll_channe
 	tll_channel_callback_del((tll_channel_t *) c, _state_callback, ptr, TLL_MESSAGE_MASK_STATE);
 	return 0;
 }
+
+static inline const char * tll_state_str(tll_state_t s)
+{
+	switch (s) {
+	case TLL_STATE_CLOSED: return "Closed";
+	case TLL_STATE_OPENING: return "Opening";
+	case TLL_STATE_ACTIVE: return "Active";
+	case TLL_STATE_ERROR: return "Error";
+	case TLL_STATE_CLOSING: return "Closing";
+	case TLL_STATE_DESTROY: return "Destroy";
+	}
+	return "Unknown";
+}
+
+int tll_channel_internal_set_state(tll_channel_internal_t * in, tll_state_t state)
+{
+	tll_state_t old = in->state;
+	if (state == old)
+		return 0;
+	tll_logger_printf(in->logger, TLL_LOGGER_INFO, "State change: %s -> %s", tll_state_str(old), tll_state_str(state));
+	in->state = state;
+	tll_config_set(in->config, "state", -1, tll_state_str(state), -1);
+	tll_msg_t msg = {.type = TLL_MESSAGE_STATE, .msgid = state};
+	tll_channel_callback(in, &msg);
+	return 0;
+}

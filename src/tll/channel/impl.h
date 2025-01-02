@@ -138,6 +138,8 @@ void tll_channel_internal_clear(tll_channel_internal_t *ptr);
 int tll_channel_internal_child_add(tll_channel_internal_t *ptr, tll_channel_t *c, const char * tag, int len);
 int tll_channel_internal_child_del(tll_channel_internal_t *ptr, const tll_channel_t *c, const char * tag, int len);
 
+int tll_channel_internal_set_state(tll_channel_internal_t * in, tll_state_t state);
+
 static inline int tll_channel_callback_data(const tll_channel_internal_t * in, const tll_msg_t * msg)
 {
 	if (in->dump)
