@@ -618,6 +618,8 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 
 	_log.info("Init channel {}", url_short);
 	do {
+		if (impl->version > TLL_CHANNEL_IMPL_VERSION_CURRENT)
+			_log.warning("Impl version {} is in the future, last known is {}", impl->version, (int) TLL_CHANNEL_IMPL_VERSION_CURRENT);
 		*c = {};
 		c->context = this;
 		c->impl = impl;

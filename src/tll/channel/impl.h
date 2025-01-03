@@ -32,12 +32,17 @@ struct tll_channel_impl_t
 	/// Protocol name
 	const char * name;
 
-	/// Is this impl refers to prefix channel or not
-	int prefix;
+	/// Impl version
+	int version;
 
 	/// User defined data for impl
 	void * data;
 };
+
+typedef enum {
+	TLL_CHANNEL_IMPL_V0 = 0,
+	TLL_CHANNEL_IMPL_VERSION_CURRENT = TLL_CHANNEL_IMPL_V0,
+} tll_channel_impl_version_t;
 
 #ifdef __cplusplus
 #define TLL_DECLARE_STAT(...) tll::stat::FieldT<__VA_ARGS__>
@@ -201,6 +206,7 @@ public:
 		process = _process;
 		post = _post;
 		scheme = _scheme;
+		version = TLL_CHANNEL_IMPL_VERSION_CURRENT;
 		if (name.size())
 			_name = name;
 		else
