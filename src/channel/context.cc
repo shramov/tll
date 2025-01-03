@@ -826,14 +826,21 @@ int tll_channel_resume(tll_channel_t *c)
 int tll_channel_open(tll_channel_t *c, const char *str, size_t len)
 {
 	if (!c || !c->impl || !c->impl->open) return EINVAL;
+
+	auto state = tll_channel_state(c);
+	if (state != TLL_STATE_CLOSED) {
+		tll_logger_printf(c->internal->logger, TLL_LOGGER_ERROR, "Open failed: invalid state %s", tll_state_str(state).data());
+		return EINVAL;
+	}
+
 	if (!str || !len) {
 		tll::Config cfg;
 		return (*c->impl->open)(c, cfg);
 	}
 	auto r = tll::ConfigUrl::parse_props(string_view_from_c(str, len));
 	if (!r) {
-		tll::Logger log(fmt::format("tll.channel.{}", tll_channel_name(c)));
-		return log.fail(EINVAL, "Invalid property string: {}", r.error());
+		tll_logger_printf(c->internal->logger, TLL_LOGGER_ERROR, "Invalid property string: %s", r.error().c_str());
+		return EINVAL;
 	}
 	return (*c->impl->open)(c, *r);
 }
@@ -841,6 +848,13 @@ int tll_channel_open(tll_channel_t *c, const char *str, size_t len)
 int tll_channel_open_cfg(tll_channel_t *c, const tll_config_t *cfg)
 {
 	if (!c || !c->impl || !c->impl->open) return EINVAL;
+
+	auto state = tll_channel_state(c);
+	if (state != TLL_STATE_CLOSED) {
+		tll_logger_printf(c->internal->logger, TLL_LOGGER_ERROR, "Open failed: invalid state %s", tll_state_str(state).data());
+		return EINVAL;
+	}
+
 	if (!cfg) {
 		tll::Config cfg;
 		return (*c->impl->open)(c, cfg);

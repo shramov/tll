@@ -275,8 +275,6 @@ class Base
 
 	int open(const tll::ConstConfig &cfg)
 	{
-		if (state() != state::Closed)
-			return _log.fail(EINVAL, "Open failed: invalid state {}", tll_state_str(state()));
 		{
 			std::string r;
 			for (auto &[k, c] : cfg.browse("**")) {
