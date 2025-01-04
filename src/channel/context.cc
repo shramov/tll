@@ -863,7 +863,15 @@ int tll_channel_open_cfg(tll_channel_t *c, const tll_config_t *cfg)
 }
 
 int tll_channel_close(tll_channel_t *c, int force)
-	FORWARD_SAFE(close, c, force);
+{
+	if (!c || !c->impl || !c->impl->close) return EINVAL;
+	auto state = tll_channel_state(c);
+	if (state == tll::state::Closed)
+		return 0;
+	if (state == tll::state::Closing && !force)
+		return 0;
+	return (*c->impl->close)(c, force);
+}
 
 const tll_scheme_t * tll_channel_scheme(const tll_channel_t *c, int type)
 	FORWARD_SAFE_ERR(scheme, NULL, c, type);

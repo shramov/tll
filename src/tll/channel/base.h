@@ -332,11 +332,6 @@ class Base
 
 	int close(bool force = false)
 	{
-		if (state() == state::Closed)
-			return 0;
-		if (state() == state::Closing && !force) {
-			return 0;
-		}
 		state(state::Closing);
 		int r = 0;
 		if constexpr (ChannelT::close_policy() == ClosePolicy::Long)
