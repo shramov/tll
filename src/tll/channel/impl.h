@@ -122,7 +122,9 @@ typedef struct tll_channel_internal_t
 	tll_stat_block_t * stat;
 
 	tll_logger_t * logger;
-	intptr_t reserved[4];
+
+	unsigned state_count;
+	intptr_t reserved[3];
 } tll_channel_internal_t;
 
 void tll_channel_list_free(tll_channel_list_t *l);
