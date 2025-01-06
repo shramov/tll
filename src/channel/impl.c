@@ -161,6 +161,7 @@ int tll_channel_internal_set_state(tll_channel_internal_t * in, tll_state_t stat
 	tll_state_t old = in->state;
 	if (state == old)
 		return 0;
+	in->state_count++;
 	tll_logger_printf(in->logger, TLL_LOGGER_INFO, "State change: %s -> %s", tll_state_str(old), tll_state_str(state));
 	in->state = state;
 	tll_config_set(in->config, "state", -1, tll_state_str(state), -1);
