@@ -283,6 +283,7 @@ int StreamClient::_on_request_data(const tll::Channel *, const tll_msg_t *msg)
 {
 	_log.debug("Seq {}, state {}, ring {}", msg->seq, (int) _state, _ring.empty());
 	if (_state == State::Connected) {
+		auto guard = state_guard();
 		if (_seq < _block_end && msg->seq >= _block_end) {
 			_seq = msg->seq;
 			_reopen_cfg = tll::Config();
@@ -290,6 +291,8 @@ int StreamClient::_on_request_data(const tll::Channel *, const tll_msg_t *msg)
 			_reopen_cfg.set("seq", _config_seq, this);
 			config_info().set("reopen", _reopen_cfg);
 			_report_block();
+			if (guard)
+				return 0;
 		}
 
 		_seq = msg->seq;
@@ -351,8 +354,10 @@ int StreamClient::_on_request_data(const tll::Channel *, const tll_msg_t *msg)
 			_reopen_cfg.set("seq", _config_seq, this);
 			config_info().set("reopen", _reopen_cfg);
 
+			auto guard = state_guard();
 			if (_block_end > 0)
 				_report_block();
+			if (guard) return 0;
 			_report_online();
 			_request->close();
 		} else if (_server_seq < *_open_seq) {
