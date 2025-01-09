@@ -998,3 +998,25 @@ async def test_online_gap(asyncloop, tmp_path):
 
     m = await c.recv()
     assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control['Online'].msgid, 10)
+
+@asyncloop_run
+async def test_close_in_block(asyncloop, tmp_path):
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+
+    s.open()
+    s.post(b'xxx', seq=10)
+    s.post({}, name='Block', type=s.Type.Control)
+
+    c.open(mode='block', block='0')
+    scheme = c.scheme_control
+    def cb(ch, m):
+        if m.msgid == scheme['EndOfBlock'].msgid:
+            c.close()
+    c.callback_add(cb, mask=c.MsgMask.Control)
+
+    assert (await c.recv_state()) == c.State.Active
+    assert (await c.recv_state()) == c.State.Closed
+
+    assert [(m.type, m.msgid) for m in c.result] == [(c.Type.Control, scheme['EndOfBlock'].msgid)]
