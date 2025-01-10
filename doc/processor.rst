@@ -19,10 +19,10 @@ Basic processor config for echo service looks like
 
     processor.objects:
       tcp:
-        url: 'tcp://*:8080;mode=server'
+        init: 'tcp://*:8080;mode=server'
         depends: logic
       logic:
-        url: 'forward://'
+        init: 'forward://'
         type: logic
         channels: {input: tcp, output: tcp}
 
@@ -43,13 +43,13 @@ configuration would look like
         - name: logic
           obects:
             logic:
-              url: 'forward://'
+              init: 'forward://'
               type: logic
               channels: {input: tcp, output: tcp}
         - name: input
           objects:
             tcp:
-              url: 'tcp://*:8080;mode=server'
+              init: 'tcp://*:8080;mode=server'
 
 Dependency between ``tcp`` and ``logic`` is defined by order of levels in a chain. Level ``logic``
 with ``logic`` object precedes ``input`` level with ``tcp`` object so every object in subsequent
@@ -71,13 +71,13 @@ dependency paths. Chains can be spawned at any level and then joined back.
       a:
         - name: input
           objects:
-            obj: {url: 'null://'}
+            obj: {init: 'null://'}
         - name: join-b
           join: b
       b:
         - name: input
           objects:
-            obj-b: {url: 'null://'}
+            obj-b: {init: 'null://'}
 
 State Changes
 -------------
