@@ -1,0 +1,23 @@
+processor.module:
+  - module: build/src/logic/tll-logic-stat
+
+logger:
+  stat: yes
+  type: spdlog
+  levels: {tll: info}
+
+processor.worker.default.stat: yes
+
+processor.objects:
+  stat:
+    url: stat://;header-level=debug
+    channels.timer: stat-timer
+    worker: stat
+  stat-timer:
+    url: timer://;interval=1s;stat=no
+    depends: stat
+    worker: stat
+  zero:
+    url: timer://;interval=1ms;stat=yes
+
+# vim: sts=2 sw=2 et
