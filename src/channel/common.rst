@@ -96,13 +96,17 @@ stat counts number of messages and sum of their body sizes both posted and recei
 implementation can extend statistics with other values, for example sequence number of last message
 or average time used for post.
 
-``dump={no|yes|frame|auto|scheme|text+hex}`` log every message
+``dump={no|yes|frame|auto|scheme|text+hex}`` log every sent and received message
 
  - ``no`` disable logging
  - ``yes`` or ``auto`` log unpacked message body if scheme is available, hex otherwise
  - ``frame`` log only meta information - size, msgid, address and body size
  - ``scheme`` (deprecated) - always try to log unpacked message body
  - ``text+hex`` log body hex side by side printable part like normal hexdump tools
+
+If full message logging is enabled (with or without scheme) body is written into logs which can leak
+sensitive fields like passwords. However formatting function respects ``tll.secret: yes`` field
+option and replaces value with ``*`` for strings or zero value for numbers.
 
 ``scheme=<scheme>`` (default is none) - specify data scheme for the channel, format is described
 above
