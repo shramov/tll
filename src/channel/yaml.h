@@ -25,6 +25,8 @@ class ChYaml : public tll::channel::Base<ChYaml>
 	bool _autoseq = false;
 	tll::scheme::ConfigEncoder _encoder;
 
+	tll::time_point _last_ts = {};
+
  public:
 	static constexpr std::string_view channel_protocol() { return "yaml"; }
 
