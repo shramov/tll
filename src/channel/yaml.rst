@@ -62,6 +62,14 @@ parameters:
 ``type={data | control}``, default ``data`` - type of the message, ``Data`` or ``Control``. Separate
 schemes are used to fill them.
 
+``time=<string>``, default empty - time field of the message, value can be following:
+
+ - empty or missing, use previous value;
+ - ``now`` - use current time;
+ - ``+<duration>`` - if value starts with ``+`` sign, parse rest of the string as duration (with
+   resolution suffix like ``1ms``) and add to previous timestamp;
+ - otherwise parse as datetime value in form ``YYYY-MM-DDThh:mm:ss[.subsec]``
+
 If scheme is not present for this message type then follwing parameters are used:
 
 ``msgid=<int>``, default 0 - message id

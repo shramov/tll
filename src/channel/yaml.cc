@@ -114,6 +114,23 @@ int ChYaml::_process(long timeout, int flags)
 	msg.seq = reader.getT<long long>("seq", 0);
 	msg.addr.i64 = reader.getT<int64_t>("addr", 0);
 	msg.type = reader.getT("type", TLL_MESSAGE_DATA, {{"data", TLL_MESSAGE_DATA}, {"control", TLL_MESSAGE_CONTROL}});
+	auto time = reader.getT<std::string>("time", "");
+	if (time.empty()) {
+	} else if (time == "now") {
+		_last_ts = tll::time::now();
+	} else if (time[0] == '+') {
+		auto r = tll::conv::to_any<tll::duration>(time.substr(1));
+		if (!r)
+			return _log.fail(EINVAL, "Message {}: invalid time delta '{}': {}", _idx, time.substr(1), r.error());
+		_last_ts += *r;
+	} else {
+		auto r = tll::conv::to_any<tll::time_point>(time);
+		if (!r)
+			return _log.fail(EINVAL, "Message {}: invalid time point '{}': {}", _idx, time, r.error());
+		_last_ts = *r;
+	}
+
+	msg.time = _last_ts.time_since_epoch().count();
 
 	if (_autoseq) {
 		if (_seq == -1)

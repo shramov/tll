@@ -9,6 +9,7 @@ from tll.chrono import *
 from tll.error import TLLError
 
 import pytest
+import datetime
 import decimal
 
 def test_binary():
@@ -411,3 +412,35 @@ config:
     m = c.result[0]
     assert m.data[:12].tobytes() == b'\x08\x00\x00\x00\x02\x00\x00\xff\x0a\x01\x00\x00'
     assert c.unpack(m).as_dict() == {'list': [{'body': '0000'}, {'body': '1111'}]}
+
+def test_time():
+    cfg = Config.load('''yamls://
+tll.proto: yaml
+name: yaml
+dump: yes
+config:
+  - {name: Data, seq: 10, data.f0: 10}
+  - {name: Data, seq: 20, data.f0: 20, time: +10ms}
+  - {name: Data, seq: 30, data.f0: 30, time: +1s}
+  - {name: Data, seq: 40, data.f0: 40, time: '2000-01-02T03:04:05'}
+  - {name: Data, seq: 50, data.f0: 50, time: now}
+''')
+    cfg['scheme'] = """yamls://
+- name: Data
+  id: 10
+  fields:
+    - {name: f0, type: int32}
+"""
+    c = Accum(cfg)
+    c.open()
+    for _ in range(5):
+        c.process()
+    now = TimePoint(datetime.datetime.now())
+
+    assert [m.seq for m in c.result] == list(range(10, 60, 10))
+    assert c.result[0].time == TimePoint(0)
+    assert c.result[1].time == TimePoint(10, 'ms')
+    assert c.result[2].time == TimePoint(1010, 'ms')
+    assert c.result[3].time == TimePoint.from_str('2000-01-02T03:04:05')
+    assert c.result[4].time < now
+    assert c.result[4].time > now - Duration(100, 'ms')
