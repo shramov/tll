@@ -96,7 +96,7 @@ class _Base:
 
     def __lt__(self, other):
         if not isinstance(other, self.__class__): return NotImplemented
-        return self.seconds < v.seconds
+        return self.seconds < other.seconds
 
     def __iadd__(self, other):
         if not isinstance(other, Duration): return NotImplemented
