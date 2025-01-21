@@ -109,6 +109,7 @@ class Mock:
         return state
 
     async def wait(self, name, state, timeout=3):
+        self._control.result.clear()
         state = self._normalize_state(state)
         c = self._context.get(name)
         if c.state == state:
@@ -124,6 +125,7 @@ class Mock:
         raise TimeoutError(f"Timed out waiting for object {name} state {state}")
 
     async def wait_many(self, timeout=3, objects={}, **okw):
+        self._control.result.clear()
         okw.update(objects)
         objects = {n: self._normalize_state(s) for n, s in okw.items()}
         states = {n: self._context.get(n).state for n in okw.keys()}
