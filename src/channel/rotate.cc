@@ -341,6 +341,21 @@ int Rotate::_build_map()
 	_state = State::Build;
 	_current_empty = true;
 
+	auto channel = _child.get();
+	std::unique_ptr<tll::Channel> read;
+	if (internal.caps & caps::Output) {
+		auto cfg = _child->config().sub("init");
+		if (!cfg)
+			return _log.fail(EINVAL, "Can not create reading child channel: child init parameters not available");
+		auto url = tll::Channel::Url(*cfg);
+		child_url_fill(url, "index");
+		url.set("dir", "r");
+		read = this->context().channel(url);
+		if (!read)
+			return _log.fail(EINVAL, "Can not create reading child channel");
+		channel = read.get();
+	}
+
 	std::shared_ptr<Files> files(new Files);
 	Files::Map & map = files->files;;
 	files->seq_first = &_seq_first;
@@ -358,16 +373,16 @@ int Rotate::_build_map()
 
 		auto path = e.path().string();
 		_open_cfg.set("filename", path);
-		_child->open(_open_cfg);
+		channel->open(_open_cfg);
 
-		if (_child->state() != tll::state::Active)
+		if (channel->state() != tll::state::Active)
 			return _log.fail(EINVAL, "Can not open file {}", path);
-		auto cfg = _child->config();
+		auto cfg = channel->config();
 
 		auto reader = tll::make_props_reader(cfg);
 		auto first = reader.getT<long long>("info.seq-begin", -1);
 		auto last = reader.getT<long long>("info.seq", -1);
-		_child->close();
+		channel->close();
 
 		if (!reader)
 			return _log.fail(EINVAL, "Invalid seq in config: {}", reader.error());
