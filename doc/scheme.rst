@@ -127,8 +127,8 @@ elements and (optionaly) each element size. Pointer uses 8 bytes with following 
       uint8_t  entity;
   };
 
-For entities larger then 255 bytes size is stored before array body and entity field is set to
-``0xff``.
+For entities larger then 255 bytes size is stored before array body as unsigned 32 bit integer and
+entity field is set to ``0xff``.
 
 Union
 -----
