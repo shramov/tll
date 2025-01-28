@@ -167,6 +167,17 @@ TLL_0.3.0 {
 TLL_0.4.0 {
 	global:
 		tll_channel_internal_set_state;
+
+		tll_channel_reopen_close;
+		tll_channel_reopen_free;
+		tll_channel_reopen_new;
+		tll_channel_reopen_on_state;
+		tll_channel_reopen_on_timer;
+		tll_channel_reopen_open;
+		tll_channel_reopen_next;
+		tll_channel_reopen_set_channel;
+		tll_channel_reopen_set_open_config;
+
 		tll_config_value_dup;
 		tll_logger_stat;
 } TLL_0.3.0;

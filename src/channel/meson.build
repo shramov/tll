@@ -15,6 +15,7 @@ channel_sources = files(
 	, 'pub-client.cc'
 	, 'pub-mem.cc'
 	, 'rate.cc'
+	, 'reopen.cc'
 	, 'resolve.cc'
 	, 'rotate.cc'
 	, 'serial.cc'
