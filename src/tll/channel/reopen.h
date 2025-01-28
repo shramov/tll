@@ -8,10 +8,10 @@
 #ifndef _TLL_CHANNEL_REOPEN_H
 #define _TLL_CHANNEL_REOPEN_H
 
+#ifdef __cplusplus
+
 #include "tll/channel/base.h"
-
 #include "tll/scheme/channel/timer.h"
-
 #include "tll/util/time.h"
 
 namespace tll::channel {
@@ -35,6 +35,16 @@ struct ReopenData
 	ConstConfig open_params;
 
 	bool pending() const { return next != time_point {}; }
+
+	template <typename Reader>
+	int init(Reader &reader)
+	{
+		timeout_open = reader.getT("open-timeout", timeout_open);
+		timeout_min = reader.getT("reopen-timeout-min", timeout_min);
+		timeout_max = reader.getT("reopen-timeout-max", timeout_max);
+		timeout_tremble = reader.getT("reopen-active-min", timeout_tremble);
+		return reader ? 0 : 1;
+	}
 
 	void reset()
 	{
@@ -148,11 +158,7 @@ public:
 	{
 		if constexpr (T::reopen_init_policy()) {
 			auto reader = this->channelT()->channel_props_reader(url);
-			_reopen_data.timeout_open = reader.getT("open-timeout", _reopen_data.timeout_open);
-			_reopen_data.timeout_min = reader.getT("reopen-timeout-min", _reopen_data.timeout_min);
-			_reopen_data.timeout_max = reader.getT("reopen-timeout-max", _reopen_data.timeout_max);
-			_reopen_data.timeout_tremble = reader.getT("reopen-active-min", _reopen_data.timeout_tremble);
-			if (!reader)
+			if (_reopen_data.init(reader))
 				return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 		}
 
@@ -252,5 +258,32 @@ public:
 };
 
 } // namespace tll::channel
+
+#endif//__cplusplus
+
+#ifdef __cplusplus
+extern "C" {
+#endif //__cplusplus
+
+typedef enum tll_channel_reopen_action_t {
+	TLL_CHANNEL_REOPEN_NONE,
+	TLL_CHANNEL_REOPEN_OPEN,
+	TLL_CHANNEL_REOPEN_CLOSE,
+} tll_channel_reopen_action_t;
+
+typedef struct tll_channel_reopen_t tll_channel_reopen_t;
+tll_channel_reopen_t * tll_channel_reopen_new(const tll_config_t *);
+void tll_channel_reopen_free(tll_channel_reopen_t *);
+long long tll_channel_reopen_next(tll_channel_reopen_t *);
+tll_channel_reopen_action_t tll_channel_reopen_on_timer(tll_channel_reopen_t *, tll_logger_t *, long long now);
+void tll_channel_reopen_on_state(tll_channel_reopen_t *, tll_state_t);
+tll_channel_t * tll_channel_reopen_set_channel(tll_channel_reopen_t *, tll_channel_t *);
+void tll_channel_reopen_set_open_config(tll_channel_reopen_t *, const tll_config_t *);
+int tll_channel_reopen_open(tll_channel_reopen_t *);
+void tll_channel_reopen_close(tll_channel_reopen_t *);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif //__cplusplus
 
 #endif//_TLL_CHANNEL_REOPEN_H
