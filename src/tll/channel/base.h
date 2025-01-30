@@ -51,6 +51,18 @@ T * channel_cast(tll_channel_t * c)
 
 namespace channel {
 
+class StateGuard
+{
+	const unsigned * _counter = nullptr;
+	unsigned _old = 0;
+
+ public:
+	StateGuard(const tll_channel_internal_t & in) : _counter(&in.state_count), _old(*_counter) {}
+
+	bool changed(unsigned diff = 0) const { return _old + diff != *_counter; }
+	operator bool () const { return changed(); }
+};
+
 template <typename T>
 class Base
 {
@@ -422,6 +434,8 @@ class Base
 
 	tll_state_t state() const { return internal.state; }
 	tll_state_t state(tll_state_t s) { auto old = internal.state; tll_channel_internal_set_state(&internal, s); return old; }
+
+	auto state_guard() { return StateGuard(internal); }
 
 	template <typename R, typename... Args>
 	[[nodiscard]]
