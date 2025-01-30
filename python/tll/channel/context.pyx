@@ -50,7 +50,8 @@ cdef class Internal:
     def state(self): return State(self.internal.state)
 
     @state.setter
-    def state(self, v): self.internal.state = v
+    def state(self, v):
+        tll_channel_internal_set_state(&self.internal, v)
 
     @property
     def name(self): return self.name_str

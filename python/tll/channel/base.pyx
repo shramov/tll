@@ -189,11 +189,7 @@ cdef class Base:
     def state(self, v):
         if not isinstance(v, C.State):
             raise ValueError("Expected tll.channel.State, got {} ({})".format(v, type(v)))
-        if self.internal.state == v: return
-        self.log.info("State {} -> {}", self.state.name, v.name)
         self.internal.state = v
-        self._callback(StateMessage(v))
-        self.config['state'] = v.name
 
     @property
     def fd(self): return self.internal.internal.fd
