@@ -865,11 +865,17 @@ int tll_channel_open_cfg(tll_channel_t *c, const tll_config_t *cfg)
 int tll_channel_close(tll_channel_t *c, int force)
 {
 	if (!c || !c->impl || !c->impl->close) return EINVAL;
-	auto state = tll_channel_state(c);
-	if (state == tll::state::Closed)
+
+	switch (tll_channel_state(c)) {
+	case tll::state::Closed:
+	case tll::state::Destroy:
 		return 0;
-	if (state == tll::state::Closing && !force)
-		return 0;
+	case tll::state::Closing:
+		if (!force)
+			return 0;
+	default:
+		break;
+	}
 	return (*c->impl->close)(c, force);
 }
 
