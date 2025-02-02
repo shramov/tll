@@ -19,8 +19,11 @@ cdef extern from "tll/channel/impl.h":
         const tll_scheme_t * (*scheme)(const tll_channel_t *, int)
 
         const char * name
-
+        int version
         void * data
+
+    ctypedef enum tll_channel_impl_version_t:
+        TLL_CHANNEL_IMPL_V0
 
     ctypedef struct tll_channel_list_t
     ctypedef struct tll_channel_callback_pair_t

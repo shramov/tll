@@ -32,6 +32,7 @@ cdef class Impl:
         self.impl.data = <void *>ctype
         self.name_bytes = s2b(getattr(ctype, "PROTO") or ctype.__name__)
         self.impl.name = self.name_bytes
+        self.impl.version = TLL_CHANNEL_IMPL_V0
 
 cdef class Internal:
     def __cinit__(self):
