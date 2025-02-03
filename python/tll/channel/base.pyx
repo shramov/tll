@@ -50,6 +50,11 @@ class ProcessPolicy(enum.Enum):
     Custom = enum.auto()
 _ProcessPolicy = ProcessPolicy
 
+class PostPolicy(enum.Enum):
+    Enable = enum.auto()
+    Disable = enum.auto()
+_PostPolicy = PostPolicy
+
 class MessageLogFormat(enum.Enum):
     Disable = TLL_MESSAGE_LOG_DISABLE
     Frame = TLL_MESSAGE_LOG_FRAME
@@ -86,11 +91,14 @@ cdef class Base:
     ClosePolicy = _ClosePolicy
     ChildPolicy = _ChildPolicy
     ProcessPolicy = _ProcessPolicy
+    PostPolicy = _PostPolicy
 
     OPEN_POLICY = OpenPolicy.Auto
     CLOSE_POLICY = ClosePolicy.Normal
     CHILD_POLICY = ChildPolicy.Never
     PROCESS_POLICY = ProcessPolicy.Normal
+    POST_OPENING_POLICY = PostPolicy.Enable
+    POST_CLOSING_POLICY = PostPolicy.Enable
 
     Caps = C.Caps
     DCaps = C.DCaps
@@ -325,6 +333,14 @@ cdef class Base:
             return EINVAL
 
     def post(self, msg, flags):
+        s = self.state
+        if s != self.State.Active:
+            if s == self.State.Opening and self.POST_OPENING_POLICY == self.PostPolicy.Enable:
+                pass
+            elif s == self.State.Closing and self.POST_CLOSING_POLICY == self.PostPolicy.Enable:
+                pass
+            else:
+                return self.log.fail(EINVAL, "Post in invalid state {}", s);
         self._post(msg, flags)
 
     def _init(self, props, master=None): pass
