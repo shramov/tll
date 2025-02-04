@@ -97,8 +97,8 @@ cdef class Base:
     CLOSE_POLICY = ClosePolicy.Normal
     CHILD_POLICY = ChildPolicy.Never
     PROCESS_POLICY = ProcessPolicy.Normal
-    POST_OPENING_POLICY = PostPolicy.Enable
-    POST_CLOSING_POLICY = PostPolicy.Enable
+    POST_OPENING_POLICY = PostPolicy.Disable
+    POST_CLOSING_POLICY = PostPolicy.Disable
 
     Caps = C.Caps
     DCaps = C.DCaps
