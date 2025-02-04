@@ -19,6 +19,8 @@ class Echo(Base):
     OPEN_POLICY = Base.OpenPolicy.Manual
     CLOSE_POLICY = Base.ClosePolicy.Long
     CHILD_POLICY = Base.ChildPolicy.Many
+    POST_OPENING_POLICY = Base.PostPolicy.Enable
+    POST_CLOSING_POLICY = Base.PostPolicy.Disable
 
     def _init(self, props, master=None):
         self._child = None
@@ -113,6 +115,7 @@ def test():
     assert cfg.get("state", "") == "Closed"
     assert [x.name for x in c.children] == []
 
+    with pytest.raises(TLLError): c.post(b'')
     assert cfg.get('info.echo', '') != 'yes'
     c.open()
     assert cfg['info.echo'] == 'yes'
@@ -144,6 +147,7 @@ def test():
     c.close()
     assert [x.name for x in c.children] == ['orphan']
     assert c.state == c.State.Closing
+    with pytest.raises(TLLError): c.post(b'')
     c.process()
     assert c.state == c.State.Closed
     del c

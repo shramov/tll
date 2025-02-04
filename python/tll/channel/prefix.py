@@ -11,6 +11,8 @@ class Prefix(Base):
     CLOSE_POLICY = Base.ClosePolicy.Long
     CHILD_POLICY = Base.ChildPolicy.Proxy
     PROCESS_POLICY = Base.ProcessPolicy.Never
+    POST_OPENING_POLICY = Base.PostPolicy.Enable
+    POST_CLOSING_POLICY = Base.PostPolicy.Enable
 
     def _init(self, url, master = None):
         if '+' not in url.proto:
