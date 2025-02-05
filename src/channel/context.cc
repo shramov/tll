@@ -769,6 +769,8 @@ int tll_channel_suspend(tll_channel_t *c)
 {
 	if (!c || !c->internal) return EINVAL;
 
+	if (!(c->internal->dcaps & dcaps::Suspend))
+		tll_logger_printf(c->internal->logger, TLL_LOGGER_DEBUG, "Suspend channel");
 	c->internal->dcaps |= dcaps::SuspendPermanent;
 	suspend(c);
 	return 0;
@@ -778,6 +780,8 @@ int tll_channel_resume(tll_channel_t *c)
 {
 	if (!c || !c->internal) return EINVAL;
 
+	if (c->internal->dcaps & dcaps::Suspend)
+		tll_logger_printf(c->internal->logger, TLL_LOGGER_DEBUG, "Resume channel");
 	c->internal->dcaps &= ~dcaps::SuspendPermanent;
 	resume(c);
 	return 0;
