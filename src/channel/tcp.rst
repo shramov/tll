@@ -77,18 +77,18 @@ feature is supporeted only on Linux.
     (even if not available from included headers).
   - ``sctp`` - use SCTP (see ``sctp(7)``) in TCP-like mode, not available for UNIX-sockets
 
-``sndbuf=<size>`` (default 0) - set specific send buffer size, for format see
-``tll-channel-common(7)``.
+``sndbuf=<size>`` (default ``0b``) - if not zero set kernel send buffer size (``SO_SNDBUF``, see
+``socket(7)``), for format see ``tll-channel-common(7)``.
 
-``rcvbuf=<size>`` (default 0) - set specific recv buffer size
+``rcvbuf=<size>`` (default ``0b``) - if not zero set kernel recv buffer size (``SO_RCVBUF``)
 
 ``buffer-size=<size>`` (default ``64kb``) - size of internal buffers used for receiving messages
 before passing them to user and storing data that is not possible to sent to user.
 
-``recv-buffer-size=<size>`` (default ``buffer-size``) - size if receiving buffer, overrides
-``buffer-side``.
+``recv-buffer-size=<size>`` (default ``buffer-size``) - size of userspace receiving buffer,
+overrides ``buffer-side``.
 
-``send-buffer-size=<size>`` (default ``buffer-size``) - size if sending buffer, overrides
+``send-buffer-size=<size>`` (default ``buffer-size``) - size of userspace sending buffer, overrides
 ``buffer-side``.
 
 ``send-buffer-hwm=<size>`` (default ``0``) - high watermark for send buffer. If connection is
@@ -143,7 +143,7 @@ Create TCP client with unix socket, / symbol is found in address so address fami
 See also
 --------
 
-``tll-channel-common(7)``
+``tll-channel-common(7)``, ``socket(7)``
 
 ..
     vim: sts=4 sw=4 et tw=100
