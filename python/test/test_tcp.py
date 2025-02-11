@@ -79,9 +79,20 @@ class _test_tcp_base:
         assert c.state == c.State.Active
         assert c.dcaps == c.DCaps.Process | c.DCaps.PollIn
 
+        if self.ADDR[0] != 'unix':
+            addr = '127.0.0.1' if self.ADDR[0] == 'ipv4' else '::1'
+            assert c.config['info.local.af'] == self.ADDR[0]
+            assert c.config['info.local.host'] == addr
+            assert c.config['info.remote.af'] == self.ADDR[0]
+            assert c.config['info.remote.host'] == addr
+            assert int(c.config['info.remote.port']) == ports.TCP4 if self.ADDR[0] == 'ipv4' else ports.TCP6
+
         assert [(m.type, m.msgid) for m in s.result] == [(C.Type.Control, s.scheme_control['Connect'].msgid)]
-        host = s.unpack(s.result[0]).host
+        m = s.unpack(s.result[0])
+        host = m.host
         assert host.type, host.value == self.ADDR
+        if host.type != 'unix':
+            assert str(m.port) == c.config['info.local.port']
         addr = s.result[0].addr
         s.result = []
 
@@ -548,6 +559,9 @@ async def test_bind(asyncloop):
 
     s.open()
     c.open()
+
+    assert c.config['info.local.host'] == '::1'
+    assert c.config['info.local.port'] == str(port)
 
     assert (await c.recv_state()) == c.State.Active
     m = await s.recv()
