@@ -465,12 +465,37 @@ int TcpClient<T, S>::_open(const ConstConfig &url)
 		return this->_log.fail(EINVAL, "Parent open failed");
 
 	this->_log.info("Connect to {}", *_addr);
-	if (connect(this->fd(), *_addr, _addr->size)) {
-		if (errno == EINPROGRESS) {
-			this->_dcaps_poll(dcaps::CPOLLOUT);
-			return 0;
-		}
+	auto r = connect(this->fd(), *_addr, _addr->size);
+	if (r && errno != EINPROGRESS)
 		return this->_log.fail(errno, "Failed to connect: {}", strerror(errno));
+
+	tll::network::sockaddr_any local, remote;
+	local.size = sizeof(local);
+	remote.size = sizeof(remote);
+	if (getsockname(this->fd(), local, &local.size))
+		return this->_log.fail(errno, "Failed to get socket address: {}", strerror(errno));
+	if (getpeername(this->fd(), remote, &remote.size))
+		return this->_log.fail(errno, "Failed to get peer address: {}", strerror(errno));
+	if (local->sa_family != AF_UNIX) {
+		this->_log.debug("Local address: {}", local);
+		this->config_info().setT("local.af", (network::AddressFamily) local->sa_family);
+		this->config_info().setT("local.port", ntohs(local.in()->sin_port));
+		if (local->sa_family == AF_INET)
+			this->config_info().setT("local.host", local.in()->sin_addr);
+		else
+			this->config_info().setT("local.host", local.in6()->sin6_addr);
+
+		this->config_info().setT("remote.af", (network::AddressFamily) remote->sa_family);
+		this->config_info().setT("remote.port", ntohs(remote.in()->sin_port));
+		if (remote->sa_family == AF_INET)
+			this->config_info().setT("remote.host", remote.in()->sin_addr);
+		else
+			this->config_info().setT("remote.host", remote.in6()->sin6_addr);
+	}
+
+	if (r) {
+		this->_dcaps_poll(dcaps::CPOLLOUT);
+		return 0;
 	}
 
 	this->_log.info("Connected");
