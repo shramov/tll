@@ -76,6 +76,8 @@ int ChDirect::_init(const tll::Channel::Url &url, tll::Channel * master)
 	}
 	_ptr = ptr->_ptr;
 	_log.debug("Init child of master {}", ptr->name);
+	if (_ptr.use_count() == 3)
+		return _log.fail(EINVAL, "Direct master {} already has slave", master->name());
 	return 0;
 }
 
