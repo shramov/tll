@@ -806,6 +806,7 @@ int Processor::pending_process(const tll_msg_t * msg)
 			activate(*o);
 			break;
 		case channel::ReopenData::Action::Close:
+		case channel::ReopenData::Action::CloseForced:
 			post<scheme::Deactivate>( o, { o });
 			break;
 		case channel::ReopenData::Action::None:
