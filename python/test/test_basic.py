@@ -155,6 +155,7 @@ def test_direct():
     s = Accum('direct://', name='server', context=ctx)
     c = Accum('direct://', name='client', master=s, context=ctx)
     with pytest.raises(TLLError): Accum('direct://', name='invalid', master=c, context=ctx)
+    with pytest.raises(TLLError): Accum('direct://', name='dup', master=c, context=ctx)
 
     assert s.dcaps == 0
 
