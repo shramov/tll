@@ -456,6 +456,9 @@ async def test_rotate(asyncloop, tmp_path):
 
     assert (tmp_path / "storage.10.dat").exists()
 
+    s.close()
+    s.open()
+
 @asyncloop_run
 async def test_rotate_on_block(asyncloop, tmp_path):
     common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'

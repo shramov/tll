@@ -250,7 +250,8 @@ int StreamServer::_open(const ConstConfig &url)
 					return static_cast<StreamServer *>(user)->_on_storage_load(msg);
 				}, this);
 			_child_open = tll::Config();
-			_child_open.set("seq", conv::to_string(*seq + 1));
+			if (*seq >= 0)
+				_child_open.set("seq", conv::to_string(*seq + 1));
 			if (auto r = _storage_load->open(_child_open); r)
 				return _log.fail(EINVAL, "Failed to open storage channel for reading");
 			_child_add(_storage_load.get(), "storage");
