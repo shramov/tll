@@ -81,6 +81,9 @@ int Rotate::_on_init(tll::Channel::Url &curl, const tll::Channel::Url &url, tll:
 	if (!_scheme_control.get())
 		return _log.fail(EINVAL, "Failed to load control scheme");
 
+	if (internal.caps & caps::Input)
+		curl.remove("scheme");
+
 	_master = tll::channel_cast<Rotate>(master);
 
 	return 0;
@@ -144,6 +147,25 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 		_scheme.reset(context().scheme_load(*_scheme_url, _scheme_cache));
 		if (!_scheme)
 			return state_fail(EINVAL, "Failed to load scheme from {}...", _scheme_url->substr(0, 64));
+
+		auto h0 = _files->scheme ? _files->scheme->dump("sha256") : "NULL";
+		auto h1 = _scheme->dump("sha256");
+		_log.debug("Scheme hash: {}, last hash: {}", *h1, *h0);
+		if (*h0 != *h1) {
+			_log.info("Scheme changed, force rotation");
+			if (_current_empty) {
+				_log.info("Last file without data, overwrite");
+				auto cfg = _open_cfg.copy();
+				cfg.set("overwrite", "yes");
+				return _child->open(cfg);
+			} else {
+				_state = State::Closed;
+				if (auto r = _child->open(_open_cfg); r)
+					return r;
+				_state = State::Write;
+				return _rotate();
+			}
+		}
 	}
 
 	return _child->open(_open_cfg);
@@ -176,7 +198,11 @@ int Rotate::_post_rotate(const tll_msg_t *msg)
 		_log.info("Skip rotating empty file");
 		return 0;
 	}
+	return _rotate();
+}
 
+int Rotate::_rotate()
+{
 	auto key = _child->config().get(_filename_key);
 	if (!key)
 		return _log.fail(EINVAL, "File {} has no filename key '{}' in config", _current_file->second.filename, _filename_key);
@@ -198,6 +224,12 @@ int Rotate::_post_rotate(const tll_msg_t *msg)
 	}
 	_current_empty = true;
 	_child->open(_open_cfg);
+
+	auto s = _child->scheme();
+	{
+		auto lock = _files->lock();
+		_files->scheme.reset(s->ref());
+	}
 	return 0;
 }
 
@@ -263,6 +295,7 @@ int Rotate::_on_active()
 		return 0;
 	if (internal.caps & caps::Input)
 		_scheme.reset(_child->scheme()->ref());
+
 	auto scheme = _child->scheme(TLL_MESSAGE_CONTROL);
 	if (scheme) {
 		auto message = scheme->lookup("EndOfData");
@@ -350,6 +383,7 @@ int Rotate::_build_map()
 		auto url = tll::Channel::Url(*cfg);
 		child_url_fill(url, "index");
 		url.set("dir", "r");
+		url.remove("scheme");
 		read = this->context().channel(url);
 		if (!read)
 			return _log.fail(EINVAL, "Can not create reading child channel");
@@ -382,6 +416,7 @@ int Rotate::_build_map()
 		auto reader = tll::make_props_reader(cfg);
 		auto first = reader.getT<long long>("info.seq-begin", -1);
 		auto last = reader.getT<long long>("info.seq", -1);
+		scheme::ConstSchemePtr scheme { channel->scheme()->ref() };
 		channel->close();
 
 		if (!reader)
@@ -391,6 +426,7 @@ int Rotate::_build_map()
 			if (e.path() == _last_filename) {
 				_log.info("Last file without data");
 				_current_empty = true;
+				files->scheme = std::move(scheme);
 				continue;
 			}
 			return _log.fail(EINVAL, "File {} has no first/last seq", path);
@@ -408,8 +444,14 @@ int Rotate::_build_map()
 			return _log.fail(EINVAL, "Duplicate seq {}: files {} and {}", last, it->second.filename, path);
 		}
 
-		if (e.path() == _last_filename)
+		if (e.path() == _last_filename) {
 			current = emplace.first;
+			_current_empty = false;
+			files->scheme = std::move(scheme);
+		}
+
+		if (current == map.end() && emplace.first == --map.end())
+			files->scheme = std::move(scheme);
 	}
 
 	if (ec)
@@ -419,7 +461,7 @@ int Rotate::_build_map()
 	_files = files;
 	_state = State::Closed;
 
-	return 0;;
+	return 0;
 }
 
 int Rotate::_process(long timeout, int flags)

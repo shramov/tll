@@ -36,6 +36,8 @@ class Rotate : public Prefix<Rotate>
 		long long * seq_first = nullptr;
 		long long * seq_last = nullptr;
 
+		scheme::ConstSchemePtr scheme;
+
 		std::mutex _lock;
 		auto lock() { return std::lock_guard<std::mutex>(_lock); }
 	};
@@ -86,6 +88,11 @@ class Rotate : public Prefix<Rotate>
 	int _on_active();
 	int _on_closing();
 	int _on_closed();
+	int _on_init(tll::Channel::Url &curl, const tll::Channel::Url &, const tll::Channel *)
+	{
+		curl.remove("scheme");
+		return 0;
+	}
 
 	auto files() { return _files; }
 	void notify()
@@ -99,6 +106,7 @@ class Rotate : public Prefix<Rotate>
 	int _build_map();
 
 	int _post_rotate(const tll_msg_t *msg);
+	int _rotate();
 	int _seek(long long seq);
 
 	bool _current_last()
