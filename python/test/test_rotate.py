@@ -7,6 +7,7 @@ import pytest
 
 from tll.asynctll import asyncloop_run
 from tll.channel import Context
+from tll.config import Url
 from tll.error import TLLError
 
 @pytest.fixture
@@ -182,3 +183,59 @@ async def test_autoclose(asyncloop, tmp_path):
             assert (m.type, m.msgid, m.seq) == (r.Type.Control, r.scheme_control[name].msgid, 0)
 
     assert (await r.recv_state()) == r.State.Closed
+
+def test_scheme_change(context, tmp_path):
+    SCHEME = '''yamls://
+- options.version: %s
+- name: Data
+  id: 10
+  fields:
+  - {name: f0, type: int32}
+'''
+
+    cfg = Url.parse(f'rotate+file://{tmp_path}/rotate;dir=w;dump=frame;name=rotate')
+    cfg['scheme'] = SCHEME % 'v0'
+    w = context.Channel(cfg)
+
+    f = context.Channel(f'file://', dir='r', name='file')
+    def scheme_version(c, seq):
+        try:
+            c.open(filename = tmp_path / f'rotate.{seq}.dat')
+            return c.scheme.options['version']
+        finally:
+            c.close()
+
+    w.open()
+    w.post(b'xxx', seq=0)
+    w.post({}, name='Rotate', type=w.Type.Control)
+    w.close()
+
+    assert os.path.exists(tmp_path / 'rotate.0.dat')
+    assert os.path.exists(tmp_path / 'rotate.current.dat')
+    assert scheme_version(f, 0) == 'v0'
+    assert scheme_version(f, 'current') == 'v0'
+
+    del w
+    cfg['scheme'] = SCHEME % 'v1'
+    w = context.Channel(cfg)
+    w.open()
+
+    assert os.path.exists(tmp_path / 'rotate.0.dat')
+    assert os.path.exists(tmp_path / 'rotate.current.dat')
+    assert scheme_version(f, 0) == 'v0'
+    assert scheme_version(f, 'current') == 'v1'
+
+    w.post(b'xxx', seq=10)
+    w.close()
+
+    del w
+    cfg['scheme'] = SCHEME % 'v2'
+    w = context.Channel(cfg)
+    w.open()
+
+    assert os.path.exists(tmp_path / 'rotate.0.dat')
+    assert os.path.exists(tmp_path / 'rotate.10.dat')
+    assert os.path.exists(tmp_path / 'rotate.current.dat')
+    assert scheme_version(f, 0) == 'v0'
+    assert scheme_version(f, '10') == 'v1'
+    assert scheme_version(f, 'current') == 'v2'
