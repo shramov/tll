@@ -112,6 +112,19 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 		_seq_first = *_files->seq_first;
 	}
 
+	scheme::ConstSchemePtr scheme;
+	{
+		auto lock = _files->lock();
+		scheme.reset(_files->scheme->ref());
+	}
+
+	if (_scheme_url) {
+		_log.debug("Loading scheme from {}...", _scheme_url->substr(0, 64));
+		_scheme.reset(context().scheme_load(*_scheme_url, _scheme_cache));
+		if (!_scheme)
+			return state_fail(EINVAL, "Failed to load scheme from {}...", _scheme_url->substr(0, 64));
+	}
+
 	config_info().set_ptr("seq-begin", _files->seq_first);
 	config_info().set_ptr("seq", _files->seq_last);
 
@@ -122,6 +135,9 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 			if (_files->files.empty())
 				return _log.fail(EINVAL, "No files found, can not open for reading");
 		}
+
+		if (!_scheme)
+			_scheme.reset(scheme->ref());
 
 		auto seq = reader.getT<long long>("seq", -1);
 		if (!reader)
@@ -143,12 +159,7 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 	}
 
 	if ((internal.caps & caps::Output) && _scheme_url) {
-		_log.debug("Loading scheme from {}...", _scheme_url->substr(0, 64));
-		_scheme.reset(context().scheme_load(*_scheme_url, _scheme_cache));
-		if (!_scheme)
-			return state_fail(EINVAL, "Failed to load scheme from {}...", _scheme_url->substr(0, 64));
-
-		auto h0 = _files->scheme ? _files->scheme->dump("sha256") : "NULL";
+		auto h0 = scheme ? scheme->dump("sha256") : "NULL";
 		auto h1 = _scheme->dump("sha256");
 		_log.debug("Scheme hash: {}, last hash: {}", *h1, *h0);
 		if (*h0 != *h1) {
@@ -182,6 +193,7 @@ int Rotate::_close(bool force)
 
 	_current_file = {};
 	_files.reset();
+	_scheme.reset();
 
 	_state = State::Closed;
 	if (_child->state() != tll::state::Closed)
@@ -293,8 +305,6 @@ int Rotate::_on_active()
 		return 0;
 	if (_state != State::Read && _state != State::Write)
 		return 0;
-	if (internal.caps & caps::Input)
-		_scheme.reset(_child->scheme()->ref());
 
 	auto scheme = _child->scheme(TLL_MESSAGE_CONTROL);
 	if (scheme) {

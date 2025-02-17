@@ -239,3 +239,12 @@ def test_scheme_change(context, tmp_path):
     assert scheme_version(f, 0) == 'v0'
     assert scheme_version(f, '10') == 'v1'
     assert scheme_version(f, 'current') == 'v2'
+
+    r = context.Channel(cfg, dir='r', scheme='', name='reader')
+    r.open()
+    assert r.scheme.options['version'] == 'v2'
+    r.close()
+
+    r.open(seq='10')
+    assert r.scheme.options['version'] == 'v2'
+    r.close()
