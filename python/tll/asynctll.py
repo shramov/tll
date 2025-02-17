@@ -40,13 +40,12 @@ class Entry:
         if m := self.pop():
             return m
 
-        f = asyncio.get_running_loop().create_future()
-        f.add_done_callback(self.reset_future)
-        self.future = f
-        if timeout:
-            to = asyncio.get_running_loop().call_later(timeout, f.set_exception, TimeoutError("Timeout waiting for message"))
-            f.add_done_callback(lambda f: to.cancel())
-        return await f
+        self.future = asyncio.get_running_loop().create_future()
+        self.future.add_done_callback(self.reset_future)
+        try:
+            return await asyncio.wait_for(self.future, timeout)
+        except asyncio.TimeoutError: # Not needed for 3.11 and later
+            raise TimeoutError("Timeout waiting for message")
 
 class StateEntry(Entry):
     def __init__(self, *a, **kw):
@@ -74,7 +73,6 @@ class AsyncChannel(C.Channel):
         self.MASK = self.MASK if async_mask is None else async_mask
 
         C.Channel.__init__(self, *a, **kw)
-        self._future_state = self._future_data = None
         self._loop = weakref.ref(loop)
         self._result = Entry()
         self._result_state = StateEntry()
