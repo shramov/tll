@@ -128,6 +128,7 @@ int StreamClient::_open(const ConstConfig &url)
 	}
 
 	config_info().set("reopen", _reopen_cfg);
+	config_info().set_ptr("seq", &_seq);
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid open parameters: {}", reader.error());
@@ -139,6 +140,7 @@ int StreamClient::_close(bool force)
 {
 	_state = State::Closed;
 	_reset_config_cb(config_info(), "reopen.seq");
+	config_info().setT("seq", _seq);
 
 	if (_request->state() != tll::state::Closed)
 		_request->close(force || state() == tll::state::Error);

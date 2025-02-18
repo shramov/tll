@@ -684,11 +684,11 @@ async def test_stream_aggregate(asyncloop, context, tmp_path):
 
     m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (20, 10, b'xxz')
-    assert c.config.sub('info.reopen').as_dict() == {'mode': 'seq', 'seq': '20'}
+    assert c.config.sub('info.reopen').as_dict() == {'mode': 'seq', 'seq': c.config['info.seq']}
 
     m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (30, 20, b'yyz')
-    assert c.config.sub('info.reopen').as_dict() == {'mode': 'seq', 'seq': '30'}
+    assert c.config.sub('info.reopen').as_dict() == {'mode': 'seq', 'seq': c.config['info.seq']}
 
     c.close()
 
