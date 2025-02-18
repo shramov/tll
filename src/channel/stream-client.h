@@ -20,7 +20,7 @@ namespace tll::channel {
 class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::Prefix<StreamClient>>
 {
  public:
-	enum class State { Closed, Opening, Connected, Overlapped, Online };
+	enum class State { Closed, Opening, Connected, Overlapped, Drain, Online };
 
  private:
 	using Base = LastSeqRx<StreamClient, Prefix<StreamClient>>;

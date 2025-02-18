@@ -27,6 +27,7 @@ struct tll::conv::dump<StreamClient::State> : public tll::conv::to_string_from_s
 		case StreamClient::State::Opening: return "Opening";
 		case StreamClient::State::Connected: return "Connected";
 		case StreamClient::State::Overlapped: return "Overlapped";
+		case StreamClient::State::Drain: return "Drain";
 		case StreamClient::State::Online: return "Online";
 		}
 		return "UNKNOWN";
@@ -147,7 +148,10 @@ int StreamClient::_close(bool force)
 int StreamClient::_report_online()
 {
 	_log.info("Stream is online on seq {}", _seq);
-	_state = State::Online;
+	if (_state == State::Overlapped)
+		_state = State::Online;
+	else
+		_state = State::Drain;
 	tll_msg_t msg = { TLL_MESSAGE_CONTROL };
 	msg.seq = _seq;
 	msg.msgid = stream_control_scheme::Online::meta_id();
@@ -213,12 +217,11 @@ int StreamClient::_on_request_error()
 int StreamClient::_on_request_closed()
 {
 	switch (_state) {
-	case State::Closed:
-	case State::Online:
-	case State::Overlapped:
-		break;
-	default:
+	case State::Opening:
+	case State::Connected:
 		return state_fail(0, "Request channel closed, client in state {}", _state);
+	default:
+		break;
 	}
 	return 0;
 }
@@ -242,7 +245,15 @@ int StreamClient::_on_request_active()
 int StreamClient::_on_data(const tll_msg_t *msg)
 {
 	if (_state == State::Online) {
+		if (msg->seq <= _seq)
+			return _log.fail(EINVAL, "Message seq in the past: {}, last was {}", msg->seq, _seq);
 		_seq = msg->seq;
+		return _callback_data(msg);
+	} else if (_state == State::Drain) {
+		if (msg->seq <= _seq)
+			return 0;
+		_log.debug("Drained old data from online channel, switching to normal mode");
+		_state = State::Online;
 		return _callback_data(msg);
 	}
 
