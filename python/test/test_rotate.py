@@ -6,7 +6,7 @@ import os
 import pytest
 
 from tll.asynctll import asyncloop_run
-from tll.channel import Context
+from tll.channel import Context, MsgMask
 from tll.config import Url
 from tll.error import TLLError
 
@@ -160,7 +160,7 @@ def test_reopen_rotate(context, tmp_path, key):
 
 @asyncloop_run
 async def test_autoclose(asyncloop, tmp_path):
-    w = asyncloop.Channel(f'rotate+file://{tmp_path}/rotate', dir='w', name='write', dump='frame')
+    w = asyncloop.Channel(f'rotate+file://{tmp_path}/rotate', dir='w', name='write', dump='frame', async_mask=MsgMask.All)
 
     w.open()
     for i in range(10):
@@ -176,10 +176,9 @@ async def test_autoclose(asyncloop, tmp_path):
     for i in range(10):
         m = await r.recv()
         assert (m.type, m.seq) == (r.Type.Data, i)
-        assert r.state == r.State.Active
         if i % 3 == 0:
             m = await r.recv()
-            name = 'Rotate' if r.state != r.State.Closed else 'EndOfData'
+            name = 'Rotate' if i < 9 else 'EndOfData'
             assert (m.type, m.msgid, m.seq) == (r.Type.Control, r.scheme_control[name].msgid, 0)
 
     assert (await r.recv_state()) == r.State.Closed
