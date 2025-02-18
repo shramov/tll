@@ -382,7 +382,6 @@ int Rotate::_on_other(const tll_msg_t *msg)
 int Rotate::_build_map()
 {
 	_state = State::Build;
-	_current_empty = true;
 
 	auto channel = _child.get();
 	std::unique_ptr<tll::Channel> read;
@@ -404,7 +403,7 @@ int Rotate::_build_map()
 	Files::Map & map = files->files;;
 	files->seq_first = &_seq_first;
 	files->seq_last = &_seq_last;
-	auto current = map.end();
+	std::optional<Files::Map::const_iterator> current = std::nullopt;
 
 	std::error_code ec;
 	for (auto & e : std::filesystem::directory_iterator { _directory, ec }) {
@@ -435,7 +434,7 @@ int Rotate::_build_map()
 		if (first < 0 || last < 0) {
 			if (e.path() == _last_filename) {
 				_log.info("Last file without data");
-				_current_empty = true;
+				current = map.end();
 				files->scheme = std::move(scheme);
 				continue;
 			}
@@ -456,18 +455,20 @@ int Rotate::_build_map()
 
 		if (e.path() == _last_filename) {
 			current = emplace.first;
-			_current_empty = false;
 			files->scheme = std::move(scheme);
 		}
 
-		if (current == map.end() && emplace.first == --map.end())
+		if (!current && emplace.first == --map.end())
 			files->scheme = std::move(scheme);
 	}
 
 	if (ec)
 		return _log.fail(EINVAL, "Failed to scan directory '{}': {}", _directory, ec.message());
 
-	_current_file = current;
+	_current_file = map.end(); // Can not use value_or due to gcc 9.4.0 bug
+	if (current)
+		_current_file = *current;
+	_current_empty = _current_file == map.end();
 	_files = files;
 	_state = State::Closed;
 
