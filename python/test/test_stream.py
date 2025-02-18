@@ -2,6 +2,7 @@
 # vim: sts=4 sw=4 et
 
 import pytest
+import time
 import yaml
 
 from tll.asynctll import asyncloop_run
@@ -138,6 +139,58 @@ async def test_overlapped(asyncloop, tmp_path):
 
     m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (70, 10, b'ggg')
+
+@asyncloop_run
+async def test_slow_online(asyncloop, tmp_path):
+    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+
+    assert s.children[0].name == 'server/stream'
+    assert s.children[1].name == 'server/request'
+    assert c.children[0].name == 'client/stream'
+    assert c.children[1].name == 'client/request'
+
+    s.open()
+    assert s.state == s.State.Active # No need to wait
+
+    for i in range(10, 31, 10):
+        s.post(b'xxx', msgid=10, seq=i)
+
+    c.open(seq='20', mode='seq')
+    for _ in range(20):
+        if c.children[0].state == c.State.Active:
+            break
+        c.children[0].process()
+        if len(s.children[0].children) > 1:
+            s.children[0].children[1].process()
+        else:
+            s.children[0].children[0].process()
+        time.sleep(0.001)
+    c.children[0].suspend()
+
+    for i in range(40, 61, 10):
+        s.post(b'xxx', msgid=10, seq=i)
+
+    m = await s.recv()
+    assert m.type == m.Type.Control
+    assert s.unpack(m).SCHEME.name == 'Connect'
+
+    assert (await c.recv_state()) == c.State.Active
+
+    for i in range(20, 61, 10):
+        m = await c.recv()
+        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'xxx')
+
+    m = await c.recv()
+    assert m.type == m.Type.Control
+    assert (m.seq, c.unpack(m).SCHEME.name) == (60, 'Online')
+
+    s.post(b'online', msgid=10, seq=70)
+    c.children[0].resume()
+
+    m = await c.recv()
+    assert (m.seq, m.msgid, m.data.tobytes()) == (70, 10, b'online')
 
 @asyncloop_run
 async def test_recent(asyncloop, tmp_path):
