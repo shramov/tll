@@ -670,6 +670,11 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 		break;
 	} while (true);
 
+	if (!c->internal->logger) {
+		(*c->impl->free)(c.get());
+		return _log.fail(nullptr, "Channel {} without logger object, probably compiled with very old TLL", c->impl->name);
+	}
+
 	for (auto & k : tll::util::check_value_tree_nodes(url_keys))
 		tll_logger_printf(c->internal->logger, TLL_LOGGER_ERROR, "Invalid url, key '%s' has both value and subtree", k.c_str());
 
