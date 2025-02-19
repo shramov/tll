@@ -664,6 +664,11 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 		break;
 	} while (true);
 
+	if (!c->internal->logger) {
+		(*c->impl->free)(c.get());
+		return _log.fail(nullptr, "Channel {} without logger object, probably compiled with very old TLL", c->impl->name);
+	}
+
 	if (!*internal && c->internal->name) {
 		auto lock = wlock();
 		auto dup = !channels.emplace(c->internal->name, c.get()).second;
