@@ -62,7 +62,7 @@ format_result_t to_strings_time_point(Int v)
 }
 
 template <typename Int>
-format_result_t to_strings_number(const tll::scheme::Field * field, Int v, bool secret)
+format_result_t to_strings_number(const tll::scheme::Field * field, Int v, bool secret = false)
 {
 	if (secret)
 		v = 0;
@@ -98,7 +98,7 @@ format_result_t to_strings_number(const tll::scheme::Field * field, Int v, bool 
 		case TLL_SCHEME_TIME_HOUR: return to_strings_time_point<Int, std::ratio<3600, 1>>(v); break;
 		case TLL_SCHEME_TIME_DAY: return to_strings_time_point<Int, std::ratio<86400, 1>>(v); break;
 		}
-		return std::list<std::string> { "Unknown resolution" };
+		return unexpected(path_error_t {"", "Unknown resolution" });
 	}
 
 	auto r = std::list<std::string> {tll::conv::to_string(v)};
