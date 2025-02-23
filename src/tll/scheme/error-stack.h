@@ -5,6 +5,9 @@
 
 #include "tll/scheme.h"
 
+#include <variant>
+#include <vector>
+
 namespace tll::scheme {
 
 struct ErrorStack

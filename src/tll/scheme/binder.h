@@ -14,8 +14,6 @@
 #include <stddef.h>
 #include <string.h>
 
-#include <optional>
-
 namespace tll {
 
 namespace scheme::binder {
