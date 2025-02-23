@@ -12,9 +12,6 @@
 #include <tll/util/memoryview.h>
 #include <tll/util/time.h>
 
-#include <optional>
-#include <vector>
-
 namespace tll::scheme {
 
 struct ConfigEncoder : public ErrorStack
