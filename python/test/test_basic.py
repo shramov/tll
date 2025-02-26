@@ -718,3 +718,26 @@ def test_ipc_destroy():
 
     s.free()
     c.close()
+
+@pytest.mark.parametrize("flt", ['!Exclude', '!Exclude,Exclude,Include,Pass', 'Include,Pass'])
+def test_filter(flt):
+    SCHEME = '''yamls://
+- {name: Include, id: 10}
+- {name: Exclude, id: 20}
+- {name: Pass,    id: 30}
+'''
+    s = Accum('filter+direct://', name='server', messages=flt, context=ctx, scheme=SCHEME, dump='frame')
+    c = Accum('direct://', name='client', master=s, context=ctx, dump='frame')
+
+    s.open()
+    c.open()
+
+    c.post(b'', name='Pass', seq=100)
+    c.post(b'', name='Include', seq=200)
+    c.post(b'', name='Exclude', seq=300)
+    assert [(m.msgid, m.seq) for m in s.result] == [(30, 100), (10, 200)]
+
+    s.post(b'', name='Pass', seq=100)
+    s.post(b'', name='Include', seq=200)
+    s.post(b'', name='Exclude', seq=300)
+    assert [(m.msgid, m.seq) for m in c.result] == [(30, 100), (10, 200)]
