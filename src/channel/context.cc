@@ -30,6 +30,7 @@
 #include "channel/direct.h"
 #include "channel/ipc.h"
 #include "channel/file-init.h"
+#include "channel/filter.h"
 #include "channel/framed.h"
 #ifdef WITH_RAPIDJSON
 #include "channel/json.h"
@@ -60,6 +61,7 @@ using namespace tll;
 
 TLL_DEFINE_IMPL(ChLoader);
 TLL_DEFINE_IMPL(ChNull);
+TLL_DEFINE_IMPL(tll::channel::Filter);
 TLL_DEFINE_IMPL(tll::channel::Random);
 TLL_DEFINE_IMPL(tll::channel::SeqCheck);
 
@@ -116,6 +118,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&ChDirect::impl);
 		reg(&ChIpc::impl);
 		reg(&channel::FileInit::impl);
+		reg(&channel::Filter::impl);
 		reg(&Framed::impl);
 #ifdef WITH_RAPIDJSON
 		reg(&ChJSON::impl);
