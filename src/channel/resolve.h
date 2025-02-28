@@ -8,6 +8,7 @@
 #ifndef _TLL_IMPL_CHANNEL_RESOLVE_H
 #define _TLL_IMPL_CHANNEL_RESOLVE_H
 
+#include "tll/channel/convert-buf.h"
 #include "tll/channel/prefix.h"
 
 namespace tll::channel {
@@ -21,10 +22,14 @@ class Resolve : public tll::channel::Prefix<Resolve>
 	std::vector<char> _request_buf;
 	tll::ConstConfig _open_cfg;
 
+	ConvertBuf _convert_into;
+	ConvertBuf _convert_from;
+
  public:
 	static constexpr std::string_view channel_protocol() { return "resolve"; }
 
 	static constexpr auto prefix_scheme_policy() { return Base::PrefixSchemePolicy::Override; }
+	static constexpr auto prefix_active_policy() { return Base::PrefixActivePolicy::Manual; }
 
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
 	void _free()
@@ -53,6 +58,35 @@ class Resolve : public tll::channel::Prefix<Resolve>
 		return 0;
 	}
 
+	int _on_active();
+	int _on_closed()
+	{
+		_convert_from.reset();
+		_convert_into.reset();
+		return Base::_on_closed();
+	}
+
+	int _on_data(const tll_msg_t *msg)
+	{
+		if (_convert_from.scheme_from) {
+			_log.debug("Try convert");
+			if (auto m = _convert_from.convert(msg); m)
+				return _callback_data(m);
+			return _log.fail(EINVAL, "Failed to convert message {} at {}: {}", msg->msgid, _convert_from.format_stack(), _convert_from.error);
+		}
+		return _callback_data(msg);
+	}
+
+	int _post(const tll_msg_t *msg, int flags)
+	{
+		if (_convert_into.scheme_from) {
+			_log.debug("Try convert");
+			if (auto m = _convert_into.convert(msg); m)
+				return _child->post(m, flags);
+			return _log.fail(EINVAL, "Failed to convert message {} at {}: {}", msg->msgid, _convert_into.format_stack(), _convert_into.error);
+		}
+		return _child->post(msg, flags);
+	}
  private:
 	static int _on_request(const tll_channel_t *c, const tll_msg_t *msg, void * user)
 	{

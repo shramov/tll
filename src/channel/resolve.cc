@@ -105,3 +105,17 @@ int Resolve::_on_request_data(const tll_msg_t *msg)
 	_child->open(_open_cfg);
 	return 0;
 }
+
+int Resolve::_on_active()
+{
+	if (auto r = Base::_on_active(); r)
+		return r;
+	if (auto cscheme = _child->scheme(); cscheme && _scheme_url) {
+		if (auto r = _convert_from.init(_log, cscheme, _scheme.get()); r)
+			return _log.fail(r, "Can not initialize converter from the child");
+		if (auto r = _convert_into.init(_log, _scheme.get(), cscheme); r)
+			return _log.fail(r, "Can not initialize converter into the child");
+	}
+	state(tll::state::Active);
+	return 0;
+}

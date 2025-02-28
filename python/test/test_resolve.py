@@ -87,13 +87,26 @@ def test_scheme_hash(context, with_scheme_hash):
     assert [m.name for m in c.scheme.messages] == ['Message']
 
 def test_scheme_override(context):
+    scheme_outer = '''yamls://
+- name: Data
+  id: 16
+  fields:
+    - {name: header, type: int16}
+    - {name: f0, type: int32}
+'''
+    scheme_inner = '''yamls://
+- name: Data
+  id: 16
+  fields:
+    - {name: f0, type: int16}
+'''
     scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/resolve.yaml"
     rserver = Accum('direct://', name='resolve-server', dump='yes', scheme=f'yaml://{scheme}', context=context)
-    c = context.Channel('resolve://;resolve.service=service;resolve.channel=channel;name=resolve', scheme='yamls://[{name: Outer}]')
+    c = Accum('resolve://;resolve.service=service;resolve.channel=channel;name=resolve', scheme=scheme_outer, context=context, dump='yes')
 
     rserver.open()
 
-    body = {'init.tll.proto': 'null', 'init.scheme': 'yamls://[{name: Inner}]'}
+    body = {'init.tll.proto': 'direct', 'init.scheme': scheme_inner, 'init.dump': 'yes'}
 
     c.open()
     assert c.state == c.State.Opening
@@ -104,9 +117,20 @@ def test_scheme_override(context):
     assert c.state == c.State.Active
     assert c.children[1].name == 'resolve/resolve'
     assert c.children[1].scheme != None
-    assert [m.name for m in c.children[1].scheme.messages] == ['Inner']
+    assert [(m.name, m.msgid, m.size) for m in c.children[1].scheme.messages] == [('Data', 16, 2)]
     assert c.scheme != None
-    assert [m.name for m in c.scheme.messages] == ['Outer']
+    assert [(m.name, m.msgid, m.size) for m in c.scheme.messages] == [('Data', 16, 6)]
+
+    client = Accum('direct://', master=c.children[1], context=context, name='client')
+    client.open()
+
+    client.post({'f0': 100}, name='Data', seq=10)
+    assert [(m.msgid, m.seq) for m in c.result] == [(16, 10)]
+    assert c.unpack(c.result[-1]).as_dict() == {'header': 0, 'f0': 100}
+
+    c.post({'header': 100, 'f0': 200}, name='Data', seq=20)
+    assert [(m.msgid, m.seq) for m in client.result] == [(16, 20)]
+    assert client.unpack(client.result[-1]).as_dict() == {'f0': 200}
 
 def test_early_close(context, path_srcdir):
     scheme = path_srcdir / "src/logic/resolve.yaml"
