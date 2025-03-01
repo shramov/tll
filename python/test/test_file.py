@@ -472,3 +472,33 @@ def test_file_prefix(context, filename, prefix):
     w.post(b'xxx', seq=10)
     assert w.config['info.seq'] == '10'
     assert w.config.sub('info').as_dict() == w.config.sub('child.info').as_dict()
+
+@pytest.mark.parametrize("io", ['posix', 'mmap'])
+def test_reopen_lz4_meta(context, filename, io):
+    SCHEME = '''yamls://
+- name: Frame
+  fields:
+    - {name: msgid, type: int32}
+    - {name: seq, type: int64}
+- name: Data
+  id: 12345678
+  fields:
+    - {name: list, type: 'Frame[2]'}
+'''
+    w = context.Channel(f'file://{filename}', name='writer', dir='w', compression='lz4', io=io, dump='yes', autoseq='yes', scheme=SCHEME)
+    w.open()
+    msgid = 12345678
+    for i in range(4):
+        # Feed lz4 dict with frame-like structures
+        w.post({'list': [{'msgid': msgid, 'seq': 1}] * 2}, name='Data')
+    w.close()
+
+    w.open()
+    w.post({'list': [{'msgid': msgid, 'seq': 3}] * 2}, name='Data')
+    w.close()
+
+    r = Accum(f'file://{filename}', name='reader', dump='yes', context=context)
+    r.open()
+    for _ in range(5):
+        r.process()
+    assert r.unpack(r.result[-1]).as_dict() == {'list': [{'msgid': msgid, 'seq': 3}] * 2}
