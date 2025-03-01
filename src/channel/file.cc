@@ -605,6 +605,8 @@ int File<TIO>::_file_bounds()
 
 	_seq = msg.seq;
 
+	long long delta_seq_prev = 0;
+	auto block_prev = _io.block_end;
 	do {
 		frame_size_t frame;
 		if (auto r = _read_frame(&frame); r) {
@@ -628,6 +630,12 @@ int File<TIO>::_file_bounds()
 
 		if ((this->internal.caps & caps::Output) && _compression == Compression::LZ4) {
 			frame_t meta = { &msg };
+			if (block_prev != _io.block_end) {
+				block_prev = _io.block_end;
+				delta_seq_prev = 0;
+			}
+			meta.seq -= delta_seq_prev;
+			delta_seq_prev = _delta_seq_base;
 			auto r = _compress_datav(const_memory { &meta, sizeof(meta) }, const_memory { msg.data, msg.size });
 			if (!r.data)
 				return this->_log.fail(EINVAL, "Failed to compress data");
