@@ -274,7 +274,7 @@ TEST(Logger, Thread)
 		ASSERT_EQ(impl.map.size(), 2u);
 	}
 
-	for (auto i = 0u; i < 50; i++) {
+	for (auto i = 0u; i < 500; i++) {
 		std::this_thread::yield();
 		std::this_thread::sleep_for(200us);
 		std::unique_lock<std::mutex> lock(impl.lock);
