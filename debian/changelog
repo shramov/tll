@@ -1,3 +1,36 @@
+tll (0.3.5) UNRELEASED; urgency=medium
+
+  * bits: Allow both | and , separatros when parsing
+  * channel: Add logs for suspend/resume
+  * direct: Check for duplicate slaves
+  * file:
+    Do not allocate write lz4 buffers in read mode
+    Use delta seq in recompression
+  * filter: Filter stream based on message id
+  * logger: Async mode: write logs in separate thread
+  * python:
+    Clear old messages when waiting for object state in mock
+    Fix typo in TimePoint.__lt__
+    Fix buch of Config functions
+    Make post policy compatible with C++
+    Missing check for out of string accesses in scheme messages
+  * rotate:
+    Do not change ctime/mtime of old files
+    Use last available scheme and force rotate when opened with new one
+  * scheme: Report unknow resolution for time fields as error
+  * stat: Blocking acquire variant
+  * stream:
+    Drain pending data from online channel
+    Drop hardcoded dump parameter from blocks
+    Export last seq in config for client
+    Incorrect open parameter when feeding empty blocks
+  * tcp:
+    Clarify sndbuf/send-buffer-size difference in manpage
+    Export local and remote host/port in config
+  * yaml: Set time field in messages
+
+ -- Pavel Shramov <shramov@mexmat.net>  Tue, 04 Mar 2025 16:45:05 +0300
+
 tll (0.3.4) unstable; urgency=medium
 
   * resolve: Export of TCP based channels with * address,
