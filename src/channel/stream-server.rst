@@ -77,6 +77,9 @@ storage and block childs. For example if ``blocks`` storage is defined it contai
 used to create new data snapshot. If sequential storage is defined as ``rotate+file://`` then it
 contains ``Rotate`` message that is used to start new file.
 
+.. include::
+    stream-resolve.rst
+
 Examples
 --------
 

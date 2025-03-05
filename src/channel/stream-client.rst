@@ -74,6 +74,9 @@ empty, in which case it is first message) read from ``blocks`` channel to linear
   - name: EndOfBlock
     id: 11
 
+.. include::
+    stream-resolve.rst
+
 Examples
 --------
 
