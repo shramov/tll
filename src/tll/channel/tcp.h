@@ -245,6 +245,7 @@ class TcpClient : public S
  protected:
 	int _process_connect();
 
+	int _export_peer(bool local);
 	int _on_connect()
 	{
 		this->_dcaps_poll(dcaps::CPOLLIN);

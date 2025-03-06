@@ -469,29 +469,8 @@ int TcpClient<T, S>::_open(const ConstConfig &url)
 	if (r && errno != EINPROGRESS)
 		return this->_log.fail(errno, "Failed to connect: {}", strerror(errno));
 
-	tll::network::sockaddr_any local, remote;
-	local.size = sizeof(local);
-	remote.size = sizeof(remote);
-	if (getsockname(this->fd(), local, &local.size))
-		return this->_log.fail(errno, "Failed to get socket address: {}", strerror(errno));
-	if (getpeername(this->fd(), remote, &remote.size))
-		return this->_log.fail(errno, "Failed to get peer address: {}", strerror(errno));
-	if (local->sa_family != AF_UNIX) {
-		this->_log.debug("Local address: {}", local);
-		this->config_info().setT("local.af", (network::AddressFamily) local->sa_family);
-		this->config_info().setT("local.port", ntohs(local.in()->sin_port));
-		if (local->sa_family == AF_INET)
-			this->config_info().setT("local.host", local.in()->sin_addr);
-		else
-			this->config_info().setT("local.host", local.in6()->sin6_addr);
-
-		this->config_info().setT("remote.af", (network::AddressFamily) remote->sa_family);
-		this->config_info().setT("remote.port", ntohs(remote.in()->sin_port));
-		if (remote->sa_family == AF_INET)
-			this->config_info().setT("remote.host", remote.in()->sin_addr);
-		else
-			this->config_info().setT("remote.host", remote.in6()->sin6_addr);
-	}
+	if (auto r = _export_peer(true); r)
+		return r;
 
 	if (r) {
 		this->_dcaps_poll(dcaps::CPOLLOUT);
@@ -499,8 +478,33 @@ int TcpClient<T, S>::_open(const ConstConfig &url)
 	}
 
 	this->_log.info("Connected");
+	if (auto r = _export_peer(false); r)
+		return r;
 
 	return this->channelT()->_on_connect();
+}
+
+template <typename T, typename S>
+int TcpClient<T, S>::_export_peer(bool local)
+{
+	tll::network::sockaddr_any addr;
+	addr.size = sizeof(addr);
+	const auto func = local ? getsockname : getpeername;
+	if (func(this->fd(), addr, &addr.size))
+		return this->_log.fail(errno, "Failed to get {} address: {}", local ? "socket" : "peer", strerror(errno));
+	if (addr->sa_family != AF_UNIX) {
+		this->_log.debug("{} address: {}", local ? "Local" : "Remote", addr);
+		auto cfg = this->config_info().sub(local ? "local" : "remote", true);
+		if (!cfg)
+			return this->_log.fail(EINVAL, "Can not create subtree for {} address", local ? "local" : "remote");
+		cfg->setT("af", (network::AddressFamily) addr->sa_family);
+		cfg->setT("port", ntohs(addr.in()->sin_port));
+		if (addr->sa_family == AF_INET)
+			cfg->setT("host", addr.in()->sin_addr);
+		else
+			cfg->setT("host", addr.in6()->sin6_addr);
+	}
+	return 0;
 }
 
 template <typename T, typename S>
@@ -521,6 +525,8 @@ int TcpClient<T, S>::_process_connect()
 		return this->_log.fail(err, "Failed to connect: {}", strerror(err));
 
 	this->_log.info("Connected");
+	if (auto r = _export_peer(false); r)
+		return r;
 	return this->channelT()->_on_connect();
 }
 
