@@ -569,3 +569,20 @@ async def test_bind(asyncloop):
     m = s.unpack(m)
     assert m.SCHEME.name == 'Connect'
     assert m.port == port
+
+@asyncloop_run
+async def test_network(asyncloop):
+    s = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM, proto=socket.IPPROTO_TCP)
+    host = 'github.com'
+    s.settimeout(0.5)
+    try:
+        s.connect((host, 80))
+    except Exception:
+        pytest.skip(f"Can not connect to {host}")
+
+    c = asyncloop.Channel(f'tcp://{host}:80;name=client;mode=client;frame=none;dump=text')
+    c.open()
+    assert (await c.recv_state(0.5)) == c.State.Active
+    c.post(b'GET / HTTP/1.1\r\nHost: github.com\r\n\r\n')
+    m = await c.recv(0.5)
+    assert m.data.tobytes()[:12] == b'HTTP/1.1 301'
