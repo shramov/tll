@@ -1,4 +1,12 @@
-tll (0.3.5) UNRELEASED; urgency=medium
+tll (0.3.6) unstable; urgency=medium
+
+  * channel: Impl version field
+  * stream: Describe resolve exports in manpage
+  * tcp: Fix recently broken async client connect
+
+ -- Pavel Shramov <shramov@mexmat.net>  Sun, 09 Mar 2025 15:19:39 +0300
+
+tll (0.3.5) unstable; urgency=medium
 
   * bits: Allow both | and , separatros when parsing
   * channel: Add logs for suspend/resume
