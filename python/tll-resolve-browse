@@ -24,6 +24,8 @@ parser.add_argument('--scheme', dest='scheme', type=str,
                     help='resolve protocol scheme')
 parser.add_argument('-l', '--loglevel', dest='loglevel', default='warning',
                     help='logging level', choices=['trace', 'debug', 'info', 'warning', 'error', 'critical'])
+parser.add_argument('-c', '--count', dest='count', type=int, default=None,
+                    help='exit after priting count number of entries')
 
 args = parser.parse_args()
 
@@ -47,7 +49,8 @@ async def main(loop):
 
     c.post({'service': args.service, 'channel': args.channel}, name='Request')
 
-    while c.state == c.State.Active:
+    count = 1 if args.count is None else args.count
+    while c.state == c.State.Active and count > 0:
         try:
             m = await c.recv(timeout=3)
         except TimeoutError:
@@ -64,5 +67,8 @@ Channel: {m.channel}
 Host: {m.host}
 Url: {url}
 ''')
+        if args.count is not None:
+            count -= 1
+
 
 loop.run(main(loop))
