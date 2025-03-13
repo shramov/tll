@@ -643,10 +643,14 @@ cdef class FFixed(FBase):
     default = Decimal
     cdef FBase base
     cdef int fixed_precision
+    cdef object limits_max
+    cdef object limits_min
 
     def __init__(self, f):
         self.base = f.impl
         self.fixed_precision = f.fixed_precision
+        self.limits_max = f.limits_max
+        self.limits_min = f.limits_min
 
     cdef pack(FFixed self, v, dest, tail, int tail_offset):
         return self.base.pack(v.scaleb(self.fixed_precision).to_integral_value(), dest, tail, tail_offset)
@@ -661,6 +665,10 @@ cdef class FFixed(FBase):
             v = Decimal(round(v * (10 ** self.fixed_precision))).scaleb(-self.fixed_precision)
         elif not isinstance(v, Decimal):
             raise TypeError("Expected str, float or int, got {}: {}".format(type(v), v))
+        if v > self.limits_max:
+            raise ValueError(f"Value {v} > max {self.limits_max}")
+        elif v < self.limits_min:
+            raise ValueError(f"Value {v} < min {self.limits_min}")
         return v
     cdef from_string(FFixed self, str s): return decimal_value_check(Decimal, s)
 _SUBTYPES[SubType.FixedPoint] = FFixed
@@ -911,6 +919,12 @@ cdef object field_wrap(Scheme s, object m, tll_scheme_field_t * ptr):
     r.type = Type(ptr.type)
     r.sub_type = SubType(ptr.sub_type)
     r.index = ptr.index
+    if r.type in (r.Int8, r.Int16, r.Int32, r.Int64):
+        r.limits_max = 2 ** (8 * ptr.size - 1) - 1
+        r.limits_min = -r.limits_max
+    elif r.type in (r.UInt8, r.UInt16, r.UInt32, r.UInt64):
+        r.limits_max = 2 ** (8 * ptr.size) - 1
+        r.limits_min = 0
     if r.type == r.Message:
         r.type_msg = s[ptr.type_msg.name]
     elif r.type == r.Array:
@@ -949,6 +963,8 @@ cdef object field_wrap(Scheme s, object m, tll_scheme_field_t * ptr):
         r.bitfields = r.type_bits # Legacy
     elif r.sub_type == r.Sub.FixedPoint:
         r.fixed_precision = ptr.fixed_precision
+        r.limits_max = Decimal(r.limits_max).scaleb(-r.fixed_precision)
+        r.limits_min = Decimal(r.limits_min).scaleb(-r.fixed_precision)
     elif r.sub_type == r.Sub.TimePoint or r.sub_type == r.Sub.Duration:
         r.time_resolution = _time_resolution_map[ptr.time_resolution]
 

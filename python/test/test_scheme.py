@@ -399,10 +399,14 @@ def test_fixed():
     assert m.as_dict() == u.as_dict()
 
     assert m.SCHEME['i16'].from_string('123.4') == decimal.Decimal('123.4')
-    assert m.SCHEME['u16'].from_string('123.4') == decimal.Decimal('123.4')
+    assert m.SCHEME['u16'].from_string('0.01234') == decimal.Decimal('0.01234')
+    with pytest.raises(ValueError): m.SCHEME['u16'].from_string('123.4')
+    with pytest.raises(ValueError): m.SCHEME['u16'].from_string('-0.001')
 
     with pytest.raises(ValueError): m.SCHEME['i16'].from_string('xxx')
     with pytest.raises(ValueError): m.i16 = 'xxx'
+    with pytest.raises(ValueError): m.i16 = 1000
+    with pytest.raises(ValueError): m.u16 = -0.001
 
 @pytest.mark.parametrize("version", ['default', 'legacy-long', 'legacy-short'])
 def test_list(version):
