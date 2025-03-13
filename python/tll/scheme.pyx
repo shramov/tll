@@ -679,6 +679,8 @@ cdef class FTimePoint(FBase):
     cdef unpack(FTimePoint self, src):
         return chrono.TimePoint(self.base.unpack(src), self.time_resolution, type=self.base.default)
     cdef convert(FTimePoint self, v):
+        if isinstance(v, str):
+            v = chrono.TimePoint.from_str(v)
         if isinstance(v, chrono.TimePoint):
             return v.convert(self.time_resolution, self.base.default)
         return chrono.TimePoint(chrono.TimePoint(v), self.time_resolution, type=self.base.default)
@@ -722,6 +724,8 @@ cdef class FBits(FBase):
     cdef unpack(FBits self, src):
         return self.default(self.base.unpack(src))
     cdef convert(FBits self, v):
+        if isinstance(v, str):
+            return self.default.from_str(v)
         return self.default(v)
     cdef from_string(FBits self, str s):
         return self.default.from_str(s)
