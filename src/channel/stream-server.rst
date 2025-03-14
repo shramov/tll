@@ -66,8 +66,10 @@ used without scheme.
 ``init-block``, default ``default`` - initialize block storage with message from ``init-message``
 parameter with block this block type. Applicable only if ``blocks`` channel is defined.
 
-``rotate-on-block=<string>``, default empty - if storage channel has ``Rotate`` control message - post
-it when new block with this type is created.
+``rotate-on-block=<string>``, default empty - if new block is created with same name as given in
+this parameter (and storage channel has ``Rotate`` control message) then ``Rotate`` is posted into
+storage. For example ``rotate-on-block=default`` will create new file each time ``default`` block is
+created for stream server with ``rotate+file://`` storage.
 
 Control messages
 ----------------
