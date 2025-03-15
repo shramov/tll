@@ -172,6 +172,9 @@ processor.objects:
     assert client.unpack(m).as_dict() == {'channel': 'object', 'state': State.Active}
 
     m = await client.recv()
+    assert client.unpack(m).as_dict() == {'channel': 'test/stage/active', 'state': State.Closed}
+
+    m = await client.recv()
     assert client.unpack(m).SCHEME.name == 'StateDumpEnd'
 
     client.post({'dest': 'object', 'data': {'msgid': 10, 'seq': 100, 'addr': 1000, 'type': client.Type.Control, 'data': b'xxx'}}, name='MessageForward')

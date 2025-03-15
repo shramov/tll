@@ -60,6 +60,7 @@ struct Processor : public tll::channel::Base<Processor>
 	tll::ConstConfig _cfg;
 	std::list<Object> _objects;
 	std::multimap<tll::time_point, Object *> _pending;
+	std::map<std::string, Object *> _stages_map;
 
 	tll_channel_t context_channel = {};
 	tll_channel_internal_t context_internal = { TLL_STATE_CLOSED };
@@ -81,6 +82,7 @@ struct Processor : public tll::channel::Base<Processor>
 
 	int init_one(PreObject &obj);
 	int init_depends();
+	int init_stages();
 	std::optional<PreObject> init_pre(std::string_view name, ConstConfig &cfg);
 	int object_depth(std::map<std::string, PreObject, std::less<>> &map, PreObject &o, std::list<std::string_view> & path, bool init);
 	Worker * init_worker(std::string_view name);

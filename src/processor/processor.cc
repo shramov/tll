@@ -122,6 +122,8 @@ int Processor::_init(const tll::Channel::Url &url, Channel * master)
 
 	if (init_depends())
 		return _log.fail(EINVAL, "Failed to init objects");
+	if (init_stages())
+		return _log.fail(EINVAL, "Failed to build stages");
 
 	if (build_rdepends())
 		return _log.fail(EINVAL, "Failed to build dependency graph");
@@ -238,7 +240,11 @@ std::optional<Processor::PreObject> Processor::init_pre(std::string_view extname
 		url->set(key, *c.get());
 	}
 
-	PreObject obj = { *url, cfg, name };
+	PreObject obj = {
+		.url = *url,
+		.config = cfg,
+		.name = name,
+	};
 
 	auto deps = cfg.get("depends");
 	if (deps || !deps->empty()) {
@@ -408,6 +414,75 @@ int Processor::build_rdepends()
 		if (o.rdepends.size())
 			cfg->set("rdepends", tll::conv::to_string(o.rdepends));
 	}
+	return 0;
+}
+
+int Processor::init_stages()
+{
+	struct Stage
+	{
+		std::string name;
+		std::set<Object *> objects;
+	};
+
+	std::map<std::string, Stage> stages;
+
+	for (auto &[name, scfg] : _cfg.browse("stages.*", true)) {
+		Stage s = { name.substr(7) };
+		auto log = _log.prefix("{} {}:", "stage", std::string_view(s.name)); // TODO: name is moved and left empty without std::string_view wrapper
+		for (auto & [_, vcfg] : scfg.browse("**")) {
+			auto v = vcfg.get();
+			if (!v || v->empty())
+				return _log.fail(EINVAL, "Empty object name");
+			auto o = find(*v);
+			if (!o)
+				return _log.fail(EINVAL, "Unknown object: '{}'", *v);
+			s.objects.insert(o);
+		}
+		stages[name] = std::move(s);
+	}
+
+	if (stages.empty()) {
+		_log.debug("No stages defined, create default one");
+		auto * ptr = &stages.emplace("active", Stage { .name = "active" }).first->second;
+		for (auto & o : _objects) {
+			if (o.rdepends.empty()) {
+				_log.debug("Assign object {} to stage {}", o.name(), ptr->name);
+				ptr->objects.insert(&o);
+			}
+		}
+	}
+
+	for (auto & [_, s]: stages) {
+		auto log = _log.prefix("{} {}:", "stage", std::string_view(name)); // TODO: name is moved and left empty without std::string_view wrapper
+		if (s.objects.empty())
+			return log.fail(EINVAL, "Empty object list");
+		Worker * worker = nullptr;
+		auto wdefault = fmt::format("{}/worker/default", this->name);
+		for (auto & o : s.objects) {
+			if (!worker || o->worker->name == wdefault)
+				worker = o->worker;
+		}
+
+		auto url = child_url_parse("null://", fmt::format("stage/{}", s.name));
+		if (!url)
+			return log.fail(EINVAL, "Failed to parse child url: {}", url.error());
+		url->set("tll.processor.stage", s.name);
+
+		auto channel = context().channel(*url);
+		if (!channel)
+			return log.fail(EINVAL, "Failed to create stage channel");
+
+		_objects.emplace_back(std::move(channel));
+		auto o = &_objects.back();
+		o->worker = worker;
+
+		for (auto & so : s.objects)
+			o->depends_names.push_back(std::string(so->name()));
+		if (o->init(*url))
+			return log.fail(EINVAL, "Failed to init extra parameters for stage channel");
+	}
+
 	return 0;
 }
 
