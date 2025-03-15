@@ -99,7 +99,7 @@ struct Processor : public tll::channel::Base<Processor>
 	void _free();
 
 	void activate();
-	void update(const Channel *, tll_state_t state);
+	void update(Object *, tll_state_t state);
 
 	Object * find(const Channel *c)
 	{
@@ -152,7 +152,7 @@ struct Processor : public tll::channel::Base<Processor>
 
 	int pending_process(const tll_msg_t * msg);
 
-	void _report_state(const Channel *c, tll_state_t s, tll_addr_t addr);
+	void _report_state(const Object *o, tll_state_t s, tll_addr_t addr);
 };
 
 } // namespace tll::processor

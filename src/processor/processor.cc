@@ -476,6 +476,8 @@ int Processor::init_stages()
 		_objects.emplace_back(std::move(channel));
 		auto o = &_objects.back();
 		o->worker = worker;
+		o->stage = true;
+		o->stage_name = s.name;
 
 		for (auto & so : s.objects)
 			o->depends_names.push_back(std::string(so->name()));
@@ -544,8 +546,12 @@ int Processor::cb(const Channel * c, const tll_msg_t * msg)
 	}
 	case scheme::State::id: {
 		auto data = (const scheme::State *) msg->data;
-		update(data->channel, data->state);
-		_report_state(data->channel, data->state, {});
+		auto o = find(data->channel);
+		if (!o)
+			return _log.fail(EINVAL, "Channel {} not found", data->channel->name());
+
+		update(o, data->state);
+		_report_state(o, data->state, {});
 		break;
 	}
 	case scheme::WorkerState::id: {
@@ -573,7 +579,7 @@ int Processor::cb(const Channel * c, const tll_msg_t * msg)
 	// Normal messages
 	case processor_scheme::StateDump::meta_id(): {
 		for (auto & o : _objects)
-			_report_state(o.get(), o.state, msg->addr);
+			_report_state(&o, o.state, msg->addr);
 		tll_msg_t m = { TLL_MESSAGE_DATA };
 		m.msgid = processor_scheme::StateDumpEnd::meta_id();
 		m.addr = msg->addr;
@@ -618,18 +624,15 @@ int Processor::cb(const Channel * c, const tll_msg_t * msg)
 	return 0;
 }
 
-void Processor::update(const Channel *c, tll_state_t s)
+void Processor::update(Object *o, tll_state_t s)
 {
-	_log.debug("Update channel {} state {}", c->name(), tll_state_str(s));
-	auto o = find(c);
-	if (!o)
-		return _log.error("Channel {} not found", c->name());
-	_log.info("Channel {} state {} -> {}", c->name(), tll_state_str(o->state), tll_state_str(s));
+	_log.debug("Update channel {} state {}", o->name(), tll_state_str(s));
+	_log.info("Channel {} state {} -> {}", o->name(), tll_state_str(o->state), tll_state_str(s));
 	o->state_prev = o->state;
 	o->state = s;
 
 	if (o->verbose)
-		_log.info("Object {} state {}", c->name(), tll_state_str(s));
+		_log.info("Object {} state {}", o->name(), tll_state_str(s));
 	if (o->reopen.pending())
 		pending_del(o->reopen.next, o);
 	o->on_state(s);
@@ -817,13 +820,15 @@ int Processor::pending_process(const tll_msg_t * msg)
 	return 0;
 }
 
-void Processor::_report_state(const Channel *c, tll_state_t s, tll_addr_t addr)
+void Processor::_report_state(const Object *o, tll_state_t s, tll_addr_t addr)
 {
 	_buf.resize(0);
 	_buf.resize(processor_scheme::StateUpdate::meta_size());
 	auto data = processor_scheme::StateUpdate::bind(_buf);
-	data.set_channel(c->name());
+	data.set_channel(o->name());
 	data.set_state((processor_scheme::StateUpdate::State) s);
+	if (o->stage)
+		data.set_flags(data.get_flags().stage(true));
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	msg.msgid = data.meta_id();
 	msg.data = data.view().data();

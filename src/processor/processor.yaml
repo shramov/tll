@@ -3,11 +3,14 @@
 
 - name: StateUpdate
   id: 0x1010
+  bits:
+    Flags: {type: uint16, bits: [stage]}
   enums:
     State: {type: uint8, enum: {Closed: 0, Opening: 1, Active: 2, Closing: 3, Error: 4, Destroy: 5}}
   fields:
     - {name: channel, type: string}
     - {name: state, type: State}
+    - {name: flags, type: Flags}
 
 - name: StateDumpEnd
   id: 0x1020

@@ -32,6 +32,7 @@ struct Object
 	bool decay = false;
 	bool opening = false;
 	bool verbose = false;
+	bool stage = false;
 
 	tll::channel::ReopenData reopen;
 
@@ -42,6 +43,7 @@ struct Object
 	std::vector<Object *> rdepends;
 
 	std::list<std::string> depends_names; //< Temporary storage used during initialization
+	std::string stage_name; //< Short name without processor/stage/ prefix for stage object
 
 	Object(std::unique_ptr<Channel> && ptr)
 		: channel(std::move(ptr))

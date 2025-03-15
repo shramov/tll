@@ -5,7 +5,7 @@
 
 namespace processor_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJydkstugzAQRff5itl5A1JwKE3YVUm6q7qo+gFWPKWWwFDbtIoi/r3Do3F4VJW6QTP44HvnDiFoUWAK7MUJh4e6qNgKQMkU4vUuWYWj49dK0vMKRBGnEnVd2JQKGCiWwsWdK/qqVtptg46gd+zh5NRne8wDYPu8tCipWQ+N0hl1G+oOaJ0pz9TdUXc0pjRUx1Q/V6h7LmoaknxTmMtBPITL4PX0LrTGnAXQ22B0XftVM+Fs5/ZK9eabycxtJEct/dB864kntFZkXSLLVtqrvQLFESUzG4XNlBxBGz73ih8jJIlniJDSeKZehmiBYiGY6USPpfkS5mbq++TXGSWt68+sx7o/ud0I7/uldb+Fl93xf2z5G6Re0qc=)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJydkj1vgzAQhvf8Cm9eQAqE0oStysdWdag6VR3c+KCWwFDbtEoj/nvPfAZIVKkLusOP7733fC6RLIOI0GfDDOzKrKALQgSPSLDchAt3dPxScPz2gOf5GIIsMx1hQFqKRuRsTgXeKoU0a6cm8B99OBrxZY99h9BtmmvgmCzbRMgEsxVmO9BG5SfM7jDbK5UrjAOMnwqQDedVFUq+C9NJH1KW6LG0FzoNQV7PrQ1tWALUIXkcazC1uBY/YOu92YKxgJS3JV3S3Tp+MCkhxXtNcSyjbBvVhNO1/Z5qpjGF4rrRHmr6riaTtg+xl3wYtb8eiEfQ2tq42a8tPSjUk5i1kelE8BG08ueG4HOEhMEMYZyrgSmvQ7g27Mr0po4Oufpm6sL1fXjTI8cl+fNBxrrd3C6Et83L1ss4yG78f6zCL4ry9lM=)";
 
 struct StateDump
 {
@@ -26,13 +26,19 @@ struct StateDump
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct StateUpdate
 {
-	static constexpr size_t meta_size() { return 9; }
+	static constexpr size_t meta_size() { return 11; }
 	static constexpr std::string_view meta_name() { return "StateUpdate"; }
 	static constexpr int meta_id() { return 4112; }
+	static constexpr size_t offset_channel = 0;
+	static constexpr size_t offset_state = 8;
+	static constexpr size_t offset_flags = 9;
 
 	enum class State: uint8_t
 	{
@@ -42,6 +48,19 @@ struct StateUpdate
 		Closing = 3,
 		Error = 4,
 		Destroy = 5,
+	};
+
+	struct Flags: public tll::scheme::Bits<uint16_t>
+	{
+		using tll::scheme::Bits<uint16_t>::Bits;
+		constexpr auto stage() const { return get(0, 1); };
+		constexpr Flags & stage(bool v) { set(0, 1, v); return *this; };
+		static std::map<std::string_view, value_type> bits_descriptor()
+		{
+			return {
+				{ "stage", static_cast<value_type>(Bits::mask(1)) << 0 },
+			};
+		}
 	};
 
 	template <typename Buf>
@@ -54,16 +73,23 @@ struct StateUpdate
 		static constexpr auto meta_id() { return StateUpdate::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
 
-		std::string_view get_channel() const { return this->template _get_string<tll_scheme_offset_ptr_t>(0); }
-		void set_channel(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(0, v); }
+		std::string_view get_channel() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_channel); }
+		void set_channel(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_channel, v); }
 
 		using type_state = State;
-		type_state get_state() const { return this->template _get_scalar<type_state>(8); }
-		void set_state(type_state v) { return this->template _set_scalar<type_state>(8, v); }
+		type_state get_state() const { return this->template _get_scalar<type_state>(offset_state); }
+		void set_state(type_state v) { return this->template _set_scalar<type_state>(offset_state, v); }
+
+		using type_flags = Flags;
+		type_flags get_flags() const { return this->template _get_scalar<type_flags>(offset_flags); }
+		void set_flags(type_flags v) { return this->template _set_scalar<type_flags>(offset_flags, v); }
 	};
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct StateDumpEnd
@@ -85,12 +111,20 @@ struct StateDumpEnd
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct Message
 {
 	static constexpr size_t meta_size() { return 30; }
 	static constexpr std::string_view meta_name() { return "Message"; }
+	static constexpr size_t offset_type = 0;
+	static constexpr size_t offset_msgid = 2;
+	static constexpr size_t offset_seq = 6;
+	static constexpr size_t offset_addr = 14;
+	static constexpr size_t offset_data = 22;
 
 	template <typename Buf>
 	struct binder_type : public tll::scheme::Binder<Buf>
@@ -102,27 +136,30 @@ struct Message
 		void view_resize() { this->_view_resize(meta_size()); }
 
 		using type_type = int16_t;
-		type_type get_type() const { return this->template _get_scalar<type_type>(0); }
-		void set_type(type_type v) { return this->template _set_scalar<type_type>(0, v); }
+		type_type get_type() const { return this->template _get_scalar<type_type>(offset_type); }
+		void set_type(type_type v) { return this->template _set_scalar<type_type>(offset_type, v); }
 
 		using type_msgid = int32_t;
-		type_msgid get_msgid() const { return this->template _get_scalar<type_msgid>(2); }
-		void set_msgid(type_msgid v) { return this->template _set_scalar<type_msgid>(2, v); }
+		type_msgid get_msgid() const { return this->template _get_scalar<type_msgid>(offset_msgid); }
+		void set_msgid(type_msgid v) { return this->template _set_scalar<type_msgid>(offset_msgid, v); }
 
 		using type_seq = int64_t;
-		type_seq get_seq() const { return this->template _get_scalar<type_seq>(6); }
-		void set_seq(type_seq v) { return this->template _set_scalar<type_seq>(6, v); }
+		type_seq get_seq() const { return this->template _get_scalar<type_seq>(offset_seq); }
+		void set_seq(type_seq v) { return this->template _set_scalar<type_seq>(offset_seq, v); }
 
 		using type_addr = uint64_t;
-		type_addr get_addr() const { return this->template _get_scalar<type_addr>(14); }
-		void set_addr(type_addr v) { return this->template _set_scalar<type_addr>(14, v); }
+		type_addr get_addr() const { return this->template _get_scalar<type_addr>(offset_addr); }
+		void set_addr(type_addr v) { return this->template _set_scalar<type_addr>(offset_addr, v); }
 
-		std::string_view get_data() const { return this->template _get_string<tll_scheme_offset_ptr_t>(22); }
-		void set_data(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(22, v); }
+		std::string_view get_data() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_data); }
+		void set_data(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_data, v); }
 	};
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct MessageForward
@@ -130,6 +167,8 @@ struct MessageForward
 	static constexpr size_t meta_size() { return 38; }
 	static constexpr std::string_view meta_name() { return "MessageForward"; }
 	static constexpr int meta_id() { return 4176; }
+	static constexpr size_t offset_dest = 0;
+	static constexpr size_t offset_data = 8;
 
 	template <typename Buf>
 	struct binder_type : public tll::scheme::Binder<Buf>
@@ -141,16 +180,19 @@ struct MessageForward
 		static constexpr auto meta_id() { return MessageForward::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
 
-		std::string_view get_dest() const { return this->template _get_string<tll_scheme_offset_ptr_t>(0); }
-		void set_dest(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(0, v); }
+		std::string_view get_dest() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_dest); }
+		void set_dest(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_dest, v); }
 
 		using type_data = Message::binder_type<Buf>;
-		const type_data get_data() const { return this->template _get_binder<type_data>(8); }
-		type_data get_data() { return this->template _get_binder<type_data>(8); }
+		const type_data get_data() const { return this->template _get_binder<type_data>(offset_data); }
+		type_data get_data() { return this->template _get_binder<type_data>(offset_data); }
 	};
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 struct ChannelClose
@@ -158,6 +200,7 @@ struct ChannelClose
 	static constexpr size_t meta_size() { return 8; }
 	static constexpr std::string_view meta_name() { return "ChannelClose"; }
 	static constexpr int meta_id() { return 4192; }
+	static constexpr size_t offset_channel = 0;
 
 	template <typename Buf>
 	struct binder_type : public tll::scheme::Binder<Buf>
@@ -169,12 +212,15 @@ struct ChannelClose
 		static constexpr auto meta_id() { return ChannelClose::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
 
-		std::string_view get_channel() const { return this->template _get_string<tll_scheme_offset_ptr_t>(0); }
-		void set_channel(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(0, v); }
+		std::string_view get_channel() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_channel); }
+		void set_channel(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_channel, v); }
 	};
 
 	template <typename Buf>
 	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
 };
 
 } // namespace processor_scheme

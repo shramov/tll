@@ -161,18 +161,18 @@ processor.objects:
 
     State = client.scheme.messages.StateUpdate.enums['State'].klass
     m = await client.recv()
-    assert client.unpack(m).as_dict() == {'channel': 'object', 'state': State.Opening}
+    assert client.unpack(m).as_dict() == {'channel': 'object', 'state': State.Opening, 'flags': {'stage': False}}
 
     m = await client.recv()
-    assert client.unpack(m).as_dict() == {'channel': 'object', 'state': State.Active}
+    assert client.unpack(m).as_dict() == {'channel': 'object', 'state': State.Active, 'flags': {'stage': False}}
 
     client.post({}, name='StateDump')
 
     m = await client.recv()
-    assert client.unpack(m).as_dict() == {'channel': 'object', 'state': State.Active}
+    assert client.unpack(m).as_dict() == {'channel': 'object', 'state': State.Active, 'flags': {'stage': False}}
 
     m = await client.recv()
-    assert client.unpack(m).as_dict() == {'channel': 'test/stage/active', 'state': State.Closed}
+    assert client.unpack(m).as_dict() == {'channel': 'test/stage/active', 'state': State.Closed, 'flags': {'stage': True}}
 
     m = await client.recv()
     assert client.unpack(m).SCHEME.name == 'StateDumpEnd'
@@ -214,32 +214,32 @@ processor.objects:
 
     State = client.scheme.messages.StateUpdate.enums['State'].klass
 
-    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Opening}
-    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Active}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Opening, 'flags': {'stage': False}}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Active, 'flags': {'stage': False}}
 
-    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Opening}
-    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Active}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Opening, 'flags': {'stage': False}}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Active, 'flags': {'stage': False}}
 
-    assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Opening}
-    assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Error}
-    assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Closing}
-    assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Closed}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Opening, 'flags': {'stage': False}}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Error, 'flags': {'stage': False}}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Closing, 'flags': {'stage': False}}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Closed, 'flags': {'stage': False}}
 
     client.post({'channel': 'null'}, name='ChannelClose')
 
-    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Closing}
-    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Closed}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Closing, 'flags': {'stage': False}}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Closed, 'flags': {'stage': False}}
 
-    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Closing}
-    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Closed}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Closing, 'flags': {'stage': False}}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Closed, 'flags': {'stage': False}}
 
-    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Opening}
-    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Active}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Opening, 'flags': {'stage': False}}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'null', 'state': State.Active, 'flags': {'stage': False}}
 
-    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Opening}
-    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Active}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Opening, 'flags': {'stage': False}}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'middle', 'state': State.Active, 'flags': {'stage': False}}
 
-    assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Opening}
+    assert client.unpack(await client.recv()).as_dict() == {'channel': 'leaf', 'state': State.Opening, 'flags': {'stage': False}}
 
 @asyncloop_run
 async def test_forward_helper(asyncloop, tmp_path):
