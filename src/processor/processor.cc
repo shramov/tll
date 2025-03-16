@@ -822,9 +822,7 @@ int Processor::pending_process(const tll_msg_t * msg)
 
 void Processor::_report_state(const Object *o, tll_state_t s, tll_addr_t addr)
 {
-	_buf.resize(0);
-	_buf.resize(processor_scheme::StateUpdate::meta_size());
-	auto data = processor_scheme::StateUpdate::bind(_buf);
+	auto data = processor_scheme::StateUpdate::bind_reset(_buf);
 	data.set_channel(o->name());
 	data.set_state((processor_scheme::StateUpdate::State) s);
 	if (o->stage)
