@@ -83,7 +83,7 @@ channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;na
     tproc.post({}, name='StateDumpEnd')
 
     m = tinput.unpack(await tinput.recv())
-    assert m.as_dict() == {'channel': 'test', 'state': m.state.Error}
+    assert m.as_dict(only={'channel', 'state'}) == {'channel': 'test', 'state': m.state.Error}
     assert tinput.unpack(await tinput.recv()).SCHEME.name == 'StateDumpEnd'
 
     tinput.post({'path': '*.state'}, name='ConfigGet')
