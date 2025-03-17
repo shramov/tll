@@ -835,9 +835,13 @@ def from_string_int(v): return int(v, 0)
 def _as_dict_list(field, v):
     return [field.as_dict(x) for x in v]
 
-def _as_dict_msg(msg, v):
+def _as_dict_msg(msg, v, only=set(), ignore=set()):
     r = {}
     for f in msg.fields:
+        if only and f.name not in only:
+            continue
+        if f.name in ignore:
+            continue
         x = getattr(v, f.name, None)
         if x is None: continue
         r[f.name] = f.as_dict(x)
@@ -1074,8 +1078,8 @@ class Data(object):
     def __deepcopy__(self, memo):
         return self.__copy__()
 
-    def as_dict(self):
-        return _as_dict_msg(self.SCHEME, self)
+    def as_dict(self, **kw):
+        return _as_dict_msg(self.SCHEME, self, **kw)
 
 class Reflection(object):
     SCHEME = None
@@ -1092,8 +1096,8 @@ class Reflection(object):
     def __repr__(self):
         return "<{}.Reflection.{} object at {:x}>".format(self.__module__, self.__class__.__name__, id(self))
 
-    def as_dict(self):
-        return _as_dict_msg(self.SCHEME, self)
+    def as_dict(self, **kw):
+        return _as_dict_msg(self.SCHEME, self, **kw)
 
 class Message(OrderedDict):
     def __call__(self, *a, **kw):
