@@ -111,10 +111,13 @@ class Resolve(Logic):
         return r
 
     def _logic(self, channel, msg):
-        if channel == self._uplink:
-            return self._on_uplink(channel, msg)
-        elif channel in self._input:
-            return self._on_input(channel, msg)
+        try:
+            if channel == self._uplink:
+                return self._on_uplink(channel, msg)
+            elif channel in self._input:
+                return self._on_input(channel, msg)
+        except Exception as e:
+            self.log.exception("Failed to handle message from {}", channel.name)
 
     def _on_uplink(self, channel, msg):
         if msg.type == msg.Type.State:

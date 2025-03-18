@@ -124,3 +124,20 @@ async def test_wildcard(asyncloop, resolve, service, channel, result):
     for r in result:
         m = ci.unpack(await ci.recv())
         assert (m.service, m.channel) == ('service', r)
+
+@asyncloop_run
+async def test_duplicate_export(asyncloop, resolve):
+    resolve.open(skip=['uplink'])
+
+    ci = resolve.io('input')
+
+    ci.post({'service': 'service', 'host': 'host', 'tags': ['tag']}, name='ExportService', addr=20)
+    ci.post({'service': 'service', 'channel': 'a', 'config': [{'key': 'tll.proto', 'value': 'a'}]}, name='ExportChannel', addr=20)
+
+    ci.post({'service': 'service', 'host': 'host', 'tags': ['tag']}, name='ExportService', addr=30)
+    ci.post({'service': 'service', 'channel': 'a', 'config': [{'key': 'tll.proto', 'value': 'b'}]}, name='ExportChannel', addr=30)
+
+    ci.post({'service': 'service', 'channel': 'a'}, name='Request', addr=10)
+
+    m = ci.unpack(await ci.recv())
+    assert (m.service, m.channel, {x.key: x.value for x in m.config}) == ('service', 'a', {'tll.proto': 'a'})
