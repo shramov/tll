@@ -208,6 +208,9 @@ channel:
     m = await tinput.recv()
     assert tinput.unpack(m).as_dict() == {'service': 'test', 'tags': ['a', 'b'], 'host': '::1'}
 
+    tproc.post({'channel': 'stage/test', 'state': 'Active', 'flags': {'stage': True}}, name='StateUpdate')
+    assert mock.channel.state == mock.channel.State.Active
+
     tproc.post({'channel': 'tcp', 'state': 'Active'}, name='StateUpdate')
     for name in ('tcp', 'tcp/first', 'tcp/first/second'):
         m = await tinput.recv(0.001)

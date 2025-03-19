@@ -396,6 +396,8 @@ int Control::callback_tag(TaggedChannel<Processor> *, const tll_msg_t *msg)
 				msg->size, data.meta_size());
 		_log.debug("Channel {} state {}", data.get_channel(), data.get_state());
 		_forward(msg);
+		if (data.get_flags().stage())
+			break;
 		_on_state_update(data.get_channel(), (tll_state_t) data.get_state());
 		break;
 	}
