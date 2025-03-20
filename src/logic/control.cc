@@ -40,6 +40,7 @@ class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
 		std::string name;
 		std::string export_name = "";
 		tll::ConstConfig config;
+		bool posted = false;
 		std::map<std::string, tll::ConstConfig> children;
 	};
 
@@ -50,6 +51,12 @@ class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::ConstConfig &);
+	int _close()
+	{
+		_resolve = nullptr;
+		_exports.clear();
+		return 0;
+	}
 
 	int _on_processor_active()
 	{
@@ -423,6 +430,7 @@ int Control::callback_tag(TaggedChannel<Resolve> * channel, const tll_msg_t *msg
 	case tll::state::Error:
 	case tll::state::Closing:
 		_resolve = nullptr;
+		_exports.clear();
 		break;
 	default:
 		break;
@@ -438,8 +446,7 @@ int Control::_on_state_update(std::string_view name, tll_state_t state)
 	if (state == tll::state::Destroy) {
 		_exports.erase(std::string(name));
 		return 0;
-	} else if (state != tll::state::Active)
-		return 0;
+	}
 	auto it = _exports.find(name);
 	if (it == _exports.end()) {
 		it = _exports.emplace(name, ChannelExport { std::string(name) }).first;
@@ -455,6 +462,12 @@ int Control::_on_state_update(std::string_view name, tll_state_t state)
 		if (!reader)
 			return _log.fail(EINVAL, "Invalid export parameters in url: {}", reader.error());
 	}
+	if (state == tll::state::Closing)
+		it->second.posted = false;
+	if (state != tll::state::Active)
+		return 0;
+	if (it->second.posted)
+		return 0;
 	if (!it->second.export_name.size())
 		return 0;
 	auto config = it->second.config;
@@ -462,6 +475,7 @@ int Control::_on_state_update(std::string_view name, tll_state_t state)
 	if (!client)
 		return 0;
 	it->second.children.clear();
+	it->second.posted = true;
 	_post_export(it->second, it->second.export_name, *client);
 	return 0;
 }

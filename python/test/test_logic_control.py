@@ -276,3 +276,58 @@ processor.objects:
     await client.recv_state() == client.State.Active
     client.post(b'xxx')
     assert (await client.recv()).data.tobytes() == b'xxx'
+
+@asyncloop_run
+async def test_resolve_dup(asyncloop, path_srcdir):
+    scheme = path_srcdir / "src/logic/resolve.yaml"
+    pscheme = path_srcdir / "src/processor/processor.yaml"
+
+    mock = Mock(asyncloop, f'''yamls://
+mock:
+  processor: direct://;scheme=yaml://{pscheme}
+  resolve: direct://;scheme=yaml://{scheme}
+channel:
+  url: control://;tll.channel.processor=processor;tll.channel.resolve=resolve;name=logic
+  service: test
+  hostname: ::1
+''')
+
+    tproc, tinput = mock.io('processor', 'resolve')
+    mock.open(skip=['resolve'])
+    assert tproc.unpack(await tproc.recv()).SCHEME.name == 'StateDump'
+
+    mock.inner('resolve').open()
+    assert tproc.unpack(await tproc.recv()).SCHEME.name == 'StateDump'
+
+    tcp = asyncloop.Channel(f'tcp://*:{ports.TCP6};mode=server;name=tcp;tll.resolve.export=yes')
+    tcp.open()
+
+    m = await tinput.recv()
+    assert tinput.unpack(m).as_dict() == {'service': 'test', 'tags': [], 'host': '::1'}
+
+    tproc.post({'channel': 'stage/test', 'state': 'Active', 'flags': {'stage': True}}, name='StateUpdate')
+    assert mock.channel.state == mock.channel.State.Active
+
+    tproc.post({'channel': 'tcp', 'state': 'Active'}, name='StateUpdate')
+
+    async def check(tinput):
+        m = await tinput.recv(0.001)
+        m = tinput.unpack(m)
+        assert (m.service, m.channel) == ('test', 'tcp')
+
+        cfg = Config.from_dict({x.key: x.value for x in m.config})
+        assert cfg['init.tll.proto'] == 'tcp'
+
+    await check(tinput)
+
+    for s in ('Opening', 'Active', 'Closing', 'Closed', 'Opening', 'Active'):
+        with pytest.raises(TimeoutError): await tinput.recv(0.001)
+        tproc.post({'channel': 'tcp', 'state': s}, name='StateUpdate')
+
+    await check(tinput)
+    mock.inner('resolve').close()
+    mock.inner('resolve').open()
+    assert tinput.unpack(await tinput.recv()).as_dict() == {'service': 'test', 'tags': [], 'host': '::1'}
+    assert tproc.unpack(await tproc.recv()).SCHEME.name == 'StateDump'
+    tproc.post({'channel': 'tcp', 'state': 'Active'}, name='StateUpdate')
+    await check(tinput)
