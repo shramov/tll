@@ -44,6 +44,13 @@ public:
 	};
 	static constexpr auto prefix_scheme_policy() { return PrefixSchemePolicy::Derive; }
 
+	enum class PrefixActivePolicy
+	{
+		Normal, ///< Set Active state in the end of _on_active function
+		Manual, ///< Do not set Active state in the end of _on_active function
+	};
+	static constexpr auto prefix_active_policy() { return PrefixActivePolicy::Normal; }
+
 	enum class PrefixConfigPolicy
 	{
 		Extend, ///< Config is derived from child, can be extended by prefix
@@ -217,7 +224,8 @@ public:
 			break; // Do nothing
 		}
 
-		this->state(tll::state::Active);
+		if (this->channelT()->prefix_active_policy() == PrefixActivePolicy::Normal)
+			this->state(tll::state::Active);
 		return 0;
 	}
 	/// Channel is broken and needs to enter Error state
