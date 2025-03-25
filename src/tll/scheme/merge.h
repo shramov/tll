@@ -78,7 +78,9 @@ inline bool compare(const tll::scheme::Message * lhs, const tll::scheme::Message
 		return false;
 	if (lhs->size != rhs->size)
 		return false;
-	for (auto lf = lhs->fields, rf = rhs->fields; lf && rf; lf = lf->next, rf = rf->next) {
+	for (auto lf = lhs->fields, rf = rhs->fields; lf || rf; lf = lf->next, rf = rf->next) {
+		if (!lf || !rf)
+			return false;
 		if (!compare(lf, rf))
 			return false;
 	}
@@ -121,6 +123,25 @@ inline void depends(const tll::scheme::Field * f, std::set<const tll::scheme::Me
 } // namespace tll::scheme::_
 
 namespace tll::scheme {
+static inline bool compare(const tll::Scheme * lhs, const tll::Scheme * rhs)
+{
+	auto lcount = 0, rcount = 0;
+	for (auto f = lhs->messages; f; f = f->next)
+		lcount++;
+	for (auto f = rhs->messages; f; f = f->next)
+		rcount++;
+	if (lcount != rcount)
+		return false;
+	for (auto & lm : tll::util::list_wrap(lhs->messages)) {
+		auto rm = rhs->lookup(lm.name);
+		if (!rm)
+			return false;
+		if (!tll::scheme::_::compare(&lm, rm))
+			return false;
+	}
+	return true;
+}
+
 inline tll::result_t<tll::Scheme *> merge(const std::list<const tll::Scheme *> &list)
 {
 	using namespace tll::scheme::_;

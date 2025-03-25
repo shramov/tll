@@ -734,3 +734,37 @@ TEST(Scheme, Secret)
 	ASSERT_TRUE(r) << "Failed to dump secret message: " << r.error();
 	ASSERT_EQ(*r, "f0: 0\nf1: 0\nf2: \"****\"\nf3: \"****\"");
 }
+
+#define ASSERT_SCHEME_CMP(result, string0, string1) do { \
+		SchemePtr s0 { Scheme::load(string0) }, s1 { Scheme::load(string1) }; \
+		ASSERT_TRUE(s0) << "Failed to load scheme " << string0; \
+		ASSERT_TRUE(s1) << "Failed to load scheme " << string1; \
+		ASSERT_EQ(tll::scheme::compare(s0.get(), s1.get()), result); \
+	} while (0)
+
+#define ASSERT_SCHEME_EQ(s0, s1) ASSERT_SCHEME_CMP(true, s0, s1)
+#define ASSERT_SCHEME_NE(s0, s1) ASSERT_SCHEME_CMP(false, s0, s1)
+
+TEST(Scheme, Compare)
+{
+	ASSERT_SCHEME_EQ(
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32}]}])",
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32}]}])"
+	);
+	ASSERT_SCHEME_NE(
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32}]}])",
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int16}]}])"
+	);
+	ASSERT_SCHEME_NE(
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32}]}])",
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: uint32}]}])"
+	);
+	ASSERT_SCHEME_NE(
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32}]}])",
+		R"(yamls://[{name: Data, id: 20, fields: [{name: f0, type: int32}]}])"
+	);
+	ASSERT_SCHEME_NE(
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32}]}])",
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32}]}, {name: Other}])"
+	);
+}
