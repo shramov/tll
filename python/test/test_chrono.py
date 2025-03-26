@@ -47,6 +47,7 @@ def test_from_str():
     assert Duration.from_str('100m') == Duration(100, Resolution.minute, type=int)
     assert Duration.from_str('100h') == Duration(100, Resolution.hour, type=int)
     assert Duration.from_str('100d') == Duration(100, Resolution.day, type=int)
+    with pytest.raises(ValueError): Duration.from_str('100msec')
 
 def test_duration_eq():
     assert Duration(100, 'us').timedelta == timedelta(microseconds=100)

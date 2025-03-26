@@ -152,7 +152,10 @@ class Duration(_Base):
             typ = float
         else:
             typ = int
-        return cls(typ(body), _str2res[suffix], type=typ)
+        res = _str2res.get(suffix)
+        if res is None:
+            raise ValueError(f"Invalid time suffix '{suffix}'")
+        return cls(typ(body), res, type=typ)
 
 class TimePoint(_Base):
     def __init__(self, value = 0, resolution = Resolution.second.value, type=float, raw=False):
