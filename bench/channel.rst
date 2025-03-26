@@ -44,6 +44,8 @@ post/callback functions using set of pirmitive channels:
 ``--payload URL`` read first message from channel ``URL`` and use it for benchmark. ``--msgid``
 option can be used to override message id got from this channel.
 
+``--payload-open PARAMS`` open parameters for payload channel in format ``a=b;c=d``
+
 ``--config CONFIG``:  read options from YAML config file, command line has precedence over config
 parameters. Supported variables are following:
 
@@ -59,6 +61,8 @@ parameters. Supported variables are following:
 
   - ``payload``: channel that provides message body for benchmark (see ``--payload`` option), for
     configuration format see ``channel`` key.
+  - ``payload-open``: payload channel open parameters in same format as in ``--payload-open``
+    option. Command line argument has higher priority and overrides value from config.
 
 Examples
 --------

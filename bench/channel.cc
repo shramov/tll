@@ -115,7 +115,7 @@ int timeit_process(tll::channel::Context &ctx, const tll::Channel::Url &url, boo
 	return 0;
 }
 
-std::optional<tll::util::OwnedMessage> payload_read(tll::channel::Context &ctx, const tll::Channel::Url &url)
+std::optional<tll::util::OwnedMessage> payload_read(tll::channel::Context &ctx, const tll::Channel::Url &url, std::string_view open)
 {
 	auto c = ctx.channel(url);
 	if (!c)
@@ -139,7 +139,7 @@ std::optional<tll::util::OwnedMessage> payload_read(tll::channel::Context &ctx, 
 	};
 	Callback cb;
 	c->callback_add(&cb, TLL_MESSAGE_MASK_DATA);
-	c->open();
+	c->open(open);
 	for (auto i = 0; i < 10; i++) {
 		loop.step(100us);
 		if (cb.msg.size)
@@ -161,6 +161,7 @@ int main(int argc, char *argv[])
 	std::vector<tll::Channel::Url> curl;
 	std::vector<std::string> modules;
 	std::string payload_channel;
+	std::string payload_open;
 	std::string config_file;
 	bool callback = false;
 	bool process = false;
@@ -177,6 +178,7 @@ int main(int argc, char *argv[])
 	parser.add_argument({"--msgid"}, "message id", &msgid);
 	parser.add_argument({"--msgsize"}, "message size", &msgsize);
 	parser.add_argument({"--payload"}, "read payload from channel", &payload_channel);
+	parser.add_argument({"--payload-open"}, "open parameters for payload channel", &payload_open);
 	auto pr = parser.parse(argc, argv);
 	if (!pr) {
 		fmt::print("Invalid arguments: {}\nRun '{} --help' for more information\n", pr.error(), argv[0]);
@@ -222,7 +224,10 @@ int main(int argc, char *argv[])
 
 		if (auto url = cfg->getT("payload", tll::Channel::Url()); url) {
 			if (url->proto() != "") {
-				if (auto r = payload_read(ctx, *url); !r)
+				auto open = *cfg->getT("payload-open", std::string(""));
+				if (payload_open.size())
+					open = payload_open;
+				if (auto r = payload_read(ctx, *url, open); !r)
 					return 1;
 				else
 					std::swap(msg, *r);
@@ -243,7 +248,7 @@ int main(int argc, char *argv[])
 		if (!url)
 			return fail(1, "Failed to parse payload url {}\n", payload_channel);
 
-		if (auto r = payload_read(ctx, *url); !r)
+		if (auto r = payload_read(ctx, *url, payload_open); !r)
 			return 1;
 		else
 			std::swap(msg, *r);
