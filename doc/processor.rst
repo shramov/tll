@@ -23,7 +23,6 @@ Basic processor config for echo service looks like
         depends: logic
       logic:
         init: 'forward://'
-        type: logic
         channels: {input: tcp, output: tcp}
 
 In this case ``tcp`` object is declared first but depends on ``logic`` and is is opened after it.
@@ -44,7 +43,6 @@ configuration would look like
           obects:
             logic:
               init: 'forward://'
-              type: logic
               channels: {input: tcp, output: tcp}
         - name: input
           objects:
