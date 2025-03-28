@@ -201,8 +201,8 @@ cdef class Context:
         if proto is None:
             proto = obj.PROTO
         proto = s2b(proto)
-        impl = getattr(obj, '_TLL_IMPL', None)
-        if impl is None:
+        cdef Impl impl = getattr(obj, '_TLL_IMPL', None)
+        if impl is None or impl.impl.data != <void *>obj:
             impl = Impl(obj)
             obj._TLL_IMPL = impl
         if not isinstance(impl, Impl):
@@ -396,11 +396,13 @@ cdef Impl pychannel_lookup(object module):
         sys.path.insert(0, path)
     else:
         path = None
+    cdef Impl impl = None
     try:
         m = importlib.import_module(module)
         obj = getattr(m, klass)
         impl = getattr(obj, '_TLL_IMPL', None)
-        if impl is None:
+        print(f"Impl: {impl}, object: {obj}\n")
+        if impl is None or impl.impl.data != <void *>obj:
             impl = Impl(obj)
             obj._TLL_IMPL = impl
         return impl

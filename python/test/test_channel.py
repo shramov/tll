@@ -13,6 +13,11 @@ from tll.test_util import Accum
 import datetime
 import pytest
 
+@pytest.fixture
+def context():
+    ctx = C.Context()
+    return ctx
+
 class Echo(Base):
     PROTO = "echo"
 
@@ -46,6 +51,12 @@ class Echo(Base):
 
     def _post(self, msg, flags):
         self._callback(msg.copy())
+
+class EchoV2(Echo):
+    PROTO = "echo-v2"
+    def _open(self, props):
+        super()._open(props)
+        self.config_info['echo'] = 'v2'
 
 class OpenTest(Base):
     PROTO = "open-test"
@@ -431,3 +442,18 @@ def test_stat():
     c.post(b'xxx', seq=100)
 
     assert [(f.name, f.value) for f in list(l)[0].swap()] == [('rx', 1), ('rx', 3), ('tx', 1), ('tx', 3)]
+
+def test_derived(context):
+    context.register(Echo)
+    v1 = context.Channel("echo://;name=echo")
+    v1.open()
+    assert v1.config['info.echo'] == 'yes'
+
+    context.register(EchoV2)
+    v2 = context.Channel("echo-v2://;name=echo-v2")
+    v2.open()
+    assert v2.config['info.echo'] == 'v2'
+
+    v11 = context.Channel("echo://;name=echo-v1-1")
+    v11.open()
+    assert v11.config['info.echo'] == 'yes'
