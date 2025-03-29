@@ -37,16 +37,27 @@ inline bool compare(const tll::scheme::Field * lhs, const tll::scheme::Field * r
 		return false;
 	if (lhs->size != rhs->size)
 		return false;
+	if (lhs->sub_type != rhs->sub_type)
+		return false;
 	using Field = tll::scheme::Field;
 	switch (lhs->type) {
 	case Field::Message:
 		return compare(lhs->type_msg, rhs->type_msg);
 	case Field::Array:
-		return compare(lhs->type_array, rhs->type_array);
+		return compare(lhs->count_ptr, rhs->count_ptr) && compare(lhs->type_array, rhs->type_array);
 	case Field::Pointer:
-		return compare(lhs->type_ptr, rhs->type_ptr);
+		return lhs->offset_ptr_version == rhs->offset_ptr_version && compare(lhs->type_ptr, rhs->type_ptr);
 	case Field::Union:
 		return compare(lhs->type_union, rhs->type_union);
+	default:
+		break;
+	}
+	switch (lhs->sub_type) {
+	case Field::Duration:
+	case Field::TimePoint:
+		return lhs->time_resolution == rhs->time_resolution;
+	case Field::Fixed:
+		return lhs->fixed_precision == rhs->fixed_precision;
 	default:
 		break;
 	}

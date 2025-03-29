@@ -767,4 +767,39 @@ TEST(Scheme, Compare)
 		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32}]}])",
 		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32}]}, {name: Other}])"
 	);
+	ASSERT_SCHEME_NE(
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32}]}])",
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32, options.type: duration, options.resolution: ns}]}])"
+	);
+
+	ASSERT_SCHEME_NE(
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32}]}])",
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32, options.type: time_point, options.resolution: ns}]}])"
+	);
+
+	ASSERT_SCHEME_NE(
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32, options.type: duration, options.resolution: ns}]}])",
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32, options.type: time_point, options.resolution: ns}]}])"
+	);
+
+	ASSERT_SCHEME_EQ(
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32, options.type: duration, options.resolution: ns}]}])",
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32, options.type: duration, options.resolution: ns}]}])"
+	);
+	ASSERT_SCHEME_NE(
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32, options.type: duration, options.resolution: us}]}])",
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32, options.type: duration, options.resolution: ns}]}])"
+	);
+	ASSERT_SCHEME_NE(
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32, options.type: time_point, options.resolution: us}]}])",
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32, options.type: time_point, options.resolution: ns}]}])"
+	);
+	ASSERT_SCHEME_EQ(
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32, options.type: fixed2}]}])",
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32, options.type: fixed2}]}])"
+	);
+	ASSERT_SCHEME_NE(
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32, options.type: fixed2}]}])",
+		R"(yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32, options.type: fixed4}]}])"
+	);
 }
