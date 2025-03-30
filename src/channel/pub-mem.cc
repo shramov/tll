@@ -215,7 +215,7 @@ tll::PubRing * MemCommon<T>::_file_open(bool rw)
 		return this->_log.fail(nullptr, "Failed to read ring header from file {}: got {} bytes of {} needed", _filename, r, sizeof(hbuf.data()));
 	auto hdr = (const tll::PubRing *) hbuf.data();
 	if (hdr->magic() != hdr->Magic)
-		return this->_log.fail(nullptr, "Invalid ring magic in file {}: expected 0x{08:x}, got 0x{08:x}", _filename, hdr->Magic, hdr->magic());
+		return this->_log.fail(nullptr, "Invalid ring magic in file {}: expected 0x{:08x}, got 0x{:08x}", _filename, hdr->Magic, hdr->magic());
 
 	const auto buf = mmap(nullptr, sizeof(*hdr) + hdr->size(), PROT_READ | (rw ? PROT_WRITE : 0), MAP_SHARED | MAP_POPULATE, _fd, 0);
 	if (buf == MAP_FAILED)
