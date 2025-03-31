@@ -8,7 +8,8 @@ cython_gen_api = generator(cython, output: '@BASENAME@_api.h', arguments: ['@INP
 pyembed = python.dependency(embed: true)
 cython_cflags = []
 
-if python.language_version().version_compare('== 3.8')
+pyversion = python.language_version()
+if pyversion.version_compare('== 3.8') or pyversion.version_compare('== 3.13')
   cython_cflags += ['-Wno-deprecated-declarations']
 endif
 
