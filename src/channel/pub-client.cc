@@ -35,6 +35,8 @@ int ChPubClient::_init(const Channel::Url &url, tll::Channel *master)
 
 int ChPubClient::_open(const ConstConfig &url)
 {
+	_seq = -1;
+	config_info().set_ptr("seq", &_seq);
 	_state = Closed;
 	return tcp_client_t::_open(url);
 }
@@ -116,7 +118,7 @@ int ChPubClient::_process_pending()
 
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	msg.msgid = frame->msgid;
-	msg.seq = frame->seq;
+	_seq = msg.seq = frame->seq;
 	msg.data = data;
 	msg.size = frame->size;
 	_callback_data(&msg);

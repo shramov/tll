@@ -62,6 +62,7 @@ def test(server, client):
     s.post(b'xxx', seq=1, msgid=10)
     c.process()
 
+    assert c.config['info.seq'] == '1'
     assert [(m.seq, m.msgid, m.data.tobytes()) for m in c.result] == [(1, 10, b'xxx')]
 
     for i in range(2, 5):
@@ -70,6 +71,7 @@ def test(server, client):
     for i in range(2, 5):
         c.process()
         m = c.result[-1]
+        assert c.config['info.seq'] == f'{i}'
         assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'x' * i)
 
 @asyncloop_run

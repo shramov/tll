@@ -14,6 +14,8 @@
 
 class ChPubClient : public tll::channel::LastSeqRx<ChPubClient, tll::channel::TcpClient<ChPubClient>>
 {
+	using Base = tll::channel::LastSeqRx<ChPubClient, tll::channel::TcpClient<ChPubClient>>;
+	long long _seq = -1;
 	bool _hello = true;
 	size_t _size;
 	std::string _peer;
@@ -26,6 +28,11 @@ class ChPubClient : public tll::channel::LastSeqRx<ChPubClient, tll::channel::Tc
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
 
 	int _open(const tll::ConstConfig &url);
+	int _close()
+	{
+		config_info().setT("seq", _seq);
+		return Base::_close();
+	}
 
 	int _post(const tll_msg_t *msg, int flags) { return ENOTSUP; }
 	int _process(long timeout, int flags);
