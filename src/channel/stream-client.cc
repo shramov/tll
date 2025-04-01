@@ -203,6 +203,15 @@ int StreamClient::_on_active()
 	else
 		_log.debug("Stream channel active, open request channel from block");
 
+	if (auto r = _child->config().getT<long long>("info.seq", -1); r && *r >= 0) {
+		_server_seq = *r;
+		_log.info("Online child reported last seq {}", _server_seq);
+	} else if (!r) {
+		_log.warning("Online child has invalid info.seq variable: {}", r.error());
+	} else {
+		_log.info("Online child does not report last seq");
+	}
+
 	return _request->open(_request_open);
 }
 
@@ -324,7 +333,7 @@ int StreamClient::_on_request_data(const tll::Channel *, const tll_msg_t *msg)
 		auto data = stream_scheme::Reply::bind(*msg);
 		if (msg->size < data.meta_size())
 			return state_fail(0, "Invalid reply size: {} < minimum {}", msg->size, data.meta_size());
-		_server_seq = data.get_last_seq();
+		_server_seq = std::max<long long>(_server_seq, data.get_last_seq());
 		_block_end = data.get_block_seq();
 		_log.info("Server seq: {}, block end seq: {}", _server_seq, data.get_block_seq());
 		_state = State::Connected;

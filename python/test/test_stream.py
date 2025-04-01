@@ -8,6 +8,7 @@ import yaml
 from tll.asynctll import asyncloop_run
 import tll.channel as C
 from tll.channel.base import Base
+from tll.config import Url
 from tll.error import TLLError
 from tll.test_util import Accum, ports
 
@@ -970,3 +971,30 @@ async def test_block_in_future(asyncloop, tmp_path):
     s.close()
 
     with pytest.raises(TLLError): s.open()
+
+@asyncloop_run
+async def test_online_gap(asyncloop, tmp_path):
+    common = Url.parse(f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;storage.dump=frame')
+    s = asyncloop.Channel(common, storage=f'file://{tmp_path}/storage.dat', name='server', mode='server', **{'tll.proto': 'stream+null'})
+    spub = asyncloop.Channel(common, name='online', mode='server', **{'tll.proto': 'pub+tcp'})
+    c = asyncloop.Channel(common, name='client')
+
+    s.open()
+    spub.open()
+    for i in range(5):
+        s.post(b'xxx', seq=i)
+    spub.post(b'yyy', seq=10)
+
+    c.open(mode='seq', seq='0')
+
+    for i in range(5):
+        m = await c.recv()
+        assert (m.type, m.seq) == (m.Type.Data, i)
+
+    s.post(b'yyy', seq=10)
+
+    m = await c.recv()
+    assert (m.type, m.seq) == (m.Type.Data, 10)
+
+    m = await c.recv()
+    assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control['Online'].msgid, 10)
