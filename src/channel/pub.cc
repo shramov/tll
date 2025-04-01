@@ -125,6 +125,9 @@ int ChPubSocket::_init(const Channel::Url &url, tll::Channel *master)
 
 int ChPubSocket::_open(const ConstConfig &url)
 {
+	_iter = {};
+	_seq = -1;
+
 	if (_hello) {
 		_rbuf.resize(1024);
 		_dcaps_poll(dcaps::CPOLLIN);
@@ -140,6 +143,7 @@ int ChPubSocket::_open(const ConstConfig &url)
 int ChPubSocket::_close()
 {
 	_iter = {};
+	_seq = -1;
 	return tcp_socket_t::_close();
 }
 
@@ -149,7 +153,6 @@ int ChPubSocket::_on_active()
 	state(state::Active);
 
 	_iter = _ring->end();
-	_seq = -1;
 	return 0;
 }
 
@@ -195,6 +198,11 @@ int ChPubSocket::_process_open()
 		std::array<char, pub_scheme::HelloReply::meta_size()> data;
 		auto hello = pub_scheme::HelloReply::bind(data);
 		hello.set_version((int) pub_scheme::Version::Current);
+		if (!_ring->empty())
+			_seq = _ring->back().frame->seq;
+		else
+			_seq = -1;
+		hello.set_seq(_seq);
 		tll_frame_t frame = { hello.meta_size(), hello.meta_id(), 0 };
 		if (_sendv(tll::memory {(void *) &frame, sizeof(frame)}, data))
 			return _log.fail(EINVAL, "Failed to send hello to client");

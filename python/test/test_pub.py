@@ -56,6 +56,7 @@ def test(server, client):
     c.process()
     assert c.state == c.State.Active
     assert c.dcaps == c.DCaps.Process | c.DCaps.PollIn
+    assert c.config['info.seq'] == '-1'
 
     with pytest.raises(TLLError): s.post(b'x' * (512 - 16 + 1), seq=1) # Message larger then half of buffer
 
@@ -73,6 +74,20 @@ def test(server, client):
         m = c.result[-1]
         assert c.config['info.seq'] == f'{i}'
         assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'x' * i)
+
+@asyncloop_run
+async def test_hello_seq(asyncloop, server, client):
+    s, c = server, client
+
+    s.open()
+    for i in range(10):
+        s.post(b'xxx', seq=i)
+
+    c.open()
+
+    assert (await s.recv_state()) == s.State.Active
+    assert (await c.recv_state()) == c.State.Active
+    assert c.config['info.seq'] == '9'
 
 @asyncloop_run
 async def test_disconnect(asyncloop, server, client):

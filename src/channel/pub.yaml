@@ -11,3 +11,4 @@
   id: 101
   fields:
     - {name: version, type: int16 }
+    - {name: seq, type: int64 }

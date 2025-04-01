@@ -85,7 +85,7 @@ int ChPubClient::_process_open()
         if (frame->msgid != pub_scheme::HelloReply::meta_id())
 		return _log.fail(EINVAL, "Invalid server hello id: {} (expected {})",
 				frame->msgid, pub_scheme::HelloReply::meta_id());
-	if (frame->size < pub_scheme::HelloReply::meta_size())
+	if (frame->size < pub_scheme::HelloReply::offset_seq)
 		return _log.fail(EMSGSIZE, "Server hello size too small: {}", frame->size);
 
 	auto hello = pub_scheme::HelloReply::bind(_rbuf, sizeof(*frame));
@@ -94,6 +94,10 @@ int ChPubClient::_process_open()
 	if (hello.get_version() != (int) pub_scheme::Version::Current)
 		return _log.fail(EINVAL, "Server sent invalid version: {} (expected {})",
 				hello.get_version(), (int) pub_scheme::Version::Current);
+	if (frame->size > pub_scheme::HelloReply::offset_seq) {
+		_seq = hello.get_seq();
+		_log.info("Server reported last seq: {}", _seq);
+	}
 	rdone(sizeof(*frame) + frame->size);
 
 	_log.debug("Handshake finished");
