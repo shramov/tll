@@ -8,6 +8,7 @@
 #ifndef _TLL_CHANNEL_ROTATE_H
 #define _TLL_CHANNEL_ROTATE_H
 
+#include "tll/channel/convert-buf.h"
 #include "tll/channel/prefix.h"
 
 #include <mutex>
@@ -20,6 +21,8 @@ class Rotate : public Prefix<Rotate>
 	Rotate * _master = nullptr;
 	long long _seq_first = -1;
 	long long _seq_last = -1;
+
+	ConvertBuf _convert;
 
 	struct Files
 	{
@@ -47,6 +50,7 @@ class Rotate : public Prefix<Rotate>
 	bool _current_empty = false;
 	bool _end_of_data = false;
 	bool _autoclose = false;
+	bool _convert_enable = false;
 
 	std::string _fileprefix;
 	std::string _directory;

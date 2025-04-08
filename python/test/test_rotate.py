@@ -9,6 +9,7 @@ from tll.asynctll import asyncloop_run
 from tll.channel import Context, MsgMask
 from tll.config import Url
 from tll.error import TLLError
+from tll.test_util import Accum
 
 @pytest.fixture
 def context():
@@ -247,3 +248,36 @@ def test_scheme_change(context, tmp_path):
     r.open(seq='10')
     assert r.scheme.options['version'] == 'v2'
     r.close()
+
+def test_convert(context, tmp_path):
+    SV0 = '''yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32}]}]'''
+    SV1 = '''yamls://[{name: Data, id: 10, fields: [{name: h0, type: int16}, {name: f0, type: int32}]}]'''
+    SV2 = '''yamls://[{name: Data, id: 10, fields: [{name: h0, type: int16}, {name: h1, type: int16}, {name: f0, type: int32}]}]'''
+
+    cfg = Url.parse(f'rotate+file://{tmp_path}/rotate;dir=w;dump=frame;name=rotate')
+
+    for i, scheme in enumerate([SV0, SV1, SV2]):
+        cfg['scheme'] = scheme
+        w = context.Channel(cfg)
+        w.open()
+        d = {'f0': 1000 + i}
+        if i > 0: d['h0'] = 10 + i
+        if i > 1: d['h1'] = 100 + i
+        w.post(d, name='Data', seq=100 + i)
+        w.close()
+        del w
+
+    assert os.path.exists(tmp_path / 'rotate.100.dat')
+    assert os.path.exists(tmp_path / 'rotate.101.dat')
+    assert os.path.exists(tmp_path / 'rotate.current.dat')
+
+    r = Accum(cfg, dir='r', scheme='', name='reader', context=context, convert='yes')
+    r.open()
+    assert r.scheme['Data'].size == 8
+
+    for _ in range(5):
+        r.process()
+        r.children[0].process()
+    data = [m for m in r.result if m.type == m.Type.Data]
+    assert [m.seq for m in data] == [100, 101, 102]
+    assert [r.unpack(m).as_dict() for m in data] == [{'h0': 0, 'h1': 0, 'f0': 1000}, {'h0': 11, 'h1': 0, 'f0': 1001}, {'h0': 12, 'h1': 102, 'f0': 1002}]

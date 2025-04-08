@@ -5,6 +5,7 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
+#include "tll/scheme/merge.h"
 #include "channel/rotate.h"
 
 #include <filesystem>
@@ -52,6 +53,7 @@ int Rotate::_on_init(tll::Channel::Url &curl, const tll::Channel::Url &url, tll:
 {
 	auto reader = channel_props_reader(url);
 	_autoclose = reader.getT("autoclose", true);
+	_convert_enable = reader.getT("convert", false);
 	auto key_first = reader.getT("filename-key", true, {{"first", true}, {"last", false}});
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
@@ -97,6 +99,7 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 	_seq_last = -1;
 	_open_cfg = tll::Config();
 	_state = State::Closed;
+	_convert.reset();
 
 	auto reader = tll::make_props_reader(cfg);
 
@@ -301,6 +304,14 @@ int Rotate::_post(const tll_msg_t *msg, int flags)
 
 int Rotate::_on_active()
 {
+	if (_state == State::Read && _convert_enable) {
+		if (auto scheme = _child->scheme(); scheme) {
+			if (auto r = _convert.init(_log, scheme, _scheme.get()); r)
+				return _log.fail(r, "Can not initialize converter from the file");
+		} else
+			_convert.reset();
+	}
+
 	if (state() == tll::state::Active)
 		return 0;
 	if (_state != State::Read && _state != State::Write)
@@ -352,6 +363,12 @@ int Rotate::_on_data(const tll_msg_t *msg)
 	if (_state != State::Read)
 		return 0;
 	_seq_last = msg->seq;
+	if (_convert.scheme_from) {
+		_log.debug("Try convert");
+		if (auto m = _convert.convert(msg); m)
+			return Base::_on_data(m);
+		return _log.fail(EINVAL, "Failed to convert message {} at {}: {}", msg->msgid, _convert.format_stack(), _convert.error);
+	}
 	return Base::_on_data(msg);
 }
 
@@ -400,7 +417,7 @@ int Rotate::_build_map()
 	}
 
 	std::shared_ptr<Files> files(new Files);
-	Files::Map & map = files->files;;
+	Files::Map & map = files->files;
 	files->seq_first = &_seq_first;
 	files->seq_last = &_seq_last;
 	std::optional<Files::Map::const_iterator> current = std::nullopt;
