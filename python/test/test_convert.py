@@ -3,6 +3,7 @@
 
 import pytest
 from decimal import Decimal
+import enum
 
 from tll.channel import Context
 from tll.error import TLLError
@@ -286,3 +287,26 @@ def test_sub(context, stype):
     else:
         v['sheader'] = 0
     assert s.unpack(s.result[0]).as_dict() == {'f0': v, 'header': 0xffff, 'footer': 0xffff}
+
+@pytest.mark.parametrize("einto", [
+    '{A: 10}',
+    '{A: 10, B: 100}',
+    '{A: 100, B: 10}',
+])
+@pytest.mark.parametrize("tinto", [
+    'uint16',
+    'int32',
+])
+@pytest.mark.parametrize("efrom", [
+    '{A: 10}',
+    '{A: 10, B: 100}',
+    '{A: 100, B: 10}',
+])
+@pytest.mark.parametrize("tfrom", [
+    'uint16',
+    'int32',
+])
+def test_enum(context, tinto, tfrom, einto, efrom):
+    class f0(enum.Enum):
+        A = 10
+    _test_convert(context, f'{tfrom}, options.type: enum, enum: {efrom}', f'{tinto}, options.type: enum, enum: {einto}', 'A', f0.A)

@@ -29,6 +29,7 @@ struct Convert : public ErrorStack
 	struct FieldFrom
 	{
 		const Field * from = nullptr;
+		std::map<long long, long long> enum_map;
 	};
 
 	void reset()
@@ -37,6 +38,7 @@ struct Convert : public ErrorStack
 		scheme_into.reset();
 		map_from.clear();
 	}
+
 	int init(const tll::Logger &log, const Scheme * from, const Scheme * into)
 	{
 		map_from.clear();
@@ -154,17 +156,45 @@ struct Convert : public ErrorStack
 	bool convertible_numeric(Field * into, const Field * from)
 	{
 		switch (from->type) {
-		case Field::Int8: return true;
-		case Field::Int16: return true;
-		case Field::Int32: return true;
-		case Field::Int64: return true;
-		case Field::UInt8: return true;
-		case Field::UInt16: return true;
-		case Field::UInt32: return true;
-		case Field::UInt64: return true;
-		case Field::Double: return true;
-		default: return false;
+		case Field::Int8:
+		case Field::Int16:
+		case Field::Int32:
+		case Field::Int64:
+		case Field::UInt8:
+		case Field::UInt16:
+		case Field::UInt32:
+		case Field::UInt64:
+			break;
+		case Field::Double:
+			if (into->sub_type == Field::Enum)
+				return false;
+			break;
+		default:
+			return false;
 		}
+
+		if (into->sub_type == Field::Enum) {
+			auto user = static_cast<FieldFrom *>(into->user);
+			if (from->sub_type == Field::Enum) {
+				bool trivial = true;
+				for (auto v = from->type_enum->values; v; v = v->next) {
+					auto vi = lookup_name(into->type_enum->values, v->name);
+					trivial = trivial && (vi && vi->value == v->value);
+				}
+				if (trivial) // Enum is same or extended
+					return true;
+				// Conversion map
+				for (auto v = from->type_enum->values; v; v = v->next) {
+					if (auto vi = lookup_name(into->type_enum->values, v->name); vi)
+						user->enum_map.emplace(v->value, vi->value);
+				}
+			} else {
+				// Validation map
+				for (auto v = into->type_enum->values; v; v = v->next)
+					user->enum_map.emplace(v->value, v->value);
+			}
+		}
+		return true;
 	}
 
 	template <typename View, typename ViewIn>
@@ -585,9 +615,22 @@ int Convert::convert_fixed_numeric(T * into, int prec, From from, const Field * 
 template <typename T, typename From>
 int Convert::convert_numeric_numeric(T * into, const Field * finto, From from, const Field * ffrom)
 {
+	auto user = static_cast<const FieldFrom *>(finto->user);
 	if constexpr (!std::is_floating_point_v<T>) {
 		if (finto->sub_type == Field::Fixed) {
 			return convert_fixed_numeric(into, finto->fixed_precision, from, ffrom);
+		} else if (finto->sub_type == Field::Enum) {
+			if (user->enum_map.empty()) {
+				// Fast path, trivial copy
+				*into = from;
+				return 0;
+			}
+
+			auto it = user->enum_map.find(from);
+			if (it == user->enum_map.end())
+				return fail(EINVAL, "Unkonwn enum value {}", from);
+			*into = it->second;
+			return 0;
 		}
 	}
 
