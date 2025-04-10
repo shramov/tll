@@ -381,10 +381,30 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 	{
 		if (url.substr(0, 10) == "channel://") {
 			auto name = url.substr(10);
-			auto c = get(name);
+			std::string_view tag = "data";
+			if (auto sep = name.find_last_of(":"); sep != name.npos) {
+				tag = name.substr(sep + 1);
+				name = name.substr(0, sep);
+			}
+			auto c = static_cast<tll::Channel *>(get(name));
 			if (!c)
 				return _log.fail(nullptr, "Failed to load scheme '{}', channel '{}' not found", url, name);
-			return tll_scheme_ref(tll_channel_scheme(c, 0));
+			int id = TLL_MESSAGE_DATA;
+			if (tag == "data" || tag == "")
+				id = TLL_MESSAGE_DATA;
+			else if (tag == "control")
+				id = TLL_MESSAGE_CONTROL;
+			else if (tag == "state")
+				id = TLL_MESSAGE_STATE;
+			else if (tag == "channel")
+				id = TLL_MESSAGE_CHANNEL;
+			else {
+				auto v = c->config().getT<int>(fmt::format("scheme-tag-map.{}", tag));
+				if (!v)
+					return _log.fail(nullptr, "Failed to load scheme, channel '{}' has invalid export tag '{}': {}", url, name, tag, v.error());
+				id = *v;
+			}
+			return tll_scheme_ref(tll_channel_scheme(c, id));
 		}
 
 		auto hashproto = (url.substr(0, 6 + 3) == "sha256://");

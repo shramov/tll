@@ -137,6 +137,9 @@ class Base
 	bool _scheme_cache = true;
 	std::optional<std::string> _scheme_url;
 
+	static constexpr int _export_scheme_range = 0x01000000;
+	std::map<int, tll::scheme::ConstSchemePtr> _export_scheme_map;
+
 	Base()
 	{
 		tll_channel_internal_init(&internal);
@@ -403,7 +406,10 @@ class Base
 		switch (type) {
 		case TLL_MESSAGE_DATA: return _scheme.get();
 		case TLL_MESSAGE_CONTROL: return _scheme_control.get();
-		default: return nullptr;
+		default:
+			if (auto it = _export_scheme_map.find(type); it != _export_scheme_map.end())
+				return it->second.get();
+			return nullptr;
 		}
 		//return nullptr;
 	}
@@ -514,6 +520,32 @@ class Base
 		default:
 			return state_fail(EINVAL, "Invalid scheme type: {}, has to be one of data or control", type);
 		}
+		return 0;
+	}
+
+	int _scheme_load(std::string_view str, std::string_view tag)
+	{
+		_log.debug("Loading scheme from {}...", str.substr(0, 64));
+		scheme::ConstSchemePtr r { context().scheme_load(str, _scheme_cache) };
+		if (!r)
+			return _log.fail(EINVAL, "Failed to load scheme from {}...", str.substr(0, 64));
+		return _scheme_add(r.get(), tag);
+	}
+
+	int _scheme_add(const tll::Scheme * ptr, std::string_view tag)
+	{
+		if (tag == "data" || tag == "control" || tag == "state" || tag == "channel")
+			return _log.fail(EINVAL, "Invalid scheme tag '{}', one of reserved values [data, control, state, channel]", tag);
+		auto type = _export_scheme_range + _export_scheme_map.size();
+		_log.info("Register scheme with tag '{}': index {}", tag, type);
+
+		auto cfg = *_config.sub("scheme-tag-map", true);
+		auto v = cfg.get(tag);
+		if (v && v->size())
+			return _log.fail(EINVAL, "Duplicate scheme export for tag '{}'", tag);
+		cfg.setT(tag, type);
+		_export_scheme_map.emplace(type, ptr->ref());
+
 		return 0;
 	}
 };
