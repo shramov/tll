@@ -11,6 +11,7 @@ from tll.channel.mock import Mock
 from tll.channel.prefix import Prefix
 from tll.config import Config
 from tll.processor.mock import Mock as ProcessorMock
+from tll.scheme import Scheme
 from tll.test_util import ports
 
 @pytest.fixture
@@ -26,9 +27,16 @@ async def test(asyncloop, path_srcdir):
     mock = Mock(asyncloop, f'''yamls://
 mock:
   processor: null://
-  input: direct://;scheme=yaml://{scheme}
+  input: direct://;scheme=channel://logic:input
 channel: control://;tll.channel.processor=processor;tll.channel.input=input;name=logic
 ''')
+
+    si = asyncloop.context.scheme_load('channel://logic:input')
+    sr = asyncloop.context.scheme_load('channel://logic:resolve')
+    sp = asyncloop.context.scheme_load('channel://logic:processor')
+    assert [m.name for m in si.messages] == [m.name for m in Scheme(f'yaml://{path_srcdir / "src/logic/control.yaml"}').messages]
+    assert [m.name for m in sr.messages] == [m.name for m in Scheme(f'yaml://{path_srcdir / "src/logic/resolve.yaml"}').messages]
+    assert [m.name for m in sp.messages] == [m.name for m in Scheme(f'yaml://{path_srcdir / "src/processor/processor.yaml"}').messages]
 
     mock.open(skip=['processor'])
 
@@ -96,14 +104,11 @@ channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;na
     assert sorted(result) == [(f'{x}.state', 'Active') for x in sorted(['_mock_master_uplink', 'uplink', 'logic', '_mock_master_processor', 'processor'])]
 
 @asyncloop_run
-async def test_message(asyncloop, path_srcdir):
-    scheme = path_srcdir / "src/logic/control.yaml"
-    pscheme = path_srcdir / "src/processor/processor.yaml"
-
+async def test_message(asyncloop):
     mock = Mock(asyncloop, f'''yamls://
 mock:
-  processor: direct://;scheme=yaml://{pscheme}
-  input: direct://;scheme=yaml://{scheme}
+  processor: direct://;scheme=channel://logic:processor
+  input: direct://;scheme=channel://logic:input
 channel: control://;tll.channel.processor=processor;tll.channel.input=input;name=logic
 ''')
 
@@ -136,13 +141,11 @@ channel: control://;tll.channel.processor=processor;tll.channel.input=input;name
     assert m.SCHEME.name == 'Error'
 
 @asyncloop_run
-async def test_log_level(asyncloop, path_srcdir):
-    scheme = path_srcdir / "src/logic/control.yaml"
-
+async def test_log_level(asyncloop):
     mock = Mock(asyncloop, f'''yamls://
 mock:
   processor: null://
-  input: direct://;scheme=yaml://{scheme}
+  input: direct://;scheme=channel://logic:input
 channel: control://;tll.channel.processor=processor;tll.channel.input=input;name=logic
 ''')
 
@@ -180,16 +183,13 @@ class ChildExport(Prefix):
         self.config['client'] = cfg
 
 @asyncloop_run
-async def test_resolve(asyncloop, path_srcdir):
+async def test_resolve(asyncloop):
     asyncloop.context.register(ChildExport)
-
-    scheme = path_srcdir / "src/logic/resolve.yaml"
-    pscheme = path_srcdir / "src/processor/processor.yaml"
 
     mock = Mock(asyncloop, f'''yamls://
 mock:
-  processor: direct://;scheme=yaml://{pscheme}
-  resolve: direct://;scheme=yaml://{scheme}
+  processor: direct://;scheme=channel://logic:processor
+  resolve: direct://;scheme=channel://logic:resolve
 channel:
   url: control://;tll.channel.processor=processor;tll.channel.resolve=resolve;name=logic
   service: test
@@ -237,9 +237,8 @@ class Echo(Prefix):
         self._child.post(msg)
 
 @asyncloop_run
-async def test_resolve_processor(asyncloop, path_srcdir):
+async def test_resolve_processor(asyncloop):
     asyncloop.context.register(Echo)
-    scheme = path_srcdir / "src/logic/resolve.yaml"
     mock = ProcessorMock(asyncloop, f'''yamls://
 name: processor
 processor.objects:
@@ -247,7 +246,7 @@ processor.objects:
     init: python://;python=tll.channel.resolve:Resolve
     channels: {{ input: _tll_resolve_master }}
   _tll_resolve_master:
-    init: ipc://;mode=server;scheme=yaml://{scheme};dump=yes
+    init: ipc://;mode=server;scheme=channel://control:resolve;dump=yes
     depends: resolve
   control:
     init:
@@ -278,14 +277,11 @@ processor.objects:
     assert (await client.recv()).data.tobytes() == b'xxx'
 
 @asyncloop_run
-async def test_resolve_dup(asyncloop, path_srcdir):
-    scheme = path_srcdir / "src/logic/resolve.yaml"
-    pscheme = path_srcdir / "src/processor/processor.yaml"
-
+async def test_resolve_dup(asyncloop):
     mock = Mock(asyncloop, f'''yamls://
 mock:
-  processor: direct://;scheme=yaml://{pscheme}
-  resolve: direct://;scheme=yaml://{scheme}
+  processor: direct://;scheme=channel://logic:processor
+  resolve: direct://;scheme=channel://logic:resolve
 channel:
   url: control://;tll.channel.processor=processor;tll.channel.resolve=resolve;name=logic
   service: test

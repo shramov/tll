@@ -160,6 +160,13 @@ int Control::_init(const tll::Channel::Url &url, tll::Channel * master)
 		_log.info("Service hostname: {}", _hostname);
 	}
 
+	if (auto r = _scheme_load(control_scheme::scheme_string, "input"); r)
+		return _log.fail(r, "Failed to export input scheme");
+	if (auto r = _scheme_load(resolve_scheme::scheme_string, "resolve"); r)
+		return _log.fail(r, "Failed to export resolve scheme");
+	if (auto r = _scheme_load(processor_scheme::scheme_string, "processor"); r)
+		return _log.fail(r, "Failed to export processor scheme");
+
 	return 0;
 }
 
