@@ -71,7 +71,12 @@ gigabytes
   - normal scheme url, like ``yaml://file.yaml``, ``yamls://{inline-yaml}`` or
     ``yamls+gz://COMPRESSED..``
   - scheme hash of already loaded scheme: ``sha256://HASH``
-  - reference ot other channel: ``channel://name``
+  - reference to another channel with optional type: ``channel://name[:type]``. Type may be one of
+    predefinded values ``data``, ``control``, ``state`` and ``channel`` for corresponding
+    ``TLL_MESSAGE_*`` message types (``state`` and ``channel`` types does not have scheme for now
+    but this can change in the future) or user defined tag. User defined tags are resolved by lookup
+    in channel config, variable ``scheme-tag-map.{type}`` is converted to integer value and passed
+    to ``tll_channel_scheme`` call.
 
 ``url`` set of initialization parameters, mostly used for child channels. Can be specified in three
 different ways:
