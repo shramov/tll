@@ -53,6 +53,7 @@ mansources = [
 	'pub-tcp.rst',
 	'random.rst',
 	'rate.rst',
+	'resolve.rst',
 	'rotate.rst',
 	'serial.rst',
 	'stream-server.rst',
