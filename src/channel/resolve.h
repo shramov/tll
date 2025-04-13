@@ -70,7 +70,6 @@ class Resolve : public tll::channel::Prefix<Resolve>
 	int _on_data(const tll_msg_t *msg)
 	{
 		if (_convert_from.scheme_from) {
-			_log.debug("Try convert");
 			if (auto m = _convert_from.convert(msg); m)
 				return _callback_data(m);
 			return _log.fail(EINVAL, "Failed to convert message {} at {}: {}", msg->msgid, _convert_from.format_stack(), _convert_from.error);
@@ -81,7 +80,6 @@ class Resolve : public tll::channel::Prefix<Resolve>
 	int _post(const tll_msg_t *msg, int flags)
 	{
 		if (_convert_into.scheme_from) {
-			_log.debug("Try convert");
 			if (auto m = _convert_into.convert(msg); m)
 				return _child->post(m, flags);
 			return _log.fail(EINVAL, "Failed to convert message {} at {}: {}", msg->msgid, _convert_into.format_stack(), _convert_into.error);
