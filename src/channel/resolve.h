@@ -27,6 +27,7 @@ class Resolve : public tll::channel::Prefix<Resolve>
 
  public:
 	static constexpr std::string_view channel_protocol() { return "resolve"; }
+	static constexpr auto child_policy() { return ChildPolicy::Proxy; }
 
 	static constexpr auto prefix_scheme_policy() { return Base::PrefixSchemePolicy::Override; }
 	static constexpr auto prefix_active_policy() { return Base::PrefixActivePolicy::Manual; }
