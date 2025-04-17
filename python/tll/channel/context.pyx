@@ -401,7 +401,6 @@ cdef Impl pychannel_lookup(object module):
         m = importlib.import_module(module)
         obj = getattr(m, klass)
         impl = getattr(obj, '_TLL_IMPL', None)
-        print(f"Impl: {impl}, object: {obj}\n")
         if impl is None or impl.impl.data != <void *>obj:
             impl = Impl(obj)
             obj._TLL_IMPL = impl
