@@ -205,7 +205,8 @@ class TcpSocket : public Base<T>
 	std::optional<size_t> _recv(size_t size);
 	std::optional<size_t> _recv()
 	{
-		_rbuf.shift();
+		if (_rbuf._offset >= _rbuf.capacity() / 2 || _rbuf.available() == 0)
+			_rbuf.force_shift();
 		return _recv(_rbuf.available());
 	}
 

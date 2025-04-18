@@ -586,3 +586,32 @@ async def test_network(asyncloop):
     c.post(b'GET / HTTP/1.1\r\nHost: github.com\r\n\r\n')
     m = await c.recv(0.5)
     assert m.data.tobytes()[:12] == b'HTTP/1.1 301'
+
+@asyncloop_run
+async def test_large_shift(asyncloop):
+    s = asyncloop.Channel(f'tcp://::1:0;mode=server;name=server;dump=frame')
+
+    s.open()
+
+    _, port = s.config['client.init.tll.host'].rsplit(':', 1)
+    assert port != '0'
+
+    c = asyncloop.Channel(f'tcp://::1:{port};mode=client;name=client;dump=frame;recv-buffer-size=64kb')
+    c.open()
+
+    assert await c.recv_state() == c.State.Active
+    m = await s.recv()
+    assert m.type == m.Type.Control
+    addr = m.addr
+
+    s.post(b'a' * 1024, seq=0, addr=addr)
+    s.post(b'b' * 1024, seq=1, addr=addr)
+    s.post(b'c' * 1024, seq=2, addr=addr)
+    s.post(b'z' * 63 * 1024, seq=3, addr=addr)
+
+    for i in (0, 1, 2):
+        m = await c.recv()
+        assert (m.seq, len(m.data)) == (i, 1024)
+
+    m = await c.recv()
+    assert (m.seq, len(m.data)) == (3, 63 * 1024)
