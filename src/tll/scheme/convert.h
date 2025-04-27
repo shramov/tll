@@ -63,7 +63,7 @@ struct Convert : public ErrorStack
 
 	bool convertible(Message * into, Message * from)
 	{
-		log.info("Bind message {} to {}", from->name, into->name);
+		log.debug("Bind message {} to {}", from->name, into->name);
 		if (from->user)
 			return true;
 		from->user = new MessageInto { .into = into };
