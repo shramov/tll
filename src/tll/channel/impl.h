@@ -141,7 +141,7 @@ int tll_channel_internal_child_del(tll_channel_internal_t *ptr, const tll_channe
 static inline int tll_channel_callback_data(const tll_channel_internal_t * in, const tll_msg_t * msg)
 {
 	if (in->dump)
-		tll_channel_log_msg(in->self, "tll.channel.impl", TLL_LOGGER_INFO, in->dump, msg, "Recv", 4);
+		tll_channel_log_msg(in->self, NULL, TLL_LOGGER_INFO, in->dump, msg, "Recv", 4);
 	if (in->stat) {
 		tll_stat_page_t * p = tll_stat_page_acquire(in->stat);
 		if (p) {
@@ -173,7 +173,7 @@ static inline int tll_channel_callback(const tll_channel_internal_t * in, const 
 	if (msg->type == TLL_MESSAGE_DATA)
 		return tll_channel_callback_data(in, msg);
 	if (in->dump)
-		tll_channel_log_msg(in->self, "tll.channel.impl", TLL_LOGGER_INFO, in->dump, msg, "Recv", 4);
+		tll_channel_log_msg(in->self, NULL, TLL_LOGGER_INFO, in->dump, msg, "Recv", 4);
 	{
 		tll_channel_callback_pair_t * cb = in->cb;
 		for (unsigned i = 0; i < in->cb_size; i++) {

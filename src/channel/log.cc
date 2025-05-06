@@ -41,10 +41,12 @@ std::string msg2hex(const tll_msg_t * msg)
 	return body;
 }
 
-tll::Logger _logger_create(const tll_channel_t * c, const char * name)
+tll::Logger _logger_create(const tll_channel_t * c, std::string_view name)
 {
-	if (c->internal->version >= 1 && c->internal->logger)
-		return { c->internal->logger };
+	if (c->internal->version >= 1 && c->internal->logger) {
+		if (name == "" || name == tll_logger_name(c->internal->logger))
+			return { c->internal->logger };
+	}
 	return { name };
 }
 
@@ -56,7 +58,7 @@ int tll_channel_log_msg(const tll_channel_t * c, const char * _log, tll_logger_l
 		return 0;
 
 	auto text = tll::string_view_from_c(_text, tlen);
-	auto log = _logger_create(c, _log);
+	auto log = _logger_create(c, _log ? _log : "");
 
 	std::string addr;
 	if (msg->addr.u64)

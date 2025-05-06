@@ -740,10 +740,10 @@ int tll_channel_post(tll_channel_t *c, const tll_msg_t *msg, int flags)
 {
 	if (!c || !c->impl) return EINVAL;
 	if (c->internal->dump)
-		tll_channel_log_msg(c, "tll.channel.impl", TLL_LOGGER_INFO, c->internal->dump, msg, "Post", 4);
+		tll_channel_log_msg(c, nullptr, TLL_LOGGER_INFO, c->internal->dump, msg, "Post", 4);
 	auto r = (*c->impl->post)(c, msg, flags);
 	if (r) {
-		tll_channel_log_msg(c, "tll.channel.impl", TLL_LOGGER_ERROR, TLL_MESSAGE_LOG_FRAME, msg, "Failed to post", -1);
+		tll_channel_log_msg(c, nullptr, TLL_LOGGER_ERROR, TLL_MESSAGE_LOG_FRAME, msg, "Failed to post", -1);
 	} else if (msg->type == TLL_MESSAGE_DATA && c->internal->stat) {
 		auto p = tll::stat::acquire(c->internal->stat);
 		if (p) {
