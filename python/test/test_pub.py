@@ -79,15 +79,23 @@ def test(server, client):
 async def test_hello_seq(asyncloop, server, client):
     s, c = server, client
 
-    s.open()
-    for i in range(10):
-        s.post(b'xxx', seq=i)
+    s.open({'last-seq': '9'})
+    assert (await s.recv_state()) == s.State.Active
 
     c.open()
-
-    assert (await s.recv_state()) == s.State.Active
     assert (await c.recv_state()) == c.State.Active
     assert c.config['info.seq'] == '9'
+
+    for i in range(10, 20):
+        s.post(b'xxx', msgid=10, seq=i)
+
+    m = await c.recv()
+    assert (m.msgid, m.seq, m.data.tobytes()) == (10, 10, b'xxx')
+
+    c.close()
+    c.open()
+    assert (await c.recv_state()) == c.State.Active
+    assert c.config['info.seq'] == '19'
 
 @asyncloop_run
 async def test_disconnect(asyncloop, server, client):

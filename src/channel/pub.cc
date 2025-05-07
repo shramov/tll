@@ -50,7 +50,7 @@ std::optional<const tll_channel_impl_t *> ChPubServer::_init_replace(const tll::
 
 int ChPubServer::_init(const Channel::Url &url, tll::Channel *master)
 {
-	auto r = tcp_server_t::_init(url, master);
+	auto r = Base::_init(url, master);
 	if (r)
 		return _log.fail(r, "Tcp server init failed");
 
@@ -69,9 +69,23 @@ int ChPubServer::_init(const Channel::Url &url, tll::Channel *master)
 	return 0;
 }
 
+int ChPubServer::_open(const ConstConfig &cfg)
+{
+	_ring.clear();
+	if (auto r = cfg.getT<long long>("last-seq", -1); !r) {
+		return _log.fail(EINVAL, "Invalid 'last-seq' parameter: {}", r.error());
+	} else if (*r >= 0) {
+		tll_frame_t frame = { 0, 0, (int64_t) *r };
+		_last_seq_tx(*r);
+		if (_ring.push_back(frame, nullptr, 0) == nullptr)
+			return _log.fail(EINVAL, "Failed to push initial message");
+	}
+	return Base::_open(cfg);
+}
+
 int ChPubServer::_close()
 {
-	tcp_server_t::_close();
+	Base::_close();
 	return 0;
 }
 

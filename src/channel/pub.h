@@ -55,6 +55,8 @@ class ChPubSocket : public tll::channel::TcpSocket<ChPubSocket>
 
 class ChPubServer : public tll::channel::LastSeqTx<ChPubServer, tll::channel::TcpServer<ChPubServer, ChPubSocket>>
 {
+	using Base = tll::channel::LastSeqTx<ChPubServer, tll::channel::TcpServer<ChPubServer, ChPubSocket>>;
+
 	size_t _size;
 	tll::util::DataRing<tll_frame_t> _ring;
 	bool _hello = true;
@@ -70,6 +72,7 @@ class ChPubServer : public tll::channel::LastSeqTx<ChPubServer, tll::channel::Tc
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
 	std::optional<const tll_channel_impl_t *> _init_replace(const tll::Channel::Url &url, tll::Channel *master);
 
+	int _open(const tll::ConstConfig &cfg);
 	int _close();
 
 	int _post(const tll_msg_t *msg, int flags);
