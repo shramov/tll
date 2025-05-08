@@ -31,7 +31,9 @@ for example ``pub+tcp``.
 
 ``ADDRESS`` - TCP address, either ``HOST:PORT`` pair or Unix socket path. Both IP address or hostname
 can be used for HOST. Abstract Unix sockets are supported with common ``@PATH`` notation. If
-``ADDRESS`` is empty then it can be passed in open parameters as ``hostname`` parameter.
+``ADDRESS`` is empty then it can be passed in open parameters as ``hostname`` parameter. When
+``HOST`` is ``*`` then socket is listening on all available addresses. If ``PORT`` is ``0`` then
+ephemeral dynamic port is used.
 
 ``af={any|unix|ipv4|ipv6}`` (default ``any``) - choose specific address family or use autodetection.
 Unix AF is selected when ``/`` character is found in address string. Otherwise result of
