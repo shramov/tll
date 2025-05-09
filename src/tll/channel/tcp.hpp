@@ -178,7 +178,8 @@ template <typename T>
 std::optional<size_t> TcpSocket<T>::_recv(size_t size)
 {
 	auto left = _rbuf.available();
-	if (left == 0) return EAGAIN;
+	if (left == 0)
+		return this->_log.fail(std::nullopt, "No space left in recv buffer");
 
 	size = std::min(size, left);
 
