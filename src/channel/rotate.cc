@@ -171,6 +171,10 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 				_log.info("Last file without data, overwrite");
 				auto cfg = _open_cfg.copy();
 				cfg.set("overwrite", "yes");
+				{
+					auto lock = _files->lock();
+					_files->scheme.reset(_scheme->ref());
+				}
 				return _child->open(cfg);
 			} else {
 				_state = State::Closed;

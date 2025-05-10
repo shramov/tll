@@ -281,3 +281,15 @@ def test_convert(context, tmp_path):
     data = [m for m in r.result if m.type == m.Type.Data]
     assert [m.seq for m in data] == [100, 101, 102]
     assert [r.unpack(m).as_dict() for m in data] == [{'h0': 0, 'h1': 0, 'f0': 1000}, {'h0': 11, 'h1': 0, 'f0': 1001}, {'h0': 12, 'h1': 102, 'f0': 1002}]
+
+def test_scheme_init(context, tmp_path):
+    SCHEME = '''yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32}]}]'''
+
+    w = context.Channel(f'rotate+file://{tmp_path}/rotate;dump=frame', name='writer', dir='w', scheme=SCHEME)
+    w.open()
+    w.post({'f0': 10}, name='Data', seq=10)
+
+    r = Accum(f'rotate+file://{tmp_path}/rotate;dump=frame', name='reader', context=context, convert='yes', master=w)
+    r.open()
+    assert r.scheme != None
+    assert r.state == r.State.Active
