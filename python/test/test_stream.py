@@ -998,3 +998,31 @@ async def test_online_gap(asyncloop, tmp_path):
 
     m = await c.recv()
     assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control['Online'].msgid, 10)
+
+@asyncloop_run
+async def test_online_last_seq(asyncloop, tmp_path):
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server')
+    c = asyncloop.Channel(f'pub+tcp://{tmp_path}/stream.sock;name=client;mode=client;peer=test')
+
+    s.open()
+
+    c.open()
+    assert (await c.recv_state()) == c.State.Active
+    assert c.config['info.seq'] == '-1'
+    c.close()
+
+    s.post(b'xxx', seq=10)
+
+    c.open()
+    assert (await c.recv_state()) == c.State.Active
+    assert c.config['info.seq'] == '10'
+    c.close()
+
+    s.close()
+    s.open()
+
+    c.open()
+    assert (await c.recv_state()) == c.State.Active
+    assert c.config['info.seq'] == '10'
+    c.close()

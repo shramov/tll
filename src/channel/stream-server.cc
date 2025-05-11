@@ -145,12 +145,12 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 	return 0;
 }
 
-int StreamServer::_open(const ConstConfig &url)
+int StreamServer::_open(const ConstConfig &cfg)
 {
 	_seq = -1;
 
 	Config sopen;
-	if (auto sub = url.sub("storage"); sub)
+	if (auto sub = cfg.sub("storage"); sub)
 		sopen = sub->copy();
 	if (_storage->open(sopen))
 		return _log.fail(EINVAL, "Failed to open storage channel");
@@ -194,6 +194,10 @@ int StreamServer::_open(const ConstConfig &url)
 	}
 
 	_autoseq.reset(_seq);
+
+	auto ocfg = cfg.copy();
+	if (_seq != -1)
+		ocfg.setT("last-seq", _seq);
 
 	if (_blocks) {
 		if (_blocks->open())
@@ -255,7 +259,7 @@ int StreamServer::_open(const ConstConfig &url)
 			if (auto r = _storage_load->open(_child_open); r)
 				return _log.fail(EINVAL, "Failed to open storage channel for reading");
 			_child_add(_storage_load.get(), "storage");
-			_child_open = url.copy();
+			_child_open = ocfg;
 			return 0;
 		}
 	}
@@ -263,7 +267,7 @@ int StreamServer::_open(const ConstConfig &url)
 	if (_request->open())
 		return _log.fail(EINVAL, "Failed to open request channel");
 
-	return Base::_open(url);
+	return Base::_open(ocfg);
 }
 
 int StreamServer::_close(bool force)
