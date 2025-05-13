@@ -49,6 +49,13 @@ std::optional<const tll_channel_impl_t *> Rotate::_init_replace(const tll::Chann
 		*/
 }
 
+constexpr std::string_view Rotate::scheme_control_string() const
+{
+	if (this->internal.caps & caps::Input)
+		return control_scheme_read;
+	return control_scheme_write;
+}
+
 int Rotate::_on_init(tll::Channel::Url &curl, const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = channel_props_reader(url);
@@ -78,10 +85,6 @@ int Rotate::_on_init(tll::Channel::Url &curl, const tll::Channel::Url &url, tll:
 		internal.caps |= caps::Input;
 	if ((internal.caps & caps::InOut) == caps::InOut)
 		return _log.fail(EINVAL, "rotate+:// can be either read-only or write-only, need proper dir in parameters");
-
-	_scheme_control.reset(context().scheme_load((internal.caps & caps::Input) ? control_scheme_read : control_scheme_write));
-	if (!_scheme_control.get())
-		return _log.fail(EINVAL, "Failed to load control scheme");
 
 	if (internal.caps & caps::Input)
 		curl.remove("scheme");

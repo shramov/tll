@@ -97,6 +97,11 @@ int ChIpc::_process(long timeout, int flags)
 	return event_clear_race([&ref]() -> bool { return !ref->server.empty(); });
 }
 
+constexpr std::string_view ChIpcServer::scheme_control_string()
+{
+	return ipc_scheme::scheme_string;
+}
+
 int ChIpcServer::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = channel_props_reader(url);
@@ -104,10 +109,6 @@ int ChIpcServer::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_broadcast = reader.getT("broadcast", false);
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
-
-	_scheme_control.reset(this->context().scheme_load(ipc_scheme::scheme_string));
-	if (!_scheme_control.get())
-		return _log.fail(EINVAL, "Failed to load control scheme");
 
 	return Event<ChIpcServer>::_init(url, master);
 }

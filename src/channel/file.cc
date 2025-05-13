@@ -232,6 +232,14 @@ std::optional<const tll_channel_impl_t *> tll::channel::FileInit::_init_replace(
 }
 
 template <typename TIO>
+constexpr std::string_view File<TIO>::scheme_control_string() const
+{
+	if (this->internal.caps & caps::Input)
+		return control_scheme;
+	return "";
+}
+
+template <typename TIO>
 int File<TIO>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	this->_log.info("Initialize file channel with {} io", _io.name());
@@ -257,12 +265,6 @@ int File<TIO>::_init(const tll::Channel::Url &url, tll::Channel *master)
 
 	if (_io.name() == "mmap" && _tail_extra_size == 0)
 		_tail_extra_size = 1;
-
-	if (this->internal.caps & caps::Input) {
-		this->_scheme_control.reset(this->context().scheme_load(control_scheme));
-		if (!this->_scheme_control.get())
-			return this->_log.fail(EINVAL, "Failed to load control scheme");
-	}
 
 	return Base::_init(url, master);
 }

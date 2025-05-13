@@ -113,18 +113,11 @@ class MemSub : public tll::channel::LastSeqRx<MemSub, MemCommon<MemSub>>
 	static constexpr std::string_view channel_protocol() { return "pub+mem"; }
 	static constexpr std::string_view param_prefix() { return "pub"; }
 
-	int _init(const tll::Channel::Url &url, tll::Channel *master)
+	constexpr std::string_view scheme_control_string() const
 	{
-		if (auto r = Base::_init(url, master); r)
-			return r;
-
-		if (_create) {
-			_scheme_control.reset(context().scheme_load(scheme_string));
-			if (!_scheme_control.get())
-				return _log.fail(EINVAL, "Failed to load control scheme");
-		}
-
-		return 0;
+		if (_create)
+			return scheme_string;
+		return "";
 	}
 
 	int _open(const tll::ConstConfig &);

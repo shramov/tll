@@ -34,6 +34,8 @@ struct tll::conv::dump<StreamClient::State> : public tll::conv::to_string_from_s
         }
 };
 
+constexpr std::string_view StreamClient::scheme_control_string() { return stream_control_scheme::scheme_string; }
+
 int StreamClient::_init(const Channel::Url &url, tll::Channel *master)
 {
 	auto r = Base::_init(url, master);
@@ -63,10 +65,6 @@ int StreamClient::_init(const Channel::Url &url, tll::Channel *master)
 	_request->callback_add<StreamClient, &StreamClient::_on_request_state>(this, TLL_MESSAGE_MASK_STATE);
 	_request->callback_add<StreamClient, &StreamClient::_on_request_data>(this, TLL_MESSAGE_MASK_DATA);
 	_child_add(_request.get(), "request");
-
-	_scheme_control.reset(context().scheme_load(stream_control_scheme::scheme_string));
-	if (!_scheme_control.get())
-		return _log.fail(EINVAL, "Failed to load control scheme");
 
 	return 0;
 }

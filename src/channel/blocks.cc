@@ -15,16 +15,17 @@ using namespace tll::channel;
 
 TLL_DEFINE_IMPL(Blocks);
 
+constexpr std::string_view Blocks::scheme_control_string() const
+{
+	if (internal.caps & caps::Output)
+		return blocks_scheme::scheme_string;
+	return "";
+}
+
 int Blocks::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	if ((internal.caps & caps::InOut) == 0) // Defaults to input
 		internal.caps |= caps::Input;
-
-	if (internal.caps & caps::Output) {
-		_scheme_control.reset(context().scheme_load(blocks_scheme::scheme_string));
-		if (!_scheme_control.get())
-			return _log.fail(EINVAL, "Failed to load control scheme");
-	}
 
 	if (master) {
 		_master = tll::channel_cast<Blocks>(master);

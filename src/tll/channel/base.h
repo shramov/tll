@@ -109,6 +109,15 @@ class Base
 	enum class SchemePolicy { Normal, Manual };
 	static constexpr auto scheme_policy() { return SchemePolicy::Normal; }
 
+	/**
+	 * Control scheme string, loaded in init.
+	 *
+	 * This function can be non-static but is recommended to be const
+	 *
+	 * @return scheme string, if empty - control scheme is not loaded
+	 */
+	static constexpr std::string_view scheme_control_string() { return ""; }
+
 	/// Post policy, enable or disable posting in non-active states
 	enum class PostPolicy { Disable, Enable };
 	/// Post in Opening state policy
@@ -247,6 +256,11 @@ class Base
 		if (r) return r;
 
 		internal.logger = tll_logger_copy(_log.ptr());
+
+		if (auto s = channelT()->scheme_control_string(); s.size()) {
+			if (auto r = _scheme_load(s, TLL_MESSAGE_CONTROL); r)
+				return _log.fail(r, "Failed to load control scheme");
+		}
 
 		if (ChannelT::stat_policy() == StatPolicy::Normal && _stat_enable)
 			internal.stat = new stat::Block<typename T::StatType>(name);

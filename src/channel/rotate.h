@@ -79,6 +79,8 @@ class Rotate : public Prefix<Rotate>
 		}
 	}
 
+	constexpr std::string_view scheme_control_string() const;
+
 	std::optional<const tll_channel_impl_t *> _init_replace(const tll::Channel::Url &url, tll::Channel *master);
 	int _on_init(tll::Channel::Url &curl, const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::ConstConfig &params);

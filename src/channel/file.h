@@ -66,6 +66,8 @@ public:
 	static constexpr std::string_view param_prefix() { return "file"; }
 	static constexpr auto process_policy() { return Base::ProcessPolicy::Custom; }
 
+	constexpr std::string_view scheme_control_string() const;
+
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::ConstConfig &);
 	int _close();

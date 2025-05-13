@@ -45,6 +45,7 @@ class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::
  public:
 	static constexpr std::string_view channel_protocol() { return "stream+"; }
 	static constexpr auto prefix_config_policy() { return PrefixConfigPolicy::Manual; }
+	static constexpr std::string_view scheme_control_string();
 
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
 	void _free()

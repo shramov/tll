@@ -29,6 +29,8 @@ class Blocks : public tll::channel::Base<Blocks>
 	static constexpr auto open_policy() { return OpenPolicy::Manual; }
 	static constexpr auto process_policy() { return ProcessPolicy::Never; }
 
+	constexpr std::string_view scheme_control_string() const;
+
 	int _init(const tll::Channel::Url &url, tll::Channel * master);
 	int _open(const tll::ConstConfig &);
 	int _open_input(const tll::ConstConfig &);

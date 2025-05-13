@@ -93,6 +93,7 @@ class ChIpcServer : public tll::channel::Event<ChIpcServer>
 	std::map<long long, refptr_t<QueuePair>> _clients;
  public:
 	static constexpr std::string_view channel_protocol() { return "ipc"; }
+	static constexpr std::string_view scheme_control_string();
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 
