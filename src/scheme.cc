@@ -1317,7 +1317,7 @@ int Field::parse_type(tll::Config &cfg, std::string_view type)
 		if (!s)
 			return _log.fail(EINVAL, "Invalid bytes count {}: {}", type.substr(1), s.error());
 		this->size = *s;
-		_log.warning("Deprected notation: {}, use byte{}", type, *s);
+		_log.warning("Deprecated notation: {}, use byte{}", type, *s);
 	} else if (starts_with(type, "c") && tll::conv::to_any<unsigned>(type.substr(1))) {
 		this->type = tll::scheme::Field::Bytes;
 		this->sub_type = tll::scheme::Field::ByteString;
@@ -1325,7 +1325,7 @@ int Field::parse_type(tll::Config &cfg, std::string_view type)
 		if (!s)
 			return _log.fail(EINVAL, "Invalid bytes count {}: {}", type.substr(1), s.error());
 		this->size = *s + 1;
-		_log.warning("Deprected notation: {}, use byte{}, options.type: string", type, *s + 1);
+		_log.warning("Deprecated notation: {}, use byte{}, options.type: string", type, *s + 1);
 	} else if (starts_with(type, "decimal")) {
 		this->type = tll::scheme::Field::Int64;
 		this->sub_type = tll::scheme::Field::Fixed;
@@ -1333,9 +1333,9 @@ int Field::parse_type(tll::Config &cfg, std::string_view type)
 		if (!s)
 			return _log.fail(EINVAL, "Invalid decimal precision {}: {}", type.substr(7), s.error());
 		this->fixed_precision = *s;
-		_log.warning("Deprected notation: {}, use type: int64, options.type: fixed{}", type, *s);
+		_log.warning("Deprecated notation: {}, use type: int64, options.type: fixed{}", type, *s);
 	} else if (type == "enum1" || type == "enum2" || type == "enum4" || type == "enum8") {
-		_log.warning("Deprected notation: {}, use type: intX, options.type: enum", type);
+		_log.warning("Deprecated notation: {}, use type: intX, options.type: enum", type);
 		return parse_enum_inline(cfg);
 	} else if (type == "union") {
 		this->type = tll::scheme::Field::Union;
