@@ -20,7 +20,8 @@ channels. Default message has zeroed body but user can provide it's own with ``-
 Options
 -------
 
-``URLS...`` list of channel urls to benchmark. If nothing is specified - measure TLL overhead for
+``URLS...`` list of channel urls to benchmark. If url contains ``bench-name`` parameter it is used
+instead of full url for benchmark name. If nothing is specified - measure TLL overhead for
 post/callback functions using set of pirmitive channels:
 
   - ``null://`` measure post overhead with one function pointer call;
@@ -67,15 +68,14 @@ parameters. Supported variables are following:
 Examples
 --------
 
-Measure relative overhead of statistic gathering
+Measure relative overhead of statistic gathering, specify explicit benchmark name for second channel
 
 ::
 
-    tll-bench-channel 'null://' 'null://;stat=yes'
+    tll-bench-channel 'null://' 'null://;stat=yes;bench-name=null-stat'
 
 Read message body from yaml file and benchmark some lua code two times (to demonstrate syntax),
 configuration file that should be used with ``--config`` option:
-
 
 ::
 

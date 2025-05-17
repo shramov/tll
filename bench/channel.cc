@@ -39,6 +39,14 @@ int post(tll::Channel * c, const tll_msg_t * msg)
 	return c->post(msg);
 }
 
+std::string bench_name(const tll::Channel::Url &cfg)
+{
+	auto name = cfg.get("bench-name");
+	if (name && name->size())
+		return std::string(*name);
+	return tll::conv::to_string(cfg);
+}
+
 std::unique_ptr<tll::Channel> prepare(tll::channel::Context &ctx, const tll::Channel::Url &url, bool callback, size_t &counter)
 {
 	auto c = ctx.channel(url);
@@ -76,7 +84,7 @@ int timeit_post(tll::channel::Context &ctx, const tll::Channel::Url &url, bool c
 	if (!c.get())
 		return -1;
 
-	timeit(count, tll::conv::to_string(url), post, c.get(), msg);
+	timeit(count, bench_name(url), post, c.get(), msg);
 	if (callback && !counter)
 		fmt::print("Callback was added but not called\n");
 	return 0;
@@ -109,7 +117,7 @@ int timeit_process(tll::channel::Context &ctx, const tll::Channel::Url &url, boo
 	if (list.size() != 1)
 		return fail(-1, "Channel with several active childs\n");
 
-	timeit(count, tll::conv::to_string(url), tll_channel_process, list[0], 0, 0);
+	timeit(count, bench_name(url), tll_channel_process, list[0], 0, 0);
 	if (callback && !counter)
 		fmt::print("Callback was added but not called\n");
 	return 0;
