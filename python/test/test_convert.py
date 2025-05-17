@@ -6,6 +6,7 @@ from decimal import Decimal
 import enum
 
 from tll.channel import Context
+from tll.chrono import TimePoint, Duration
 from tll.error import TLLError
 from tll.test_util import Accum
 
@@ -28,6 +29,8 @@ def context():
     ('decimal128', Decimal('123.123')),
     ('int32, options.type: fixed3', Decimal('-123.123')),
     ('uint32, options.type: fixed3', Decimal('123.123')),
+    ('int64, options.type: time_point, options.resolution: us', TimePoint(1609556645, 'second')),
+    ('int64, options.type: duration, options.resolution: ns', Duration(123, 'ns')),
 ])
 def test_extend(context, t, v):
     SInner = f'''yamls://
@@ -310,3 +313,30 @@ def test_enum(context, tinto, tfrom, einto, efrom):
     class f0(enum.Enum):
         A = 10
     _test_convert(context, f'{tfrom}, options.type: enum, enum: {efrom}', f'{tinto}, options.type: enum, enum: {einto}', 'A', f0.A)
+
+@pytest.mark.parametrize("mode", ["duration", "time_point"])
+@pytest.mark.parametrize("rinto", [
+    '',
+    'ms',
+    'minute',
+])
+@pytest.mark.parametrize("tinto", [
+    'int64',
+    'uint32',
+])
+@pytest.mark.parametrize("rfrom", [
+    '',
+    'ms',
+    'minute',
+])
+@pytest.mark.parametrize("tfrom", [
+    'int64',
+    'uint32',
+])
+def test_time(context, mode, tinto, tfrom, rinto, rfrom):
+    sinto = f', options.type: {mode}, options.resolution: {rinto}' if rinto else ''
+    sfrom = f', options.type: {mode}, options.resolution: {rfrom}' if rfrom else ''
+    kfrom = kinto = Duration if mode == 'duration' else TimePoint
+    if rfrom == '': kfrom = lambda v, _: v
+    if rinto == '': kinto = lambda v, _: v if rfrom in ('', 'minute') else v * (60 * 1000)
+    _test_convert(context, f'{tfrom}{sfrom}', f'{tinto}{sinto}', kfrom(15, 'minute'), kinto(15, 'minute' if rfrom else rinto))

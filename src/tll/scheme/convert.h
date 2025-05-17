@@ -19,6 +19,30 @@ struct Convert : public ErrorStack
 	SchemePtr scheme_from;
 	SchemePtr scheme_into;
 
+	struct Ratio
+	{
+		unsigned long mul = 1;
+		unsigned long div = 1;
+
+		void simplify()
+		{
+			if (mul == div) {
+				mul = div = 1;
+			} else if (mul > div) {
+				mul /= div;
+				div = 1;
+			} else {
+				div /= mul;
+				mul = 1;
+			}
+		}
+
+		void flip()
+		{
+			std::swap(mul, div);
+		}
+	};
+
 	tll::Logger log = { "tll.scheme.convert" };
 
 	struct MessageInto
@@ -254,6 +278,9 @@ struct Convert : public ErrorStack
 
 	template <typename T, typename From>
 	int convert_fixed_numeric(T * into, int prec, From from, const Field * ffrom);
+
+	template <typename T, typename From>
+	int convert_time_numeric(T * into, Ratio prec, From from, const Field * ffrom);
 
 	template <typename T, typename ViewIn>
 	int convert_time_point(T * into, const Field * finto, ViewIn from, const Field * ffrom);
@@ -579,6 +606,20 @@ unsigned long pow10(unsigned exp)
 		r *= 10;
 	return r;
 }
+
+constexpr Convert::Ratio resolution(tll_scheme_time_resolution_t v)
+{
+	switch (v) {
+	case TLL_SCHEME_TIME_NS: return {1, 1000000000};
+	case TLL_SCHEME_TIME_US: return {1, 1000000};
+	case TLL_SCHEME_TIME_MS: return {1, 1000};
+	case TLL_SCHEME_TIME_SECOND: return {1, 1};
+	case TLL_SCHEME_TIME_MINUTE: return {60, 1};
+	case TLL_SCHEME_TIME_HOUR: return {3600, 1};
+	case TLL_SCHEME_TIME_DAY: return {86400, 1};
+	}
+	return {0, 0};
+}
 }
 
 template <typename T, typename From>
@@ -613,12 +654,39 @@ int Convert::convert_fixed_numeric(T * into, int prec, From from, const Field * 
 }
 
 template <typename T, typename From>
+int Convert::convert_time_numeric(T * into, Convert::Ratio prec, From from, const Field * ffrom)
+{
+	if (ffrom->sub_type == Field::TimePoint || ffrom->sub_type == Field::Duration) {
+		auto fprec = resolution(ffrom->time_resolution);
+		prec.mul *= fprec.div;
+		prec.div *= fprec.mul;
+		prec.simplify();
+		from /= prec.mul;
+	} else if (ffrom->sub_type == Field::SubNone) {
+		prec = {1, 1};
+	} else
+		return fail(EINVAL, "Can not convert from non-time {}", ffrom->sub_type);
+
+	if (auto r = check_overflow(into, from, (T) prec.div); r) {
+		if (r < 0)
+			return fail(ERANGE, "Source value out of range: min {}, got {}", std::numeric_limits<T>::min(), from);
+		else
+			return fail(ERANGE, "Source value out of range: max {}, got {}", std::numeric_limits<T>::max(), from);
+	}
+	*into = from;
+	*into *= prec.div;
+	return 0;
+}
+
+template <typename T, typename From>
 int Convert::convert_numeric_numeric(T * into, const Field * finto, From from, const Field * ffrom)
 {
 	auto user = static_cast<const FieldFrom *>(finto->user);
 	if constexpr (!std::is_floating_point_v<T>) {
 		if (finto->sub_type == Field::Fixed) {
 			return convert_fixed_numeric(into, finto->fixed_precision, from, ffrom);
+		} else if (finto->sub_type == Field::TimePoint || finto->sub_type == Field::Duration) {
+			return convert_time_numeric(into, resolution(finto->time_resolution), from, ffrom);
 		} else if (finto->sub_type == Field::Enum) {
 			if (user->enum_map.empty()) {
 				// Fast path, trivial copy
