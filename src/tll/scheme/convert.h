@@ -162,7 +162,6 @@ struct Convert : public ErrorStack
 			} else {
 				switch (from->type) {
 				case Field::Array:
-					return true;
 					return convertible(into->type_ptr, from->type_array);
 				case Field::Pointer:
 					if (from->sub_type == Field::ByteString)
