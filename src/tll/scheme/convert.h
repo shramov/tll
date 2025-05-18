@@ -228,17 +228,20 @@ struct Convert : public ErrorStack
 			return fail(EINVAL, "Message {} not found in destination scheme", msg->name);
 		if (view.size() < user->into->size)
 			view.resize(user->into->size);
-		auto opmap = msg->pmap ? view.view(msg->pmap->offset) : view;
-		auto ipmap = user->into->pmap ? from.view(user->into->pmap->offset) : from;
+		auto ipmap = user->into->pmap ? view.view(user->into->pmap->offset) : view;
+		const void * fpmap = msg->pmap ? from.view(msg->pmap->offset).data() : nullptr;
 		for (auto finto = user->into->fields; finto; finto = finto->next) {
 			auto fuser = static_cast<const FieldFrom *>(finto->user);
 			if (!fuser)
 				continue;
 			auto ffrom = fuser->from;
-			if (msg->pmap && ffrom->index >= 0 && !pmap_get(ipmap.data(), ffrom->index))
+			if (fpmap && !pmap_get(fpmap, ffrom->index))
 				continue;
-			if (user->into->pmap && finto->index >= 0)
-				pmap_set(opmap.data(), finto->index);
+			if (user->into->pmap) {
+				if (finto == user->into->pmap)
+					continue;
+				pmap_set(ipmap.data(), finto->index);
+			}
 			if (auto r = convert(view.view(finto->offset), finto, from.view(ffrom->offset), ffrom); r)
 				return fail_field(r, ffrom);
 		}

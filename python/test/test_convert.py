@@ -340,3 +340,45 @@ def test_time(context, mode, tinto, tfrom, rinto, rfrom):
     if rfrom == '': kfrom = lambda v, _: v
     if rinto == '': kinto = lambda v, _: v if rfrom in ('', 'minute') else v * (60 * 1000)
     _test_convert(context, f'{tfrom}{sfrom}', f'{tinto}{sinto}', kfrom(15, 'minute'), kinto(15, 'minute' if rfrom else rinto))
+
+def test_pmap(context):
+    SFrom = f'''yamls://
+- name: Data
+  id: 10
+  options.defaults.optional: yes
+  fields:
+    - {{ name: pmap, type: uint16, options.pmap: yes }}
+    - {{ name: f0, type: uint16, options.optional: no }}
+    - {{ name: f1, type: uint16, options.optional: no }}
+    - {{ name: f2, type: uint16 }}
+    - {{ name: f3, type: uint16 }}
+'''
+    SInto = f'''yamls://
+- name: Data
+  id: 10
+  options.defaults.optional: yes
+  fields:
+    - {{ name: e0, type: uint16 }}
+    - {{ name: e1, type: uint16, options.optional: no }}
+    - {{ name: f0, type: uint16, options.optional: no }}
+    - {{ name: f1, type: uint16 }}
+    - {{ name: f2, type: uint16, options.optional: no }}
+    - {{ name: f3, type: uint16 }}
+    - {{ name: pmap, type: uint16, options.pmap: yes }}
+'''
+    s = Accum('convert+direct://;name=server', dump='yes', scheme=SInto, context=context, **{'direct.scheme': SFrom, 'direct.dump': 'yes'})
+    c = Accum('direct://;name=client', context=context, master=s)
+
+    s.open()
+    c.open()
+
+    assert s.state == s.State.Active
+
+    c.post({'f0': 100, 'f1': 200}, name='Data', seq=100)
+    assert [(m.msgid, m.seq) for m in s.result] == [(10, 100)]
+    assert s.unpack(s.result[0]).as_dict() == {'e1': 0, 'f0': 100, 'f1': 200, 'f2': 0}
+
+    s.result = []
+    c.post({'f2': 100, 'f3': 200}, name='Data', seq=200)
+    assert [(m.msgid, m.seq) for m in s.result] == [(10, 200)]
+    assert s.unpack(s.result[0]).as_dict() == {'e1': 0, 'f0': 0, 'f1': 0, 'f2': 100, 'f3': 200}
