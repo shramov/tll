@@ -53,6 +53,11 @@ struct Convert : public ErrorStack
 	struct FieldFrom
 	{
 		const Field * from = nullptr;
+		enum Mode {
+			Trivial,
+			Copy,
+			Complex,
+		} mode = Complex;
 		std::map<long long, long long> enum_map;
 	};
 
@@ -97,8 +102,6 @@ struct Convert : public ErrorStack
 			auto ffrom = tll::scheme::lookup_name(from->fields, f->name);
 			if (!ffrom)
 				continue;
-			f->user = new FieldFrom { .from = ffrom };
-			f->user_free = [](void * ptr) { delete static_cast<FieldFrom *>(ptr); };
 			if (!convertible(f, ffrom))
 				return log.fail(false, "Message {} field {} can not be converted", into->name, f->name);
 		}
@@ -107,6 +110,10 @@ struct Convert : public ErrorStack
 
 	bool convertible(Field * into, Field * from)
 	{
+		if (!into->user) {
+			into->user = new FieldFrom { .from = from };
+			into->user_free = [](void * ptr) { delete static_cast<FieldFrom *>(ptr); };
+		}
 		switch (into->type) {
 		case Field::Int8: return convertible_numeric(into, from);
 		case Field::Int16: return convertible_numeric(into, from);
@@ -176,49 +183,7 @@ struct Convert : public ErrorStack
 		}
 	}
 
-	bool convertible_numeric(Field * into, const Field * from)
-	{
-		switch (from->type) {
-		case Field::Int8:
-		case Field::Int16:
-		case Field::Int32:
-		case Field::Int64:
-		case Field::UInt8:
-		case Field::UInt16:
-		case Field::UInt32:
-		case Field::UInt64:
-			break;
-		case Field::Double:
-			if (into->sub_type == Field::Enum)
-				return false;
-			break;
-		default:
-			return false;
-		}
-
-		if (into->sub_type == Field::Enum) {
-			auto user = static_cast<FieldFrom *>(into->user);
-			if (from->sub_type == Field::Enum) {
-				bool trivial = true;
-				for (auto v = from->type_enum->values; v; v = v->next) {
-					auto vi = lookup_name(into->type_enum->values, v->name);
-					trivial = trivial && (vi && vi->value == v->value);
-				}
-				if (trivial) // Enum is same or extended
-					return true;
-				// Conversion map
-				for (auto v = from->type_enum->values; v; v = v->next) {
-					if (auto vi = lookup_name(into->type_enum->values, v->name); vi)
-						user->enum_map.emplace(v->value, vi->value);
-				}
-			} else {
-				// Validation map
-				for (auto v = into->type_enum->values; v; v = v->next)
-					user->enum_map.emplace(v->value, v->value);
-			}
-		}
-		return true;
-	}
+	bool convertible_numeric(Field * into, const Field * from);
 
 	template <typename View, typename ViewIn>
 	int convert(View view, const tll::scheme::Message * msg, ViewIn from)
@@ -300,6 +265,12 @@ struct Convert : public ErrorStack
 template <typename View, typename ViewIn>
 int Convert::convert(View into, const Field * finto, ViewIn from, const Field * ffrom)
 {
+	auto user = static_cast<FieldFrom *>(finto->user);
+	if (user->mode == FieldFrom::Trivial || user->mode == FieldFrom::Copy) {
+		// If buffer is not zeroed - memset reset in Copy mode
+		memcpy(into.data(), from.data(), ffrom->size);
+		return 0;
+	}
 	switch (finto->type)
 	{
 	case Field::Int8: return convert_numeric(into.template dataT<int8_t>(), finto, from, ffrom);
@@ -622,6 +593,102 @@ constexpr Convert::Ratio resolution(tll_scheme_time_resolution_t v)
 	}
 	return {0, 0};
 }
+
+bool movable(const tll::scheme::Field * into, const tll::scheme::Field * from)
+{
+	using tll::scheme::Field;
+	const auto ft = from->type;
+	switch (into->type) {
+	case Field::Int8:  return ft == Field::Int8;
+	case Field::Int16: return ft == Field::Int8 || ft == Field::Int16;
+	case Field::Int32: return ft == Field::Int8 || ft == Field::Int16 || ft == Field::Int32;
+	case Field::Int64: return ft == Field::Int8 || ft == Field::Int16 || ft == Field::Int32 || ft == Field::Int64;
+	case Field::UInt8:  return ft == Field::UInt8;
+	case Field::UInt16: return ft == Field::UInt8 || ft == Field::UInt16;
+	case Field::UInt32: return ft == Field::UInt8 || ft == Field::UInt16 || ft == Field::UInt32;
+	case Field::UInt64: return ft == Field::UInt8 || ft == Field::UInt16 || ft == Field::UInt32 || ft == Field::UInt64;
+	case Field::Double: return ft == Field::Double;
+	case Field::Decimal128: return ft == Field::Decimal128;
+	case Field::Bytes: return ft == Field::Bytes && from->size <= into->size;
+	default:
+		return false;
+	}
+}
+
+Convert::FieldFrom::Mode copy_mode(const tll::scheme::Field * into, const tll::scheme::Field * from)
+{
+	if (!movable(into, from))
+		return Convert::FieldFrom::Complex;
+	if (into->type == from->type && into->size == from->size)
+		return Convert::FieldFrom::Trivial;
+	return Convert::FieldFrom::Copy;
+}
+}
+
+inline bool Convert::convertible_numeric(Field * into, const Field * from)
+{
+	auto user = static_cast<FieldFrom *>(into->user);
+	switch (from->type) {
+	case Field::Int8:
+	case Field::Int16:
+	case Field::Int32:
+	case Field::Int64:
+	case Field::UInt8:
+	case Field::UInt16:
+	case Field::UInt32:
+	case Field::UInt64:
+		break;
+	case Field::Double:
+		if (into->sub_type == Field::Enum)
+			return false;
+		break;
+	default:
+		return false;
+	}
+
+	if (into->sub_type == Field::Enum) {
+		auto user = static_cast<FieldFrom *>(into->user);
+		if (from->sub_type == Field::Enum) {
+			bool trivial = true;
+			for (auto v = from->type_enum->values; v; v = v->next) {
+				auto vi = lookup_name(into->type_enum->values, v->name);
+				trivial = trivial && (vi && vi->value == v->value);
+			}
+			if (trivial) { // Enum is same or extended
+				user->mode = copy_mode(into, from);
+				return true;
+			}
+			// Conversion map
+			for (auto v = from->type_enum->values; v; v = v->next) {
+				if (auto vi = lookup_name(into->type_enum->values, v->name); vi)
+					user->enum_map.emplace(v->value, vi->value);
+			}
+		} else {
+			// Validation map
+			for (auto v = into->type_enum->values; v; v = v->next)
+				user->enum_map.emplace(v->value, v->value);
+		}
+	} else if (into->sub_type == Field::Duration || into->sub_type == Field::TimePoint) {
+		if (from->sub_type != Field::SubNone) {
+			if (into->sub_type != from->sub_type)
+				return false;
+			if (into->time_resolution == from->time_resolution)
+				user->mode = copy_mode(into, from);
+		} else
+			user->mode = copy_mode(into, from);
+	} else if (into->sub_type == Field::Fixed) {
+		if (from->sub_type == Field::Fixed) {
+			if (into->fixed_precision == from->fixed_precision)
+				user->mode = copy_mode(into, from);
+		} else if (from->sub_type != Field::SubNone)
+			return false;
+	} else if (into->sub_type == Field::SubNone) {
+		if (from->sub_type != Field::Fixed) {
+			user->mode = copy_mode(into, from);
+			return true;
+		}
+	}
+	return true;
 }
 
 template <typename T, typename From>
