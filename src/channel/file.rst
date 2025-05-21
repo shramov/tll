@@ -90,6 +90,15 @@ has seq number greater or equal to ``msg->seq`` of the message.
 
 ``EndOfData`` is generated only once, even if new data is written and then read by channel.
 
+Config variables
+----------------
+
+File channel exposes following variables in its config info subtree:
+
+ - ``seq`` - seq number of last message, -1 for empty files
+ - ``seq-begin`` - seq number of first message, -1 for empty files
+ - ``block`` - block size with suffix, for example ``1mb``
+ - ``compression`` - file compression mode, same as ``compression`` init parameter
 
 Examples
 --------
