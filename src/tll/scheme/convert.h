@@ -108,81 +108,7 @@ struct Convert : public ErrorStack
 		return true;
 	}
 
-	bool convertible(Field * into, Field * from)
-	{
-		if (!into->user) {
-			into->user = new FieldFrom { .from = from };
-			into->user_free = [](void * ptr) { delete static_cast<FieldFrom *>(ptr); };
-		}
-		switch (into->type) {
-		case Field::Int8: return convertible_numeric(into, from);
-		case Field::Int16: return convertible_numeric(into, from);
-		case Field::Int32: return convertible_numeric(into, from);
-		case Field::Int64: return convertible_numeric(into, from);
-		case Field::UInt8: return convertible_numeric(into, from);
-		case Field::UInt16: return convertible_numeric(into, from);
-		case Field::UInt32: return convertible_numeric(into, from);
-		case Field::UInt64: return convertible_numeric(into, from);
-		case Field::Double: return convertible_numeric(into, from);
-		case Field::Decimal128: return from->type == Field::Decimal128;
-		case Field::Bytes:
-			if (into->sub_type == Field::ByteString) {
-				switch (from->type) {
-				case Field::Array:
-				case Field::Message:
-				case Field::Union:
-					return false;
-				case Field::Pointer:
-					return from->sub_type == Field::ByteString;
-				default:
-					return true;
-				}
-			} else
-				return from->type == Field::Bytes;
-		case Field::Message:
-			if (from->type != Field::Message)
-				return false;
-			return convertible(into->type_msg, from->type_msg);
-		case Field::Array:
-			switch (from->type) {
-			case Field::Array:
-				return convertible(into->type_array, from->type_array);
-			case Field::Pointer:
-				if (from->sub_type == Field::ByteString)
-					return false;
-				return convertible(into->type_array, from->type_ptr);
-			default:
-				return false;
-			}
-		case Field::Pointer:
-			if (into->sub_type == Field::ByteString) {
-				switch (from->type) {
-				case Field::Array:
-				case Field::Message:
-				case Field::Union:
-					return false;
-				case Field::Pointer:
-					return from->sub_type == Field::ByteString;
-				default:
-					return true;
-				}
-			} else {
-				switch (from->type) {
-				case Field::Array:
-					return convertible(into->type_ptr, from->type_array);
-				case Field::Pointer:
-					if (from->sub_type == Field::ByteString)
-						return false;
-					return convertible(into->type_ptr, from->type_ptr);
-				default:
-					return false;
-				}
-			}
-		default:
-			return false;
-		}
-	}
-
+	bool convertible(Field * into, Field * from);
 	bool convertible_numeric(Field * into, const Field * from);
 
 	template <typename View, typename ViewIn>
@@ -315,6 +241,12 @@ int Convert::convert_array(View into, const Field * finto, ViewIn from, const Fi
 
 		write_size(finto->count_ptr, into.view(finto->count_ptr->offset), size);
 
+		auto iuser = static_cast<const FieldFrom *>(finto->type_array->user);
+		if (iuser->mode == FieldFrom::Trivial) {
+			memcpy(into.view(finto->type_array->offset).data(), from.view(ffrom->type_array->offset).data(), size * ffrom->type_array->size);
+			return 0;
+		}
+
 		auto pinto = into.view(finto->type_array->offset);
 		auto pfrom = from.view(ffrom->type_array->offset);
 		for (auto i = 0u; i < size; i++) {
@@ -337,6 +269,12 @@ int Convert::convert_array(View into, const Field * finto, ViewIn from, const Fi
 			return fail(ERANGE, "Source list size too large: {} > maximum {}", ptr->size, finto->count);
 
 		write_size(finto->count_ptr, into.view(finto->count_ptr->offset), ptr->size);
+
+		auto iuser = static_cast<const FieldFrom *>(finto->type_array->user);
+		if (iuser->mode == FieldFrom::Trivial) {
+			memcpy(into.view(finto->type_array->offset).data(), from.view(ptr->offset).data(), ptr->size * ffrom->type_ptr->size);
+			return 0;
+		}
 
 		auto pinto = into.view(finto->type_array->offset);
 		auto pfrom = from.view(ptr->offset);
@@ -623,6 +561,98 @@ Convert::FieldFrom::Mode copy_mode(const tll::scheme::Field * into, const tll::s
 		return Convert::FieldFrom::Trivial;
 	return Convert::FieldFrom::Copy;
 }
+
+constexpr Convert::FieldFrom::Mode get_field_mode(const tll::scheme::Field * f)
+{
+	return static_cast<const Convert::FieldFrom *>(f->user)->mode;
+}
+}
+
+inline bool Convert::convertible(Field * into, Field * from)
+{
+	if (!into->user) {
+		into->user = new FieldFrom { .from = from };
+		into->user_free = [](void * ptr) { delete static_cast<FieldFrom *>(ptr); };
+	}
+	auto user = static_cast<FieldFrom *>(into->user);
+
+	switch (into->type) {
+	case Field::Int8: return convertible_numeric(into, from);
+	case Field::Int16: return convertible_numeric(into, from);
+	case Field::Int32: return convertible_numeric(into, from);
+	case Field::Int64: return convertible_numeric(into, from);
+	case Field::UInt8: return convertible_numeric(into, from);
+	case Field::UInt16: return convertible_numeric(into, from);
+	case Field::UInt32: return convertible_numeric(into, from);
+	case Field::UInt64: return convertible_numeric(into, from);
+	case Field::Double: return convertible_numeric(into, from);
+	case Field::Decimal128: return from->type == Field::Decimal128;
+	case Field::Bytes:
+		if (into->sub_type == Field::ByteString) {
+			switch (from->type) {
+			case Field::Array:
+			case Field::Message:
+			case Field::Union:
+				return false;
+			case Field::Pointer:
+				return from->sub_type == Field::ByteString;
+			default:
+				return true;
+			}
+		} else
+			return from->type == Field::Bytes;
+	case Field::Message:
+		if (from->type != Field::Message)
+			return false;
+		return convertible(into->type_msg, from->type_msg);
+	case Field::Array:
+		switch (from->type) {
+		case Field::Array:
+			if (!convertible(into->count_ptr, from->count_ptr)) // Fill user data
+				return false;
+			if (!convertible(into->type_array, from->type_array))
+				return false;
+			if (get_field_mode(into->count_ptr) == FieldFrom::Trivial && get_field_mode(into->type_array) == FieldFrom::Trivial) {
+				if (into->count == from->count)
+					user->mode = FieldFrom::Trivial;
+				else if (into->count > from->count)
+					user->mode = FieldFrom::Copy;
+			}
+
+		case Field::Pointer:
+			if (from->sub_type == Field::ByteString)
+				return false;
+			return convertible(into->type_array, from->type_ptr);
+		default:
+			return false;
+		}
+	case Field::Pointer:
+		if (into->sub_type == Field::ByteString) {
+			switch (from->type) {
+			case Field::Array:
+			case Field::Message:
+			case Field::Union:
+				return false;
+			case Field::Pointer:
+				return from->sub_type == Field::ByteString;
+			default:
+				return true;
+			}
+		} else {
+			switch (from->type) {
+			case Field::Array:
+				return convertible(into->type_ptr, from->type_array);
+			case Field::Pointer:
+				if (from->sub_type == Field::ByteString)
+					return false;
+				return convertible(into->type_ptr, from->type_ptr);
+			default:
+				return false;
+			}
+		}
+	default:
+		return false;
+	}
 }
 
 inline bool Convert::convertible_numeric(Field * into, const Field * from)

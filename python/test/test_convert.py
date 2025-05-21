@@ -231,20 +231,26 @@ def test_numeric(context, t, outer):
         vinto = int(vfrom)
     _test_convert(context, t, outer, vfrom, vinto)
 
-@pytest.mark.parametrize("vinto", ['', 'legacy-long', 'legacy-short'])
 @pytest.mark.parametrize("tinto", [
-    '*int32',
-    'int32[8]',
+    '"*int32"',
+    '"*int32", list-options.offset-ptr-type: legacy-short',
+    '"*int32", list-options.offset-ptr-type: legacy-short',
+    '"int32[4]"',
+    '"int32[8]"',
+    '"int32[12]"',
 ])
-@pytest.mark.parametrize("vfrom", ['', 'legacy-long', 'legacy-short'])
 @pytest.mark.parametrize("tfrom", [
-    '*int16',
-    'int16[12]',
+    '"*int16"',
+    '"*int32"',
+    '"*int64"',
+    '"*int16", list-options.offset-ptr-type: legacy-short',
+    '"*int16", list-options.offset-ptr-type: legacy-short',
+    '"int16[8]"',
+    '"int32[8]"',
+    '"int64[8]"',
 ])
-def test_list(context, tinto, tfrom, vinto, vfrom):
-    isuffix = '' if not vinto else f', list-options.offset-ptr-type: {vinto}'
-    fsuffix = '' if not vfrom else f', list-options.offset-ptr-type: {vfrom}'
-    _test_convert(context, f'"{tfrom}"{fsuffix}', f'"{tinto}"{isuffix}', [1, 2, 3], [1, 2, 3])
+def test_list(context, tinto, tfrom):
+    _test_convert(context, tfrom, tinto, [1, 2, 3], [1, 2, 3])
 
 @pytest.mark.parametrize("stype", ['Sub', '"*Sub"', '"Sub[4]"'])
 def test_sub(context, stype):
