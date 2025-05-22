@@ -688,10 +688,19 @@ inline bool Convert::convertible_numeric(Field * into, const Field * from)
 				user->mode = copy_mode(into, from);
 				return true;
 			}
+			std::optional<long long> defvalue;
+			if (auto name = tll::getter::get(from->type_enum->options, "fallback-value"); name && name->size()) {
+				auto v = lookup_name(into->type_enum->values, *name);
+				if (!v)
+					return log.fail(false, "Enum '{}': fallback enum value '{}' not found into destination scheme", into->type_enum->name, *name);
+				defvalue = v->value;
+			}
 			// Conversion map
 			for (auto v = from->type_enum->values; v; v = v->next) {
 				if (auto vi = lookup_name(into->type_enum->values, v->name); vi)
 					user->enum_map.emplace(v->value, vi->value);
+				else if (defvalue)
+					user->enum_map.emplace(v->value, *defvalue);
 			}
 		} else {
 			// Validation map

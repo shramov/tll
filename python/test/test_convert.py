@@ -153,8 +153,9 @@ def test_to_string(context, t, v, outer):
         assert [(m.msgid, m.seq) for m in s.result] == [(10, 100)]
         assert s.unpack(s.result[0]).as_dict() == {'f0': sv }
 
-def _test_convert(context, tfrom, tinto, vfrom, vinto):
+def _test_convert(context, tfrom, tinto, vfrom, vinto, fheader="", iheader=""):
     SFrom = f'''yamls://
+{fheader}
 - name: Data
   id: 10
   fields:
@@ -163,6 +164,7 @@ def _test_convert(context, tfrom, tinto, vfrom, vinto):
     - {{ name: footer, type: uint16 }}
 '''
     SInto = f'''yamls://
+{iheader}
 - name: Data
   id: 10
   fields:
@@ -319,6 +321,14 @@ def test_enum(context, tinto, tfrom, einto, efrom):
     class f0(enum.Enum):
         A = 10
     _test_convert(context, f'{tfrom}, options.type: enum, enum: {efrom}', f'{tinto}, options.type: enum, enum: {einto}', 'A', f0.A)
+
+def test_enum_extend(context):
+    class Enum(enum.Enum):
+        A = 10
+    _test_convert(context,
+                  'Enum', 'Enum', 'New', Enum.A,
+                  iheader='- enums.Enum: {type: int32, enum: {A: 10}}',
+                  fheader='- enums.Enum: {type: int32, enum: {A: 10, New: 20}, options.fallback-value: A}')
 
 @pytest.mark.parametrize("mode", ["duration", "time_point"])
 @pytest.mark.parametrize("rinto", [
