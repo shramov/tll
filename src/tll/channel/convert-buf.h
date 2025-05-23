@@ -17,15 +17,17 @@ struct ConvertBuf : public tll::scheme::Convert
 	std::vector<char> buffer;
 	tll_msg_t msg = {};
 
-	const tll_msg_t * convert(const tll_msg_t * m)
+	std::optional<const tll_msg_t *> convert(const tll_msg_t * m)
 	{
 		auto it = map_from.find(m->msgid);
 		if (it == map_from.end())
-			return fail(nullptr, "Message {} not found", m->msgid);
+			return fail(std::nullopt, "Message {} not found", m->msgid);
 		auto message = it->second;
+		if (!message->user)
+			return nullptr; // Skip valid message
 		buffer.resize(0);
 		if (auto r = tll::scheme::Convert::convert(tll::make_view(buffer), message, tll::make_view(*m)); r)
-			return nullptr;
+			return std::nullopt;
 		msg = *m;
 		msg.data = buffer.data();
 		msg.size = buffer.size();

@@ -388,3 +388,37 @@ def test_pmap(context):
     c.post({'f2': 100, 'f3': 200}, name='Data', seq=200)
     assert [(m.msgid, m.seq) for m in s.result] == [(10, 200)]
     assert s.unpack(s.result[0]).as_dict() == {'e1': 0, 'f0': 0, 'f1': 0, 'f2': 100, 'f3': 200}
+
+def test_msgid(context):
+    SFrom = '''yamls://
+- name: Data
+  id: 10
+  fields:
+    - { name: f0, type: int16 }
+- name: New
+  id: 20
+  fields:
+    - { name: f0, type: int16 }
+'''
+    SInto = '''yamls://
+- name: Data
+  id: 10
+  fields:
+    - { name: f0, type: int16 }
+'''
+    s = Accum('convert+direct://;name=server', dump='yes', scheme=SFrom, context=context, **{'direct.scheme': SInto, 'direct.dump': 'yes'})
+    c = Accum('direct://;name=client', context=context, master=s)
+
+    s.open()
+    c.open()
+
+    assert s.state == s.State.Active
+
+    s.post({'f0': 100}, name='Data', seq=100)
+    assert [(m.msgid, m.seq) for m in c.result] == [(10, 100)]
+
+    s.post({'f0': 100}, name='New', seq=200)
+    assert [(m.msgid, m.seq) for m in c.result] == [(10, 100)]
+
+    with pytest.raises(TLLError):
+        s.post(b'xx', msgid=30, seq=300)

@@ -44,15 +44,21 @@ class Convert : public tll::channel::Prefix<Convert>
 
 	int _on_data(const tll_msg_t *msg)
 	{
-		if (auto m = _convert_from.convert(msg); m)
-			return _callback_data(m);
+		if (auto m = _convert_from.convert(msg); m) {
+			if (*m)
+				return _callback_data(*m);
+			return 0;
+		}
 		return _log.fail(EINVAL, "Failed to convert message {} at {}: {}", msg->msgid, _convert_from.format_stack(), _convert_from.error);
 	}
 
 	int _post(const tll_msg_t *msg, int flags)
 	{
-		if (auto m = _convert_into.convert(msg); m)
-			return _child->post(m, flags);
+		if (auto m = _convert_into.convert(msg); m) {
+			if (*m)
+				return _child->post(*m, flags);
+			return 0;
+		}
 		return _log.fail(EINVAL, "Failed to convert message {} at {}: {}", msg->msgid, _convert_into.format_stack(), _convert_into.error);
 	}
 };

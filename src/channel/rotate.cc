@@ -372,8 +372,11 @@ int Rotate::_on_data(const tll_msg_t *msg)
 	_seq_last = msg->seq;
 	if (_convert.scheme_from) {
 		_log.debug("Try convert");
-		if (auto m = _convert.convert(msg); m)
-			return Base::_on_data(m);
+		if (auto m = _convert.convert(msg); m) {
+			if (*m)
+				return Base::_on_data(*m);
+			return 0;
+		}
 		return _log.fail(EINVAL, "Failed to convert message {} at {}: {}", msg->msgid, _convert.format_stack(), _convert.error);
 	}
 	return Base::_on_data(msg);
