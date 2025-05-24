@@ -29,6 +29,43 @@ T ** find_tail(T ** list)
 	return list;
 }
 
+inline void depends(const tll::scheme::Field * f, std::set<const tll::scheme::Message *> &deps);
+inline void depends(const tll::scheme::Union * u, std::set<const tll::scheme::Message *> &deps)
+{
+	for (auto & f : tll::util::list_wrap(u->fields)) {
+		depends(&f, deps);
+	}
+}
+
+inline void depends(const tll::scheme::Message * msg, std::set<const tll::scheme::Message *> &deps)
+{
+	deps.insert(msg);
+	for (auto & f : tll::util::list_wrap(msg->fields)) {
+		depends(&f, deps);
+	}
+}
+
+inline void depends(const tll::scheme::Field * f, std::set<const tll::scheme::Message *> &deps)
+{
+	using Field = tll::scheme::Field;
+	switch (f->type) {
+	case Field::Message:
+		return depends(f->type_msg, deps);
+	case Field::Pointer:
+		return depends(f->type_ptr, deps);
+	case Field::Array:
+		return depends(f->type_array, deps);
+	case Field::Union:
+		return depends(f->type_union, deps);
+	default:
+		break;
+	}
+}
+
+} // namespace tll::scheme::_
+
+namespace tll::scheme {
+
 inline bool compare(const tll::scheme::Message * lhs, const tll::scheme::Message * rhs);
 inline bool compare(const tll::scheme::Union * lhs, const tll::scheme::Union * rhs);
 inline bool compare(const tll::scheme::Field * lhs, const tll::scheme::Field * rhs)
@@ -98,42 +135,6 @@ inline bool compare(const tll::scheme::Message * lhs, const tll::scheme::Message
 	return true;
 }
 
-inline void depends(const tll::scheme::Field * f, std::set<const tll::scheme::Message *> &deps);
-inline void depends(const tll::scheme::Union * u, std::set<const tll::scheme::Message *> &deps)
-{
-	for (auto & f : tll::util::list_wrap(u->fields)) {
-		depends(&f, deps);
-	}
-}
-
-inline void depends(const tll::scheme::Message * msg, std::set<const tll::scheme::Message *> &deps)
-{
-	deps.insert(msg);
-	for (auto & f : tll::util::list_wrap(msg->fields)) {
-		depends(&f, deps);
-	}
-}
-
-inline void depends(const tll::scheme::Field * f, std::set<const tll::scheme::Message *> &deps)
-{
-	using Field = tll::scheme::Field;
-	switch (f->type) {
-	case Field::Message:
-		return depends(f->type_msg, deps);
-	case Field::Pointer:
-		return depends(f->type_ptr, deps);
-	case Field::Array:
-		return depends(f->type_array, deps);
-	case Field::Union:
-		return depends(f->type_union, deps);
-	default:
-		break;
-	}
-}
-
-} // namespace tll::scheme::_
-
-namespace tll::scheme {
 static inline bool compare(const tll::Scheme * lhs, const tll::Scheme * rhs)
 {
 	auto lcount = 0, rcount = 0;
@@ -147,7 +148,7 @@ static inline bool compare(const tll::Scheme * lhs, const tll::Scheme * rhs)
 		auto rm = rhs->lookup(lm.name);
 		if (!rm)
 			return false;
-		if (!tll::scheme::_::compare(&lm, rm))
+		if (!compare(&lm, rm))
 			return false;
 	}
 	return true;

@@ -8,6 +8,7 @@
 #include "tll/scheme.h"
 #include "tll/scheme/error-stack.h"
 #include "tll/scheme/format.h"
+#include "tll/scheme/merge.h"
 #include "tll/util/decimal128.h"
 #include "tll/util/memoryview.h"
 
@@ -48,6 +49,7 @@ struct Convert : public ErrorStack
 	struct MessageInto
 	{
 		const Message * into = nullptr;
+		bool trivial = false;
 	};
 
 	struct FieldFrom
@@ -90,24 +92,7 @@ struct Convert : public ErrorStack
 		return 0;
 	}
 
-	bool convertible(Message * into, Message * from)
-	{
-		log.debug("Bind message {} to {}", from->name, into->name);
-		if (from->user)
-			return true;
-		from->user = new MessageInto { .into = into };
-		from->user_free = [](void * ptr) { delete static_cast<MessageInto *>(ptr); };
-
-		for (auto f = into->fields; f; f = f->next) {
-			auto ffrom = tll::scheme::lookup_name(from->fields, f->name);
-			if (!ffrom)
-				continue;
-			if (!convertible(f, ffrom))
-				return log.fail(false, "Message {} field {} can not be converted", into->name, f->name);
-		}
-		return true;
-	}
-
+	bool convertible(Message * into, Message * from);
 	bool convertible(Field * into, Field * from);
 	bool convertible_numeric(Field * into, const Field * from);
 
@@ -566,6 +551,28 @@ constexpr Convert::FieldFrom::Mode get_field_mode(const tll::scheme::Field * f)
 {
 	return static_cast<const Convert::FieldFrom *>(f->user)->mode;
 }
+}
+
+inline bool Convert::convertible(Message * into, Message * from)
+{
+	log.debug("Bind message {} to {}", from->name, into->name);
+	if (from->user)
+		return true;
+	auto user = new MessageInto { .into = into };
+	from->user = user;
+	from->user_free = [](void * ptr) { delete static_cast<MessageInto *>(ptr); };
+
+	user->trivial = tll::scheme::compare(into, from);
+
+	for (auto f = into->fields; f; f = f->next) {
+		auto ffrom = tll::scheme::lookup_name(from->fields, f->name);
+		if (!ffrom)
+			continue;
+		if (!convertible(f, ffrom))
+			return log.fail(false, "Message {} field {} can not be converted", into->name, f->name);
+	}
+
+	return true;
 }
 
 inline bool Convert::convertible(Field * into, Field * from)

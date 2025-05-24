@@ -25,6 +25,9 @@ struct ConvertBuf : public tll::scheme::Convert
 		auto message = it->second;
 		if (!message->user)
 			return nullptr; // Skip valid message
+		auto user = static_cast<const tll::scheme::Convert::MessageInto *>(message->user);
+		if (user->trivial)
+			return m;
 		buffer.resize(0);
 		if (auto r = tll::scheme::Convert::convert(tll::make_view(buffer), message, tll::make_view(*m)); r)
 			return std::nullopt;
