@@ -66,6 +66,25 @@ inline void depends(const tll::scheme::Field * f, std::set<const tll::scheme::Me
 
 namespace tll::scheme {
 
+inline bool compare(const tll::scheme::Enum * lhs, const tll::scheme::Enum * rhs)
+{
+	if (lhs->type != rhs->type)
+		return false;
+	std::map<std::string_view, long long> lmap, rmap;
+	for (auto v = lhs->values; v; v = v->next)
+		lmap[v->name] = v->value;
+	for (auto v = rhs->values; v; v = v->next)
+		rmap[v->name] = v->value;
+	if (lmap.size() != rmap.size())
+		return false;
+	for (auto &lv : lmap) {
+		auto rv = rmap.find(lv.first);
+		if (rv == rmap.end() || rv->second != lv.second)
+			return false;
+	}
+	return true;
+}
+
 inline bool compare(const tll::scheme::Message * lhs, const tll::scheme::Message * rhs);
 inline bool compare(const tll::scheme::Union * lhs, const tll::scheme::Union * rhs);
 inline bool compare(const tll::scheme::Field * lhs, const tll::scheme::Field * rhs)
@@ -95,6 +114,8 @@ inline bool compare(const tll::scheme::Field * lhs, const tll::scheme::Field * r
 		return lhs->time_resolution == rhs->time_resolution;
 	case Field::Fixed:
 		return lhs->fixed_precision == rhs->fixed_precision;
+	case Field::Enum:
+		return compare(lhs->type_enum, rhs->type_enum);
 	default:
 		break;
 	}
