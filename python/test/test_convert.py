@@ -432,3 +432,46 @@ def test_msgid(context):
 
     with pytest.raises(TLLError):
         s.post(b'xx', msgid=30, seq=300)
+
+@pytest.mark.parametrize("tfrom,tinto", [
+    ('Sub', 'int16'),
+    ('Union', 'int16'),
+    ('string', 'int16'),
+    ('"*int16"', 'int16'),
+    ('"int16[4]"', 'int16'),
+    ('Sub', 'string'),
+    ('Union', 'string'),
+    ('"*int16"', 'string'),
+    ('"int16[4]"', 'string'),
+    ('Sub', '"*int16"'),
+    ('Union', '"*int16"'),
+    ('Sub', '"int16[4]"'),
+    ('Union', '"int16[4]"'),
+])
+def test_incompatible(context, tfrom, tinto):
+    SFrom = f'''yamls://
+- name: Sub
+- name: Data
+  id: 10
+  unions:
+    Union: {{union: [{{name: i8, type: int8}}, {{name: d, type: double}}]}}
+  enums:
+    Enum: {{type: int16, enum: {{A: 1, B: 2}} }}
+  fields:
+    - {{ name: f0, type: {tfrom} }}
+'''
+    SInto = f'''yamls://
+- name: Sub
+- name: Data
+  id: 10
+  unions:
+    Union: {{union: [{{name: i8, type: int8}}, {{name: d, type: double}}]}}
+  enums:
+    Enum: {{type: int16, enum: {{A: 1, B: 2}} }}
+  fields:
+    - {{ name: f0, type: {tinto} }}
+'''
+    s = Accum('convert+null://;name=convert', scheme=SFrom, context=context, **{'null.scheme': SInto})
+
+    s.open()
+    assert s.state == s.State.Error

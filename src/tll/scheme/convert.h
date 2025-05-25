@@ -87,7 +87,7 @@ struct Convert : public ErrorStack
 			if (!into)
 				continue;
 			if (!convertible(into, m))
-				return log.fail(EINVAL, "Message {} can not be converted", m->name);
+				return log.fail(EINVAL, "Message {} can not be converted at {}: {}", m->name, format_stack(), error);
 		}
 		return 0;
 	}
@@ -569,7 +569,7 @@ inline bool Convert::convertible(Message * into, Message * from)
 		if (!ffrom)
 			continue;
 		if (!convertible(f, ffrom))
-			return log.fail(false, "Message {} field {} can not be converted", into->name, f->name);
+			return fail_field(false, f);
 	}
 
 	return true;
@@ -600,7 +600,7 @@ inline bool Convert::convertible(Field * into, Field * from)
 			case Field::Array:
 			case Field::Message:
 			case Field::Union:
-				return false;
+				return fail(false, "Can not convert compound field {} to string", from->type);
 			case Field::Pointer:
 				return from->sub_type == Field::ByteString;
 			default:
@@ -610,13 +610,13 @@ inline bool Convert::convertible(Field * into, Field * from)
 			return from->type == Field::Bytes;
 	case Field::Message:
 		if (from->type != Field::Message)
-			return false;
+			return fail(false, "Can not convert non-message field {} to message", from->type);
 		return convertible(into->type_msg, from->type_msg);
 	case Field::Array:
 		switch (from->type) {
 		case Field::Array:
 			if (!convertible(into->count_ptr, from->count_ptr)) // Fill user data
-				return false;
+				return fail_field(false, into->count_ptr);
 			if (!convertible(into->type_array, from->type_array))
 				return false;
 			if (get_field_mode(into->count_ptr) == FieldFrom::Trivial && get_field_mode(into->type_array) == FieldFrom::Trivial) {
@@ -639,7 +639,7 @@ inline bool Convert::convertible(Field * into, Field * from)
 			case Field::Array:
 			case Field::Message:
 			case Field::Union:
-				return false;
+				return fail(false, "Can not convert compound field {} to string", from->type);
 			case Field::Pointer:
 				return from->sub_type == Field::ByteString;
 			default:
@@ -651,14 +651,14 @@ inline bool Convert::convertible(Field * into, Field * from)
 				return convertible(into->type_ptr, from->type_array);
 			case Field::Pointer:
 				if (from->sub_type == Field::ByteString)
-					return false;
+					return fail(false, "Can not convert string field to pointer");
 				return convertible(into->type_ptr, from->type_ptr);
 			default:
-				return false;
+				return fail(false, "Can not convert non-list field {} to pointer", from->type);
 			}
 		}
 	default:
-		return false;
+		return fail(false, "Unsupported field type {}", into->type);
 	}
 }
 
@@ -677,10 +677,10 @@ inline bool Convert::convertible_numeric(Field * into, const Field * from)
 		break;
 	case Field::Double:
 		if (into->sub_type == Field::Enum)
-			return false;
+			return fail(false, "Can not convert Enum to double");
 		break;
 	default:
-		return false;
+		return fail(false, "Can not convert non-numeric {} type to numeric", from->type);
 	}
 
 	if (into->sub_type == Field::Enum) {
@@ -699,7 +699,7 @@ inline bool Convert::convertible_numeric(Field * into, const Field * from)
 			if (auto name = tll::getter::get(from->type_enum->options, "fallback-value"); name && name->size()) {
 				auto v = lookup_name(into->type_enum->values, *name);
 				if (!v)
-					return log.fail(false, "Enum '{}': fallback enum value '{}' not found into destination scheme", into->type_enum->name, *name);
+					return fail(false, "Fallback enum value '{}' not found in destination scheme", *name);
 				defvalue = v->value;
 			}
 			// Conversion map
@@ -717,7 +717,7 @@ inline bool Convert::convertible_numeric(Field * into, const Field * from)
 	} else if (into->sub_type == Field::Duration || into->sub_type == Field::TimePoint) {
 		if (from->sub_type != Field::SubNone) {
 			if (into->sub_type != from->sub_type)
-				return false;
+				return fail(false, "Can not convert non-time field to time", from->sub_type);
 			if (into->time_resolution == from->time_resolution)
 				user->mode = copy_mode(into, from);
 		} else
@@ -727,7 +727,7 @@ inline bool Convert::convertible_numeric(Field * into, const Field * from)
 			if (into->fixed_precision == from->fixed_precision)
 				user->mode = copy_mode(into, from);
 		} else if (from->sub_type != Field::SubNone)
-			return false;
+			return fail(false, "Can not convert non-fixed field to fixed", from->sub_type);
 	} else if (into->sub_type == Field::SubNone) {
 		if (from->sub_type != Field::Fixed) {
 			user->mode = copy_mode(into, from);
