@@ -20,6 +20,8 @@ time when special ``Rotate`` control messages is posted into the channel. When c
 reading it scans all files starting with given prefix and checks that there is no overlapping data,
 for example data ranges [0, 100], [101, 200] and [150, 250] are invalid.
 
+Scheme is obtained from last available file or can be overriden from initialization parameters.
+
 Init parameters
 ~~~~~~~~~~~~~~~
 
@@ -31,6 +33,9 @@ first sequence number in the file depending on ``filename-key`` parameter.
 read mode.
 
 ``filename-key={first|last}`` (default ``first``) - use first or last file seq number in the name.
+
+``convert=<bool>`` (default ``false``) - reader only, convert messages to common data scheme,
+obtained from the last file or from init parameters.
 
 Open parameters
 ~~~~~~~~~~~~~~~
