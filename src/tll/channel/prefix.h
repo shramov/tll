@@ -60,6 +60,13 @@ public:
 	};
 	static constexpr auto prefix_config_policy() { return PrefixConfigPolicy::Normal; }
 
+	enum class PrefixExportPolicy
+	{
+		Normal, ///< Client protocol is exported with prefix
+		Strip, ///< Prefix part is stripped from client protocol
+	};
+	static constexpr auto prefix_export_policy() { return PrefixExportPolicy::Normal; }
+
 	Config config_info() {
 		static_assert(Base<T>::ChannelT::prefix_config_policy() != PrefixConfigPolicy::Export,
 				"Can not access config info with Export config policy");
@@ -255,7 +262,8 @@ public:
 			return 0;
 		}
 		this->_config.set("client", cfg.copy());
-		this->_config.set("client.init.tll.proto", fmt::format("{}{}", this->channelT()->channel_protocol(), *proto));
+		if (this->channelT()->prefix_export_policy() == PrefixExportPolicy::Normal)
+			this->_config.set("client.init.tll.proto", fmt::format("{}{}", this->channelT()->channel_protocol(), *proto));
 		return 0;
 	}
 };

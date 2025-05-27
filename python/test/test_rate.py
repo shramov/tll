@@ -250,3 +250,9 @@ bucket.packets:
     time.sleep(0.01)
     c.children[-1].process()
     assert (c.children[0].dcaps & c.DCaps.Suspend) == c.DCaps.Zero
+
+def test_client(context):
+    c = context.Channel('rate+tcp://::1:5555;mode=server;speed=1kb', name='rate')
+    c.open()
+
+    assert c.config['client.init.tll.proto'] == 'tcp'

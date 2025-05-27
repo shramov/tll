@@ -26,6 +26,7 @@ class Rate : public tll::channel::Prefix<Rate>
  public:
 	using Base = tll::channel::Prefix<Rate>;
 	static constexpr std::string_view channel_protocol() { return "rate+"; }
+	static constexpr auto prefix_export_policy() { return PrefixExportPolicy::Strip; }
 
 	const Scheme * scheme(int type) const
 	{
