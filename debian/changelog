@@ -1,3 +1,25 @@
+tll (0.3.7) unstable; urgency=medium
+
+  * channel: Expose scheme with user-defined tag
+  * control: Export flags for Channels, fix duplicate updates
+  * convert: Conversion subsystem
+  * prefix: Policy to control state change and prefix+proto:// exports
+  * processor: Basic stages implementation
+  * pub: Pass last known seq to client
+  * python:
+    Check fixed point field limits
+    Control fields that are converted in as_dict
+    Fix incorrect impl initialization in derived channels
+  * rate: Strip rate+ prefix from client parameters
+  * resolve: Convert messages to requested scheme
+  * rotate: Convert data to common scheme
+  * scheme: Improve scheme comparison functions
+  * stream: Use maximum seq from online and restore channels
+  * tcp: Force recv buffer shift on recv when there is no space left
+  * timeit: Do not export timeit+ prefix into resolve
+
+ -- Pavel Shramov <shramov@mexmat.net>  Wed, 28 May 2025 15:57:03 +0300
+
 tll (0.3.6) unstable; urgency=medium
 
   * channel: Impl version field
