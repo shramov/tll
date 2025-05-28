@@ -732,7 +732,11 @@ TEST(Scheme, Secret)
 
 	r = tll::scheme::to_string(scheme->messages->next, tll::make_view(memory));
 	ASSERT_TRUE(r) << "Failed to dump secret message: " << r.error();
+#if FMT_VERSION < 70000
+	ASSERT_EQ(*r, "f0: 0\nf1: 0.0\nf2: \"****\"\nf3: \"****\"");
+#else
 	ASSERT_EQ(*r, "f0: 0\nf1: 0\nf2: \"****\"\nf3: \"****\"");
+#endif
 }
 
 #define ASSERT_SCHEME_CMP(result, string0, string1) do { \
