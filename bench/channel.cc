@@ -1,5 +1,6 @@
 #include <tll/channel.h>
 #include <tll/channel/prefix.h>
+#include <tll/conv/base.h>
 #include <tll/logger.h>
 #include <tll/processor/loop.h>
 #include <tll/util/argparse.h>
@@ -161,8 +162,6 @@ std::optional<tll::util::OwnedMessage> payload_read(tll::channel::Context &ctx, 
 
 int main(int argc, char *argv[])
 {
-	tll::Logger::set("tll", tll::Logger::Warning, true);
-
 	tll::util::ArgumentParser parser("url [--module=module]");
 
 	std::vector<std::string> url;
@@ -176,6 +175,7 @@ int main(int argc, char *argv[])
 	unsigned count = 10000000;
 	unsigned msgsize = 0;
 	int msgid = 0;
+	std::string loglevel = "warning";
 
 	parser.add_argument({"URL"}, "channel url", &url);
 	parser.add_argument({"--config"}, "read benchmark configuration from file", &config_file);
@@ -187,6 +187,7 @@ int main(int argc, char *argv[])
 	parser.add_argument({"--msgsize"}, "message size", &msgsize);
 	parser.add_argument({"--payload"}, "read payload from channel", &payload_channel);
 	parser.add_argument({"--payload-open"}, "open parameters for payload channel", &payload_open);
+	parser.add_argument({"--loglevel"}, "set logging level: debug, info, warning", &loglevel);
 	auto pr = parser.parse(argc, argv);
 	if (!pr) {
 		fmt::print("Invalid arguments: {}\nRun '{} --help' for more information\n", pr.error(), argv[0]);
@@ -194,6 +195,11 @@ int main(int argc, char *argv[])
 	} else if (parser.help) {
 		fmt::print("Usage {} {}\n", argv[0], parser.format_help());
 		return 1;
+	}
+
+	{
+		auto level = tll::conv::select<tll::Logger::level_t>(loglevel, {{"debug", tll::Logger::Debug}, {"info", tll::Logger::Info}, {"warning", tll::Logger::Warning}});
+		tll::Logger::set("tll", level.value_or(tll::Logger::Warning), true);
 	}
 
 	auto ctx = tll::channel::Context(tll::Config());
