@@ -335,6 +335,8 @@ struct tll_processor_loop_t
 	tll_stat_block_t * _stat = nullptr;
 	unsigned _stat_step_index = -1;
 	unsigned _stat_poll_index = -1;
+	unsigned _pending_count = 0;
+	unsigned _pending_steps = 0;
 
 	tll::duration _poll_interval = std::chrono::milliseconds(10);
 
@@ -367,6 +369,8 @@ struct tll_processor_loop_t
 		_poll_interval = reader.getT<tll::duration>("poll-interval", std::chrono::milliseconds(100));
 		auto nofd_interval = reader.getT<tll::duration>("nofd-interval", nofd_interval_default);
 		time_cache_enable = reader.getT("time-cache", false);
+		if (_poll_enable)
+			_pending_steps = reader.getT("pending-steps", 0u);
 
 		_log = { name.size() ? name : "tll.processor.loop" };
 		if (!reader)
@@ -448,6 +452,20 @@ struct tll_processor_loop_t
 	{
 		if (_poll_enable) {
 			tll::time_point start = {};
+			if (_pending_steps && list_pending.size) {
+				if (_pending_count++ < _pending_steps) {
+					if (_stat) {
+						if (auto s = tll::stat::acquire(_stat); s) {
+							static_cast<StatStep *>(s->fields + _stat_step_index)->update(1);
+							tll::stat::release(_stat, s);
+						}
+					}
+					_log.trace("Process pending: {} channels", list_pending.size);
+					process_list(list_pending);
+					return nullptr;
+				} else
+					_pending_count = 0;
+			}
 			if (_stat)
 				start = tll::time::now();
 			auto r = _poll.poll(timeout);
