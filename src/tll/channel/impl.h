@@ -124,7 +124,8 @@ typedef struct tll_channel_internal_t
 	tll_logger_t * logger;
 
 	unsigned state_count;
-	intptr_t reserved[3];
+	intptr_t reserved[3]; ///< Space allocated and zeroed
+	intptr_t reserved2[4]; ///< Space allocated, but not used
 } tll_channel_internal_t;
 
 void tll_channel_list_free(tll_channel_list_t *l);
