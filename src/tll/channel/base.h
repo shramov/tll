@@ -274,8 +274,6 @@ class Base
 	void free()
 	{
 		_log.info("Destroy channel");
-		if (state() != state::Closed)
-			close(true);
 		state(state::Destroy);
 		static_cast<ChannelT *>(this)->_free();
 		if (ChannelT::stat_policy() == StatPolicy::Normal && internal.stat)
