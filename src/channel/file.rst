@@ -28,7 +28,7 @@ Init parameters
 ``dir={r|w|in|out}`` (default ``r``) - file mode, read or write. By default channel is opened in
 read mode.
 
-``io={posix|mmap}`` (default ``posix``) - IO type used inside: ``posix`` is based on ``read`` and
+``io={posix|mmap}`` (default ``mmap``) - IO type used inside: ``posix`` is based on ``read`` and
 ``write`` syscalls, ``mmap`` uses mapped memory to read and write data.
 
 ``scheme={SCHEME}`` - file scheme, ignored in read mode if present in metadata.

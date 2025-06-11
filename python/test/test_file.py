@@ -9,6 +9,7 @@ import struct
 import pytest
 
 from tll.channel import Context
+from tll.config import Config
 from tll.error import TLLError
 from tll.test_util import Accum
 
@@ -17,7 +18,8 @@ META_SIZE = EXTRA_SIZE + 32 # Extra + meta size
 
 @pytest.fixture
 def context():
-    return Context()
+    cfg = Config.from_dict({"file.io": "posix"})
+    return Context(cfg)
 
 @pytest.fixture
 def filename(tmp_path):

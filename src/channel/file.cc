@@ -236,7 +236,7 @@ TLL_DEFINE_IMPL(File<IOMMap>);
 std::optional<const tll_channel_impl_t *> tll::channel::FileInit::_init_replace(const tll::Channel::Url &url, tll::Channel *master)
 {
 	auto reader = channel_props_reader(url);
-	auto posix = reader.getT("io", true, {{ "posix", true }, { "mmap", false}});
+	auto posix = reader.getT("io", false, {{ "posix", true }, { "mmap", false}});
 	if (!reader)
 		return this->_log.fail(std::nullopt, "Invalid url: {}", reader.error());
 	if (posix)
