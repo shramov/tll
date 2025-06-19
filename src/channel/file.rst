@@ -71,8 +71,14 @@ can be used to read different files without creating new objects.
 ``overwrite=<bool>`` (default ``no``) - drop old file and replace it with new one, only in write
 mode.
 
+``mode={seq|last|end}`` (default ``seq``) - open mode:
+
+  - ``seq`` open from message seq number given in ``seq`` parameter
+  - ``last`` read last message from the file
+  - ``end`` skip all messages, wait for new data posted into the file
+
 ``seq=<UNSIGNED>`` - start reading from specified ``SEQ``, if missing - read from file start. Only
-in read mode.
+in read mode. Ignored in modes other then ``seq``.
 
 Control messages
 ----------------

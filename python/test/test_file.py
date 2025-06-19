@@ -502,3 +502,23 @@ def test_reopen_lz4_meta(context, filename, io):
     for _ in range(5):
         r.process()
     assert r.unpack(r.result[-1]).as_dict() == {'list': [{'msgid': msgid, 'seq': 3}] * 2}
+
+@pytest.mark.parametrize("count", [0, 3, 4])
+@pytest.mark.parametrize("mode", ['last', 'end'])
+def test_open_mode(context, filename, count, mode):
+    w = context.Channel(f'file://{filename}', name='writer', dir='w', dump='frame', block='4kb')
+    r = Accum(f'file://{filename}', name='reader', dump='frame', autoclose='no', context=context)
+    w.open()
+
+    for i in range(count):
+        w.post(b'x' * 256, seq=i)
+
+    r.open(mode=mode)
+    r.process()
+
+    initial = [] if mode == 'end' or count == 0 else [count - 1]
+    assert [m.seq for m in r.result if m.type == m.Type.Data] == initial
+
+    w.post(b'x' * 1024, seq=count)
+    r.process()
+    assert [m.seq for m in r.result if m.type == m.Type.Data] == initial + [count]

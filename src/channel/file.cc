@@ -311,18 +311,28 @@ int File<TIO>::_open(const ConstConfig &props)
 				return r;
 		}
 
-		if (auto r = _file_bounds(); r && r != EAGAIN)
-			return this->_log.fail(EINVAL, "Failed to load file bounds");
-
+		enum Mode { Seq, Last, End };
+		auto mode = reader.getT("mode", Seq, {{"seq", Seq}, {"last", Last}, {"end", End}});
 		auto seq = reader.getT("seq", std::optional<long long>());
 		if (!reader)
 			return this->_log.fail(EINVAL, "Invalid params: {}", reader.error());
-		if (seq) {
-			if (auto r = _seek(*seq); r && r != EAGAIN)
+
+		if (auto r = _file_bounds(); r && r != EAGAIN)
+			return this->_log.fail(EINVAL, "Failed to load file bounds");
+
+		if (mode == End) {
+			// Do nothing, offset is after last message
+		} else if (mode == Last) {
+			if (auto r = _seek(_seq); r && r != EAGAIN)
 				return this->_log.fail(EINVAL, "Seek failed");
 		} else {
-			if (auto r = _seek_start(); r)
-				return this->_log.fail(EINVAL, "Failed to seek to first message");
+			if (seq) {
+				if (auto r = _seek(*seq); r && r != EAGAIN)
+					return this->_log.fail(EINVAL, "Seek failed");
+			} else {
+				if (auto r = _seek_start(); r)
+					return this->_log.fail(EINVAL, "Failed to seek to first message");
+			}
 		}
 		this->_update_dcaps(dcaps::Process | dcaps::Pending);
 	} else {
