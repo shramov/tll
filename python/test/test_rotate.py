@@ -293,3 +293,19 @@ def test_scheme_init(context, tmp_path):
     r.open()
     assert r.scheme != None
     assert r.state == r.State.Active
+
+def test_empty_nodir(context, tmp_path):
+    w = context.Channel(f'rotate+file://{tmp_path}/rotate;dump=frame', name='writer', dir='w')
+    w.open()
+    w.post(b'xxx', seq=10)
+    w.post(b'', name='Rotate', type=w.Type.Control)
+
+    cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        r = Accum(f'rotate+file://rotate;dump=frame', name='reader', context=context)
+        r.open()
+        assert r.state == r.State.Active
+        assert r.config['info.seq'] == '10'
+    finally:
+        os.chdir(cwd)

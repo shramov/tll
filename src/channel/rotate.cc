@@ -77,7 +77,7 @@ int Rotate::_on_init(tll::Channel::Url &curl, const tll::Channel::Url &url, tll:
 		return _log.fail(EINVAL, "Empty filename");
 	if (_fileprefix.back() == '.')
 		return _log.fail(EINVAL, "Filename with . in the end");
-	_last_filename = std::string(path.parent_path() / _fileprefix) + ".current.dat";
+	_last_filename = std::filesystem::path(_directory) / (_fileprefix + ".current.dat");
 
 	curl.host("");
 
