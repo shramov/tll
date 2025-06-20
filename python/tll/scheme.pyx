@@ -733,10 +733,10 @@ cdef class FBits(FBase):
         return self.default(self.base.unpack(src))
     cdef convert(FBits self, v):
         if isinstance(v, str):
-            return self.default.from_str(v)
+            return B.from_str(self.default, v)
         return self.default(v)
     cdef from_string(FBits self, str s):
-        return self.default.from_str(s)
+        return B.from_str(self.default, s)
     cdef as_dict(self, v):
         return {f.name: getattr(v, f.name) for f in v.BITS.values()}
 

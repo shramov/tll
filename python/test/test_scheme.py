@@ -212,6 +212,7 @@ def test_from_string():
     - {name: ptr, type: '*int8'}
     - {name: duration, type: int32, options.type: duration, options.resolution: ns}
     - {name: ts, type: int32, options.type: time_point, options.resolution: ns}
+    - {name: bits, type: int8, options.type: bits, bits: [a, {name: b, offset: 2, size: 1}, c]}
 ''')
 
     msg = s['msg']
@@ -227,6 +228,9 @@ def test_from_string():
     assert msg['duration'].from_string("10.5us") == Duration(10500, 'ns')
 
     assert msg['ts'].from_string("1970-01-01 00:00:00.000000100") == TimePoint(100, 'ns')
+    assert str(msg['bits'].from_string('{c, a}')) == '{a, c}'
+    assert str(msg['bits'].from_string('b')) == '{b}'
+    assert str(msg['bits'].from_string('0x5')) == '{a, b}'
 
     with pytest.raises(OverflowError):
         msg['int8'].from_string("1000")
@@ -588,9 +592,16 @@ def _test_bits(scheme):
     assert [(x.name, x.offset, x.size) for x in u32.values()] == [('c', 0, 1), ('d', 1, 1), ('e', 2, 1)]
 
     m = msg.object(i8 = 0, u32 = 0)
+    assert str(m.i8) == '{}'
     m.i8.a = 1
+    assert str(m.i8) == '{a}'
     m.i8.b = 0
     m.i8.c = 1
+    assert str(m.i8) == '{a, c}'
+    m.i8 = 'b'
+    assert str(m.i8) == '{b}'
+    m.i8 = ' { c , c  , a } '
+    assert str(m.i8) == '{a, c}'
     m.u32.d = 1
 
     assert m.i8._value == 9
