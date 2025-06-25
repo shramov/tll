@@ -82,11 +82,6 @@ private:
 
 	size_t _data_size(frame_size_t frame) { return frame - sizeof(frame) - 1; }
 
-	int _write_raw(const void *data, size_t size)
-	{
-		return _check_write(size, _io.write(data, size));
-	}
-
 	int _write_data(frame_t * meta, tll::const_memory data);
 
 	template <typename ... Args>

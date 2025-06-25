@@ -94,9 +94,11 @@ struct IOBase
 
 	void shift(size_t size) { offset += size; }
 
-	int writev(const struct iovec * iov, size_t size) { return ENOSYS; }
-
-	int write(const void * data, size_t size) { return ENOSYS; }
+	template <typename ... Args>
+	int writev(frame_size_t frame, Args && ... args)
+	{
+		return ENOSYS;
+	}
 
 	tll::const_memory read(size_t size) { return { nullptr, ENOSYS }; }
 
@@ -121,14 +123,22 @@ struct IOPosix : public IOBase
 		return IOBase::init(log, block, mode);
 	}
 
-	int writev(const struct iovec * iov, size_t size)
+	template <typename ... Args>
+	int writev(frame_size_t frame, Args && ... args)
 	{
-		return pwritev(fd, iov, size, offset);
-	}
+		constexpr unsigned N = sizeof...(Args);
+		iovec iov[N + 1];
+		iov[0].iov_base = &frame;
+		iov[0].iov_len = sizeof(frame);
 
-	int write(const void * data, size_t size)
-	{
-		return pwrite(fd, data, size, offset);
+		std::array<const_memory, N> data({const_memory(std::forward<Args>(args))...});
+
+		for (unsigned i = 0; i < N; i++) {
+			iov[i + 1].iov_base = (void *) data[i].data;
+			iov[i + 1].iov_len = data[i].size;
+		}
+
+		return pwritev(fd, iov, N + 1, offset);
 	}
 
 	tll::const_memory read(size_t size, size_t off = 0)
@@ -199,20 +209,23 @@ struct IOMMap : public IOBase
 		return { static_cast<char *>(base) + offset - block_start + off, size };
 	}
 
-	int writev(const struct iovec * iov, size_t size)
+	template <typename ... Args>
+	int writev(frame_size_t frame, Args && ... args)
 	{
-		auto off = 0;
-		for (auto ptr = iov; ptr != iov + size; ptr++) {
-			memcpy(static_cast<char *>(base) + offset - block_start + off, ptr->iov_base, ptr->iov_len);
-			off += ptr->iov_len;
-		}
-		return off;
-	}
+		constexpr unsigned N = sizeof...(Args);
+		std::array<const_memory, N> data({const_memory(std::forward<Args>(args))...});
 
-	int write(const void * data, size_t size)
-	{
-		memcpy(static_cast<char *>(base) + offset - block_start, data, size);
-		return size;
+		char * base = static_cast<char *>(this->base) + offset - block_start;
+
+		((std::atomic<frame_size_t> *) base)->store(frame, std::memory_order_seq_cst);
+
+		auto off = sizeof(frame);
+		for (unsigned i = 0; i < N; i++) {
+			memcpy(base + off, data[i].data, data[i].size);
+			off += data[i].size;
+		}
+
+		return off;
 	}
 };
 
@@ -844,17 +857,11 @@ int File<TIO>::_post(const tll_msg_t *msg, int flags)
 template <typename TIO>
 int File<TIO>::_write_data(frame_t * meta, tll::const_memory data)
 {
-	struct iovec iov[4];
-
 	frame_size_t frame;
 	uint8_t tail = 0x80;
-	iov[0] = { .iov_base = &frame, .iov_len = sizeof(frame) };
-	iov[1] = { .iov_base = meta, .iov_len = sizeof(*meta) };
-	iov[2] = { .iov_base = (void *) data.data, .iov_len = data.size };
-	iov[3] = { .iov_base = &tail, .iov_len = sizeof(tail) };
+	tll::const_memory mmeta = { meta, sizeof(*meta) }, mdata = data, mtail = { &tail, sizeof(tail) };
 
-	size_t iovsize = 4;
-	size_t size = sizeof(*meta) + data.size;
+	size_t size = mmeta.size + mdata.size;
 
 	bool recompress = false;
 
@@ -867,11 +874,9 @@ int File<TIO>::_write_data(frame_t * meta, tll::const_memory data)
 		if (!r.data)
 			return this->_log.fail(EINVAL, "Failed to compress data");
 		this->_log.trace("Original size: {}, compressed size: {}", size, r.size);
-		iov[1].iov_base = (void *) r.data;
-		iov[1].iov_len = r.size;
+		mdata = r;
+		mmeta = {};
 		size = r.size;
-		iov[2] = iov[3];
-		iovsize = 3;
 	}
 
 	size += sizeof(frame) + 1;
@@ -882,7 +887,7 @@ int File<TIO>::_write_data(frame_t * meta, tll::const_memory data)
 	if (_io.offset + size > _io.block_end) {
 		frame_size_t frame = -1;
 		if (_io.offset + sizeof(frame) < _io.block_end) {
-			if (_write_raw(&frame, sizeof(frame)))
+			if (_check_write(sizeof(frame), _io.writev(frame)))
 				return EINVAL;
 		}
 
@@ -905,15 +910,14 @@ int File<TIO>::_write_data(frame_t * meta, tll::const_memory data)
 			if (!r.data)
 				return this->_log.fail(EINVAL, "Failed to compress data");
 			this->_log.trace("Recompress, original size: {}, compressed size: {}", size, r.size);
-			iov[1].iov_base = (void *) r.data;
-			iov[1].iov_len = r.size;
+			mdata = r;
 			size = r.size + sizeof(frame) + 1;
 		}
 	}
 
 	frame = size;
 	this->_log.trace("Write frame {} at {}", frame, _io.offset);
-	if (_check_write(size, _io.writev(iov, iovsize)))
+	if (_check_write(size, _io.writev(frame, mmeta, mdata, mtail)))
 		return EINVAL;
 
 	_shift(size);
@@ -926,10 +930,10 @@ int File<TIO>::_write_block(size_t offset)
 	if (auto r = _io.block(offset); r)
 		return this->_log.fail(EINVAL, "Failed to prepare block: {}", strerror(r));
 
-	static constexpr uint8_t header[5] = {5, 0, 0, 0, 0x80};
-	if (_write_raw(&header, sizeof(header)))
+	uint8_t tail = 0x80;
+	if (_check_write(5, _io.writev(5, tll::const_memory { &tail, sizeof(tail) })))
 		return EINVAL;
-	_io.offset += sizeof(header);
+	_io.offset += 5;
 
 	// Ensure there is always at least one empty block in the end
 	if (_tail_extra_blocks && _file_size_cache <= _io.block_end) {
