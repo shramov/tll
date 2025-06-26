@@ -260,6 +260,7 @@ int File<TIO>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	auto reader = this->channel_props_reader(url);
 	_block_init = reader.getT("block", util::Size {1024 * 1024});
 	_compression_init = reader.getT("compression", Compression::None, {{"none", Compression::None}, {"lz4", Compression::LZ4}});
+	_version_init = reader.getT("version", Version::Stable, {{"0", Version::V0}, {"stable", Version::Stable}});
 	_autoclose = reader.getT("autoclose", true);
 	_tail_extra_size = reader.getT("extra-space", util::Size { 0 });
 	_access_mode = reader.getT("access-mode", 0644u);
@@ -288,6 +289,7 @@ int File<TIO>::_open(const ConstConfig &props)
 	auto filename = _filename;
 	_end_of_data = false;
 	_compression = _compression_init;
+	_version = _version_init;
 
 	if (filename.empty()) {
 		auto fn = props.get("filename");
@@ -495,6 +497,14 @@ int File<TIO>::_read_meta()
 	if (buf.size() < meta.meta_size())
 		return this->_log.fail(EINVAL, "Invalid meta size: {} less then minimum {}", buf.size(), meta.meta_size());
 
+	if (auto v = meta.get_version(); v >= (unsigned) Version::Max)
+		return this->_log.fail(EINVAL, "Unsupported version {}, max known is {}", v, (unsigned) Version::Max - 1);
+	else
+		_version = (Version) v;
+
+	if (_version > Version::Stable)
+		this->_log.info("Using unstable version {}", (unsigned) _version);
+
 	_block_size = meta.get_block();
 	auto comp = meta.get_compression();
 
@@ -538,6 +548,7 @@ int File<TIO>::_write_meta()
 	view.resize(meta.meta_size());
 	meta.set_meta_size(meta.meta_size());
 	meta.set_block(_block_size);
+	meta.set_version((uint8_t) _version);
 	meta.set_compression((file_scheme::Meta::Compression)_compression);
 
 	if (this->_scheme) {
