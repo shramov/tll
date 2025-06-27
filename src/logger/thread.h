@@ -156,7 +156,7 @@ struct Thread
 	{
 		std::unique_lock<std::mutex> lock(_lock);
 		void * data;
-		if (_ring->write_begin(&data, sizeof(Header) + body.size())) {
+		if (_ring->write_begin(&data, sizeof(Header) + body.size() + 1)) {
 			_lock.unlock();
 			return log->impl->log(ts, level, body);
 		}
@@ -165,6 +165,7 @@ struct Thread
 		header->timestamp = ts;
 		header->level = level;
 		memcpy(header + 1, body.data(), body.size());
+		((char *)data)[sizeof(Header) + body.size()] = 0;
 		wake();
 		_ring->write_end(data, sizeof(Header) + body.size());
 		return 0;
