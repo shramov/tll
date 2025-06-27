@@ -16,9 +16,9 @@ from tll.test_util import Accum
 EXTRA_SIZE = 4 + 12 + 1 # Size + frame + tail marker
 META_SIZE = EXTRA_SIZE + 32 # Extra + meta size
 
-@pytest.fixture
-def context():
-    cfg = Config.from_dict({"file.io": "posix"})
+@pytest.fixture(params=['v0', 'v1'])
+def context(request):
+    cfg = Config.from_dict({"file.io": "posix", "file.version": request.param[1:]})
     return Context(cfg)
 
 @pytest.fixture
@@ -36,11 +36,12 @@ def reader(context, filename):
 Frame = collections.namedtuple('Frame', ('size', 'msgid', 'seq'))
 
 def frame(data):
-    return Frame(*struct.unpack('iiq', data[:16]))
+    return Frame(*struct.unpack('Iiq', data[:16]))
 
 def test_basic(writer, reader, filename):
     w = writer
     w.open()
+    mask = 0 if w.config['info.version'] == '0' else 0x80000000
     assert w.dcaps == w.DCaps.Zero
 
     assert w.scheme_control is None
@@ -71,7 +72,7 @@ def test_basic(writer, reader, filename):
     data = fp.read(META_SIZE - 16) # Skip meta
 
     data = fp.read(128 + EXTRA_SIZE)
-    assert frame(data) == Frame(128 + EXTRA_SIZE, 0, 0)
+    assert frame(data) == Frame(mask | (128 + EXTRA_SIZE), 0, 0)
     assert data[16:] == b'a' * 128 + b'\x80'
 
     w.post(b'b' * 128, seq=1, msgid=10)
@@ -83,7 +84,7 @@ def test_basic(writer, reader, filename):
     with pytest.raises(TLLError): w.post(b'x', seq=1)
 
     data = fp.read(128 + EXTRA_SIZE)
-    assert frame(data) == Frame(128 + EXTRA_SIZE, 10, 1)
+    assert frame(data) == Frame(mask | (128 + EXTRA_SIZE), 10, 1)
     assert data[16:] == b'b' * 128 + b'\x80'
 
     reader.open()
@@ -115,7 +116,7 @@ def test_basic(writer, reader, filename):
     assert filename.stat().st_size == META_SIZE + (128 + EXTRA_SIZE) * 3
 
     data = fp.read(128 + EXTRA_SIZE)
-    assert frame(data) == Frame(128 + EXTRA_SIZE, 20, 2)
+    assert frame(data) == Frame(mask | (128 + EXTRA_SIZE), 20, 2)
     assert data[16:] == b'c' * 128 + b'\x80'
 
     reader.process()
@@ -130,6 +131,7 @@ def test_open_error(reader, writer, filename):
 def test_block_boundary(writer, reader, filename):
     w = writer
     w.open()
+    mask = 0 if w.config['info.version'] == '0' else 0x80000000
 
     assert filename.stat().st_size == META_SIZE
     fp = filename.open('rb')
@@ -143,7 +145,7 @@ def test_block_boundary(writer, reader, filename):
     data = fp.read(META_SIZE - 16) # Skip meta
 
     data = fp.read(512 + EXTRA_SIZE)
-    assert frame(data) == Frame(512 + EXTRA_SIZE, 0, 0)
+    assert frame(data) == Frame(mask | (512 + EXTRA_SIZE), 0, 0)
     assert data[16:] == b'a' * 512 + b'\x80'
 
     reader.open()
@@ -164,14 +166,14 @@ def test_block_boundary(writer, reader, filename):
     assert filename.stat().st_size == 1024 + 5 + (512 + EXTRA_SIZE) * 1
 
     data = fp.read(16)
-    assert frame(data) == Frame(-1, 0, 0)
+    assert frame(data) == Frame(0xffffffff, 0, 0)
     fp.seek(1024)
 
     data = fp.read(5)
-    assert data == b'\x05\0\0\0\x80'
+    assert data == b'\x05\0\0\0\x80' if mask == 0 else b'\x05\0\0\x80\x80'
 
     data = fp.read(512 + EXTRA_SIZE)
-    assert frame(data) == Frame(512 + EXTRA_SIZE, 10, 1)
+    assert frame(data) == Frame(mask | (512 + EXTRA_SIZE), 10, 1)
     assert data[16:] == b'b' * 512 + b'\x80'
 
     reader.process()

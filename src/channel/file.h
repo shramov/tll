@@ -29,7 +29,7 @@ struct __attribute__((packed)) frame_t
 };
 
 enum class Compression : uint8_t { None = 0, LZ4 = 1};
-enum class Version : uint8_t { V0 = 0, Stable = V0, Max };
+enum class Version : uint8_t { V0 = 0, Stable = V0, V1, Max };
 
 template <typename TIO>
 class File : public tll::channel::AutoSeq<File<TIO>>
@@ -59,6 +59,7 @@ class File : public tll::channel::AutoSeq<File<TIO>>
 	long long _delta_seq_base = 0;
 	Compression _compression, _compression_init;
 	Version _version, _version_init;
+	uint32_t _size_marker = 0;
 	bool _autoclose = true;
 	bool _end_of_data = false;
 	unsigned _access_mode = 0644;

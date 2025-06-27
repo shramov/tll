@@ -215,9 +215,14 @@ struct IOMMap : public IOBase
 		constexpr unsigned N = sizeof...(Args);
 		std::array<const_memory, N> data({const_memory(std::forward<Args>(args))...});
 
-		char * base = static_cast<char *>(this->base) + offset - block_start;
+		auto base = static_cast<uint8_t *>(this->base) + offset - block_start;
 
-		((std::atomic<frame_size_t> *) base)->store(frame, std::memory_order_seq_cst);
+		auto fptr = reinterpret_cast<const uint8_t *>(&frame);
+		base[0] = fptr[0];
+		base[1] = fptr[1];
+		base[2] = fptr[2];
+
+		((std::atomic<uint8_t> *) base)[3].store(fptr[3], std::memory_order_release);
 
 		auto off = sizeof(frame);
 		for (unsigned i = 0; i < N; i++) {
@@ -260,7 +265,7 @@ int File<TIO>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	auto reader = this->channel_props_reader(url);
 	_block_init = reader.getT("block", util::Size {1024 * 1024});
 	_compression_init = reader.getT("compression", Compression::None, {{"none", Compression::None}, {"lz4", Compression::LZ4}});
-	_version_init = reader.getT("version", Version::Stable, {{"0", Version::V0}, {"stable", Version::Stable}});
+	_version_init = reader.getT("version", Version::Stable, {{"0", Version::V0}, {"1", Version::V1}, {"stable", Version::Stable}});
 	_autoclose = reader.getT("autoclose", true);
 	_tail_extra_size = reader.getT("extra-space", util::Size { 0 });
 	_access_mode = reader.getT("access-mode", 0644u);
@@ -290,6 +295,7 @@ int File<TIO>::_open(const ConstConfig &props)
 	_end_of_data = false;
 	_compression = _compression_init;
 	_version = _version_init;
+	_size_marker = 0;
 
 	if (filename.empty()) {
 		auto fn = props.get("filename");
@@ -320,6 +326,9 @@ int File<TIO>::_open(const ConstConfig &props)
 
 		if (_io.init(this->_log, _block_size, IOBase::Read))
 			return this->_log.fail(EINVAL, "Failed to init io");
+
+		if (_version >= Version::V1)
+			_size_marker = 0x80000000u;
 
 		if (_compression == Compression::LZ4) {
 			if (auto r = _lz4_init(_block_size); r)
@@ -390,6 +399,9 @@ int File<TIO>::_open(const ConstConfig &props)
 				return this->_log.fail(EINVAL, "Failed to read metadata");
 		}
 
+		if (_version >= Version::V1)
+			_size_marker = 0x80000000u;
+
 		if (_compression == Compression::LZ4) {
 			if (auto r = _lz4_init(_block_size); r)
 				return r;
@@ -427,6 +439,7 @@ int File<TIO>::_open(const ConstConfig &props)
 
 	this->config_info().setT("block", util::Size { _block_size });
 	this->config_info().setT("compression", _compression);
+	this->config_info().setT("version", (unsigned) _version);
 	return 0;
 }
 
@@ -926,7 +939,7 @@ int File<TIO>::_write_data(frame_t * meta, tll::const_memory data)
 		}
 	}
 
-	frame = size;
+	frame = size | _size_marker;
 	this->_log.trace("Write frame {} at {}", frame, _io.offset);
 	if (_check_write(size, _io.writev(frame, mmeta, mdata, mtail)))
 		return EINVAL;
@@ -942,7 +955,7 @@ int File<TIO>::_write_block(size_t offset)
 		return this->_log.fail(EINVAL, "Failed to prepare block: {}", strerror(r));
 
 	uint8_t tail = 0x80;
-	if (_check_write(5, _io.writev(5, tll::const_memory { &tail, sizeof(tail) })))
+	if (_check_write(5, _io.writev(5 | _size_marker, tll::const_memory { &tail, sizeof(tail) })))
 		return EINVAL;
 	_io.offset += 5;
 
@@ -976,7 +989,16 @@ int File<TIO>::_read_frame_nocheck(frame_size_t *ptr)
 		return this->_log.fail(EINVAL, "Failed to read frame at 0x{:x}: {}", _io.offset, strerror(r.size));
 	}
 
-	auto frame = *ptr = *static_cast<const frame_size_t *>(r.data);
+	auto frame = *static_cast<const frame_size_t *>(r.data);
+	if (_size_marker && _io.offset != 0) {
+		auto marker = static_cast<const std::atomic<uint8_t> *>(r.data)[3].load(std::memory_order_acquire);
+		if ((marker & 0x80) == 0)
+			return EAGAIN;
+		frame = *static_cast<const frame_size_t *>(r.data);
+		if (frame != -1)
+			frame &= 0x7fffffffu;
+	}
+	*ptr = frame;
 
 	if (frame > (ssize_t) sizeof(frame)) {
 		if (_io.offset + frame > _io.block_end)

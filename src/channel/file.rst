@@ -55,6 +55,10 @@ file. Without this non-zero option file can not be read in ``mmap`` mode. Used o
  - ``lz4`` - lz4 compression in streaming mode, when message is appended message to the block
    its current content is used for compression.
 
+``version={0|1|stable}`` (default ``stable``, alias for ``0``) - file format version. Version 1
+introduces marker bit in the frame so files can be used for IPC, when one process writes data and
+others are reading, version 0 does not support multiprocess communication due to race conditions.
+
 Read init parameters
 ^^^^^^^^^^^^^^^^^^^^
 
