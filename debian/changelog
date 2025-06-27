@@ -1,3 +1,10 @@
+tll (0.3.8) unstable; urgency=medium
+
+  * file: Check version from meta
+  * channel: Do not call close from destroy in C++ API
+
+ -- Pavel Shramov <shramov@mexmat.net>  Fri, 27 Jun 2025 15:35:01 +0300
+
 tll (0.3.7) unstable; urgency=medium
 
   * channel: Expose scheme with user-defined tag
