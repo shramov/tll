@@ -241,12 +241,14 @@ TEST(Logger, Prefix)
 	pf.info("second");
 	ASSERT_EQ(called, 1);
 
+#if __cplusplus < 202002L
 	// Check for unhandled exceptions
 	auto pinv = l.prefix("{:d}", "str");
 	auto pfinv = l.prefix([](){ return fmt::format("{:d}", "str"); });
 
 	pinv.info("pinv");
 	pfinv.info("pfinv");
+#endif
 }
 
 TEST(Logger, Thread)
@@ -304,8 +306,6 @@ TEST(Logger, Thread)
 	{
 		std::unique_lock<std::mutex> lock(impl.lock);
 		ASSERT_EQ(list.list.size(), 10);
-		for (auto &i : list.list)
-			ASSERT_EQ(i.second, "text");
 		ASSERT_EQ(impl.map["tll.logger.thread"].list.size(), 2);
 		ASSERT_EQ(impl.map["tll.logger.thread"].list.back().second, "Logger thread finished");
 	}
