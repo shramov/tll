@@ -1,11 +1,11 @@
 task:
   name: FreeBSD
   freebsd_instance:
-    image_family: freebsd-13-3
-  install_script: pkg install -y meson pkgconf libfmt liblz4 libyaml rapidjson googletest rhash python3 py311-cython py311-pytest py311-pytest-timeout py311-yaml py311-lz4 py311-decorator
+    image_family: freebsd-14-2
+  install_script: pkg install -y meson pkgconf libfmt liblz4 libyaml rapidjson googletest rhash python3 py311-cython py311-pytest py311-pytest-timeout py311-pyyaml py311-lz4 py311-decorator
   script: |
     set -e
-    meson build
+    meson build -Dcpp_std=c++20
     ninja -vC build
     cd python
     python3 setup.py build_ext --inplace --library-dirs=../build/src --rpath=`pwd`/../build/src
