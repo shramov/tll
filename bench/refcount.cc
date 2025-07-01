@@ -9,21 +9,23 @@ using namespace std::chrono_literals;
 
 struct Call : public tll::util::refbase_t<Call>{
 	volatile unsigned value = 0;
-	unsigned call() { return ++value; }
+	unsigned call() { return value += 1; }
 };
 
 struct NonAtomic
 {
 	volatile unsigned _ref = 1;
-	auto ref() { _ref++; return this; }
+	auto ref() { _ref += 1; return this; }
 	void unref()
 	{
-		if (--_ref == 0)
+		auto v = _ref - 1;
+		_ref = v;
+		if (v == 0)
 			delete this;
 	}
 
 	volatile unsigned value = 0;
-	unsigned call() { return ++value; }
+	unsigned call() { return value += 1; }
 };
 
 
