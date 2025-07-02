@@ -20,7 +20,15 @@ using namespace std::chrono_literals;
 
 struct log_map : public tll_logger_impl_t
 {
-	using log_entry_t = std::pair<tll::Logger::level_t, std::string>;
+	struct log_entry_t {
+		log_entry_t(tll::Logger::level_t l, std::string_view s) : first(l), second(s), from_ptr(s) {}
+		log_entry_t(tll::Logger::level_t l, std::string_view s, std::string_view s1) : first(l), second(s), from_ptr(s1) {}
+		bool operator == (const log_entry_t &rhs) const { return first == rhs.first && second == rhs.second && from_ptr == rhs.from_ptr; }
+
+		tll::Logger::level_t first;
+		std::string second;
+		std::string from_ptr;
+	};
 
 	struct Object
 	{
@@ -47,7 +55,7 @@ struct log_map : public tll_logger_impl_t
 		auto list = static_cast<Object *>(obj);
 		std::this_thread::sleep_for(1ms);
 		std::unique_lock lock(*list->lock);
-		list->list.push_back({level, std::string(data, size)});
+		list->list.push_back({level, {data, size}, data});
 		return 0;
 	}
 
@@ -306,6 +314,10 @@ TEST(Logger, Thread)
 	{
 		std::unique_lock<std::mutex> lock(impl.lock);
 		ASSERT_EQ(list.list.size(), 10);
+		for (auto i : list.list) {
+			ASSERT_EQ(i.second, std::string_view("text"));
+			ASSERT_EQ(i.from_ptr, std::string_view("text"));
+		}
 		ASSERT_EQ(impl.map["tll.logger.thread"].list.size(), 2);
 		ASSERT_EQ(impl.map["tll.logger.thread"].list.back().second, "Logger thread finished");
 	}

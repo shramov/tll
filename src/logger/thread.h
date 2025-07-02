@@ -130,7 +130,7 @@ struct Thread
 
 		auto header = (const Header *) data;
 
-		std::string_view body((const char *) (header + 1), size - sizeof(Header));
+		std::string_view body((const char *) (header + 1), size - sizeof(Header) - 1);
 
 		{
 			std::unique_lock<std::mutex> lck(header->logger->lock);
@@ -167,7 +167,7 @@ struct Thread
 		memcpy(header + 1, body.data(), body.size());
 		((char *)data)[sizeof(Header) + body.size()] = 0;
 		wake();
-		_ring->write_end(data, sizeof(Header) + body.size());
+		_ring->write_end(data, sizeof(Header) + body.size() + 1);
 		return 0;
 	}
 };
