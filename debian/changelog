@@ -1,3 +1,25 @@
+tll (0.4.0) unstable; urgency=medium
+
+  * bench: Configurable logging level for channel
+  * channel:
+    Helper function for state changes
+    Move state checks into common C code for open/close calls
+    State change counter in common structure
+  * config: Add missing tll_config_value_dup symbol export
+  * file:
+    New version of file format suitable for parallel reads
+    Change default IO to mmap
+    Open modes, last message or new data
+  * logger:
+    Add terminating null for async log message
+    Provide stat with number of log messages
+    Use kqueue when available to wake thread
+  * processor: Configurable number of extra pending steps
+  * python:Reopen helper
+  * rotate: Fix incorrect last file check
+
+ -- Pavel Shramov <shramov@mexmat.net>  Wed, 02 Jul 2025 12:29:47 +0300
+
 tll (0.3.8) unstable; urgency=medium
 
   * file: Check version from meta
