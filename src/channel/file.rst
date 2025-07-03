@@ -43,6 +43,11 @@ read mode.
 ``access-mode=<unsigned>`` - file mode, default 0644 (octal, ``rw-r--r--``) - access bits set to
 newly created file, can not be greater then 0777.
 
+``exact-last-seq=<bool>`` (default ``yes``) - seek to the last data message in the file (if set to
+``yes``) or check only one block. If reader is slower then writer (reading in ``posix`` mode and
+writing in ``mmap``) it may lead to long open call that tries to catch up with the writer. It is
+recommended to disable this mode in fast writer use cases.
+
 Write init parameters
 ^^^^^^^^^^^^^^^^^^^^^
 

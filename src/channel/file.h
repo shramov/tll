@@ -62,6 +62,7 @@ class File : public tll::channel::AutoSeq<File<TIO>>
 	uint32_t _size_marker = 0;
 	bool _autoclose = true;
 	bool _end_of_data = false;
+	bool _exact_last_seq = true;
 	unsigned _access_mode = 0644;
 
 public:

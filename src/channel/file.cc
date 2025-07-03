@@ -285,6 +285,7 @@ int File<TIO>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_autoclose = reader.getT("autoclose", true);
 	_tail_extra_size = reader.getT("extra-space", util::Size { 0 });
 	_access_mode = reader.getT("access-mode", 0644u);
+	_exact_last_seq = reader.getT("exact-last-seq", true);
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -679,6 +680,9 @@ int File<TIO>::_file_bounds()
 	long long delta_seq_prev = 0;
 	auto block_prev = _io.block_end;
 	do {
+		if (!_exact_last_seq && _io.block_end != block_prev)
+			break;
+
 		frame_size_t frame;
 		if (auto r = _read_frame(&frame); r) {
 			if (r == EAGAIN)
