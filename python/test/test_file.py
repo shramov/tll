@@ -526,3 +526,16 @@ def test_open_mode(context, filename, count, mode):
     w.post(b'x' * 1024, seq=count)
     r.process()
     assert [m.seq for m in r.result if m.type == m.Type.Data] == initial + [count]
+
+def test_write_lock(context, filename):
+    w0 = context.Channel(f'file://{filename}', name='w0', dir='w')
+    w1 = context.Channel(f'file://{filename}', name='w1', dir='w')
+
+    w0.open()
+    with pytest.raises(TLLError): w1.open()
+
+    w1.close()
+    w0.close()
+
+    w1.open()
+    with pytest.raises(TLLError): w0.open()

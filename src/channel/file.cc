@@ -12,6 +12,7 @@
 #include "tll/util/size.h"
 
 #include <fcntl.h>
+#include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -22,6 +23,21 @@
 
 using namespace tll;
 using namespace tll::file;
+
+struct TempFile {
+	std::string filename;
+	int fd = -1;
+
+	TempFile(std::string_view tmpl) : filename(tmpl)
+	{
+		fd = mkstemp(filename.data());
+	}
+
+	~TempFile() { reset(); }
+
+	void reset() { unlink(filename.c_str()); }
+	void release() { filename = ""; }
+};
 
 template <>
 struct tll::conv::dump<Compression> : public to_string_from_string_buf<Compression>
@@ -375,25 +391,31 @@ int File<TIO>::_open(const ConstConfig &props)
 				overwrite = true;
 		}
 
-		std::string fn(filename);
 		if (overwrite) {
-			fn += ".XXXXXX";
-			_io.fd = mkstemp(fn.data());
-			if (_io.fd == -1)
-				return this->_log.fail(EINVAL, "Failed to create temporary file {}: {}", fn, strerror(errno));
+			TempFile tmp(filename + ".XXXXXX");
+			if (tmp.fd == -1)
+				return this->_log.fail(EINVAL, "Failed to create temporary file {}: {}", tmp.filename, strerror(errno));
+			_io.fd = tmp.fd;
 			if (fchmod(_io.fd, _access_mode))
-				return this->_log.fail(EINVAL, "Failed to set file mode of {} to 0{:o}: {}", fn, _access_mode, strerror(errno));
+				return this->_log.fail(EINVAL, "Failed to set file mode of {} to 0{:o}: {}", tmp.filename, _access_mode, strerror(errno));
 
-			if (_write_meta()) {
+			if (_write_meta())
 				return this->_log.fail(EINVAL, "Failed to write metadata");
-				unlink(fn.c_str());
-			}
-			this->_log.info("Rename temporary file {} to {}", fn, filename);
-			rename(fn.c_str(), filename.c_str());
+
+			if (flock(_io.fd, LOCK_EX | LOCK_NB))
+				return this->_log.fail(EINVAL, "Failed to lock file {} for writing: {}", filename, strerror(errno));
+
+			this->_log.info("Rename temporary file {} to {}", tmp.filename, filename);
+			if (rename(tmp.filename.c_str(), filename.c_str()))
+				return this->_log.fail(EINVAL, "Failed to rename {} to {}: {}", tmp.filename, filename, strerror(errno));
+			tmp.release();
 		} else {
-			_io.fd = ::open(fn.data(), O_RDWR | O_CREAT, 0600);
+			_io.fd = ::open(filename.c_str(), O_RDWR, 0600);
 			if (_io.fd == -1)
 				return this->_log.fail(EINVAL, "Failed to open file {} for writing: {}", filename, strerror(errno));
+
+			if (flock(_io.fd, LOCK_EX | LOCK_NB))
+				return this->_log.fail(EINVAL, "Failed to lock file {} for writing: {}", filename, strerror(errno));
 
 			if (auto r = _read_meta(); r)
 				return this->_log.fail(EINVAL, "Failed to read metadata");
