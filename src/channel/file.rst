@@ -20,6 +20,13 @@ contains metadata with scheme, block size and compression type (none or lz4) so 
 opens it for reading he does not need to know exact parameters used to create this file. New data is
 appended to the end of the file and there is no way to change old entries.
 
+Only one writer is allowed, attempt to open same file will fail until writer is closed. However when
+it is opened in overwrite mode (``overwrite=yes`` in open parameters) file will be replaced with new
+one, old readers will not see new data until they are reopened.
+
+In ``io=mmap`` mode with version 1 and later file channel can be used to pass data between processes
+(or threads) without extra locking.
+
 Init parameters
 ~~~~~~~~~~~~~~~
 
