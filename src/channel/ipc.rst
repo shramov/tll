@@ -17,7 +17,12 @@ Description
 -----------
 
 Channel implements TCP-like client-server in-process communication. System IO is used only for
-polling based on ``eventfd`` and can be disabled.
+polling based on ``eventfd`` and can be disabled with ``fd=no`` parameter. Current implementation
+does not use ring buffer for data messages, each one is allocated with ``malloc`` call.
+
+Client address can be obtained from ``addr`` fields of ``Connect`` control message or from data
+messages. That address is not tied to client channel object and is changed when it is closed and
+then opened again.
 
 Init parameters
 ~~~~~~~~~~~~~~~
@@ -29,7 +34,7 @@ otherwise client for specified master. Client has no configurable parameters (ot
 ``broadcast=<bool>``, default ``false``: treat zero address as broadcast and send message to all
 connected clients
 
-``size=<size>``, default ``64kb`` - size of marker queue
+``size=<size>``, default ``64kb`` - size of marker queue, each message needs 8 bytes of data.
 
 Control messages
 ----------------
