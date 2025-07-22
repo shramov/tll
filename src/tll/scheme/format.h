@@ -77,7 +77,13 @@ format_result_t to_strings_number(const tll::scheme::Field * field, Int v, bool 
 					if (r.size())
 						r += " | ";
 					r += std::string(b->name);
+					tll_scheme_bit_field_set(v, b->offset, b->size, 0);
 				}
+			}
+			if (v) {
+				if (r.size())
+					r += " | ";
+				r += fmt::format("0x{:x}", v);
 			}
 			return std::list<std::string> { r };
 		} else if (field->sub_type == field->Enum) {

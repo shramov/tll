@@ -277,6 +277,9 @@ TEST(Scheme, Format)
 - name: unions
   fields:
     - {name: u0, type: union, union: [{name: f0, type: int8}, {name: f1, type: sub}]}
+- name: bits
+  fields:
+    - {name: f0, type: uint8, options.type: bits, bits: [a, b]}
 )"));
 	ASSERT_NE(s.get(), nullptr);
 
@@ -429,6 +432,20 @@ f8: 12.345)");
     s0: 123456
     s1: [123.456, 1.5])");
 
+	message = s->lookup("bits");
+	ASSERT_NE(message, nullptr);
+
+	uint8_t u8 = 0x02;
+	mem = { &u8, sizeof(u8) };
+
+	r = tll::scheme::to_string(message, tll::make_view(mem));
+	ASSERT_TRUE(r);
+	ASSERT_EQ(*r, R"({f0: b})");
+
+	u8 = 0xf1;
+	r = tll::scheme::to_string(message, tll::make_view(mem));
+	ASSERT_TRUE(r);
+	ASSERT_EQ(*r, R"({f0: a | 0xf0})");
 }
 
 TEST(Scheme, Import)
