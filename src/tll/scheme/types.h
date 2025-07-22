@@ -34,7 +34,7 @@ typedef struct __attribute__((packed)) tll_scheme_offset_ptr_t
 
 #define tll_scheme_bit_field_mask(width, value) ((0xffffffffu >> (32 - (width))) & (value))
 #define tll_scheme_bit_field_get(data, offset, width) tll_scheme_bit_field_mask(width, ((data) >> offset))
-#define tll_scheme_bit_field_set(data, offset, width, value) ((data) ^ ((tll_scheme_bit_field_get(data, offset, width) ^ tll_scheme_bit_field_mask(width, (value))) << (offset)))
+#define tll_scheme_bit_field_set(data, offset, width, value) ((data) ^= ((tll_scheme_bit_field_get(data, offset, width) ^ tll_scheme_bit_field_mask(width, (value))) << (offset)))
 
 #ifdef __cplusplus
 
