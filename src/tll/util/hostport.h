@@ -64,13 +64,13 @@ struct getter::GetT<network::hostport>
 		auto v = cfg.get(key);
 		if (!v || !v->size()) {
 			auto host = getter::get(cfg, std::string(key) + ".host");
-			auto port = getter::getT(cfg, std::string(key) + ".port", (uint16_t) 0);
 			if (!host || !host->size()) {
 				auto path = getter::get(cfg, std::string(key) + ".path");
 				if (!path || !path->size())
 					return std::nullopt;
 				return network::hostport { .af = network::AddressFamily::UNIX, .host = std::string(*path) };
 			}
+			auto port = getter::getT<Cfg, uint16_t>(cfg, std::string(key) + ".port");
 			if (!port)
 				return error(fmt::format("Invalid port: {}", port.error()));
 			auto af = network::AddressFamily::UNSPEC;

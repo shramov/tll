@@ -31,6 +31,13 @@ def check_protocol(proto):
 WITHOUT_MPTCP = not check_protocol('IPPROTO_MPTCP')
 WITHOUT_SCTP = not check_protocol('IPPROTO_SCTP')
 
+def test_bad_port(context):
+    with pytest.raises(TLLError): context.Channel('tcp://;tll.host.host=127.0.0.1;tll.host.port=')
+    with pytest.raises(TLLError): context.Channel('tcp://;tll.host.host=127.0.0.1')
+    with pytest.raises(TLLError): context.Channel('tcp://;tll.host.host=127.0.0.1;tll.host.port=xxx')
+    with pytest.raises(TLLError): context.Channel('tcp://127.0.0.1')
+    with pytest.raises(TLLError): context.Channel('tcp://127.0.0.1:xxx')
+
 class _test_tcp_base:
     PROTO = 'invalid-url'
     ADDR = ('unix', 0)
