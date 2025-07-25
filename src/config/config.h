@@ -299,8 +299,10 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 
 		auto lock = v->wlock();
 		auto [it, created] = v->kids.emplace(*pi, cfg);
-		if (!created)
+		if (!created) {
+			it->second->parent = nullptr;
 			it->second = cfg;
+		}
 
 		cfg->parent = v.get();
 		if (consume)

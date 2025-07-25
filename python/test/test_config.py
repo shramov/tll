@@ -307,3 +307,10 @@ a: !link /broken
 ''')
 
     with pytest.raises(TLLError): cfg.set('a.b', 'c')
+
+def test_detach():
+    cfg = Config.from_dict({'a': {'b': 'c'}})
+    sub = cfg.sub('a')
+    assert sub.parent != None
+    cfg.set('a', Config.from_dict({'b': 'd'}))
+    assert sub.parent == None
