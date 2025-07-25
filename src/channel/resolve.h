@@ -21,10 +21,13 @@ class Resolve : public tll::channel::Prefix<Resolve>
 
 	std::vector<char> _request_buf;
 	tll::ConstConfig _open_cfg;
+	tll::ConstConfig _resolve_init_cfg;
 
 	ConvertBuf _convert_into;
 	ConvertBuf _convert_from;
 
+	enum RequestMode { Once, Always } _request_mode = Once;
+	enum class State { Closed, Opening, Active, Closing } _state = State::Closed;
  public:
 	static constexpr std::string_view channel_protocol() { return "resolve"; }
 	static constexpr auto child_policy() { return ChildPolicy::Proxy; }
@@ -41,8 +44,9 @@ class Resolve : public tll::channel::Prefix<Resolve>
 
 	int _open(const tll::ConstConfig &cfg)
 	{
-		if (_child)
+		if (_child && _request_mode == Once)
 			return Base::_open(cfg);
+		_state = State::Opening;
 		_open_cfg = cfg;
 		_request->open();
 		return 0;
@@ -50,12 +54,12 @@ class Resolve : public tll::channel::Prefix<Resolve>
 
 	int _close(bool force)
 	{
-		if (_child)
-			return Base::_close(force);
+		_state = State::Closing;
 		if (_request->state() != tll::state::Closed)
-			_request->close(force);
-		else
-			state(tll::state::Closed);
+			_request->close(true);
+		if (_child && _child->state() != tll::state::Closed)
+			return Base::_close(force);
+		state(tll::state::Closed);
 		return 0;
 	}
 
@@ -64,6 +68,7 @@ class Resolve : public tll::channel::Prefix<Resolve>
 	{
 		_convert_from.reset();
 		_convert_into.reset();
+		_state = State::Closed;
 		return Base::_on_closed();
 	}
 
@@ -108,7 +113,7 @@ class Resolve : public tll::channel::Prefix<Resolve>
 
 	int _on_request_state(const tll_msg_t *msg)
 	{
-		if (_child)
+		if (_state != State::Opening)
 			return 0;
 		switch ((tll_state_t) msg->msgid) {
 		case tll::state::Active:
@@ -117,7 +122,7 @@ class Resolve : public tll::channel::Prefix<Resolve>
 			return 0;
 		case tll::state::Error:
 			return state_fail(0, "Request channel failed");
-		case tll::state::Closing:
+		case tll::state::Closed:
 			switch (state()) {
 			case tll::state::Opening:
 			case tll::state::Active:
@@ -125,10 +130,6 @@ class Resolve : public tll::channel::Prefix<Resolve>
 			default:
 				return 0;
 			}
-		case tll::state::Closed:
-			if (state() == tll::state::Closing)
-				state(tll::state::Closed);
-			return 0;
 		default:
 			return 0;
 		}

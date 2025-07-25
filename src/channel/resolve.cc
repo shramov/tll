@@ -5,11 +5,29 @@ using namespace tll::channel;
 
 TLL_DEFINE_IMPL(Resolve);
 
+namespace {
+std::map<std::string, std::string> to_map(const tll::ConstConfig &cfg)
+{
+	std::map<std::string, std::string> r;
+	for (auto &[k, c]: cfg.browse("**")) {
+		if (auto v = c.get(); v)
+			r[k] = *v;
+	}
+	return r;
+}
+
+bool equals(const tll::ConstConfig &c0, const tll::ConstConfig &c1)
+{
+	return to_map(c0) == to_map(c1);
+}
+}
+
 int Resolve::_init(const Channel::Url &url, tll::Channel *master)
 {
 	auto reader = channel_props_reader(url);
 	auto service = reader.getT<std::string>("resolve.service", "");
 	auto channel = reader.getT<std::string>("resolve.channel", "");
+	_request_mode = reader.getT("resolve.mode", Once, {{"once", Once}, {"always", Always}});
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -68,9 +86,7 @@ int Resolve::_on_request_active()
 
 int Resolve::_on_request_data(const tll_msg_t *msg)
 {
-	if (_child)
-		return 0;
-	if (state() != tll::state::Opening)
+	if (_state != State::Opening)
 		return 0;
 	if (msg->msgid != resolve_scheme::ExportChannel::meta_id())
 		return state_fail(0, "Invalid message id: {}", msg->msgid);
@@ -85,6 +101,13 @@ int Resolve::_on_request_data(const tll_msg_t *msg)
 		url = *sub;
 	else
 		return _log.fail(EINVAL, "No 'init' subtree in resolved config");
+
+	if (_child && !equals(_resolve_init_cfg, url)) {
+		_log.info("New init parameters, reset child");
+		_child.reset();
+	} else
+		_log.debug("Init parameters not changed, reuse child object");
+
 	for (auto &[k, v] : cfg.browse("scheme.**")) {
 		auto body = v.get();
 		if (!body) continue;
@@ -95,12 +118,17 @@ int Resolve::_on_request_data(const tll_msg_t *msg)
 		else
 			return state_fail(0, "Failed to load scheme with hash {}", hash);
 	}
-	child_url_fill(url, "resolve");
-	_child = context().channel(url);
-	if (!_child)
-		return state_fail(0, "Failed to create resolved channel");
-	_child_add(_child.get(), "resolve");
-	_child->callback_add(this);
+
+	if (!_child) {
+		_resolve_init_cfg = url.copy();
+		child_url_fill(url, "resolve");
+		_child = context().channel(url);
+		if (!_child)
+			return state_fail(0, "Failed to create resolved channel");
+		_child_add(_child.get(), "resolve");
+		_child->callback_add(this);
+	}
+	_state = State::Active;
 	_request->close();
 	_child->open(_open_cfg);
 	return 0;
