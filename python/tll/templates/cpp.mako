@@ -26,7 +26,7 @@ def field2type(f):
     if t is not None:
 	if f.sub_type == f.Sub.Bits:
 	    #return f"tll::scheme::Bits<{t}>"
-	    return f.name
+	    return f.type_bits.name
 	elif f.sub_type == f.Sub.Enum:
 	    return f.type_enum.name
 	elif f.sub_type == f.Sub.FixedPoint:
