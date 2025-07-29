@@ -92,6 +92,20 @@ Processor loop implements rules of channel polling and processing. Its exposed a
 same implementation is used inside processor workers and if user needs to work with channels in it's
 own script or program.
 
+Processing rules are following:
+
+ * When channel is added to the loop all its children are recursively added too. On deletion whole
+   subtree is deleted from loop.
+ * Channel is not processed in ``Error`` or ``Closed`` states.
+ * Channel is processed only when ``Process`` dcap is set.
+ * On suspend channel is marked inactive and is not processed until resumed.
+ * All channels are divided into two lists: objects with polling capabilities (with file descriptor
+   on Linux) and without. Objects that can not be polled are processed if nothing on poll list needs
+   processing.
+ * If object sets ``Pending`` dcap to indicate pending data it is added to special list and is
+   processed in next immediate step. Number of pending steps is limited so other channels will get
+   some attention too.
+
 Object Configuration
 --------------------
 
