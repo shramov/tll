@@ -44,6 +44,7 @@ mansources = [
 	'common.rst',
 	'direct.rst',
 	'file.rst',
+	'filter.rst',
 	'ipc.rst',
 	'lz4.rst',
 	'mem.rst',
