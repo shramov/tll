@@ -185,7 +185,7 @@ class TLLHandler(logging.Handler):
 def init():
     for h in logging.root.handlers:
         if isinstance(h, TLLHandler):
-            raise RuntimeError("Python logs are redirect to TLL, can not install TLL -> Python redirection")
+            raise RuntimeError("Python logs are redirected to TLL, can not install TLL -> Python redirection")
     pylog.reg()
 
 def configure(config):
