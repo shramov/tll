@@ -243,6 +243,7 @@ struct spdlog_impl_t : public tll_logger_impl_t
 		tll::Logger log("tll.logger.spdlog");
 
 		std::string format { cfg.get("format").value_or(sink_t::default_format) };
+		format = cfg.get("spdlog.format").value_or(format);
 
 		tll::util::refptr_t<node_t> result = new node_t();
 		//std::vector<sink_t> result;
