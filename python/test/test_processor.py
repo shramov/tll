@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # vim: sts=4 sw=4 et
 
-from tll import asynctll
 from tll.asynctll import asyncloop_run
 from tll.channel import Context
 from tll.channel.base import Base
@@ -12,11 +11,25 @@ from tll.processor import Processor
 from tll.processor.mock import Mock
 from tll.scheme import Scheme
 
+import tll.asynctll.asyncio
+import tll.asynctll.bare
+
 import pytest
 
 @pytest.fixture
 def context():
     return Context()
+
+@pytest.fixture(params=['bare', 'asyncio'])
+def asynctll(request):
+    return getattr(tll.asynctll, request.param)
+
+@pytest.fixture
+def asyncloop(context, asynctll):
+    loop = asynctll.Loop(context)
+    yield loop
+    loop.destroy()
+    loop = None
 
 class OpenTest(Base):
     PROTO = "open-test"
@@ -83,7 +96,7 @@ class Forward(Logic):
             return
         self._output.post(msg)
 
-def test_forward(context):
+def test_forward(context, asynctll):
     cfg = Config.load('''yamls://
 name: test
 processor.objects:

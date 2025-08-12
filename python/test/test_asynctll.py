@@ -6,12 +6,17 @@ from tll.channel.base import Base
 from tll.error import TLLError
 from tll.test_util import Accum
 
-from tll import asynctll
+import tll.asynctll.asyncio
+import tll.asynctll.bare
 
 import pytest
 import time
 
-def test_asynctll():
+@pytest.fixture(params=['bare', 'asyncio'])
+def asynctll(request):
+    return getattr(tll.asynctll, request.param)
+
+def test_asynctll(asynctll):
     with pytest.raises(TLLError): asynctll.Loop(config={'nofd-interval':'xxx', 'poll':'xxx'})
 
     loop = asynctll.Loop()
@@ -41,7 +46,7 @@ def test_asynctll():
 
     loop.run(main())
 
-def test_wait_state():
+def test_wait_state(asynctll):
     loop = asynctll.Loop(context=C.Context())
     async def main():
         c = loop.Channel('null://;name=null')
@@ -59,7 +64,7 @@ def test_wait_state():
 
     loop.run(main())
 
-def test_channel():
+def test_channel(asynctll):
     loop = asynctll.Loop(context=C.Context())
     async def main(loop):
         s = loop.Channel("mem://;size=1kb;name=server;dump=yes")
@@ -83,7 +88,7 @@ def test_channel():
 
     loop.run(main(loop))
 
-def test_nofd():
+def test_nofd(asynctll):
     loop = asynctll.Loop(context=C.Context())
     async def main(loop):
         s = loop.Channel("mem://;size=1kb;name=server;dump=yes;fd=no")
@@ -107,7 +112,7 @@ def test_nofd():
 
     loop.run(main(loop))
 
-def test_sleep():
+def test_sleep(asynctll):
     loop = asynctll.Loop(context=C.Context())
     async def main(loop):
         print("Sleep start")
@@ -120,7 +125,7 @@ def test_sleep():
 
     loop.run(main(loop))
 
-def test_direct_recv():
+def test_direct_recv(asynctll):
     loop = asynctll.Loop(context=C.Context())
     async def main(loop):
         s = loop.Channel('direct://;name=server;dump=frame')
@@ -138,7 +143,7 @@ def test_direct_recv():
 
     loop.run(main(loop))
 
-def test_scheme_cache():
+def test_scheme_cache(asynctll):
     loop = asynctll.Loop(C.Context())
 
     c = loop.Channel('direct://;scheme=yamls://{};scheme-control=yamls://{}')
@@ -148,7 +153,7 @@ def test_scheme_cache():
     assert c.scheme != None
     assert c.scheme_control != None
 
-def test_async_mask():
+def test_async_mask(asynctll):
     loop = asynctll.Loop(context=C.Context())
     async def main(loop):
         c = loop.Channel("zero://;size=1kb;name=zero", async_mask=C.MsgMask.State)
