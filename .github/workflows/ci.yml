@@ -52,7 +52,11 @@ jobs:
 #      env:
 #        CC: ccache ${{ matrix.compiler }}
 #        CXX: ccache ${{ matrix.compiler }} -xc++
-      run: meson build
+      run: |
+        # Workaround libc++ deprecation warning, will be fixed in meson 1.9
+        # https://github.com/mesonbuild/meson/issues/14856
+        test ${{runner.os}} == "macOS" && export CXXFLAGS=-U_LIBCPP_ENABLE_ASSERTIONS
+        meson setup build
     - name: build
       run: ninja -vC build -j2
     - name: pybuild
