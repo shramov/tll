@@ -179,13 +179,19 @@ processor.objects:
     m = await client.recv()
     assert client.unpack(m).as_dict() == {'channel': 'object', 'state': State.Active, 'flags': {'stage': False}}
 
+    m = await client.recv()
+    assert client.unpack(m).as_dict() == {'channel': 'test/stage/active', 'state': State.Opening, 'flags': {'stage': True}}
+
+    m = await client.recv()
+    assert client.unpack(m).as_dict() == {'channel': 'test/stage/active', 'state': State.Active, 'flags': {'stage': True}}
+
     client.post({}, name='StateDump')
 
     m = await client.recv()
     assert client.unpack(m).as_dict() == {'channel': 'object', 'state': State.Active, 'flags': {'stage': False}}
 
     m = await client.recv()
-    assert client.unpack(m).as_dict() == {'channel': 'test/stage/active', 'state': State.Closed, 'flags': {'stage': True}}
+    assert client.unpack(m).as_dict() == {'channel': 'test/stage/active', 'state': State.Active, 'flags': {'stage': True}}
 
     m = await client.recv()
     assert client.unpack(m).SCHEME.name == 'StateDumpEnd'
