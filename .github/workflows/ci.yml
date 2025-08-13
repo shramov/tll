@@ -6,7 +6,8 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04, macos-latest]
+        #os: [ubuntu-22.04, ubuntu-24.04, macos-latest]
+        os: [macos-15]
         compiler: [gcc]
     runs-on: ${{ matrix.os }}
     steps:
@@ -18,7 +19,7 @@ jobs:
         path: |
           /home/runner/.ccache
           /home/runner/.cache/ccache
-          /Users/runner/Library/Caches/ccache
+          #/Users/runner/Library/Caches/ccache
         key: ccache:${{ matrix.os }}:${{ github.sha }}
         restore-keys: 'ccache:${{ matrix.os }}:'
     - name: install deps
