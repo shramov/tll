@@ -6,8 +6,7 @@ jobs:
   build:
     strategy:
       matrix:
-        #os: [ubuntu-22.04, ubuntu-24.04, macos-latest]
-        os: [macos-15]
+        os: [ubuntu-24.04]
         compiler: [gcc]
     runs-on: ${{ matrix.os }}
     steps:
@@ -53,7 +52,13 @@ jobs:
 #      env:
 #        CC: ccache ${{ matrix.compiler }}
 #        CXX: ccache ${{ matrix.compiler }} -xc++
-      run: meson build
+      run: |
+        # Workaround deprecation warning, will be fixed in meson 1.9
+        # https://github.com/mesonbuild/meson/issues/14856
+        test ${{runner.os}} == "macOS" && export CXXFLAGS="-U_LIBCPP_ENABLE_ASSERTIONS -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST"
+        meson setup build
+    - name: stop
+      run: false
     - name: build
       run: ninja -vC build -j2
     - name: pybuild
