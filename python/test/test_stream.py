@@ -559,6 +559,7 @@ class Aggregate(Base):
                 self._seq, self._data = -1, {}
             self._data = dict(self._data)
             self.config_info['seq'] = lambda: str(self._seq)
+            self._feed_seq = props.getT("feed-seq", -1)
             return
         assert props.get('block-type', 'default') == 'default'
         block = int(props.get('block'))
@@ -606,6 +607,11 @@ class Aggregate(Base):
 
         self._seq = msg.seq
         self._data[msg.msgid] = msg.data.tobytes()
+        if self._feed_seq >= 0:
+            if self._seq != self._feed_seq:
+                assert flags == C.PostFlags.More
+            elif self._seq == self._feed_seq:
+                assert flags == C.PostFlags.Zero
 
 def test_aggregate(context):
     context.register(Aggregate)
@@ -730,6 +736,29 @@ async def test_stream_aggregate_error(asyncloop, context, tmp_path):
 
     assert c.State.Active == await c.recv_state()
     assert c.State.Error == await c.recv_state()
+
+@asyncloop_run
+async def test_stream_aggregate_feed(asyncloop, context, tmp_path):
+    context.register(Aggregate)
+
+    Aggregate.STORAGE = []
+
+    common = f'stream+null://;request=null://;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage;name=server;mode=server;blocks=aggr://')
+    f = asyncloop.Channel(f'file://{tmp_path}/storage', dir='w', name='file')
+    f.open()
+    for i in range(5):
+        f.post(b'xxx', msgid=10, seq=i)
+    f.free()
+
+    s.open({'blocks.feed-seq': '4'})
+    assert s.State.Active == await s.recv_state()
+
+    assert Aggregate.STORAGE == []
+    s.post({'type':'default'}, name='Block', type=s.Type.Control)
+    assert Aggregate.STORAGE == [(4, {10: b'xxx'})]
+
+    s.post(b'xxx', msgid=10, seq=5, flags=s.PostFlags.More)
 
 @asyncloop_run
 async def test_ring(asyncloop, tmp_path):

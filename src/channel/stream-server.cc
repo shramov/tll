@@ -337,7 +337,8 @@ int StreamServer::_check_state(tll_state_t s)
 int StreamServer::_on_storage_load(const tll_msg_t *msg)
 {
 	if (msg->type == TLL_MESSAGE_DATA) {
-		if (auto r = _blocks->post(msg); r)
+		const auto flags = msg->seq < _seq ? TLL_POST_MORE : 0;
+		if (auto r = _blocks->post(msg, flags); r)
 			return state_fail(0, "Failed to forward message with seq {} to blocks channel", msg->seq);
 		return 0;
 	}
@@ -649,7 +650,7 @@ int StreamServer::_post(const tll_msg_t * msg, int flags)
 			return 0;
 		if (_control_blocks) {
 			if (auto m = _control_blocks->lookup(msg->msgid); m) {
-				if (auto r = _blocks->post(msg); r)
+				if (auto r = _blocks->post(msg, flags); r)
 					return _log.fail(r, "Failed to send control message {} to blocks", msg->msgid);
 				if (auto r = _try_rotate_on_block(m, msg); r)
 					return _log.fail(r, "Failed to send Rotate control message to storage");
@@ -657,11 +658,11 @@ int StreamServer::_post(const tll_msg_t * msg, int flags)
 		}
 
 		if (_control_storage && _control_storage->lookup(msg->msgid)) {
-			if (auto r = _storage->post(msg); r)
+			if (auto r = _storage->post(msg, flags); r)
 				return _log.fail(r, "Failed to send control message {} to storage", msg->msgid);
 		}
 		if (_control_child && _control_child->lookup(msg->msgid)) {
-			if (auto r = _child->post(msg); r)
+			if (auto r = _child->post(msg, flags); r)
 				return _log.fail(r, "Failed to send control message {}", msg->msgid);
 		}
 		return 0;
@@ -671,14 +672,14 @@ int StreamServer::_post(const tll_msg_t * msg, int flags)
 	if (msg->seq <= _seq)
 		return _log.fail(EINVAL, "Non monotonic seq: {} < last posted {}", msg->seq, _seq);
 	if (_blocks) {
-		if (auto r = _blocks->post(msg); r)
+		if (auto r = _blocks->post(msg, flags); r)
 			return _log.fail(r, "Failed to post message into block storage");
 	}
-	if (auto r = _storage->post(msg); r)
+	if (auto r = _storage->post(msg, flags); r)
 		return _log.fail(r, "Failed to store message {}", msg->seq);
 	_seq = msg->seq;
 	_last_seq_tx(msg->seq);
-	return _child->post(msg);
+	return _child->post(msg, flags);
 }
 
 int StreamServer::_request_disconnect(std::string_view name, const tll_addr_t &addr)
