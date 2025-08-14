@@ -71,6 +71,14 @@ this parameter (and storage channel has ``Rotate`` control message) then ``Rotat
 storage. For example ``rotate-on-block=default`` will create new file each time ``default`` block is
 created for stream server with ``rotate+file://`` storage.
 
+Open parameters
+~~~~~~~~~~~~~~~
+
+Stream server has no specific open parameters but forwards specific subsections to child channels
+with matching names: ``storage``, ``blocks`` and ``request``. Online child is opened with whole
+config that is modified by setting ``last-seq`` variable to last known message seq number from the
+file (if it is not empty).
+
 Control messages
 ----------------
 

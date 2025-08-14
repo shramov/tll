@@ -200,7 +200,7 @@ int StreamServer::_open(const ConstConfig &cfg)
 		ocfg.setT("last-seq", _seq);
 
 	if (_blocks) {
-		if (_blocks->open())
+		if (_blocks->open(cfg.sub("blocks").value_or(ConstConfig())))
 			return _log.fail(EINVAL, "Failed to open blocks channel");
 		if (_blocks->state() != tll::state::Active)
 			return _log.fail(EINVAL, "Long opening blocks is not supported");
@@ -264,7 +264,7 @@ int StreamServer::_open(const ConstConfig &cfg)
 		}
 	}
 
-	if (_request->open())
+	if (_request->open(ocfg.sub("request").value_or(Config())))
 		return _log.fail(EINVAL, "Failed to open request channel");
 
 	return Base::_open(ocfg);
@@ -346,7 +346,7 @@ int StreamServer::_on_storage_load(const tll_msg_t *msg)
 
 	switch ((tll_state_t) msg->msgid) {
 	case tll::state::Closed:
-		if (_request->open())
+		if (_request->open(_child_open.sub("request").value_or(Config())))
 			return _log.fail(0, "Failed to open request channel");
 		if (_storage_load)
 			_child_del(_storage_load.get());
