@@ -5,7 +5,7 @@
 
 namespace processor_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJydkj1vgzAQhvf8Cm9eQAqE0oStysdWdag6VR3c+KCWwFDbtEoj/nvPfAZIVKkLusOP7733fC6RLIOI0GfDDOzKrKALQgSPSLDchAt3dPxScPz2gOf5GIIsMx1hQFqKRuRsTgXeKoU0a6cm8B99OBrxZY99h9BtmmvgmCzbRMgEsxVmO9BG5SfM7jDbK5UrjAOMnwqQDedVFUq+C9NJH1KW6LG0FzoNQV7PrQ1tWALUIXkcazC1uBY/YOu92YKxgJS3JV3S3Tp+MCkhxXtNcSyjbBvVhNO1/Z5qpjGF4rrRHmr6riaTtg+xl3wYtb8eiEfQ2tq42a8tPSjUk5i1kelE8BG08ueG4HOEhMEMYZyrgSmvQ7g27Mr0po4Oufpm6sL1fXjTI8cl+fNBxrrd3C6Et83L1ss4yG78f6zCL4ry9lM=)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJydkj1vgzAQhvf8Cm8sIAVCacJW5WOrOlSdqg5ufFBLYKhtWqUR/71nIOYrUaUu6A4/9nvv3XlE0Bxi4jxrqmFX5aWzIISzmITLTbTwRscvJcOvBXw/wBBElasYA9JRTkzO+lTirYoLvXYbAv85D0fNv8xx4BJnmxUKGCbLLuEixWyF2Q6UlsUJszvM9lIWEuMQ46cSRMv5dY2S71xfpA8ZTdVY2o/cliCv586G0jQFxyVFkijQjbjiP2Dec4mFKoU6bID5PfZmdBMOGeuUPXvv+EGFgAzvtTWgmjTV1hNONV2yVNu0KZQ0fizU2qsnAzHz2mOldiLBuiceQSnj9ma95uleoWnYrIxcpZyNoFUwNwSfIyQKZwhlTPZMdR3C7aJXujd1dCjkN5UD1/fRTY8Md+nPgYx1L30bCG/byTY728tugn+swi+FCgLh)";
 
 struct StateDump
 {
@@ -55,10 +55,13 @@ struct StateUpdate
 		using tll::scheme::Bits<uint16_t>::Bits;
 		constexpr auto stage() const { return get(0, 1); };
 		constexpr Flags & stage(bool v) { set(0, 1, v); return *this; };
+		constexpr auto suspend() const { return get(1, 1); };
+		constexpr Flags & suspend(bool v) { set(1, 1, v); return *this; };
 		static std::map<std::string_view, value_type> bits_descriptor()
 		{
 			return {
 				{ "stage", static_cast<value_type>(Bits::mask(1)) << 0 },
+				{ "suspend", static_cast<value_type>(Bits::mask(1)) << 1 },
 			};
 		}
 	};

@@ -827,6 +827,8 @@ void Processor::_report_state(const Object *o, tll_state_t s, tll_addr_t addr)
 	data.set_state((processor_scheme::StateUpdate::State) s);
 	if (o->stage)
 		data.set_flags(data.get_flags().stage(true));
+	if ((*o)->dcaps() & tll::dcaps::Suspend)
+		data.set_flags(data.get_flags().suspend(true));
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	msg.msgid = data.meta_id();
 	msg.data = data.view().data();

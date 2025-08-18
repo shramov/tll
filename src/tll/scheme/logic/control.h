@@ -5,7 +5,7 @@
 
 namespace control_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJydVF1v2jAUfe+v8JtfQCKMpsDbBO02qVsrdes0VX1wk5vUarAz22FjFf+9147zBQSmvoDje3TuzTnnZkgEW8GcUHpGCIhiped4IITeg9JcCjonr2aTI6LgwgThwIHwki4KpUAYBATb7dmw4llIkfD0ExhLyGOsjvCQcMhiTz0krx6bM/NMB6Tkp9ooLlK6x3XPsgIqtnE/2wtsDpB1MWvHdbLlpYirhh9GTfHmpbqdtG4vlZKqKpz3zwcOd6T3HZhrmV7DGrKKLhy1belRUUHC/5589czx1ihr5xQfZW7QZm0dtRVqB8V+dNtyWnHDI5Zh7XxA6BKeitTaPqjeHfXA8xeRSDyO8fhdschSjfD8kylh50Ept7szKYgKjNka3jXXN+lb/AK9G8Nb29KLeNEy61Y299PW/WfIMlkVZv0mrv1adOYNwj21Nag1j45G7c4wA8tilTehmoU75R95jL81IAjGO2vqUN0lnTYKfYyMFbc0ZZFJDbGXzD54V5ylOJ7ceIPbpt7k4N0LnHtP3FStrzKW6v3vg0OQh1oIw1Irg0wSDcY11/wfWL7Hba/M0TMToh3XnlBr9/o1qlRjF5S4QWtQOfchI1prPwnG0wbxFbS2r3F6GV1W61ZlNv5vyaRACzK/V0tmmHVqb2Ps32lV4HdnhnCyB2FxrLohPgCK7RRHEuxluZLqD1Mt6S7CXn1iTNrJ+bt9K/HbX+kyHi7RTdvZ+B15egMKzgxo)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJydVE1v2zAMvfdX6KZLAsRZ6ia5DUm7DejWAt06DEUPqk27Qh3Jk+RsWZH/XkqWv5I4GXpJaPGBpN571JAItoI5ofSMEBDFSs8xIITeg9JcCjonr2aTI6LgwgThwIHwkC4KpUAYBATb7dmwqrOQIuHpJzC2II8xO8Ig4ZDFvvSQvHpszswzHZCyPtVGcZHSvVr3LCugqjbur/YCmwPFupi1q3Wy5aWIq4YfRk3y5qU6nbROL5WSqkqc988HDnek9x2Ya5lewxqyqlw4asvSw6KChP89efXM1a1RVs4pfsrcoMzaKmoz1A6K/ei2pbTihkcsw9z5gNAlPBWplX1Q3R35wPiLSCSGYwy/KxbZUiOMfzIl7DxI5XZ3JgVRgTZbw7vm+iZ9i1+gd214a1t6Ei9aYt3K5nzaOv8MWSarxKxfxLVfi868QbjHtga15tFRq90ZZmBZrPLGVLNwJ/0jj/G3BgTBeGdNHaq7pNOGoY+RseSWoiwyqSH2lNkPr4qTFMeTGy9wW9SbHLx6gVPviZuq9VXGUr3/PjgEeaiJMCy1NMgk0WBcc83/ga03aNgqNPaJW7CggT1ue9WInpkQbVf3eF87lmpUSdouKHH3qUHl9Q7p1XodJsF42iC+gtb2tqd31lm6blVa6P92UQpUKvPrt2SGWUH3Fsv+nWYFfndmCCd7EBbHquv1A6DYTnHE6J6WK6n+MNWi7iLs5SdGQ56cv9u3Ir/9mJf2cMZv2s7G7/DTG2jKGOc=)";
 
 enum class Version: uint16_t
 {
@@ -331,10 +331,13 @@ struct StateUpdate
 		using tll::scheme::Bits<uint16_t>::Bits;
 		constexpr auto stage() const { return get(0, 1); };
 		constexpr Flags & stage(bool v) { set(0, 1, v); return *this; };
+		constexpr auto suspend() const { return get(1, 1); };
+		constexpr Flags & suspend(bool v) { set(1, 1, v); return *this; };
 		static std::map<std::string_view, value_type> bits_descriptor()
 		{
 			return {
 				{ "stage", static_cast<value_type>(Bits::mask(1)) << 0 },
+				{ "suspend", static_cast<value_type>(Bits::mask(1)) << 1 },
 			};
 		}
 	};
