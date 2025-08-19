@@ -10,6 +10,9 @@
 #include "channel/file-scheme.h"
 
 #include "tll/util/size.h"
+#include "tll/util/tempfile.h"
+
+#include "tll/compat/fmt/std.h"
 
 #include <fcntl.h>
 #include <sys/file.h>
@@ -19,25 +22,8 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
-#include <mutex>
-
 using namespace tll;
 using namespace tll::file;
-
-struct TempFile {
-	std::string filename;
-	int fd = -1;
-
-	TempFile(std::string_view tmpl) : filename(tmpl)
-	{
-		fd = mkstemp(filename.data());
-	}
-
-	~TempFile() { reset(); }
-
-	void reset() { unlink(filename.c_str()); }
-	void release() { filename = ""; }
-};
 
 template <>
 struct tll::conv::dump<Compression> : public to_string_from_string_buf<Compression>
@@ -393,12 +379,12 @@ int File<TIO>::_open(const ConstConfig &props)
 		}
 
 		if (overwrite) {
-			TempFile tmp(filename + ".XXXXXX");
-			if (tmp.fd == -1)
-				return this->_log.fail(EINVAL, "Failed to create temporary file {}: {}", tmp.filename, strerror(errno));
-			_io.fd = tmp.fd;
+			tll::util::TempFile tmp(filename);
+			if (!tmp)
+				return this->_log.fail(EINVAL, "Failed to create temporary file {}: {}", tmp.filename(), tmp.strerror());
+			_io.fd = tmp.release_fd();
 			if (fchmod(_io.fd, _access_mode))
-				return this->_log.fail(EINVAL, "Failed to set file mode of {} to 0{:o}: {}", tmp.filename, _access_mode, strerror(errno));
+				return this->_log.fail(EINVAL, "Failed to set file mode of {} to 0{:o}: {}", tmp.filename(), _access_mode, strerror(errno));
 
 			if (_write_meta())
 				return this->_log.fail(EINVAL, "Failed to write metadata");
@@ -406,9 +392,9 @@ int File<TIO>::_open(const ConstConfig &props)
 			if (flock(_io.fd, LOCK_EX | LOCK_NB))
 				return this->_log.fail(EINVAL, "Failed to lock file {} for writing: {}", filename, strerror(errno));
 
-			this->_log.info("Rename temporary file {} to {}", tmp.filename, filename);
-			if (rename(tmp.filename.c_str(), filename.c_str()))
-				return this->_log.fail(EINVAL, "Failed to rename {} to {}: {}", tmp.filename, filename, strerror(errno));
+			this->_log.info("Rename temporary file {} to {}", tmp.filename(), filename);
+			if (rename(tmp.filename().c_str(), filename.c_str()))
+				return this->_log.fail(EINVAL, "Failed to rename {} to {}: {}", tmp.filename(), filename, strerror(errno));
 			tmp.release();
 		} else {
 			_io.fd = ::open(filename.c_str(), O_RDWR, 0600);
