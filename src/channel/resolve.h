@@ -87,6 +87,9 @@ class Resolve : public tll::channel::Prefix<Resolve>
 
 	int _post(const tll_msg_t *msg, int flags)
 	{
+		if (msg->type != TLL_MESSAGE_DATA)
+			return _child->post(msg, flags);
+
 		if (_convert_into.scheme_from) {
 			if (auto m = _convert_into.convert(msg); m) {
 				if (*m)

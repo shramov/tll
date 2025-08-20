@@ -54,6 +54,9 @@ class Convert : public tll::channel::Prefix<Convert>
 
 	int _post(const tll_msg_t *msg, int flags)
 	{
+		if (msg->type != TLL_MESSAGE_DATA)
+			return Base::_post(msg, flags);
+
 		if (auto m = _convert_into.convert(msg); m) {
 			if (*m)
 				return _child->post(*m, flags);

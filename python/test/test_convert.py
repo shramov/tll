@@ -475,3 +475,26 @@ def test_incompatible(context, tfrom, tinto):
 
     s.open()
     assert s.state == s.State.Error
+
+def test_control(context):
+    SFrom = '''yamls://
+- name: Data
+  id: 10
+  fields:
+    - { name: f0, type: int64 }
+'''
+
+    SInto = '''yamls://
+- name: Data
+  id: 10
+  fields:
+    - { name: f0, type: int8 }
+'''
+
+    s = Accum('direct://;name=server', context=context, scheme=SInto, dump='yes', **{'scheme-control': SInto})
+    c = context.Channel('convert+direct://', name='client', master=s, dump='yes', **{'convert.scheme': SFrom, 'direct.dump': 'yes'})
+
+    s.open()
+    c.open()
+
+    c.post({'f0': 10}, name='Data', type=c.Type.Control)
