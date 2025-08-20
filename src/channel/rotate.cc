@@ -5,6 +5,7 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
+#include "tll/compat/fmt/std.h"
 #include "tll/scheme/merge.h"
 #include "channel/rotate.h"
 
@@ -233,7 +234,7 @@ int Rotate::_rotate()
 	_child->close();
 
 	auto next = std::filesystem::path(_directory) / fmt::format("{}.{}.dat", _fileprefix, *key);
-	_log.info("Rename current file {} to {}", _current_file->second.filename, next.string());
+	_log.info("Rename current file {} to {}", _current_file->second.filename, next);
 	std::filesystem::rename(_current_file->second.filename, next);
 	{
 		auto lock = _files->lock();
@@ -439,7 +440,7 @@ int Rotate::_build_map()
 	std::error_code ec;
 	for (auto & e : std::filesystem::directory_iterator { _directory, ec }) {
 		auto filename = e.path().filename();
-		_log.debug("Check file {}", filename.string());
+		_log.debug("Check file {}", filename);
 		if (filename.stem().stem() != _fileprefix) // File name format: {prefix}.seq.dat
 			continue;
 		if (filename.extension() != ".dat")
