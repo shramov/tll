@@ -309,3 +309,27 @@ def test_empty_nodir(context, tmp_path):
         assert r.config['info.seq'] == '10'
     finally:
         os.chdir(cwd)
+
+def test_autoseq(context, tmp_path):
+    w = context.Channel(f'rotate+file://{tmp_path}/rotate;dump=frame;file.dump=frame', name='writer', dir='w', autoseq='yes')
+    w.open()
+    w.post(b'aaa', seq=10)
+    w.post(b'bbb', seq=20)
+    w.post(b'ccc', seq=30)
+    assert w.config['info.seq'] == '2'
+
+    w.post(b'', name='Rotate', type=w.Type.Control)
+    assert os.path.exists(tmp_path / 'rotate.0.dat')
+
+    w.close()
+    w.open()
+    assert w.config['info.seq'] == '2'
+
+    w.post(b'xxx', seq=10)
+    w.post(b'yyy', seq=20)
+    w.post(b'zzz', seq=30)
+    assert w.config['info.seq'] == '5'
+
+    w.post(b'', name='Rotate', type=w.Type.Control)
+    assert os.path.exists(tmp_path / 'rotate.0.dat')
+    assert os.path.exists(tmp_path / 'rotate.3.dat')

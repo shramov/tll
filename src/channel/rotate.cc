@@ -88,6 +88,7 @@ int Rotate::_on_init(tll::Channel::Url &curl, const tll::Channel::Url &url, tll:
 
 	if (internal.caps & caps::Input)
 		curl.remove("scheme");
+	curl.remove("autoseq");
 
 	_master = tll::channel_cast<Rotate>(master);
 
@@ -117,6 +118,7 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 		_files->listeners.push_back(this);
 		_seq_first = *_files->seq_first;
 	}
+	_autoseq.reset(*_files->seq_last);
 
 	scheme::ConstSchemePtr scheme;
 	{
@@ -296,6 +298,8 @@ int Rotate::_post(const tll_msg_t *msg, int flags)
 
 	if (internal.caps & caps::Input)
 		return _log.fail(EINVAL, "Can post to input channel");
+
+	msg = _autoseq.update(msg);
 	if (auto r = _child->post(msg, flags); r)
 		return r;
 	_seq_last = msg->seq;

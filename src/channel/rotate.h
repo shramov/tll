@@ -8,6 +8,7 @@
 #ifndef _TLL_CHANNEL_ROTATE_H
 #define _TLL_CHANNEL_ROTATE_H
 
+#include "tll/channel/autoseq.h"
 #include "tll/channel/convert-buf.h"
 #include "tll/channel/prefix.h"
 
@@ -15,7 +16,7 @@
 
 namespace tll::channel {
 
-class Rotate : public Prefix<Rotate>
+class Rotate : public AutoSeq<Rotate, Prefix<Rotate>>
 {
  private:
 	Rotate * _master = nullptr;
@@ -94,11 +95,6 @@ class Rotate : public Prefix<Rotate>
 	int _on_active();
 	int _on_closing();
 	int _on_closed();
-	int _on_init(tll::Channel::Url &curl, const tll::Channel::Url &, const tll::Channel *)
-	{
-		curl.remove("scheme");
-		return 0;
-	}
 
 	auto files() { return _files; }
 	void notify()

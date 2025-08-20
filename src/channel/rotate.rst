@@ -37,6 +37,9 @@ read mode.
 ``convert=<bool>`` (default ``false``) - reader only, convert messages to common data scheme,
 obtained from the last file or from init parameters.
 
+``autoseq=<bool>`` (default ``false``) - writer only, enable automatic message sequence numbers
+starting from 0. When channel is opened - continue from last known seq.
+
 Open parameters
 ~~~~~~~~~~~~~~~
 
