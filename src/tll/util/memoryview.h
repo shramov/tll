@@ -69,9 +69,10 @@ struct memoryview_api
 			return std::is_const_v<std::remove_pointer_t<decltype(std::declval<T>().data)>>;
 	}
 
-	using pointer = typename std::conditional<is_const_data(), const void *, void *>::type;
+	template <typename Tp>
+	using add_const_t = std::conditional_t<is_const_data(), const Tp, Tp>;
 
-	static pointer data(T &obj)
+	static add_const_t<void> * data(T &obj)
 	{
 		if constexpr (is_function_data<T>::value)
 			return obj.data();
@@ -98,6 +99,9 @@ struct memoryview_api
 template <typename T>
 class memoryview
 {
+	template <typename Tp>
+	using add_const_t = typename memoryview_api<T>::template add_const_t<Tp>;
+
 	T * _memory;
 	size_t _offset = 0;
  public:
@@ -115,10 +119,10 @@ class memoryview
 
 	size_t size() const { return std::max<ssize_t>(memoryview_api<T>::size(*_memory) - (ssize_t) _offset, 0); }
 
-	void * data() { return static_cast<char *>(memoryview_api<T>::data(*_memory)) + _offset; }
+	add_const_t<void> * data() { return static_cast<add_const_t<char> *>(memoryview_api<T>::data(*_memory)) + _offset; }
 	const void * data() const { return static_cast<const char *>(memoryview_api<T>::data(*_memory)) + _offset; }
 
-	template <typename R> R * dataT() { return static_cast<R *>(data()); }
+	template <typename R> add_const_t<R> * dataT() { return static_cast<add_const_t<R> *>(data()); }
 	template <typename R> const R * dataT() const { return static_cast<const R *>(data()); }
 };
 

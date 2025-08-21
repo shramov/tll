@@ -14,6 +14,7 @@
 #include "tll/util/browse.h"
 #include "tll/util/cppring.h"
 #include "tll/util/fixed_point.h"
+#include "tll/util/memoryview.h"
 #include "tll/util/sockaddr.h"
 #include "tll/util/string.h"
 #include "tll/util/time.h"
@@ -761,4 +762,51 @@ TEST(Util, SockAddr)
 	ASSERT_EQ(r->front()->sa_family, in6->sa_family);
 	ASSERT_EQ(r->front(), in6);
 	ASSERT_EQ(r->front(), in6.in6());
+}
+
+template <typename T>
+constexpr auto is_const_ptr = std::is_const_v<std::remove_pointer_t<T>>;
+
+TEST(Util, MemoryViewConst)
+{
+	std::array<char, 8> buf;
+	tll::memory mem = { buf.data(), buf.size() };
+	tll::const_memory cmem = { buf.data(), buf.size() };
+	const tll::memory memc = mem;
+
+	auto view = tll::make_view(mem);
+	ASSERT_EQ(view.size(), 8);
+	ASSERT_EQ(view.view(4).size(), 4);
+
+	auto cv0 = tll::make_view(cmem);
+	ASSERT_EQ(cv0.size(), 8);
+	ASSERT_EQ(cv0.view(4).size(), 4);
+
+	auto cv1 = tll::make_view(memc);
+	ASSERT_EQ(cv1.size(), 8);
+	ASSERT_EQ(cv1.view(4).size(), 4);
+
+	const auto cv2 = tll::make_view(mem);
+	ASSERT_EQ(cv1.size(), 8);
+	ASSERT_EQ(cv1.view(4).size(), 4);
+
+	ASSERT_EQ(view.data(), buf.data());
+	ASSERT_EQ(cv0.data(), buf.data());
+	ASSERT_EQ(cv1.data(), buf.data());
+	ASSERT_EQ(cv2.data(), buf.data());
+
+	ASSERT_EQ(view.dataT<char>(), buf.data());
+	ASSERT_EQ(cv0.dataT<char>(), buf.data());
+	ASSERT_EQ(cv1.dataT<char>(), buf.data());
+	ASSERT_EQ(cv2.dataT<char>(), buf.data());
+
+	ASSERT_FALSE(is_const_ptr<decltype(view.data())>);
+	ASSERT_TRUE(is_const_ptr<decltype(cv0.data())>);
+	ASSERT_TRUE(is_const_ptr<decltype(cv1.data())>);
+	ASSERT_TRUE(is_const_ptr<decltype(cv2.data())>);
+
+	ASSERT_FALSE(is_const_ptr<decltype(view.dataT<char>())>);
+	ASSERT_TRUE(is_const_ptr<decltype(cv0.dataT<char>())>);
+	ASSERT_TRUE(is_const_ptr<decltype(cv1.dataT<char>())>);
+	ASSERT_TRUE(is_const_ptr<decltype(cv2.dataT<char>())>);
 }
