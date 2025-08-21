@@ -60,6 +60,7 @@ struct List
 	tll::scheme::offset_ptr_t<disconnect, tll_scheme_offset_ptr_t> std;
 	tll::scheme::offset_ptr_t<disconnect, tll_scheme_offset_ptr_legacy_long_t> llong;
 	tll::scheme::offset_ptr_t<disconnect, tll_scheme_offset_ptr_legacy_short_t> lshort;
+	tll::scheme::offset_ptr_t<int16_t, tll_scheme_offset_ptr_t> scalar;
 };
 
 } // namespace http_scheme
@@ -195,6 +196,32 @@ TEST(Scheme, BinderLargeItem)
 	ASSERT_EQ(list[1].get_body(), "1111"sv);
 }
 
+template <typename View>
+void verify_list(View buf)
+{
+	auto binder = http_binder::List::bind(buf);
+
+	ASSERT_EQ(binder.get_scalar().size(), 2);
+
+	int16_t v = 1;
+
+	for (auto i : binder.get_std()) {
+		ASSERT_EQ(i.get_code(), v++);
+	}
+
+	ASSERT_EQ(binder.get_std()[0].get_code(), 1);
+	ASSERT_EQ(binder.get_std()[1].get_code(), 2);
+
+	v = 100;
+
+	for (auto i : binder.get_scalar()) {
+		ASSERT_EQ(i, v++);
+	}
+
+	ASSERT_EQ(binder.get_scalar()[0], 100);
+	ASSERT_EQ(binder.get_scalar()[1], 101);
+}
+
 TEST(Scheme, BinderList)
 {
 	std::vector<char> buf;
@@ -203,6 +230,7 @@ TEST(Scheme, BinderList)
 	binder.get_std().resize(2);
 	binder.get_llong().resize(2);
 	binder.get_lshort().resize(2);
+	binder.get_scalar().resize(2);
 
 	binder.get_std()[0].set_code(1);
 	binder.get_std()[1].set_code(2);
@@ -210,6 +238,8 @@ TEST(Scheme, BinderList)
 	binder.get_llong()[1].set_code(4);
 	binder.get_lshort()[0].set_code(5);
 	binder.get_lshort()[1].set_code(6);
+	binder.get_scalar()[0] = 100;
+	binder.get_scalar()[1] = 101;
 
 	auto ptr = (const http_scheme::List *) buf.data();
 	ASSERT_EQ(ptr->std.size, 2);
@@ -224,4 +254,9 @@ TEST(Scheme, BinderList)
 	ASSERT_EQ(ptr->llong[1].code, 4);
 	ASSERT_EQ(ptr->lshort[0].code, 5);
 	ASSERT_EQ(ptr->lshort[1].code, 6);
+
+	verify_list<std::vector<char> &>(buf);
+	verify_list<const std::vector<char> &>(buf);
+	verify_list<tll::memory>({buf.data(), buf.size()});
+	verify_list<tll::const_memory>({buf.data(), buf.size()});
 }

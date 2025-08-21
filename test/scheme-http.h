@@ -5,7 +5,7 @@
 
 namespace http_binder {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJylUl1rwjAUffdX5C0gDahzzvkmNZuCtDLrs9Q22kBNQhMHTvrfd2P9yKqywd7O7Tmcc+9JCRLxlg0Qxg2EpDJcCj1AB5woRSyjVZwwDHxmjFquuEhZgUvQMrHb6gEAhPCWmUymSwO6g9krsOPC9L2jxpr5YRBQPwK65yE8olMaURieYXin9nMb0JgORwA7AMNZNAmDOUwvMM2GkT8G/GpxOLf6JwsXFnUBRR9D3/pBIl4EI/o2Cai1apVlg5zvG7PYrg4LrznL09PqBB1OfFbxHqoOwNoUXGyOp7qyzzjfsTuqS04ihWCJsUE8hcseBlalXa0uJdYjE5k6idBsu3ej0fzrp6bXvdGo2GS/3lfVoK+65qm4unC1N8yR2bF/X1QF1ZSe+7NZBjs7OXWmXNca7Txs9C9FsaKQ9175Ejjl+vp4rYdZ2jhP13S2rAfmuXSvd6UeyiGMOEXI9VozQ5QpyLmTnG3iZE+OLuWNuc5kYf7vXtmA/TcYEDT/)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJylUl1rwjAUffdX5C0gDahzzvkmNZuCtDLrs8Q22kBNShMHTvrfd2P9yKqywd7O7Tmcc+9JCZJsywcI4wZCKjdCST1ABxznObGMzlnMMfCpMflyJWTCC1yClsvdVg8AIIS33KQqWRrQHcw+BzshTd87aqyZHwYB9SOgex7CIzqlEYXhGYZ3aj+3AY3pcASwAzCcRZMwmMP0AtNsGPljwK8Wh3Orf7JwYVEXUPQx9K0fJOJFMKJvk4Baq1ZZNsj5vjFndnVYeC14lpxWJ+hw4tOK91B1ANamEHJzPNWVfbJsx++oLjmxkpLHxgaJBC57GFiVdrW6lFiPjFXiJEKz7d6NRouvn5pe90aTM5P+el9Vg77qmqfi6sLV3nBHZsf+fVEVVFN67s9mGezs5NSZCF1rtPOw0b8UxYtC3XvlS+BU6OvjtR5maeM8XdPZsh6YZcq93pV6KIMw4hSh1mvNDclNQc6dZHzD4j05upQ35jpVhfm/e2VzY69jljGnrea5028ESkAf)";
 
 enum class method_t: int8_t
 {
@@ -143,12 +143,13 @@ struct disconnect
 
 struct List
 {
-	static constexpr size_t meta_size() { return 20; }
+	static constexpr size_t meta_size() { return 28; }
 	static constexpr std::string_view meta_name() { return "List"; }
 	static constexpr int meta_id() { return 10; }
 	static constexpr size_t offset_std = 0;
 	static constexpr size_t offset_llong = 8;
 	static constexpr size_t offset_lshort = 16;
+	static constexpr size_t offset_scalar = 20;
 
 	template <typename Buf>
 	struct binder_type : public tll::scheme::Binder<Buf>
@@ -171,6 +172,10 @@ struct List
 		using type_lshort = tll::scheme::binder::List<Buf, disconnect::binder_type<Buf>, tll_scheme_offset_ptr_legacy_short_t>;
 		const type_lshort get_lshort() const { return this->template _get_binder<type_lshort>(offset_lshort); }
 		type_lshort get_lshort() { return this->template _get_binder<type_lshort>(offset_lshort); }
+
+		using type_scalar = tll::scheme::binder::List<Buf, int16_t, tll_scheme_offset_ptr_t>;
+		const type_scalar get_scalar() const { return this->template _get_binder<type_scalar>(offset_scalar); }
+		type_scalar get_scalar() { return this->template _get_binder<type_scalar>(offset_scalar); }
 	};
 
 	template <typename Buf>

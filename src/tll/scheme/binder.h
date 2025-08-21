@@ -146,10 +146,13 @@ class List : public Base<Buf>
 {
  protected:
 	static constexpr bool is_binder = std::is_base_of_v<Base<Buf>, T>;
-	using pointer_type = tll::scheme::offset_ptr_t<std::conditional_t<is_binder, char, T>, Ptr>;
+	static constexpr bool is_const_buf = std::is_const_v<Buf> || tll::memoryview_api<std::remove_cv_t<Buf>>::is_const_data();
 
-	auto optr() { return this->_buf.template dataT<pointer_type>(); }
-	auto optr() const { return this->_buf.template dataT<pointer_type>(); }
+	template <typename Tp> using add_const_t = std::conditional_t<is_const_buf, const Tp, Tp>;
+	using pointer_type = add_const_t<tll::scheme::offset_ptr_t<std::conditional_t<is_binder, char, add_const_t<T>>, Ptr>>;
+
+	pointer_type * optr() { return this->_buf.template dataT<pointer_type>(); }
+	const pointer_type * optr() const { return this->_buf.template dataT<pointer_type>(); }
 
  public:
 	using view_type = typename Base<Buf>::view_type;
@@ -230,12 +233,12 @@ class List : public Base<Buf>
 		}
 	}
 
-	std::conditional_t<is_binder, T, T &> operator [](size_t idx)
+	std::conditional_t<is_binder || is_const_buf, T, T &> operator [](size_t idx)
 	{
 		return *(begin() + idx);
 	}
 
-	const std::conditional_t<is_binder, T, T &> operator [](size_t idx) const
+	std::conditional_t<is_binder, T, const T &> operator [](size_t idx) const
 	{
 		return *(begin() + idx);
 	}

@@ -31,3 +31,4 @@
     - { name: std, type: '*disconnect' }
     - { name: llong, type: '*disconnect', list-options.offset-ptr-type: legacy-long }
     - { name: lshort, type: '*disconnect', list-options.offset-ptr-type: legacy-short }
+    - { name: scalar, type: '*int16' }
