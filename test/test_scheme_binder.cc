@@ -13,6 +13,7 @@
 
 #include "test_compat.h"
 #include "scheme-large-item.h"
+#include "scheme-http.h"
 
 #pragma pack(push, 1)
 namespace http_scheme {
@@ -64,108 +65,10 @@ struct List
 } // namespace http_scheme
 #pragma pack(pop)
 
-namespace http_binder {
-
-enum class method_t : int8_t
-{
-	UNDEFINED = -1,
-	GET = 0,
-	HEAD = 1,
-	POST = 2,
-	PUT = 3,
-	DELETE = 4,
-	CONNECT = 5,
-	OPTIONS = 6,
-	TRACE = 7,
-	PATCH = 8,
-};
-
-template <typename Buf>
-struct header : public tll::scheme::Binder<Buf>
-{
-	using tll::scheme::Binder<Buf>::Binder;
-
-	static constexpr size_t meta_size() { return 16; }
-
-	std::string_view get_header() const { return this->template _get_string<tll_scheme_offset_ptr_t>(0); }
-	void set_header(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(0, v); }
-
-	std::string_view get_value() const { return this->template _get_string<tll_scheme_offset_ptr_t>(8); }
-	void set_value(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(8, v); }
-};
-
-template <typename Buf>
-struct connect : public tll::scheme::Binder<Buf>
-{
-	using tll::scheme::Binder<Buf>::Binder;
-
-	static constexpr size_t meta_size() { return 43; }
-
-	method_t get_method() const { return this->template _get_scalar<method_t>(0); };
-	void set_method(method_t v) { return this->template _set_scalar<method_t>(0, v); };
-
-	int16_t get_code() const { return this->template _get_scalar<int16_t>(1); };
-	void set_code(int16_t v) { return this->template _set_scalar<int16_t>(1, v); };
-
-	int64_t get_size() const { return this->template _get_scalar<int64_t>(3); };
-	void set_size(int64_t v) { return this->template _set_scalar<int64_t>(3, v); };
-
-	std::string_view get_path() const { return this->template _get_string<tll_scheme_offset_ptr_t>(11); }
-	void set_path(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(11, v); }
-	auto get_path_binder() { return this->template _get_binder<tll::scheme::binder::String<Buf, tll_scheme_offset_ptr_t>>(11); }
-	auto get_path_binder() const { return this->template _get_binder<tll::scheme::binder::String<const Buf, tll_scheme_offset_ptr_t>>(11); }
-
-	using type_headers = tll::scheme::binder::List<Buf, header<Buf>, tll_scheme_offset_ptr_t>;
-	const type_headers get_headers() const { return this->template _get_binder<type_headers>(19); }
-	type_headers get_headers() { return this->template _get_binder<type_headers>(19); }
-
-	const std::array<unsigned char, 8> & get_bytes() const { return this->template _get_bytes<8>(27); }
-	void set_bytes(const std::array<unsigned char, 8> &v) { return this->template _set_bytes<8>(27, v); }
-
-	std::string_view get_bytestring() const { return this->template _get_bytestring<8>(35); }
-	void set_bytestring(std::string_view v) { return this->template _set_bytestring<8>(35, v); }
-};
-
-template <typename Buf>
-struct disconnect : public tll::scheme::Binder<Buf>
-{
-	using tll::scheme::Binder<Buf>::Binder;
-
-	static constexpr size_t meta_size() { return 10; }
-
-	int16_t get_code() const { return this->template _get_scalar<int16_t>(0); };
-	void set_code(int16_t v) { return this->template _set_scalar<int16_t>(0, v); };
-
-	std::string_view get_error() const { return this->template _get_string<tll_scheme_offset_ptr_t>(2); }
-	void set_error(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(2, v); }
-};
-
-template <typename Buf>
-struct List : public tll::scheme::Binder<Buf>
-{
-	using tll::scheme::Binder<Buf>::Binder;
-
-	static constexpr size_t meta_size() { return 20; }
-
-	using type_std = tll::scheme::binder::List<Buf, disconnect<Buf>, tll_scheme_offset_ptr_t>;
-	const type_std get_std() const { return this->template _get_binder<type_std>(0); }
-	type_std get_std() { return this->template _get_binder<type_std>(0); }
-
-	using type_llong = tll::scheme::binder::List<Buf, disconnect<Buf>, tll_scheme_offset_ptr_legacy_long_t>;
-	const type_llong get_llong() const { return this->template _get_binder<type_llong>(8); }
-	type_llong get_llong() { return this->template _get_binder<type_llong>(8); }
-
-	using type_lshort = tll::scheme::binder::List<Buf, disconnect<Buf>, tll_scheme_offset_ptr_legacy_short_t>;
-	const type_lshort get_lshort() const { return this->template _get_binder<type_lshort>(16); }
-	type_lshort get_lshort() { return this->template _get_binder<type_lshort>(16); }
-};
-
-} // namespace http_binder
-
 TEST(Scheme, Binder)
 {
 	std::vector<char> buf;
-	http_binder::connect<std::vector<char>> binder(buf);
+	auto binder = http_binder::connect::bind(buf);
 	buf.resize(binder.meta_size());
 
 	binder.set_code(200);
@@ -173,7 +76,7 @@ TEST(Scheme, Binder)
 
 	binder.set_path("/a");
 	ASSERT_EQ(binder.get_path(), "/a");
-	binder.get_path_binder() = "/a/b";
+	binder.set_path("/a/b");
 	ASSERT_EQ(binder.get_path(), "/a/b");
 	binder.set_path("/a/b/c");
 
@@ -185,13 +88,13 @@ TEST(Scheme, Binder)
 	headers[1].set_value("value-1");
 
 	std::array<unsigned char, 8> bytes = {0, 1, 2, 3, 0, 0, 0, 0};
-	binder.set_bytes({0, 1, 2, 3});
+	binder.set_bytes(std::string_view("\x00\x01\x02\x03", 4));
 	binder.set_bytestring("abc");
 
 	ASSERT_EQ(binder.get_code(), 200);
 	ASSERT_EQ(binder.get_method(), http_binder::method_t::GET);
 	ASSERT_EQ(binder.get_path(), "/a/b/c");
-	ASSERT_EQ(static_cast<std::string_view>(binder.get_path_binder()), "/a/b/c");
+	//ASSERT_EQ(static_cast<std::string_view>(binder.get_path_binder()), "/a/b/c");
 	ASSERT_EQ(binder.get_bytes(), bytes);
 	ASSERT_EQ(binder.get_bytestring(), "abc");
 
@@ -230,13 +133,11 @@ TEST(Scheme, Binder)
 	ASSERT_EQ(headers[1].get_header(), connect->headers[1].header);
 	ASSERT_EQ(headers[1].get_value(), connect->headers[1].value);
 
-	//http_binder::connect<const std::vector<char>> cbinder = tll::scheme::make_binder<http_binder::connect>(buf); //cbinder(buf);
-	http_binder::connect<const std::vector<char>> cbinder = tll::scheme::make_binder<http_binder::connect>((const std::vector<char> &) buf); //cbinder(buf);
+	auto cbinder = http_binder::connect::bind((const std::vector<char> &) buf);
 
 	ASSERT_EQ(binder.get_code(), cbinder.get_code());
 	ASSERT_EQ(binder.get_method(), cbinder.get_method());
 	ASSERT_EQ(binder.get_path(), cbinder.get_path());
-	ASSERT_EQ(binder.get_path(), cbinder.get_path_binder());
 	ASSERT_EQ(binder.get_bytes(), cbinder.get_bytes());
 	ASSERT_EQ(binder.get_bytestring(), cbinder.get_bytestring());
 
@@ -297,8 +198,7 @@ TEST(Scheme, BinderLargeItem)
 TEST(Scheme, BinderList)
 {
 	std::vector<char> buf;
-	http_binder::List<std::vector<char>> binder(buf);
-	buf.resize(binder.meta_size());
+	auto binder = http_binder::List::bind_reset(buf);
 
 	binder.get_std().resize(2);
 	binder.get_llong().resize(2);

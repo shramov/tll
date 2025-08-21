@@ -1,0 +1,33 @@
+- name:
+  options: { cpp-namespace: http_binder }
+  enums:
+    method_t: { type: int8, enum: { UNDEFINED: 0, GET: 1, HEAD: 2, POST: 3, PUT: 4, DELETE: 5, CONNECT: 6, OPTIONS: 7, TRACE: 8, PATCH: 9 } }
+
+- name: Header
+  fields:
+    - { name: header, type: string }
+    - { name: value, type: string }
+
+- name: connect
+  id: 1
+  fields:
+    - { name: method, type: method_t }
+    - { name: code, type: int16 }
+    - { name: size, type: int64 }
+    - { name: path, type: string }
+    - { name: headers, type: '*Header' }
+    - { name: bytes, type: byte8 }
+    - { name: bytestring, type: byte8, options.type: string }
+
+- name: disconnect
+  id: 2
+  fields:
+    - { name: code, type: int16 }
+    - { name: error, type: string }
+
+- name: List
+  id: 10
+  fields:
+    - { name: std, type: '*disconnect' }
+    - { name: llong, type: '*disconnect', list-options.offset-ptr-type: legacy-long }
+    - { name: lshort, type: '*disconnect', list-options.offset-ptr-type: legacy-short }
