@@ -125,6 +125,8 @@ int Worker::_setaffinity()
 int Worker::callback(const Channel * c, const tll_msg_t * msg)
 {
 	if (msg->type != TLL_MESSAGE_DATA) return 0;
+	if (state() != tll::state::Active)
+		return 0;
 	switch (msg->msgid) {
 	case scheme::Activate::id: {
 		auto data = (const scheme::Activate *) msg->data;
