@@ -25,6 +25,8 @@ struct ConvertBuf : public tll::scheme::Convert
 		auto message = it->second;
 		if (!message->user)
 			return nullptr; // Skip valid message
+		if (m->size < message->size)
+			return fail(std::nullopt, "Message {} too small: {} < minimum {}", message->name, m->size, message->size);
 		auto user = static_cast<const tll::scheme::Convert::MessageInto *>(message->user);
 		if (user->trivial)
 			return m;
