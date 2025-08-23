@@ -8,7 +8,6 @@
 #ifndef _TLL_IMPL_CHANNEL_STREAM_SERVER_H
 #define _TLL_IMPL_CHANNEL_STREAM_SERVER_H
 
-#include "tll/channel/frame.h"
 #include "tll/channel/lastseq.h"
 #include "tll/channel/autoseq.h"
 #include "tll/channel/prefix.h"

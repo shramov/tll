@@ -13,8 +13,6 @@
 #include "tll/channel/prefix.h"
 #include "tll/util/cppring.h"
 
-#include <list>
-
 namespace tll::channel {
 
 class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::Prefix<StreamClient>>
