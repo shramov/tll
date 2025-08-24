@@ -295,6 +295,10 @@ async def test_block(asyncloop, tmp_path, req, result, protocol):
         return
 
     m = await c.recv()
+    assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control['BeginOfBlock'].msgid, result[0])
+    assert c.unpack(m).as_dict() == {'last_seq': result[0]}
+
+    m = await c.recv()
     assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control['EndOfBlock'].msgid, result[0])
 
     for seq in result[1:-1]:
@@ -354,12 +358,13 @@ async def test_init_message(asyncloop, tmp_path, init_seq, init_block):
     c.open(f'mode=block;block=0;block-type={init_block or "default"}')
 
     m = await c.recv()
-    assert m.type == m.Type.Control
-    assert (m.seq, c.unpack(m).SCHEME.name) == (init_seq or 0, 'EndOfBlock')
+    assert (m.type, m.seq, c.unpack(m).SCHEME.name) == (m.Type.Control, init_seq or 0, 'BeginOfBlock')
 
     m = await c.recv()
-    assert m.type == m.Type.Control
-    assert (m.seq, c.unpack(m).SCHEME.name) == (init_seq or 0, 'Online')
+    assert (m.type, m.seq, c.unpack(m).SCHEME.name) == (m.Type.Control, init_seq or 0, 'EndOfBlock')
+
+    m = await c.recv()
+    assert (m.type, m.seq, c.unpack(m).SCHEME.name) == (m.Type.Control, init_seq or 0, 'Online')
 
 @asyncloop_run
 async def test_autoseq(asyncloop, tmp_path):
@@ -395,7 +400,7 @@ async def test_autoseq(asyncloop, tmp_path):
 async def test_block_clear(asyncloop, tmp_path):
     common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
     s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
-    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test;report-block-end=no')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test;report-block-begin=no;report-block-end=no')
 
     s.open()
     assert s.state == s.State.Active # No need to wait
@@ -685,6 +690,10 @@ async def test_stream_aggregate(asyncloop, context, tmp_path):
     assert c.config.sub('info.reopen').as_dict() == {'mode': 'block', 'block': '0', 'block-type': 'default'}
 
     m = await c.recv()
+    assert (m.type, m.msgid, m.seq) == (c.Type.Control, c.scheme_control['BeginOfBlock'].msgid, 9)
+    assert c.unpack(m).as_dict() == {'last_seq': 10}
+
+    m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (9, 10, b'xxx')
     assert c.config.sub('info.reopen').as_dict() == {'mode': 'block', 'block': '0', 'block-type': 'default'}
 
@@ -709,6 +718,10 @@ async def test_stream_aggregate(asyncloop, context, tmp_path):
     c.open(block='0', mode='block')
     assert c.State.Active == await c.recv_state()
     assert [i.name for i in s.children if '/client' in i.name] == ['server/blocks/client']
+
+    m = await c.recv()
+    assert (m.type, m.msgid, m.seq) == (c.Type.Control, c.scheme_control['BeginOfBlock'].msgid, 29)
+    assert c.unpack(m).as_dict() == {'last_seq': 30}
 
     m = await c.recv()
     assert (m.seq, m.msgid, m.data.tobytes()) == (29, 10, b'xxz')
@@ -1082,4 +1095,4 @@ async def test_close_in_block(asyncloop, tmp_path):
     assert (await c.recv_state()) == c.State.Active
     assert (await c.recv_state()) == c.State.Closed
 
-    assert [(m.type, m.msgid) for m in c.result] == [(c.Type.Control, scheme['EndOfBlock'].msgid)]
+    assert [(m.type, m.msgid) for m in c.result] == [(c.Type.Control, scheme['BeginOfBlock'].msgid), (c.Type.Control, scheme['EndOfBlock'].msgid)]

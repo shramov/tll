@@ -262,7 +262,7 @@ def test_direct_autoseq(context):
     assert [(m.data.tobytes(), m.seq) for m in s.result] == [(b'10', 10), (b'20', 20)]
     assert [(m.data.tobytes(), m.seq) for m in c.result] == [(b'110', 0), (b'120', 1)]
 
-@pytest.mark.parametrize("name,messages", [("stream-client", ["Online", "EndOfBlock"]), ("tcp-client", ["WriteFull", "WriteReady"])])
+@pytest.mark.parametrize("name,messages", [("stream-client", ["Online", "EndOfBlock", "BeginOfBlock"]), ("tcp-client", ["WriteFull", "WriteReady"])])
 @pytest.mark.parametrize("state", ["yes", "no"])
 @pytest.mark.parametrize("external", [True, False])
 def test_direct_emulate(context, name, messages, state, external):

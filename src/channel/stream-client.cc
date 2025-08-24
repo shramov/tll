@@ -45,6 +45,7 @@ int StreamClient::_init(const Channel::Url &url, tll::Channel *master)
 	auto reader = channel_props_reader(url);
 	auto size = reader.getT<util::Size>("size", 128 * 1024);
 	_peer = reader.getT<std::string>("peer", "");
+	_report_block_begin = reader.getT("report-block-begin", true);
 	_report_block_end = reader.getT("report-block-end", true);
 	_protocol_old = reader.getT("protocol", true, {{"old", true}, {"new", false}});
 
@@ -354,10 +355,22 @@ int StreamClient::_on_request_data(const tll::Channel *, const tll_msg_t *msg)
 		_block_end = data.get_block_seq();
 		_log.info("Server seq: {}, block end seq: {}", _server_seq, data.get_block_seq());
 		_state = State::Connected;
+		auto guard = state_guard();
 		state(tll::state::Active);
+		if (guard.changed(1)) return 0;
 		if (!_open_seq) {
 			_log.info("Translated block request to seq {}", data.get_requested_seq());
 			_open_seq = data.get_requested_seq();
+			int64_t body = _block_end - 1;
+			tll_msg_t m = {
+				.type = TLL_MESSAGE_CONTROL,
+				.msgid = stream_control_scheme::BeginOfBlock::meta_id(),
+				.seq = std::min(body, data.get_requested_seq()),
+				.data = &body,
+				.size = sizeof(body),
+			};
+			if (_report_block_begin)
+				_callback(&m);
 		}
 		if (_server_seq == -1) {
 			return state_fail(0, "Server has no data for now, can not open from seq {}", *_open_seq);

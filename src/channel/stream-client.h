@@ -38,6 +38,7 @@ class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::
 	std::string _peer;
 
 	tll::Config _reopen_cfg;
+	bool _report_block_begin = true;
 	bool _report_block_end = true;
 	bool _protocol_old = true;
 

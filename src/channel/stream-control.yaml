@@ -3,3 +3,7 @@
   id: 10
 - name: EndOfBlock
   id: 11
+- name: BeginOfBlock
+  id: 12
+  fields:
+    - {name: last_seq, type: int64}

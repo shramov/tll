@@ -35,6 +35,9 @@ old data from ``request`` channel.
 ``peer=<string>``, default empty - client name that is passed to the server where it is included in
 logs about data request processing.
 
+``report-block-begin=<bool>``, default ``yes`` - report begin of block with ``BeginOfBlock`` control message,
+can be disabled for backward compatibility.
+
 ``report-block-end=<bool>``, default ``yes`` - report block end with ``EndOfBlock`` control message,
 can be disabled for backward compatibility.
 
