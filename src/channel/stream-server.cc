@@ -255,7 +255,7 @@ int StreamServer::_open(const ConstConfig &cfg)
 				_child_open.set("seq", conv::to_string(*seq + 1));
 			if (auto r = _storage_load->open(_child_open); r)
 				return _log.fail(EINVAL, "Failed to open storage channel for reading");
-			_child_add(_storage_load.get(), "storage");
+			_child_add(_storage_load.get());
 			_child_open = ocfg;
 			return 0;
 		}
