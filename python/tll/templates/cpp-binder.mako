@@ -90,6 +90,26 @@ f"""using type_{f.name} = {t};
 using const_type_{f.name} = {t.replace("<Buf", "<const Buf")};
 const_type_{f.name} get_{f.name}() const {{ return this->template _get_binder<const_type_{f.name}>(offset_{f.name}); }}
 type_{f.name} get_{f.name}() {{ return this->template _get_binder<type_{f.name}>(offset_{f.name}); }}""" + suffix)
+
+def copy_available(msg):
+    for f in msg.fields:
+        _, tp = field2type(f)
+        if tp in ('scalar', 'string', 'bytestring', 'bytes'):
+	    pass
+        elif f.type == f.Message:
+            if not copy_available(f.type_msg):
+                return False
+        else:
+            return False
+    return True
+
+def field2copy(f):
+    _, tp = field2type(f)
+    if tp in ('scalar', 'string', 'bytestring'):
+        return f"set_{f.name}(rhs.get_{f.name}());"
+    else:
+        return f"get_{f.name}().copy(rhs.get_{f.name}());"
+
 %>\
 <%def name='union2decl_inner(u)' filter='cpp.indent_filter'><%call expr='union2decl(u)'></%call></%def>\
 <%def name='union2decl(u)'>\
@@ -197,6 +217,15 @@ ${cpp.indent("\t", cpp.declare_bits(b))}
 % if msg.pmap:
 		bool _pmap_get(int index) const { return tll::scheme::pmap_get(this->view().view(${msg.pmap.offset}).data(), index); }
 		void _pmap_set(int index) { tll::scheme::pmap_set(this->view().view(${msg.pmap.offset}).data(), index); }
+% endif
+% if copy_available(msg):
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+% for f in msg.fields:
+			${field2copy(f)}
+% endfor
+		}
 % endif
 % for f in msg.fields:
 

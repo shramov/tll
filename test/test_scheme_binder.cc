@@ -260,3 +260,28 @@ TEST(Scheme, BinderList)
 	verify_list<tll::memory>({buf.data(), buf.size()});
 	verify_list<tll::const_memory>({buf.data(), buf.size()});
 }
+
+TEST(Scheme, BinderCopy)
+{
+	std::vector<char> buf;
+	auto rhs = http_binder::Copy::bind_reset(buf);
+	rhs.get_header().set_header("header");
+	rhs.get_header().set_value("value");
+	rhs.set_i64(0x01020304050607);
+	rhs.set_f64(123.456);
+	rhs.set_s64("s64");
+	rhs.set_str("string");
+
+	std::vector<char> bcopy;
+	auto copy = http_binder::Copy::bind_reset(bcopy);
+	copy.copy(rhs);
+
+	buf.assign(buf.size(), 0);
+
+	ASSERT_EQ(copy.get_header().get_header(), "header");
+	ASSERT_EQ(copy.get_header().get_value(), "value");
+	ASSERT_EQ(copy.get_i64(), 0x01020304050607);
+	ASSERT_EQ(copy.get_f64(), 123.456);
+	ASSERT_EQ(copy.get_s64(), "s64");
+	ASSERT_EQ(copy.get_str(), "string");
+}

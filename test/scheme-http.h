@@ -5,7 +5,7 @@
 
 namespace http_binder {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJylUl1rwjAUffdX5C0gDahzzvkmNZuCtDLrs8Q22kBNShMHTvrfd2P9yKqywd7O7Tmcc+9JCZJsywcI4wZCKjdCST1ABxznObGMzlnMMfCpMflyJWTCC1yClsvdVg8AIIS33KQqWRrQHcw+BzshTd87aqyZHwYB9SOgex7CIzqlEYXhGYZ3aj+3AY3pcASwAzCcRZMwmMP0AtNsGPljwK8Wh3Orf7JwYVEXUPQx9K0fJOJFMKJvk4Baq1ZZNsj5vjFndnVYeC14lpxWJ+hw4tOK91B1ANamEHJzPNWVfbJsx++oLjmxkpLHxgaJBC57GFiVdrW6lFiPjFXiJEKz7d6NRouvn5pe90aTM5P+el9Vg77qmqfi6sLV3nBHZsf+fVEVVFN67s9mGezs5NSZCF1rtPOw0b8UxYtC3XvlS+BU6OvjtR5maeM8XdPZsh6YZcq93pV6KIMw4hSh1mvNDclNQc6dZHzD4j05upQ35jpVhfm/e2VzY69jljGnrea5028ESkAf)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJylU01vgkAQvfsr9raJgUSttdabQVpNDJiKZ4OwyCbIbti1CTX+986K4paP2qS3N8zLezNvBxOl/oFMEMYdhBiXlKVigk444NxUHcH9gGDox1Ly7Y6mIcnwGbgkPR7EBABC+EBkzMKtBN5J5hzkaCrHxoWjxCzXcWzLg/bIQHhmL23PhuIZindbfe4DmtvTGcABQHflLVxnDdULVKupZ80BvyrsrhX/ScGNQkNA3sfUUnrgiDfOzH5bOLaS6p3PHfO235z4anQYOKIkCa+jm+h07cdF30DFAljIjKb7y6o67dNPjqSBVfoELE1JIJURDWGzVsMitLtUGWLVMmCh5gjJ9kc1jqBfPzmjYY3DfRk/3K+IQdx53WtwVeIul0SjqXLcTCqMKkxDPzbVwdpMWpwhFZVEB62J/iUokmWs6ZVLwyUV98frtXoJqT1dV5uyapgkTN9epxooATNTC4JFkSDS5DIzb5kkZO8HuXlROdfERcwy+X/1QqYmLwI/8bW0urdMy7QsxvPyYdrTqv5cLTdF4WofHHGkU0J23CWk/jPoHHVul/rXe6s+btOJfAM0H4aX)";
 
 enum class method_t: int8_t
 {
@@ -36,6 +36,12 @@ struct Header
 		static constexpr auto meta_size() { return Header::meta_size(); }
 		static constexpr auto meta_name() { return Header::meta_name(); }
 		void view_resize() { this->_view_resize(meta_size()); }
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+			set_header(rhs.get_header());
+			set_value(rhs.get_value());
+		}
 
 		std::string_view get_header() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_header); }
 		void set_header(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_header, v); }
@@ -90,7 +96,8 @@ struct connect
 		void set_path(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_path, v); }
 
 		using type_headers = tll::scheme::binder::List<Buf, Header::binder_type<Buf>, tll_scheme_offset_ptr_t>;
-		const type_headers get_headers() const { return this->template _get_binder<type_headers>(offset_headers); }
+		using const_type_headers = tll::scheme::binder::List<const Buf, Header::binder_type<const Buf>, tll_scheme_offset_ptr_t>;
+		const_type_headers get_headers() const { return this->template _get_binder<const_type_headers>(offset_headers); }
 		type_headers get_headers() { return this->template _get_binder<type_headers>(offset_headers); }
 
 		const tll::scheme::Bytes<8> & get_bytes() const { return this->template _get_bytes<8>(offset_bytes); }
@@ -125,6 +132,12 @@ struct disconnect
 		static constexpr auto meta_name() { return disconnect::meta_name(); }
 		static constexpr auto meta_id() { return disconnect::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+			set_code(rhs.get_code());
+			set_error(rhs.get_error());
+		}
 
 		using type_code = int16_t;
 		type_code get_code() const { return this->template _get_scalar<type_code>(offset_code); }
@@ -162,20 +175,81 @@ struct List
 		void view_resize() { this->_view_resize(meta_size()); }
 
 		using type_std = tll::scheme::binder::List<Buf, disconnect::binder_type<Buf>, tll_scheme_offset_ptr_t>;
-		const type_std get_std() const { return this->template _get_binder<type_std>(offset_std); }
+		using const_type_std = tll::scheme::binder::List<const Buf, disconnect::binder_type<const Buf>, tll_scheme_offset_ptr_t>;
+		const_type_std get_std() const { return this->template _get_binder<const_type_std>(offset_std); }
 		type_std get_std() { return this->template _get_binder<type_std>(offset_std); }
 
 		using type_llong = tll::scheme::binder::List<Buf, disconnect::binder_type<Buf>, tll_scheme_offset_ptr_legacy_long_t>;
-		const type_llong get_llong() const { return this->template _get_binder<type_llong>(offset_llong); }
+		using const_type_llong = tll::scheme::binder::List<const Buf, disconnect::binder_type<const Buf>, tll_scheme_offset_ptr_legacy_long_t>;
+		const_type_llong get_llong() const { return this->template _get_binder<const_type_llong>(offset_llong); }
 		type_llong get_llong() { return this->template _get_binder<type_llong>(offset_llong); }
 
 		using type_lshort = tll::scheme::binder::List<Buf, disconnect::binder_type<Buf>, tll_scheme_offset_ptr_legacy_short_t>;
-		const type_lshort get_lshort() const { return this->template _get_binder<type_lshort>(offset_lshort); }
+		using const_type_lshort = tll::scheme::binder::List<const Buf, disconnect::binder_type<const Buf>, tll_scheme_offset_ptr_legacy_short_t>;
+		const_type_lshort get_lshort() const { return this->template _get_binder<const_type_lshort>(offset_lshort); }
 		type_lshort get_lshort() { return this->template _get_binder<type_lshort>(offset_lshort); }
 
 		using type_scalar = tll::scheme::binder::List<Buf, int16_t, tll_scheme_offset_ptr_t>;
-		const type_scalar get_scalar() const { return this->template _get_binder<type_scalar>(offset_scalar); }
+		using const_type_scalar = tll::scheme::binder::List<const Buf, int16_t, tll_scheme_offset_ptr_t>;
+		const_type_scalar get_scalar() const { return this->template _get_binder<const_type_scalar>(offset_scalar); }
 		type_scalar get_scalar() { return this->template _get_binder<type_scalar>(offset_scalar); }
+	};
+
+	template <typename Buf>
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
+};
+
+struct Copy
+{
+	static constexpr size_t meta_size() { return 104; }
+	static constexpr std::string_view meta_name() { return "Copy"; }
+	static constexpr int meta_id() { return 20; }
+	static constexpr size_t offset_header = 0;
+	static constexpr size_t offset_i64 = 16;
+	static constexpr size_t offset_f64 = 24;
+	static constexpr size_t offset_s64 = 32;
+	static constexpr size_t offset_str = 96;
+
+	template <typename Buf>
+	struct binder_type : public tll::scheme::Binder<Buf>
+	{
+		using tll::scheme::Binder<Buf>::Binder;
+
+		static constexpr auto meta_size() { return Copy::meta_size(); }
+		static constexpr auto meta_name() { return Copy::meta_name(); }
+		static constexpr auto meta_id() { return Copy::meta_id(); }
+		void view_resize() { this->_view_resize(meta_size()); }
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+			get_header().copy(rhs.get_header());
+			set_i64(rhs.get_i64());
+			set_f64(rhs.get_f64());
+			set_s64(rhs.get_s64());
+			set_str(rhs.get_str());
+		}
+
+		using type_header = Header::binder_type<Buf>;
+		using const_type_header = Header::binder_type<const Buf>;
+		const_type_header get_header() const { return this->template _get_binder<const_type_header>(offset_header); }
+		type_header get_header() { return this->template _get_binder<type_header>(offset_header); }
+
+		using type_i64 = int64_t;
+		type_i64 get_i64() const { return this->template _get_scalar<type_i64>(offset_i64); }
+		void set_i64(type_i64 v) { return this->template _set_scalar<type_i64>(offset_i64, v); }
+
+		using type_f64 = double;
+		type_f64 get_f64() const { return this->template _get_scalar<type_f64>(offset_f64); }
+		void set_f64(type_f64 v) { return this->template _set_scalar<type_f64>(offset_f64, v); }
+
+		std::string_view get_s64() const { return this->template _get_bytestring<64>(offset_s64); }
+		void set_s64(std::string_view v) { return this->template _set_bytestring<64>(offset_s64, v); }
+
+		std::string_view get_str() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_str); }
+		void set_str(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_str, v); }
 	};
 
 	template <typename Buf>
