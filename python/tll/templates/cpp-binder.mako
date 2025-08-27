@@ -87,7 +87,8 @@ void set_{f.name}(std::string_view v) {{ {pmap}return this->template _set_string
     elif m == 'builder':
         return cpp.indent("\t\t",
 f"""using type_{f.name} = {t};
-const type_{f.name} get_{f.name}() const {{ return this->template _get_binder<type_{f.name}>(offset_{f.name}); }}
+using const_type_{f.name} = {t.replace("<Buf", "<const Buf")};
+const_type_{f.name} get_{f.name}() const {{ return this->template _get_binder<const_type_{f.name}>(offset_{f.name}); }}
 type_{f.name} get_{f.name}() {{ return this->template _get_binder<type_{f.name}>(offset_{f.name}); }}""" + suffix)
 %>\
 <%def name='union2decl_inner(u)' filter='cpp.indent_filter'><%call expr='union2decl(u)'></%call></%def>\
