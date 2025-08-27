@@ -161,6 +161,20 @@ class List : public Base<Buf>
 
 	List(view_type view) : Base<Buf>(view) {}
 
+	template <typename RBuf, typename RT>
+	void copy(const List<RBuf, RT, Ptr> &rhs)
+	{
+		resize(rhs.size());
+		auto li = begin();
+		for (auto ri : rhs) {
+			if constexpr (is_binder) {
+				li->copy(ri);
+			} else
+				*li = ri;
+			++li;
+		}
+	}
+
 	static constexpr size_t entity_size_static()
 	{
 		if constexpr (is_binder)
@@ -278,14 +292,19 @@ class String : public List<Buf, char, Ptr>
 		return { ptr->data(), ptr->size - 1u };
 	}
 
-	String & operator = (std::string_view v)
+	void copy(const std::string_view & v)
 	{
 		this->resize(v.size() + 1);
 		memcpy(&*this->begin(), v.data(), v.size());
 		*this->end() = 0;
+	}
+
+	String & operator = (std::string_view v)
+	{
+		copy(v);
 		return *this;
 	}
-};
+	};
 
 template <typename Buf>
 template <typename Ptr>

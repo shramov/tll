@@ -263,6 +263,7 @@ TEST(Scheme, BinderList)
 
 TEST(Scheme, BinderCopy)
 {
+	using namespace std::string_view_literals;
 	std::vector<char> buf;
 	auto rhs = http_binder::Copy::bind_reset(buf);
 	rhs.get_header().set_header("header");
@@ -271,6 +272,20 @@ TEST(Scheme, BinderCopy)
 	rhs.set_f64(123.456);
 	rhs.set_s64("s64");
 	rhs.set_str("string");
+	rhs.get_lmsg().resize(2);
+	rhs.get_lmsg()[0].set_header("h0");
+	rhs.get_lmsg()[0].set_value("v0");
+	rhs.get_lmsg()[1].set_header("h1");
+	rhs.get_lmsg()[1].set_value("v1");
+	rhs.get_li64().resize(3);
+	rhs.get_li64()[0] = 100;
+	rhs.get_li64()[1] = 101;
+	rhs.get_li64()[2] = 102;
+	rhs.get_lstr().resize(4);
+	rhs.get_lstr()[0] = "s0";
+	rhs.get_lstr()[1] = "s1";
+	rhs.get_lstr()[2] = "s2";
+	rhs.get_lstr()[3] = "s3";
 
 	std::vector<char> bcopy;
 	auto copy = http_binder::Copy::bind_reset(bcopy);
@@ -284,4 +299,19 @@ TEST(Scheme, BinderCopy)
 	ASSERT_EQ(copy.get_f64(), 123.456);
 	ASSERT_EQ(copy.get_s64(), "s64");
 	ASSERT_EQ(copy.get_str(), "string");
+
+	ASSERT_EQ(copy.get_lmsg().size(), 2);
+	ASSERT_EQ(copy.get_lmsg()[0].get_header(), "h0");
+	ASSERT_EQ(copy.get_lmsg()[0].get_value(), "v0");
+	ASSERT_EQ(copy.get_lmsg()[1].get_header(), "h1");
+	ASSERT_EQ(copy.get_lmsg()[1].get_value(), "v1");
+	ASSERT_EQ(copy.get_li64().size(), 3);
+	ASSERT_EQ(copy.get_li64()[0], 100);
+	ASSERT_EQ(copy.get_li64()[1], 101);
+	ASSERT_EQ(copy.get_li64()[2], 102);
+	ASSERT_EQ(copy.get_lstr().size(), 4);
+	ASSERT_EQ(copy.get_lstr()[0], "s0"sv);
+	ASSERT_EQ(copy.get_lstr()[1], "s1"sv);
+	ASSERT_EQ(copy.get_lstr()[2], "s2"sv);
+	ASSERT_EQ(copy.get_lstr()[3], "s3"sv);
 }

@@ -41,3 +41,6 @@
     - { name: f64, type: double }
     - { name: s64, type: byte64, options.type: string }
     - { name: str, type: string }
+    - { name: lmsg, type: '*Header' }
+    - { name: li64, type: '*int64' }
+    - { name: lstr, type: '*string' }
