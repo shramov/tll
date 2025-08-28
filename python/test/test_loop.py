@@ -34,7 +34,7 @@ def test_fd():
 @pytest.mark.skipif(sys.platform != 'linux', reason='Event notifications are linux-only')
 def test_pending_fd():
     ctx = C.Context()
-    l = Loop()
+    l = Loop(config={'pending-steps': '0'})
     c = ctx.Channel('zero://;size=1kb;name=zero;zero.fd=yes;zero.pending=yes')
     assert l.poll() == None
     l.add(c)

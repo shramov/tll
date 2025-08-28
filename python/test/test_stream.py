@@ -13,6 +13,10 @@ from tll.error import TLLError
 from tll.test_util import Accum, ports
 
 @pytest.fixture
+def asyncloop_config():
+    return {'pending-steps': '0'}
+
+@pytest.fixture
 def context():
     return C.Context()
 

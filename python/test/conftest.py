@@ -22,10 +22,13 @@ if version < (3, 9):
     def tmp_path():
         with tempfile.TemporaryDirectory() as tmp:
             yield pathlib.Path(tmp)
+@pytest.fixture
+def asyncloop_config():
+    return {}
 
 @pytest.fixture
-def asyncloop(context):
-    loop = asynctll.Loop(context)
+def asyncloop(context, asyncloop_config):
+    loop = asynctll.Loop(context, config=asyncloop_config)
     yield loop
     loop.destroy()
     loop = None

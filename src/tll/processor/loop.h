@@ -370,7 +370,7 @@ struct tll_processor_loop_t
 		auto nofd_interval = reader.getT<tll::duration>("nofd-interval", nofd_interval_default);
 		time_cache_enable = reader.getT("time-cache", false);
 		if (_poll_enable)
-			_pending_steps = reader.getT("pending-steps", 0u);
+			_pending_steps = reader.getT("pending-steps", 8u);
 
 		_log = { name.size() ? name : "tll.processor.loop" };
 		if (!reader)
