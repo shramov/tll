@@ -6,6 +6,7 @@ import tll.scheme as S
 from tll.scheme import Field as F
 from tll.s2b import s2b
 from tll.chrono import *
+from tll.config import Config
 
 import copy
 import datetime
@@ -309,6 +310,11 @@ def test_import():
     assert [m.name for m in s.messages] == ['sub', 'msg']
 
     assert s.options == {'outer': 'outer', 'inner': 'inner0'}
+
+    sub = s.messages.sub
+    assert list(sub.options.keys()) == ['_import']
+    assert sub.options['_import'].startswith('yamls://')
+    assert 'outer: inner1' in sub.options['_import']
 
 @pytest.mark.parametrize("t", ['int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64'])
 def test_scalar(t):
@@ -1025,22 +1031,38 @@ def test_large_pointer():
     assert m.as_dict() == u.as_dict()
 
 def test_sorted_import():
-    s0 = S.Scheme("""yamls://
-- import:
+    SCHEME = """yamls://
+meta.import:
     e00: "yamls://[{enums.E09: {type: int8, enum: {A: 9}}}]"
     e09: "yamls://[{enums.E00: {type: int8, enum: {A: 0}}}]"
     b00: "yamls://[{bits.B09: {type: uint8, bits: {A, B}}}]"
     b09: "yamls://[{bits.B00: {type: uint8, bits: {D, E}}}]"
     u00: "yamls://[{unions.U09.union: [{name: i8, type: int8}]}]"
     u09: "yamls://[{unions.U00.union: [{name: u8, type: uint8}]}]"
-""")
+"""
+
+    s0 = S.Scheme(SCHEME)
+    cfg = Config.load(SCHEME)
 
     assert list(s0.enums.keys()) == sorted(['E09', 'E00'])
     assert list(s0.bits.keys()) == sorted(['B09', 'B00'])
     assert list(s0.unions.keys()) == sorted(['U09', 'U00'])
 
+    assert s0.enums['E00'].options.get('_import') == cfg.get('meta.import.e09')
+    assert s0.enums['E09'].options.get('_import') == cfg.get('meta.import.e00')
+
+    assert s0.bits['B00'].options.get('_import') == cfg.get('meta.import.b09')
+    assert s0.bits['B09'].options.get('_import') == cfg.get('meta.import.b00')
+
+    assert s0.unions['U00'].options.get('_import') == cfg.get('meta.import.u09')
+    assert s0.unions['U09'].options.get('_import') == cfg.get('meta.import.u00')
+
     s1 = S.Scheme(s0.dump('yamls'))
+    print(s0.dump('yamls'))
 
     assert list(s1.enums.keys()) == list(s0.enums.keys())
     assert list(s1.bits.keys()) == list(s0.bits.keys())
     assert list(s1.unions.keys()) == list(s0.unions.keys())
+    for i in s1.enums.values(): assert i.options == {}
+    for i in s1.bits.values(): assert i.options == {}
+    for i in s1.unions.values(): assert i.options == {}

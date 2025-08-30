@@ -253,6 +253,22 @@ struct Options : public tll::Props
 		}
 		return r;
 	}
+
+	void set_import(std::string_view value)
+	{
+		if (value.size())
+			emplace("_import", value);
+	}
+};
+
+struct Import
+{
+	std::string url;
+	std::filesystem::path filename;
+	Options options;
+
+	Import() {}
+	Import(std::string_view u, std::filesystem::path fn = {}) : url(u), filename(fn) {}
 };
 
 struct Enum
@@ -285,7 +301,7 @@ struct Enum
 		return r;
 	}
 
-	static int parse_list(tll::Logger &_log, tll::Config &cfg, std::list<Enum> &r)
+	static int parse_list(tll::Logger &_log, tll::Config &cfg, std::list<Enum> &r, const Import &scope = {})
 	{
 		std::set<std::string_view> names;
 		for (auto & e : r) names.insert(e.name);
@@ -299,6 +315,7 @@ struct Enum
 			auto e = Enum::parse(ec, n);
 			if (!e)
 				return _log.fail(EINVAL, "Failed to load enum {}", n);
+			e->options.set_import(scope.url);
 			r.push_back(*e);
 			names.insert(r.back().name);
 		}
@@ -384,7 +401,7 @@ struct Bits
 		return r;
 	}
 
-	static int parse_list(tll::Logger &_log, tll::Config &cfg, std::list<Bits> &r)
+	static int parse_list(tll::Logger &_log, tll::Config &cfg, std::list<Bits> &r, const Import &scope = {})
 	{
 		std::set<std::string_view> names;
 		for (auto & i : r) names.insert(i.name);
@@ -395,6 +412,7 @@ struct Bits
 			auto v = Bits::parse(c, n);
 			if (!v)
 				return _log.fail(EINVAL, "Failed to load bits {}", n);
+			v->options.set_import(scope.url);
 			r.push_back(*v);
 			names.insert(r.back().name);
 		}
@@ -609,7 +627,7 @@ struct Union
 		return r;
 	}
 
-	static int parse_list(tll::Logger &_log, Message &m, tll::Config &cfg, std::list<Union> &r)
+	static int parse_list(tll::Logger &_log, Message &m, tll::Config &cfg, std::list<Union> &r, const Import &scope = {})
 	{
 		std::set<std::string_view> names;
 		for (auto & e : r) names.insert(e.name);
@@ -620,6 +638,7 @@ struct Union
 			auto u = Union::parse(m, c, n);
 			if (!u)
 				return _log.fail(EINVAL, "Failed to load union {}", n);
+			u->options.set_import(scope.url);
 			r.push_back(*u);
 			names.insert(r.back().name);
 		}
@@ -662,6 +681,7 @@ struct Message
 	std::list<Union> unions;
 	std::list<Bits> bits;
 	bool defaults_optional = false;
+	std::string import;
 
 	tll::scheme::Message * finalize(tll::scheme::Scheme * s)
 	{
@@ -774,8 +794,13 @@ struct Scheme
 {
 	struct Search
 	{
-		std::filesystem::path current;
+		Import scope;
 		std::list<std::filesystem::path> search;
+
+		std::filesystem::path parent_path() const
+		{
+			return scope.filename.parent_path();
+		}
 	};
 
 	Options options;
@@ -785,7 +810,7 @@ struct Scheme
 	std::list<Bits> bits;
 	std::list<Field> aliases;
 
-	std::map<std::string, std::string> imports;
+	std::map<std::string, Import> imports;
 
 	tll::scheme::Scheme * finalize()
 	{
@@ -831,16 +856,16 @@ struct Scheme
 		return r;
 	}
 
-	static tll::result_t<std::pair<std::string, std::filesystem::path>> lookup(std::string_view path, const Search &search = {})
+	static tll::result_t<Import> lookup(std::string_view path, const Search &search = {})
 	{
 		namespace fs = std::filesystem;
 		using tll::filesystem::lexically_normal;
 
 		if (starts_with(path, "yamls"))
-			return std::make_pair(path, "");
+			return path;
 
 		if (!starts_with(path, "yaml://"))
-			return std::make_pair(path, "");
+			return path;
 
 		auto url = tll::Url::parse(path);
 		if (!url)
@@ -852,31 +877,31 @@ struct Scheme
 		if (fn.is_absolute()) {
 			fn = lexically_normal(fn);
 			url->host = fn.string();
-			return std::make_pair(conv::to_string(*url), fn);
+			return Import {conv::to_string(*url), fn};
 		}
 
 		if (*fn.begin() == "." || *fn.begin() == "..") {
-			auto tmp = lexically_normal(search.current.parent_path() / fn);
+			auto tmp = lexically_normal(search.parent_path() / fn);
 			if (fs::exists(tmp)) {
 				url->host = tmp.string();
-				return std::make_pair(conv::to_string(*url), tmp);
+				return Import {conv::to_string(*url), tmp};
 			}
 			return error("Relative import not found");
 		}
 
 		if (fs::exists(fn))
-			return std::make_pair(path, lexically_normal(fn));
+			return Import {path, lexically_normal(fn)};
 		for (auto & prefix : search.search) {
 			auto tmp = lexically_normal(prefix / fn);
 			if (fs::exists(tmp)) {
 				url->host = tmp.string();
-				return std::make_pair(conv::to_string(*url), tmp);
+				return Import {conv::to_string(*url), tmp};
 			}
 		}
 		return error("File not found");
 	}
 
-	int parse_meta(tll::Config &cfg, const Search &search)
+	int parse_meta(tll::Config &cfg, Search &search)
 	{
 		tll::Logger _log = {"tll.scheme"};
 		auto o = Options::parse(cfg);
@@ -885,17 +910,18 @@ struct Scheme
 			if (!options.has(k))
 				options[k] = v;
 		}
+		search.scope.options = *std::move(o);
 
 		Message message;
 		message.parent = this;
 
-		if (Enum::parse_list(_log, cfg, enums))
+		if (Enum::parse_list(_log, cfg, enums, search.scope))
 			return _log.fail(EINVAL, "Failed to load enums");
 
-		if (Union::parse_list(_log, message, cfg, unions))
+		if (Union::parse_list(_log, message, cfg, unions, search.scope))
 			return _log.fail(EINVAL, "Failed to parse unions");
 
-		if (Bits::parse_list(_log, cfg, bits))
+		if (Bits::parse_list(_log, cfg, bits, search.scope))
 			return _log.fail(EINVAL, "Failed to parse bits");
 
 		for (auto & [unused, fc] : cfg.browse("aliases.*", true)) {
@@ -925,25 +951,26 @@ struct Scheme
 			auto r = Scheme::lookup(*url, search);
 			if (!r)
 				return _log.fail(EINVAL, "Failed to lookup import {} '{}': {}", path, *url, r.error());
-			auto & lurl = r->first;
-			if (imports.find(lurl) != imports.end()) {
-				_log.debug("Scheme import {} already loaded", lurl);
+			if (imports.find(r->url) != imports.end()) {
+				_log.debug("Scheme import {} already loaded", r->url);
 				continue;
 			}
-			imports.emplace(lurl, *url);
-			auto c = Config::load(lurl);
+
+			auto c = Config::load(r->url);
 			if (!c)
-				return _log.fail(EINVAL, "Failed to load config {}", lurl.substr(0, 64), lurl.size() > 64 ? "..." : "");
-			_log.debug("Load scheme import from {}", lurl.substr(0, 64), lurl.size() > 64 ? "..." : "");
+				return _log.fail(EINVAL, "Failed to load config {}", r->url.substr(0, 64), r->url.size() > 64 ? "..." : "");
+			_log.debug("Load scheme import from {}", r->url.substr(0, 64), r->url.size() > 64 ? "..." : "");
 			Search s = search;
-			s.current = r->second;
+			s.scope = *r;
+			auto it = imports.emplace(r->url, Import {}).first;
 			if (parse(*c, s))
-				return _log.fail(EINVAL, "Failed to load scheme {}", lurl.substr(0, 64), lurl.size() > 64 ? "..." : "");
+				return _log.fail(EINVAL, "Failed to load scheme {}", r->url.substr(0, 64), r->url.size() > 64 ? "..." : "");
+			it->second = std::move(s.scope);
 		}
 		return 0;
 	}
 
-	int parse(tll::Config &cfg, const Search &search)
+	int parse(tll::Config &cfg, Search &search)
 	{
 		tll::Logger _log = {"tll.scheme"};
 		bool meta = false;
@@ -968,13 +995,14 @@ struct Scheme
 			auto m = Message::parse(*this, mc, *n);
 			if (!m)
 				return _log.fail(EINVAL, "Failed to load message {}", *n);
+			m->options.set_import(search.scope.url);
 			messages.push_back(*m);
 			names.insert(messages.back().name);
 		}
 		return 0;
 	}
 
-	static std::optional<Scheme> load(tll::Config &cfg, const Search &search)
+	static std::optional<Scheme> load(tll::Config &cfg, Search &search)
 	{
 		Scheme s;
 		if (s.parse(cfg, search))
@@ -1376,13 +1404,14 @@ tll_scheme_t * tll_scheme_load(const char * curl, int ulen)
 	search.search = tll_scheme_search_path.list();
 
 	std::string_view url(curl, (ulen == -1)?strlen(curl):ulen);
-	auto lurl = tll::scheme::internal::Scheme::lookup(url, search);
-	if (!lurl)
-		return _log.fail(nullptr, "Failed to lookup import '{}': {}", curl, lurl.error());
-	auto cfg = tll::Config::load(lurl->first);
-	if (!cfg) return _log.fail(nullptr, "Failed to load config: {}", lurl->first);
+	auto imp = tll::scheme::internal::Scheme::lookup(url, search);
+	if (!imp)
+		return _log.fail(nullptr, "Failed to lookup import '{}': {}", curl, imp.error());
+	auto cfg = tll::Config::load(imp->url);
+	if (!cfg) return _log.fail(nullptr, "Failed to load config: {}", imp->url);
 
-	search.current = lurl->second;
+	imp->url = "";
+	search.scope = *imp;
 	auto s = tll::scheme::internal::Scheme::load(*cfg, search);
 	if (!s)
 		return _log.fail(nullptr, "Failed to load scheme");
@@ -1761,7 +1790,7 @@ std::string dump(const tll::scheme::Option * options, std::string_view key = "op
 	bool comma = false;
 	std::map<std::string_view, std::string_view> map;
 	for (auto &o : list_wrap(options)) {
-		if (o.name == std::string_view("_auto")) continue;
+		if (o.name == std::string_view("_auto") || o.name == std::string_view("_import")) continue;
 		map.emplace(o.name, o.value);
 	}
 
