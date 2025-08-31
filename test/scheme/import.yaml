@@ -1,4 +1,4 @@
-- name:
+- options: { common: top }
   import:
     - yaml://./a/scheme.yaml
 

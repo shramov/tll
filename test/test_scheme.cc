@@ -448,17 +448,85 @@ f8: 12.345)");
 	ASSERT_EQ(*r, R"({f0: a | 0xf0})");
 }
 
+#define ASSERT_PREFIX_SUFFIX(s, pr, su) do { \
+		std::string_view str(s), prefix(pr), suffix(su); \
+		ASSERT_EQ(str.substr(0, prefix.size()), prefix); \
+		ASSERT_GE(str.size(), suffix.size()); \
+		ASSERT_EQ(str.substr(str.size() - suffix.size()), suffix); \
+	} while (0)
+
+#define ASSERT_OPTION_EQ(ptr, n, v) do { \
+		ASSERT_NE((ptr), nullptr); \
+		ASSERT_STREQ((ptr)->name, n); \
+		ASSERT_STREQ((ptr)->value, v); \
+	} while (0)
+
+#define ASSERT_OPTION_URL_EQ(ptr, n, v) do { \
+		ASSERT_NE((ptr), nullptr); \
+		ASSERT_STREQ((ptr)->name, n); \
+		ASSERT_PREFIX_SUFFIX((ptr)->value, "yaml://", v); \
+	} while (0)
+
 TEST(Scheme, Import)
 {
 	SchemePtr s(Scheme::load("yaml://import.yaml"));
 
 	ASSERT_NE(s.get(), nullptr);
 
+	ASSERT_OPTION_EQ(s->options, "common", "top");
+	auto imp = s->imports;
+	ASSERT_NE(imp, nullptr);
+	ASSERT_STREQ(imp->name, imp->url);
+	ASSERT_PREFIX_SUFFIX(imp->url, "yaml://", "test/scheme/a/b/scheme.yaml");
+	ASSERT_PREFIX_SUFFIX(imp->filename, "", "test/scheme/a/b/scheme.yaml");
+	ASSERT_OPTION_EQ(imp->options, "common", "a/b");
+	const auto imp_ab = imp;
+
+	imp = imp->next;
+	ASSERT_NE(imp, nullptr);
+	ASSERT_STREQ(imp->name, imp->url);
+	ASSERT_PREFIX_SUFFIX(imp->url, "yaml://", "test/scheme/a/b/sub.yaml");
+	ASSERT_PREFIX_SUFFIX(imp->filename, "", "test/scheme/a/b/sub.yaml");
+	ASSERT_OPTION_EQ(imp->options, "common", "a/b/sub");
+	const auto imp_absub = imp;
+
+	imp = imp->next;
+	ASSERT_NE(imp, nullptr);
+	ASSERT_STREQ(imp->name, imp->url);
+	ASSERT_PREFIX_SUFFIX(imp->url, "yaml://", "test/scheme/a/scheme.yaml");
+	ASSERT_PREFIX_SUFFIX(imp->filename, "", "test/scheme/a/scheme.yaml");
+	ASSERT_OPTION_EQ(imp->options, "common", "a");
+	const auto imp_a = imp;
+
+	imp = imp->next;
+	ASSERT_NE(imp, nullptr);
+	ASSERT_STREQ(imp->name, imp->url);
+	ASSERT_PREFIX_SUFFIX(imp->url, "yaml://", "test/scheme/c.yaml");
+	ASSERT_PREFIX_SUFFIX(imp->filename, "", "test/scheme/c.yaml");
+	ASSERT_OPTION_EQ(imp->options, "common", "c");
+	const auto imp_c = imp;
+
+	ASSERT_EQ(imp->next, nullptr);
+
 	auto m = s->messages; ASSERT_NE(m, nullptr); EXPECT_STREQ(m->name, "bsub");
+	ASSERT_OPTION_URL_EQ(m->options, "_import", "test/scheme/a/b/sub.yaml");
+	ASSERT_EQ(tll::scheme::lookup_name(s->imports, m->options->value), imp_absub);
+
 	m = m->next; ASSERT_NE(m, nullptr); EXPECT_STREQ(m->name, "c");
+	ASSERT_OPTION_URL_EQ(m->options, "_import", "test/scheme/c.yaml");
+	ASSERT_EQ(tll::scheme::lookup_name(s->imports, m->options->value), imp_c);
+
 	m = m->next; ASSERT_NE(m, nullptr); EXPECT_STREQ(m->name, "b");
+	ASSERT_OPTION_URL_EQ(m->options, "_import", "test/scheme/a/b/scheme.yaml");
+	ASSERT_EQ(tll::scheme::lookup_name(s->imports, m->options->value), imp_ab);
+
 	m = m->next; ASSERT_NE(m, nullptr); EXPECT_STREQ(m->name, "a");
+	ASSERT_OPTION_URL_EQ(m->options, "_import", "test/scheme/a/scheme.yaml");
+	ASSERT_EQ(tll::scheme::lookup_name(s->imports, m->options->value), imp_a);
+
 	m = m->next; ASSERT_NE(m, nullptr); EXPECT_STREQ(m->name, "top");
+	ASSERT_EQ(m->options, nullptr);
+
 	m = m->next; ASSERT_EQ(m, nullptr);
 }
 

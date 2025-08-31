@@ -384,11 +384,21 @@ typedef struct tll_scheme_message_t
 #endif
 } tll_scheme_message_t;
 
+/// Import definition
 typedef struct tll_scheme_import_t
 {
 	struct tll_scheme_import_t * next;
+	/// Unique import name, normalized URL can be used as name
+	const char * name;
+	/// Scheme url, path is replaced when local lookup is performed
 	const char * url;
+	/// Filename if one was used to read scheme
 	const char * filename;
+	/// Options defined in that scheme
+	struct tll_scheme_option_t * options;
+
+	/// Reserved space
+	void * reserved[4];
 } tll_scheme_import_t;
 
 struct tll_scheme_internal_t;
@@ -417,6 +427,9 @@ typedef struct tll_scheme_t
 
 	/// Linked list of global bits types
 	struct tll_scheme_bits_t * bits;
+
+	/// Flattened list of imports
+	struct tll_scheme_import_t * imports;
 
 	/// Reserved space
 	long long reserved[4];

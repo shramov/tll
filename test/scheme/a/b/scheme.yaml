@@ -1,4 +1,4 @@
-- name:
+- options: { common: a/b }
   import:
     - yaml://./sub.yaml
     - yaml://c.yaml

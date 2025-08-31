@@ -269,6 +269,18 @@ struct Import
 
 	Import() {}
 	Import(std::string_view u, std::filesystem::path fn = {}) : url(u), filename(fn) {}
+
+	tll_scheme_import_t * finalize()
+	{
+		auto r = (tll_scheme_import_t *) malloc(sizeof(tll_scheme_import_t));
+		*r = {};
+		r->name = strdup(url.c_str());
+		r->url = strdup(url.c_str());
+		if (!filename.empty())
+			r->filename = strdup(filename.c_str());
+		r->options = options.finalize();
+		return r;
+	}
 };
 
 struct Enum
@@ -846,6 +858,12 @@ struct Scheme
 			tll::scheme::Message m = {};
 			*alast = f.finalize(r, &m);
 			alast = &(*alast)->next;
+		}
+
+		auto ilast = &r->imports;
+		for (auto & i : imports) {
+			*ilast = i.second.finalize();
+			ilast = &(*ilast)->next;
 		}
 
 		auto mlast = &r->messages;
@@ -1652,6 +1670,17 @@ void tll_scheme_bits_free(tll_scheme_bits_t *b)
 	free(b);
 }
 
+void tll_scheme_import_free(tll_scheme_import_t *ptr)
+{
+	if (!ptr) return;
+	tll_scheme_option_free(ptr->options);
+	if (ptr->name) free((char *) ptr->name);
+	if (ptr->url) free((char *) ptr->url);
+	if (ptr->filename) free((char *) ptr->filename);
+	tll_scheme_import_free(ptr->next);
+	free(ptr);
+}
+
 static void tll_scheme_field_free_body(tll_scheme_field_t *f)
 {
 	if (!f) return;
@@ -1726,6 +1755,7 @@ void tll_scheme_free(tll_scheme_t *s)
 	tll_scheme_enum_free(s->enums);
 	tll_scheme_union_free(s->unions);
 	tll_scheme_bits_free(s->bits);
+	tll_scheme_import_free(s->imports);
 	for (auto f = s->aliases; f;) {
 		auto tmp = f;
 		f = f->next;
