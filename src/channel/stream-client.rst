@@ -70,9 +70,11 @@ Control messages
 
 Stream client generates ``Online`` control message when it switches from historical data to online.
 Message has empty body and ``seq`` field set to last message sequence number available on the server.
-``EndOfBlock`` message is generated when historical data switches from aggregated part (may be
-empty, in which case it is first message) read from ``blocks`` channel to linear read from
-``storage`` on the server.
+If aggregated (block) data is requested then two additional messages are generated: ``BeginOfBlock``
+before first message from ``blocks`` channel on the server and ``EndOfBlock`` after last one.
+``BeginOfBlock`` has sequence number same as first data message and ``last_seq`` set to number after
+the end of block. If they are same this indicates that aggregated part is empty.
+``EndOfBlock`` has same sequence number as ``last_seq`` field.
 
 .. code-block:: yaml
 
@@ -80,6 +82,10 @@ empty, in which case it is first message) read from ``blocks`` channel to linear
     id: 10
   - name: EndOfBlock
     id: 11
+  - name: BeginOfBlock
+    id: 12
+    fields:
+      - {name: last_seq, type: int64}
 
 .. include::
     stream-resolve.rst
