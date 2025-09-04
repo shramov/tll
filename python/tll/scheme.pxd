@@ -126,6 +126,13 @@ cdef extern from "tll/scheme.h":
 
         tll_scheme_field_t * pmap
 
+    ctypedef struct tll_scheme_import_t:
+        tll_scheme_import_t * next
+        const char * name
+        const char * url
+        const char * filename
+        tll_scheme_option_t * options
+
     ctypedef struct tll_scheme_t:
         tll_scheme_option_t * options
         tll_scheme_message_t * messages
@@ -133,6 +140,7 @@ cdef extern from "tll/scheme.h":
         tll_scheme_union_t * unions
         tll_scheme_bits_t * bits
         tll_scheme_field_t * aliases
+        tll_scheme_import_t * imports
 
     cdef tll_scheme_t * tll_scheme_load(const char *str, int len)
     cdef tll_scheme_t * tll_scheme_copy(const tll_scheme_t *src)
@@ -173,6 +181,7 @@ cdef class Scheme:
     cdef object aliases
     cdef object options
     cdef object bits
+    cdef object imports
 
     cdef fill(Scheme self, const tll_scheme_t * cfg)
     cdef same(Scheme self, const tll_scheme_t * cfg)

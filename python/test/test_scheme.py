@@ -1033,16 +1033,20 @@ def test_large_pointer():
 def test_sorted_import():
     SCHEME = """yamls://
 meta.import:
-    e00: "yamls://[{enums.E09: {type: int8, enum: {A: 9}}}]"
-    e09: "yamls://[{enums.E00: {type: int8, enum: {A: 0}}}]"
-    b00: "yamls://[{bits.B09: {type: uint8, bits: {A, B}}}]"
-    b09: "yamls://[{bits.B00: {type: uint8, bits: {D, E}}}]"
-    u00: "yamls://[{unions.U09.union: [{name: i8, type: int8}]}]"
-    u09: "yamls://[{unions.U00.union: [{name: u8, type: uint8}]}]"
+    e00: "yamls://[{options.node: e00, enums.E09: {type: int8, enum: {A: 9}}}]"
+    e09: "yamls://[{options.node: e09, enums.E00: {type: int8, enum: {A: 0}}}]"
+    b00: "yamls://[{options.node: b00, bits.B09: {type: uint8, bits: {A, B}}}]"
+    b09: "yamls://[{options.node: b09, bits.B00: {type: uint8, bits: {D, E}}}]"
+    u00: "yamls://[{options.node: u00, unions.U09.union: [{name: i8, type: int8}]}]"
+    u09: "yamls://[{options.node: u09, unions.U00.union: [{name: u8, type: uint8}]}]"
 """
 
     s0 = S.Scheme(SCHEME)
     cfg = Config.load(SCHEME)
+
+    for k,v in cfg.sub('meta.import').browse('*'):
+        assert v in s0.imports
+        assert s0.imports[v].options == {'node': k}
 
     assert list(s0.enums.keys()) == sorted(['E09', 'E00'])
     assert list(s0.bits.keys()) == sorted(['B09', 'B00'])
@@ -1060,6 +1064,7 @@ meta.import:
     s1 = S.Scheme(s0.dump('yamls'))
     print(s0.dump('yamls'))
 
+    assert s1.imports == {}
     assert list(s1.enums.keys()) == list(s0.enums.keys())
     assert list(s1.bits.keys()) == list(s0.bits.keys())
     assert list(s1.unions.keys()) == list(s0.unions.keys())

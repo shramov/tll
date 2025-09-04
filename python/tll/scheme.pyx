@@ -167,6 +167,20 @@ cdef bits_wrap(tll_scheme_bits_t * ptr):
     r.klass = Klass
     return r
 
+class Import:
+    pass
+
+cdef import_wrap(tll_scheme_import_t * ptr):
+    r = Import()
+    r.options = Options.wrap(ptr.options)
+    r.name = b2s(ptr.name)
+    r.url = b2s(ptr.url)
+    if ptr.filename:
+        r.filename = b2s(ptr.filename)
+    else:
+        r.filename = None
+    return r
+
 def memoryview_check(o):
     if not PyMemoryView_Check(o):
         raise TLLError("Need memoryview to pack, got {}".format(type(o)))
@@ -1243,6 +1257,9 @@ cdef class Scheme:
     def aliases(self): return self.aliases
 
     @property
+    def imports(self): return self.imports
+
+    @property
     def messages(self): return self.messages
 
     def dump(self, fmt=None):
@@ -1297,6 +1314,7 @@ cdef class Scheme:
         self.bits = OrderedDict()
         self.aliases = OrderedDict()
         self.messages = MessageList()
+        self.imports = {}
 
         cdef tll_scheme_enum_t * e = ptr.enums
         while e != NULL:
@@ -1321,6 +1339,12 @@ cdef class Scheme:
             tmp = field_wrap(self, Message(), f)
             self.aliases[tmp.name] = tmp
             f = f.next
+
+        cdef tll_scheme_import_t * imp = ptr.imports
+        while imp != NULL:
+            tmp = import_wrap(imp)
+            self.imports[tmp.name] = tmp
+            imp = imp.next
 
         cdef tll_scheme_message_t * m = ptr.messages
         while m != NULL:
