@@ -43,7 +43,7 @@ static inline tll::result_t<hostport> parse_hostport(std::string_view host, Addr
 
 	auto sep = host.find_last_of(':');
 	if (sep == host.npos)
-		error("Invalid host:port pair, no ':' separator found");
+		return error("Invalid host:port pair, no ':' separator found");
 	auto p = conv::to_any<unsigned short>(host.substr(sep + 1));
 	if (!p)
 		return error(fmt::format("Invalid port '{}': {}", host.substr(sep + 1), p.error()));
