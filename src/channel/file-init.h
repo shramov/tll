@@ -3,6 +3,8 @@
 #ifndef _TLL_CHANNEL_FILE_INIT_H
 #define _TLL_CHANNEL_FILE_INIT_H
 
+#include "tll/channel/base.h"
+
 namespace tll::channel {
 
 class FileInit : public tll::channel::Base<FileInit>

@@ -13,8 +13,6 @@
 #include "tll/channel/tcp.h"
 #include "tll/util/cppring.h"
 
-#include <list>
-
 class ChPubServer;
 
 class ChPubSocket : public tll::channel::TcpSocket<ChPubSocket>

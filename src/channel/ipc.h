@@ -8,7 +8,6 @@
 #ifndef _TLL_CHANNEL_IPC_H
 #define _TLL_CHANNEL_IPC_H
 
-#include "tll/channel/base.h"
 #include "tll/channel/event.h"
 
 #include "tll/util/lqueue.h"
