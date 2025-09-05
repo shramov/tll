@@ -47,8 +47,10 @@ int ring_init(ringbuffer_t *ring, size_t size, void * memory)
 	    return ENOMEM;
 	ring->header->magic = ring_magic;
 	ring->header->size = size;
-	ring->header->head = ring->header->tail = 0;
-	ring->header->generation_pre = ring->header->generation_post = 0;
+	atomic_init(&ring->header->head, 0);
+	atomic_init(&ring->header->tail, 0);
+	atomic_init(&ring->header->generation_pre, 0);
+	atomic_init(&ring->header->generation_post, 0);
     } else
 	ring->header = (ring_header_t *)memory;
     return 0;
