@@ -88,8 +88,9 @@ class Reopen : public tll::channel::Reopen<Reopen>
 		curl->set("name", fmt::format("{}/child", name));
 		curl->set("tll.internal", "yes");
 		_child = context().channel(*curl);
-		if (_child)
-			_reopen_reset(_child.get());
+		if (!_child)
+			return _log.fail(EINVAL, "Failed to initalize child channel");
+		_reopen_reset(_child.get());
 		_child_add(_child.get(), "tcp");
 		return Base::_init(url, master);
 	}
