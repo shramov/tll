@@ -33,7 +33,9 @@ static inline int nonblock(int fd)
 {
 	auto f = fcntl(fd, F_GETFL);
 	if (f == -1) return errno;
-	return fcntl(fd, F_SETFL, f | O_NONBLOCK);
+	if (fcntl(fd, F_SETFL, f | O_NONBLOCK))
+		return errno;
+	return 0;
 }
 
 template <typename T>
