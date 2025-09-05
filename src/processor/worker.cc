@@ -31,8 +31,8 @@ int Worker::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_log = { fmt::format("tll.processor.worker.{}", wname) };
 
 	for (auto i : cpuset) {
-		if (i > sizeof(_cpuset) * 8)
-			return _log.fail(EINVAL, "CPU number too large: {}, max {}", i, sizeof(_cpuset) * 8);
+		if (i >= sizeof(_cpuset) * 8)
+			return _log.fail(EINVAL, "CPU number too large: {}, max {}", i, sizeof(_cpuset) * 8 - 1);
 		_cpuset |= (1ull << i);
 	}
 
