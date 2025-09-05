@@ -498,6 +498,7 @@ struct Field
 					return EINVAL;
 				sub_type = Field::ByteString;
 			}
+			[[fallthrough]];
 		case Field::Int16:
 		case Field::Int32:
 		case Field::Int64:
@@ -517,6 +518,7 @@ struct Field
 				if (parse_bits_inline(cfg))
 					return EINVAL;
 			}
+			[[fallthrough]];
 		case Field::Double:
 			if (t == "enum") {
 				if (type_enum.size()) // TODO: Drop in a while
