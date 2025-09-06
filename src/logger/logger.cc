@@ -395,10 +395,12 @@ int bufprintf(tll::logger::tls_buf_t * buf, const char * fmt, va_list va)
 	va_copy(vac, va);
 
 	auto r = vsnprintf(buf->data(), buf->size(), fmt, vac); // When buffer is small 'va' is consumed, use copy
+	va_end(vac);
 	if (r >= (int) buf->size()) {
 		buf->resize(r + 1);
 		r = vsnprintf(buf->data(), buf->size(), fmt, va);
 	}
+
 	return r;
 };
 }
@@ -412,6 +414,7 @@ int tll_logger_printf(tll_logger_t * l, tll_logger_level_t level, const char * f
 	va_list va;
 	va_start(va, fmt);
 	auto r = bufprintf(buf, fmt, va);
+	va_end(va);
 	if (r < 0)
 		return -1;
 
