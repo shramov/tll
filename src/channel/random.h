@@ -26,7 +26,7 @@ class Random : public tll::channel::Prefix<Random>
 	std::uniform_int_distribution<unsigned> _rand_dist;
 
 	tll_msg_t _msg = {};
-	enum class DataMode { Seq, Random, Pattern } _data_mode;
+	enum class DataMode { Seq, Random, Pattern } _data_mode = DataMode::Seq;
 	std::vector<uint64_t> _buf;
 
 	bool _validate = false;

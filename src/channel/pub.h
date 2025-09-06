@@ -18,7 +18,7 @@ class ChPubServer;
 class ChPubSocket : public tll::channel::TcpSocket<ChPubSocket>
 {
 	using container_type = tll::util::DataRing<tll_frame_t>;
-	const container_type * _ring;
+	const container_type * _ring = nullptr;
 	long long _seq = -1;
 	const unsigned char * _ptr = nullptr;
 	container_type::const_iterator _iter = {};
@@ -55,7 +55,7 @@ class ChPubServer : public tll::channel::LastSeqTx<ChPubServer, tll::channel::Tc
 {
 	using Base = tll::channel::LastSeqTx<ChPubServer, tll::channel::TcpServer<ChPubServer, ChPubSocket>>;
 
-	size_t _size;
+	size_t _size = 0;
 	tll::util::DataRing<tll_frame_t> _ring;
 	bool _hello = true;
 

@@ -30,7 +30,7 @@ class Rotate : public AutoSeq<Rotate, Prefix<Rotate>>
 		struct File
 		{
 			std::string filename;
-			long long last;
+			long long last = -1;
 		};
 
 		using Map = std::map<long long, File>;
