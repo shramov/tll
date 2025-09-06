@@ -688,8 +688,8 @@ int TcpServer<T, C>::_open(const ConstConfig &url)
 		_client_init.setT("tll.host.port", ntohs(addr->front().in()->sin_port));
 		auto namemax = sysconf(_SC_HOST_NAME_MAX);
 		std::vector<char> hostname(namemax);
-		if (auto r = gethostname(hostname.data(), hostname.size()); r)
-			return this->_log.fail(EINVAL, "Failed to get hostname: {}", strerror(r));
+		if (gethostname(hostname.data(), hostname.size()))
+			return this->_log.fail(EINVAL, "Failed to get hostname: {}", strerror(errno));
 		_client_init.set("tll.host.host", hostname.data());
 		_client_config.set("replace.host.init.tll.host.host", "");
 	}
