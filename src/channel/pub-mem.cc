@@ -11,8 +11,10 @@
 #include "tll/channel/lastseq.h"
 #include "tll/cppring.h"
 #include "tll/util/size.h"
+#include "tll/util/tempfile.h"
 
 #include "tll/compat/fallocate.h"
+#include "tll/compat/fmt/std.h"
 
 #include <fcntl.h>
 #include <sys/file.h>
@@ -163,31 +165,26 @@ template <typename T>
 tll::PubRing * MemCommon<T>::_file_create()
 {
 	std::error_code ec, uec;
-	std::string fn = _filename + ".XXXXXX";
-	_fd = mkstemp(fn.data());
-	if (_fd == -1)
-		return this->_log.fail(nullptr, "Failed to create temporary file {}: {}", fn, strerror(errno));
+	tll::util::TempFile tmp(_filename);
+	if (!tmp)
+		return this->_log.fail(nullptr, "Failed to create temporary file {}: {}", tmp.filename(), tmp.strerror());
+	_fd = tmp.release_fd();
 
 	auto full = sizeof(tll::Ring) + _size;
-	if (auto r = posix_fallocate(_fd, 0, full); r) {
-		std::filesystem::remove(fn, uec);
+	if (auto r = posix_fallocate(_fd, 0, full); r)
 		return this->_log.fail(nullptr, "Failed to allocate {} bytes of space: {}", full, strerror(r));
-	}
 
 	auto buf = mmap(nullptr, full, PROT_READ | PROT_WRITE, MAP_SHARED, _fd, 0);
-	if (buf == MAP_FAILED) {
-		std::filesystem::remove(fn, uec);
+	if (buf == MAP_FAILED)
 		return this->_log.fail(nullptr, "Failed to mmap memory: {}", strerror(errno));
-	}
 
 	auto ring = static_cast<tll::PubRing *>(buf);
 	ring->init(_size);
 
-	this->_log.info("Rename temporary file {} to {}", fn, _filename);
-	if (std::filesystem::rename(fn, _filename, ec); ec) {
-		std::filesystem::remove(fn, uec);
-		return this->_log.fail(nullptr, "Failed to rename temporary file '{}' to '{}': {}", fn, _filename, ec.message());
-	}
+	this->_log.info("Rename temporary file {} to {}", tmp.filename(), _filename);
+	if (std::filesystem::rename(tmp.filename(), _filename, ec); ec)
+		return this->_log.fail(nullptr, "Failed to rename temporary file '{}' to '{}': {}", tmp.filename(), _filename, ec.message());
+	tmp.release();
 	_unlink = true;
 
 	return ring;
