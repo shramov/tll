@@ -10,6 +10,7 @@
 
 #include "tll/util/conv.h"
 #include "tll/util/result.h"
+#include "tll/util/scoped_fd.h"
 
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -28,6 +29,8 @@
 #include <fmt/format.h>
 
 namespace tll::network {
+
+using scoped_socket = tll::util::ScopedFd;
 
 static inline int nonblock(int fd)
 {
@@ -54,29 +57,6 @@ enum AddressFamily {
 }
 
 using AddressFamily = _::AddressFamily;
-
-class scoped_socket
-{
-	int _fd = -1;
-
- public:
-	explicit scoped_socket(int fd) : _fd(fd) {}
-	~scoped_socket() { reset(); }
-
-	void reset(int fd = -1)
-	{
-		if (_fd != -1)
-			::close(_fd);
-		_fd = fd;
-	}
-
-	constexpr operator int () const noexcept { return _fd; }
-	constexpr int get() const noexcept { return _fd; }
-
-	int release() { int fd = _fd; _fd = -1; return fd; }
-};
-
-constexpr auto format_as(const scoped_socket &fd) noexcept { return fd.get(); }
 
 struct sockaddr_any
 {

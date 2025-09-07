@@ -8,6 +8,8 @@
 #include "channel/blocks.h"
 #include "channel/blocks.scheme.h"
 
+#include "tll/util/scoped_fd.h"
+
 #include <sys/fcntl.h>
 #include <unistd.h>
 
@@ -165,12 +167,11 @@ int Blocks::_create_block(std::string_view block, long long seq, bool store)
 		_log.info("Store seq type {} at {}", block, seq);
 
 		auto s = fmt::format("- {{seq: {}, type: '{}'}}\n", seq, block);
-		auto fd = ::open(_filename.c_str(), O_WRONLY | O_APPEND | O_CREAT, 0644);
+		tll::util::ScopedFd fd { ::open(_filename.c_str(), O_WRONLY | O_APPEND | O_CREAT, 0644) };
 		if (fd == -1)
 			return _log.fail(EINVAL, "Failed to open data block file '{}': {}", _filename, strerror(errno));
 		if (write(fd, s.data(), s.size()) != (ssize_t) s.size())
 			return _log.fail(EINVAL, "Failed to write data block file '{}': {}", _filename, strerror(errno));
-		::close(fd);
 	}
 	return 0;
 }
