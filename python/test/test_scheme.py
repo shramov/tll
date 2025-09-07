@@ -85,6 +85,13 @@ def _test(s):
         [("f0", 1), ("f1", 2), ("f2", 4), ("f3", 8)]
     assert msg.size == 1 + 2 + 4 + 8
 
+    with pytest.raises(KeyError): s.find('Missing')
+    with pytest.raises(KeyError): s.find(0xffff)
+    assert 'Missing' not in s
+    assert 'test' in s
+    assert 0xffff not in s
+    assert 1 in s
+
 def test():
     return _test(S.Scheme(scheme))
 

@@ -1258,7 +1258,7 @@ cdef class Scheme:
         b = bytes(str[:])
         return b.decode('utf-8')
 
-    def find(self, k):
+    def _find(self, k):
         if isinstance(k, int):
             for m in self.messages:
                 if m.msgid == k: return m
@@ -1268,9 +1268,15 @@ cdef class Scheme:
         else:
             for m in self.messages:
                 if m.name == k: return m
-        raise KeyError("Message '{}' not found".format(k))
+
+    def find(self, k):
+        r = self._find(k)
+        if r is None:
+            raise KeyError(f"Message '{k}' not found")
+        return r
 
     def __getitem__(self, k): return self.find(k)
+    def __contains__(self, k): return self._find(k) is not None
 
     @staticmethod
     cdef Scheme wrap(const tll_scheme_t * ptr, int ref = 0):
