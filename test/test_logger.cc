@@ -314,7 +314,7 @@ TEST(Logger, Thread)
 	{
 		std::unique_lock<std::mutex> lock(impl.lock);
 		ASSERT_EQ(list.list.size(), 10);
-		for (auto i : list.list) {
+		for (auto & i : list.list) {
 			ASSERT_EQ(i.second, std::string_view("text"));
 			ASSERT_EQ(i.from_ptr, std::string_view("text"));
 		}
