@@ -23,8 +23,8 @@ using ring_guard = std::unique_ptr<ringbuffer_t, decltype(&ring_free)>;
 TEST(Ring, Base)
 {
 	ringbuffer_t ring = {};
-	ASSERT_EQ(ring_init(&ring, 128, nullptr), 0);
 	ring_guard guard(&ring, &ring_free);
+	ASSERT_EQ(ring_init(&ring, 128, nullptr), 0);
 
 	void * wptr;
 	const void * rptr;
@@ -85,8 +85,8 @@ TEST(Ring, CppBase)
 TEST(Ring, Iter)
 {
 	ringbuffer_t ring = {};
-	ASSERT_EQ(ring_init(&ring, 128, nullptr), 0);
 	ring_guard guard(&ring, &ring_free);
+	ASSERT_EQ(ring_init(&ring, 128, nullptr), 0);
 	ringiter_t iter = {};
 
 	ASSERT_EQ(ring_iter_init(&ring, &iter), 0);
@@ -152,8 +152,8 @@ void writer(ringbuffer_t * ring, size_t count, bool * stop)
 TEST(Ring, Thread)
 {
 	ringbuffer_t ring = {};
-	ASSERT_EQ(ring_init(&ring, 1024, nullptr), 0);
 	ring_guard guard(&ring, &ring_free);
+	ASSERT_EQ(ring_init(&ring, 1024, nullptr), 0);
 
 	const size_t count = 1000;
 	bool stop = false;
@@ -207,8 +207,8 @@ void ringpub(ringbuffer_t * ring, size_t count, bool * stop)
 TEST(Ring, IterRead)
 {
 	ringbuffer_t ring = {};
-	ASSERT_EQ(ring_init(&ring, 1024 * 1024, nullptr), 0);
 	ring_guard guard(&ring, &ring_free);
+	ASSERT_EQ(ring_init(&ring, 1024 * 1024, nullptr), 0);
 
 	const size_t count = 1000000;
 	bool stop = false;
