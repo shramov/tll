@@ -389,7 +389,7 @@ TEST(Channel, Tcp)
 	{
 		ASSERT_EQ(poll_for(s0), 0);
 		ASSERT_EQ(s.result.size(), 1u);
-		auto m = s.result.front();
+		auto & m = s.result.front();
 		ASSERT_EQ(m.type, TLL_MESSAGE_DATA);
 		ASSERT_EQ(m.seq, 1);
 		ASSERT_EQ(std::string_view((char *) m.data, m.size), "xxx");
@@ -408,7 +408,7 @@ TEST(Channel, Tcp)
 
 	{
 		ASSERT_EQ(c0.result.size(), 1u);
-		auto m = c0.result.front();
+		auto & m = c0.result.front();
 		ASSERT_EQ(m.type, TLL_MESSAGE_DATA);
 		ASSERT_EQ(m.seq, 10);
 		ASSERT_EQ(std::string_view((char *) m.data, m.size), "xxx");
