@@ -498,12 +498,13 @@ int File<TIO>::_read_meta()
 	if (frame.frame.msgid != file_scheme::Meta::meta_id())
 		return this->_log.fail(EINVAL, "Not a tll data file: expected meta id {}, got {}", file_scheme::Meta::meta_id(), (int) frame.frame.msgid);
 
-	size_t size = _data_size(frame.size);
-	if (_data_size(size) < sizeof(frame.frame))
-		return this->_log.fail(EINVAL, "Invalid frame size at 0x{:x}: {} too small", 0, (size_t) frame.size);
+	if (frame.size < (frame_size_t) sizeof(full_frame_t) + 1)
+		return this->_log.fail(EINVAL, "Invalid meta frame size at 0x{:x}: {} too small", 0, (frame_size_t) frame.size);
+	if (frame.size > 4 * 1024 * 1024)
+		return this->_log.fail(EINVAL, "Invalid meta frame size at 0x{:x}: {} too large (limit is 4mb)", 0, (frame_size_t) frame.size);
 
 	std::vector<unsigned char> buf;
-	buf.resize(size - sizeof(frame.frame) + 1); // Tail indicator
+	buf.resize(frame.size - sizeof(frame));
 
 	if (auto r = pread(_io.fd, buf.data(), buf.size(), sizeof(frame)); r != (ssize_t) buf.size()) {
 		if (r < 0)
