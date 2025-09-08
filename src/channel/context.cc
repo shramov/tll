@@ -714,7 +714,7 @@ void tll_channel_free(tll_channel_t *c)
 	if ((tll_channel_caps(c) & caps::Custom) == 0) {
 		auto lock = c->context->wlock();
 		auto it = c->context->channels.find(name);
-		if (it->second == c)
+		if (it != c->context->channels.end() && it->second == c)
 			c->context->channels.erase(it);
 
 		auto cfg = c->context->config.sub(name);
