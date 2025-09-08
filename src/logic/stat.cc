@@ -21,7 +21,7 @@ class Stat : public tll::LogicBase<Stat>
 {
 	tll_stat_list_t * _stat = nullptr;
 	tll::Channel * _timer = nullptr;
-	bool _secondary;
+	bool _secondary = false;
 	std::string _node;
 	tll::Logger::level_t _header_level = tll::Logger::Debug;
 

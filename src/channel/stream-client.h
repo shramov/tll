@@ -29,7 +29,7 @@ class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::
 	std::vector<char> _request_buf;
 	tll::Config _request_open;
 
-	State _state;
+	State _state = State::Closed;
 
 	long long _seq = -1;
 	long long _server_seq = -1;

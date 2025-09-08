@@ -57,8 +57,8 @@ class File : public tll::channel::AutoSeq<File<TIO>>
 	std::vector<char> _lz4_buf;
 
 	long long _delta_seq_base = 0;
-	Compression _compression, _compression_init;
-	Version _version, _version_init;
+	Compression _compression = Compression::None, _compression_init = Compression::None;
+	Version _version = Version::Stable, _version_init = Version::Stable;
 	uint32_t _size_marker = 0;
 	bool _autoclose = true;
 	bool _end_of_data = false;
