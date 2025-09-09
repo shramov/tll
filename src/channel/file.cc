@@ -1035,7 +1035,6 @@ int File<TIO>::_read_data(size_t size, tll_msg_t *msg)
 	if (_compression == Compression::LZ4 && _lz4_decode_offset == (ssize_t) _io.offset) {
 		auto meta = (frame_t *) _lz4_decode_last.data;
 		msg->msgid = meta->msgid;
-		msg->seq = meta->seq;
 		msg->seq = _delta_seq_base;
 		msg->size = _lz4_decode_last.size - sizeof(*meta);
 		msg->data = meta + 1;
