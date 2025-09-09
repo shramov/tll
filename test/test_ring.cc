@@ -18,12 +18,11 @@
 
 #include <fmt/format.h>
 
-using ring_guard = std::unique_ptr<ringbuffer_t, decltype(&ring_free)>;
+struct ring_guard : public ringbuffer_t { ~ring_guard() { ring_free(this); } };
 
 TEST(Ring, Base)
 {
-	ringbuffer_t ring = {};
-	ring_guard guard(&ring, &ring_free);
+	ring_guard ring = {};
 	ASSERT_EQ(ring_init(&ring, 128, nullptr), 0);
 
 	void * wptr;
@@ -84,8 +83,7 @@ TEST(Ring, CppBase)
 
 TEST(Ring, Iter)
 {
-	ringbuffer_t ring = {};
-	ring_guard guard(&ring, &ring_free);
+	ring_guard ring = {};
 	ASSERT_EQ(ring_init(&ring, 128, nullptr), 0);
 	ringiter_t iter = {};
 
@@ -151,8 +149,7 @@ void writer(ringbuffer_t * ring, size_t count, bool * stop)
 
 TEST(Ring, Thread)
 {
-	ringbuffer_t ring = {};
-	ring_guard guard(&ring, &ring_free);
+	ring_guard ring = {};
 	ASSERT_EQ(ring_init(&ring, 1024, nullptr), 0);
 
 	const size_t count = 1000;
@@ -206,8 +203,7 @@ void ringpub(ringbuffer_t * ring, size_t count, bool * stop)
 
 TEST(Ring, IterRead)
 {
-	ringbuffer_t ring = {};
-	ring_guard guard(&ring, &ring_free);
+	ring_guard ring = {};
 	ASSERT_EQ(ring_init(&ring, 1024 * 1024, nullptr), 0);
 
 	const size_t count = 1000000;
