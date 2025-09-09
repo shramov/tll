@@ -717,7 +717,7 @@ int TcpServer<T, C>::_bind(tll::network::sockaddr_any &addr)
 		return this->_log.fail(errno, "Failed to create socket: {}", strerror(errno));
 
 #ifndef SOCK_NONBLOCK
-	if (int r = nonblock(fd))
+	if (int r = tll::network::nonblock(fd))
 		return this->_log.fail(EINVAL, "Failed to set nonblock: {}", strerror(r));
 #endif
 
