@@ -10,6 +10,8 @@
 #include "tll/ring.h"
 #include "tll/cppring.h"
 
+#include "tll/compat/jthread.h"
+
 #include <errno.h>
 #include <string.h>
 
