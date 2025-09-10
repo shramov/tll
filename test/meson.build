@@ -9,6 +9,7 @@ generated128 = custom_target('generated.h',
 test('test-util', executable('test-util',
 	sources: ['test_main.cc', 'test_conv.cc', 'test_util.cc', 'test_ring.cc', '../src/ring.c', '../src/time.cc', 'test_decimal128.cc', generated128],
 	include_directories: include,
+	override_options: ['cpp_std=c++2a'],
 	dependencies: [gtest, fmt, zlib],
 	link_args: cxx_fs_link_args,
 	)

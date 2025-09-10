@@ -125,7 +125,7 @@ TEST(Ring, Iter)
 static constexpr unsigned MSIZE = 37;
 static constexpr unsigned MDATA = 57;
 
-void writer(ringbuffer_t * ring, size_t count, bool * stop)
+void writer(std::stop_token stop, ringbuffer_t * ring, size_t count)
 {
 	void * ptr;
 	for (auto i = 0u; i < count; i++) {
@@ -133,7 +133,7 @@ void writer(ringbuffer_t * ring, size_t count, bool * stop)
 		const auto s = i % MSIZE;
 		int r = EAGAIN;
 		do {
-			if (*stop) return;
+			if (stop.stop_requested()) return;
 			r = ring_write_begin(ring, &ptr, sizeof(size_t) + s);
 			if (r) {
 				std::this_thread::yield();
@@ -152,45 +152,39 @@ TEST(Ring, Thread)
 	ring_guard ring = {};
 	ASSERT_EQ(ring_init(&ring, 1024, nullptr), 0);
 
-	const size_t count = 1000;
-	bool stop = false;
-	std::thread t(writer, &ring, count, &stop);
+	const size_t count = 10000;
+	std::jthread t(writer, &ring, count);
 
 	const void * ptr;
 	size_t size;
 	size_t idx = 0;
-	while (!HasFailure()) {
-		if (idx == count) break;
+	while (idx != count - 1) {
 		auto r = ring_read(&ring, &ptr, &size);
 		if (r) {
-			EXPECT_EQ(r, EAGAIN);
+			ASSERT_EQ(r, EAGAIN);
 			std::this_thread::yield();
 			continue;
 		}
 
 		const char c = 'A' + idx % MDATA;
 		auto data = (const size_t *) ptr;
-		EXPECT_EQ(size, sizeof(size_t) + idx % MSIZE);
-		EXPECT_EQ(*data, idx);
+		ASSERT_EQ(size, sizeof(size_t) + idx % MSIZE);
+		ASSERT_EQ(*data, idx);
 		auto str = (const char *) (data + 1);
-		for (auto s = str; s < str + size - sizeof(size_t) && !HasFailure(); s++)
-			EXPECT_EQ(*s, c);
+		for (auto s = str; s < str + size - sizeof(size_t); s++)
+			ASSERT_EQ(*s, c);
 		idx++;
-		EXPECT_EQ(ring_shift(&ring), 0);
+		ASSERT_EQ(ring_shift(&ring), 0);
 	}
-
-	stop = true;
-	t.join();
 }
 
-void ringpub(ringbuffer_t * ring, size_t count, bool * stop)
+void ringpub(std::stop_token stop, ringbuffer_t * ring, size_t count)
 {
 	void * ptr;
-	for (auto i = 0u; i < count; i++) {
+	for (auto i = 0u; i < count && !stop.stop_requested(); i++) {
 		const auto c = 'A' + i % MDATA;
 		const auto size = i % MSIZE;
 
-		if (*stop) return;
 		while (ring_write_begin(ring, &ptr, sizeof(size_t) + size))
 			ring_shift(ring);
 		auto data = (size_t *) ptr;
@@ -198,7 +192,6 @@ void ringpub(ringbuffer_t * ring, size_t count, bool * stop)
 		memset(data + 1, c, size);
 		ring_write_end(ring, ptr, sizeof(size_t) + size);
 	}
-	*stop = true;
 }
 
 TEST(Ring, IterRead)
@@ -207,8 +200,7 @@ TEST(Ring, IterRead)
 	ASSERT_EQ(ring_init(&ring, 1024 * 1024, nullptr), 0);
 
 	const size_t count = 1000000;
-	bool stop = false;
-	std::thread t(ringpub, &ring, count, &stop);
+	std::jthread t(ringpub, &ring, count);
 
 	const void * ptr;
 	size_t size;
@@ -219,10 +211,10 @@ TEST(Ring, IterRead)
 
 	ringiter_t iter;
 
-	EXPECT_EQ(ring_iter_init(&ring, &iter), 0);
-	EXPECT_FALSE(ring_iter_invalid(&iter));
+	ASSERT_EQ(ring_iter_init(&ring, &iter), 0);
+	ASSERT_FALSE(ring_iter_invalid(&iter));
 
-	while (!HasFailure() && idx != count && !stop) {
+	while (idx != count - 1) {
 		if (ring_iter_invalid(&iter)) {
 			if (ring_iter_init(&ring, &iter))
 				continue;
@@ -231,6 +223,7 @@ TEST(Ring, IterRead)
 		if (ring_iter_read(&iter, &ptr, &size))
 			continue;
 
+		ASSERT_LE(size, sizeof(size_t) + MSIZE);
 		memcpy(buf, ptr, size);
 
 		if (ring_iter_shift(&iter))
@@ -238,28 +231,24 @@ TEST(Ring, IterRead)
 
 		auto data = (const size_t *) buf;
 		idx = *data;
-		EXPECT_EQ(size, sizeof(size_t) + idx % MSIZE);
+		ASSERT_EQ(size, sizeof(size_t) + idx % MSIZE);
 		const char c = 'A' + idx % MDATA;
 		auto str = (const char *) (data + 1);
-		for (auto s = str; s < str + size - sizeof(size_t) && !HasFailure(); s++)
-			EXPECT_EQ(*s, c);
+		for (auto s = str; s < str + size - sizeof(size_t); s++)
+			ASSERT_EQ(*s, c);
 		checked++;
 	}
 
 	fmt::print("Checked {} of {} messages ({:.2f}%)\n", checked, count, 100. * checked / count);
-
-	stop = true;
-	t.join();
 }
 
-void cppringpub(tll::PubRing * ring, size_t count, bool * stop)
+void cppringpub(std::stop_token stop, tll::PubRing * ring, size_t count)
 {
 	void * ptr;
-	for (auto i = 0u; i < count; i++) {
+	for (auto i = 0u; i < count && !stop.stop_requested(); i++) {
 		const auto c = 'A' + i % MDATA;
 		const auto size = i % MSIZE;
 
-		if (*stop) return;
 		while (ring->write_begin(&ptr, sizeof(size_t) + size))
 			ring->shift();
 		auto data = (size_t *) ptr;
@@ -267,7 +256,6 @@ void cppringpub(tll::PubRing * ring, size_t count, bool * stop)
 		memset(data + 1, c, size);
 		ring->write_end(ptr, sizeof(size_t) + size);
 	}
-	*stop = true;
 }
 
 TEST(Ring, CppIterRead)
@@ -275,8 +263,7 @@ TEST(Ring, CppIterRead)
 	auto ring = tll::PubRing::allocate(1024 * 1024);
 
 	const size_t count = 1000000;
-	bool stop = false;
-	std::thread t(cppringpub, ring.get(), count, &stop);
+	std::jthread t(cppringpub, ring.get(), count);
 
 	const void * ptr;
 	size_t size;
@@ -287,9 +274,9 @@ TEST(Ring, CppIterRead)
 
 	auto iter = ring->end();
 
-	EXPECT_TRUE(iter.valid());
+	ASSERT_TRUE(iter.valid());
 
-	while (!HasFailure() && idx != count && !stop) {
+	while (idx != count - 1) {
 		if (!iter.valid()) {
 			iter = ring->begin();
 			if (!iter.valid())
@@ -299,6 +286,7 @@ TEST(Ring, CppIterRead)
 		if (iter.read(&ptr, &size))
 			continue;
 
+		ASSERT_LE(size, sizeof(size_t) + MSIZE);
 		memcpy(buf, ptr, size);
 
 		if (iter.shift())
@@ -306,16 +294,13 @@ TEST(Ring, CppIterRead)
 
 		auto data = (const size_t *) buf;
 		idx = *data;
-		EXPECT_EQ(size, sizeof(size_t) + idx % MSIZE);
+		ASSERT_EQ(size, sizeof(size_t) + idx % MSIZE);
 		const char c = 'A' + idx % MDATA;
 		auto str = (const char *) (data + 1);
-		for (auto s = str; s < str + size - sizeof(size_t) && !HasFailure(); s++)
-			EXPECT_EQ(*s, c);
+		for (auto s = str; s < str + size - sizeof(size_t); s++)
+			ASSERT_EQ(*s, c);
 		checked++;
 	}
 
 	fmt::print("Checked {} of {} messages ({:.2f}%)\n", checked, count, 100. * checked / count);
-
-	stop = true;
-	t.join();
 }
