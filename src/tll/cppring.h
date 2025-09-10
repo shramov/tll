@@ -40,7 +40,7 @@ struct RingT
 			if constexpr (Gen) {
 				auto gen = generation_pre.load(std::memory_order_relaxed) + 1;
 				generation_pre.store(gen, order);
-				ptr.store(value, std::memory_order_relaxed); // Relaxed store is guarded by next one
+				ptr.store(value, order);
 				generation_post.store(gen, order);
 			} else
 				ptr.store(value, order);

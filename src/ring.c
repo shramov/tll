@@ -180,7 +180,7 @@ int ring_shift(ringbuffer_t *ring)
     if (off < 0) return EAGAIN;
     uint64_t gen = ring->header->generation_pre + 1;
     atomic_store_explicit(&ring->header->generation_pre, gen, memory_order_release);
-    atomic_store_explicit(&ring->header->head, off, memory_order_relaxed);
+    atomic_store_explicit(&ring->header->head, off, memory_order_release);
     atomic_store_explicit(&ring->header->generation_post, gen, memory_order_release);
     return 0;
 }

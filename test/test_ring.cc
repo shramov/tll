@@ -180,6 +180,62 @@ TEST(Ring, Thread)
 	}
 }
 
+template <bool Gen>
+void cppwriter(std::stop_token stop, tll::RingT<Gen, Gen> * ring, size_t count)
+{
+	void * ptr;
+	for (auto i = 0u; i < count && !stop.stop_requested();) {
+		const auto c = 'A' + i % MDATA;
+		const auto s = i % MSIZE;
+
+		if (ring->write_begin(&ptr, sizeof(size_t) + s)) {
+			std::this_thread::yield();
+			continue;
+		}
+
+		auto data = (size_t *) ptr;
+		*data = i;
+		memset(data + 1, c, s);
+		ring->write_end(ptr, sizeof(size_t) + s);
+		i++;
+	}
+}
+
+template <typename Gen>
+class RingT : public ::testing::Test {};
+
+using GenTypes = ::testing::Types<std::true_type, std::false_type>;
+TYPED_TEST_SUITE(RingT, GenTypes);
+
+TYPED_TEST(RingT, Thread)
+{
+	auto ring = tll::RingT<TypeParam::value, TypeParam::value>::allocate(1024);
+
+	const size_t count = 100000;
+	std::jthread t(cppwriter<TypeParam::value>, ring.get(), count);
+
+	const void * ptr;
+	size_t size;
+	size_t idx = 0;
+	while (idx != count - 1) {
+		if (auto r = ring->read(&ptr, &size); r) {
+			ASSERT_EQ(r, EAGAIN);
+			std::this_thread::yield();
+			continue;
+		}
+
+		const char c = 'A' + idx % MDATA;
+		auto data = (const size_t *) ptr;
+		ASSERT_EQ(size, sizeof(size_t) + idx % MSIZE);
+		ASSERT_EQ(*data, idx);
+		auto str = (const char *) (data + 1);
+		for (auto s = str; s < str + size - sizeof(size_t); s++)
+			ASSERT_EQ(*s, c);
+		idx++;
+		ASSERT_EQ(ring->shift(), 0);
+	}
+}
+
 void ringpub(std::stop_token stop, ringbuffer_t * ring, size_t count)
 {
 	void * ptr;
