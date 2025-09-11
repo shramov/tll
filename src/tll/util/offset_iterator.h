@@ -8,6 +8,8 @@
 #ifndef _TLL_UTIL_OFFSETITER_H
 #define _TLL_UTIL_OFFSETITER_H
 
+#include <cstddef>
+
 namespace tll::util {
 
 template <typename T>

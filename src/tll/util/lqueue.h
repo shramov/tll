@@ -8,8 +8,9 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
-#include <memory>
 #include <atomic>
+#include <memory>
+#include <optional>
 
 /*
  * XXX: Probably there are some races...

@@ -8,6 +8,8 @@
 #ifndef _TLL_UTIL_ZLIB_H
 #define _TLL_UTIL_ZLIB_H
 
+#include <tll/util/result.h>
+
 #include <memory>
 #include <vector>
 #include <zlib.h>

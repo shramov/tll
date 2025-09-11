@@ -10,7 +10,9 @@
 #ifndef _TLL_UTIL_BIN2ASCII_H
 #define _TLL_UTIL_BIN2ASCII_H
 
+#include <cstdint>
 #include <string>
+#include <vector>
 
 #include "tll/util/result.h"
 
