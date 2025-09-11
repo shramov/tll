@@ -182,6 +182,7 @@ int ring_shift(ringbuffer_t *ring)
     atomic_store_explicit(&ring->header->generation_pre, gen, memory_order_release);
     atomic_store_explicit(&ring->header->head, off, memory_order_release);
     atomic_store_explicit(&ring->header->generation_post, gen, memory_order_release);
+    atomic_thread_fence(memory_order_release);
     return 0;
 }
 
@@ -234,6 +235,7 @@ int ring_iter_shift(ringiter_t *iter)
     if (atomic_load_explicit(&iter->header->head, memory_order_acquire) == tail)
 	return EAGAIN;
     ssize_t off = _ring_shift_offset(iter->header, iter->offset);
+    atomic_thread_fence(memory_order_acquire);
     if (ring_iter_invalid(iter)) return EINVAL;
     if (off < 0)
 	return EAGAIN;
@@ -250,6 +252,7 @@ int ring_iter_read(const ringiter_t *iter, const void **data, size_t *size)
 //    printf("Read at %zd\n", iter->offset);
     int r = _ring_read_at(iter->header, iter->offset, data, size);
     if (r) return r;
+    atomic_thread_fence(memory_order_acquire);
     if (ring_iter_invalid(iter)) return EINVAL; // Check, that data and size are valid
     return 0;
 }

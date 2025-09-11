@@ -179,6 +179,12 @@ struct RingT
 			return EAGAIN;
 
 		head.store(off, std::memory_order_release);
+		/*
+		 * For ring that is used as pub-sub fence is needed to ensure that no stores
+		 * can move before head
+		 */
+		if (HeadGen)
+			std::atomic_thread_fence(std::memory_order_release);
 		return 0;
 	}
 
@@ -199,6 +205,8 @@ struct RingT
 				return EINVAL;
 			if (auto r = ring->_read_at(offset, data, size); r)
 				return r;
+			// Ensure that data modification can not be observed before head
+			std::atomic_thread_fence(std::memory_order_acquire);
 			if (!valid())
 				return EINVAL; // Check that data and size are valid
 			return 0;
@@ -216,6 +224,8 @@ struct RingT
 			auto off = ring->_shift_offset(offset);
 			if (off < 0)
 				return EAGAIN;
+			// Ensure that data modification can not be observed before head
+			std::atomic_thread_fence(std::memory_order_acquire);
 			if (!valid())
 				return EINVAL;
 
