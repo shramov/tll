@@ -8,6 +8,9 @@
 #ifndef _CONFIG_YAML_H
 #define _CONFIG_YAML_H
 
+#include <string_view>
+typedef struct tll_config_t tll_config_t;
+
 tll_config_t * yaml_load(std::string_view filename);
 tll_config_t * yaml_load_data(std::string_view data);
 
