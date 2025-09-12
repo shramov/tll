@@ -314,3 +314,6 @@ def test_detach():
     assert sub.parent != None
     cfg.set('a', Config.from_dict({'b': 'd'}))
     assert sub.parent == None
+
+def test_null_string_view():
+    cfg = Config.load('yamls+gz://')

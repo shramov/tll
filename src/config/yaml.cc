@@ -247,6 +247,8 @@ tll_config_t * yaml_load(std::string_view filename)
 
 tll_config_t * yaml_load_data(std::string_view data)
 {
+	if (data.empty())
+		return tll_config_new();
 	tll::Logger _log = {"tll.config.yaml"};
 	yaml_parser_t parser;
 	if (!yaml_parser_initialize(&parser))
