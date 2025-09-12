@@ -10,31 +10,30 @@
 
 #include "tll/channel.h"
 
-
 namespace tll::util {
 class OwnedMessage : public tll_msg_t
 {
  public:
 	OwnedMessage()
 	{
-		*(tll_msg_t *) this = {};
+		*static_cast<tll_msg_t *>(this) = {};
 	}
 
 	OwnedMessage(const tll_msg_t * rhs)
 	{
-		copy(rhs);
+		copy_noreset(rhs);
 	}
 
 	OwnedMessage(const OwnedMessage & rhs)
 	{
-		copy(&rhs);
+		copy_noreset(&rhs);
 	}
 
 	OwnedMessage(OwnedMessage && rhs)
 	{
-		tll_msg_copy_info(this, rhs);
-		data = rhs.data; rhs.data = nullptr;
-		size = rhs.size; rhs.size = 0;
+		*static_cast<tll_msg_t *>(this) = rhs;
+		rhs.data = nullptr;
+		rhs.size = 0;
 	}
 
 	~OwnedMessage()
@@ -74,9 +73,15 @@ class OwnedMessage : public tll_msg_t
 
 	void copy(const tll_msg_t *rhs)
 	{
-		tll_msg_copy_info(this, rhs);
+		if (data)
+			delete [] (char *) data;
+		copy_noreset(rhs);
+	}
 
-		size = rhs->size;
+	void copy_noreset(const tll_msg_t *rhs)
+	{
+		*(tll_msg_t *) this = *rhs;
+
 		if (size) {
 			data = new char[size];
 			memcpy((void *) data, rhs->data, size);
