@@ -81,6 +81,7 @@ typedef struct {
 static inline void tll_msg_copy_info(tll_msg_t * dest, const tll_msg_t * src)
 {
 	dest->type = src->type;
+	dest->flags = src->flags;
 	dest->msgid = src->msgid;
 	dest->seq = src->seq;
 	dest->addr = src->addr;
