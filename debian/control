@@ -30,9 +30,9 @@ Description: Framework for building data processing services.
 
 Package: libtll-bin
 Architecture: any
-Depends: ${misc:Depends}, libtll0 (= ${binary:Version})
+Depends: ${shlibs:Depends}, ${misc:Depends}, libtll0 (= ${binary:Version})
 Pre-Depends: ${misc:Pre-Depends}
-Multi-Arch: same
+Multi-Arch: no
 Description: Framework for building data processing services.
  .
  Package containes tll-processor binary
