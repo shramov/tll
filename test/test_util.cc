@@ -588,6 +588,14 @@ TEST(Util, FixedPoint)
 	ASSERT_TRUE(F3(1234) >= F3(1234)); ASSERT_FALSE(F3(1234) >= F3(1235));
 	ASSERT_TRUE(F3(1234) < F3(1235)); ASSERT_FALSE(F3(1234) < F3(1233));
 	ASSERT_TRUE(F3(1234) > F3(1233)); ASSERT_FALSE(F3(1234) > F3(1235));
+
+	auto r = FixedPoint<int32_t, 5>::from(f);
+	ASSERT_TRUE(r);
+	ASSERT_EQ(r->value(), 246800);
+
+	r = f.into<5>();
+	ASSERT_TRUE(r);
+	ASSERT_EQ(r->value(), 246800);
 }
 
 struct BitsABC : public tll::util::Bits<uint32_t>

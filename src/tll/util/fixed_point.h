@@ -77,6 +77,7 @@ class FixedPoint
  public:
 	using value_type = T;
 	static constexpr unsigned precision = Prec;
+	static constexpr int exponent = -Prec;
 	static constexpr unsigned long long divisor = _pow10<precision>();
 
 	FixedPoint() = default;
@@ -107,6 +108,23 @@ class FixedPoint
 	static constexpr std::variant<T, std::string_view> normalize_mantissa(T m, int expfrom, int expto)
 	{
 		return fixed_point::convert_mantissa(m, expfrom, expto);
+	}
+
+	/// Convert from FixedPoint with different precision
+	template <unsigned FPrec>
+	static constexpr tll::compat::expected<FixedPoint, std::string_view> from(const FixedPoint<T, FPrec>& rhs)
+	{
+		auto m = fixed_point::convert_mantissa(rhs.value(), rhs.exponent, -Prec);
+		if (m)
+			return FixedPoint { *m };
+		return unexpected(m.error());
+	}
+
+	/// Convert into FixedPoint with different precision
+	template <unsigned IPrec>
+	constexpr tll::compat::expected<FixedPoint<T, IPrec>, std::string_view> into() const
+	{
+		return FixedPoint<T, IPrec>::from(*this);
 	}
 };
 
