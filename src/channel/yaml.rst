@@ -39,6 +39,17 @@ present.
 If scheme is not present only binary body can be specified.
 
 ``scheme-control=SCHEME``, default is none - control scheme, used for ``type: control`` messages.
+If possuble use ``emulate-control`` option.
+
+``emulate-control=LIST`` (default empty) - emulate one of standard communcation channels. Additional
+control schemes are merged with one given in ``scheme-contorl`` option. ``LIST`` is composed of
+following values:
+
+  - ``tcp-client`` - TCP client, ``WriteFull`` and ``WriteReady`` messages (see
+    ``tcp-channel-tcp(7)``)
+  - ``tcp-server`` - TCP sever, client scheme extended with ``Connect`` and ``Disconnect`` messages
+  - ``stream-server`` - Stream server, ``Block`` message (see ``tcp-channel-stream(7)``)
+  - ``stream-client`` - Stream client, ``Online`` message
 
 ``autoclose=<bool>``, default ``yes`` - close channel when last message is read.
 
