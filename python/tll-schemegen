@@ -57,6 +57,8 @@ channels.add_argument('-c', '--channel', dest='channel', action='store_true',
 channels.add_argument('--control', dest='control', action='store_true',
                     default=False,
                     help='load scheme of control messages')
+channels.add_argument('--no-open', dest='no_open', action='store_true',
+                    help='do not try to open channel')
 channels.add_argument('-m', '--module', dest='modules', action='append',
                     default=[],
                     help='additional channel modules')
@@ -100,19 +102,20 @@ if args.channel:
         ctx.load(m)
     master = ctx.Channel(args.master) if args.master else None
     c = ctx.Channel(args.scheme, master=master)
-    if master:
-        master.open()
-    c.open()
-    if c.state != c.State.Active:
-        loop = Loop()
+    if not args.no_open:
         if master:
-            loop.add(master)
-        loop.add(c)
-        while c.state == c.State.Opening:
-            if timeout < time.time():
-                print("Timeout waiting for channel")
-                sys.exit(1)
-            loop.step(1)
+            master.open()
+        c.open()
+        if c.state != c.State.Active:
+            loop = Loop()
+            if master:
+                loop.add(master)
+            loop.add(c)
+            while c.state == c.State.Opening:
+                if timeout < time.time():
+                    print("Timeout waiting for channel")
+                    sys.exit(1)
+                loop.step(1)
     scheme = c.scheme_control if args.control else c.scheme
     if not scheme:
         raise SystemExit(f"Channel '{args.scheme}' has no {'control' if args.control else 'data'} scheme")
