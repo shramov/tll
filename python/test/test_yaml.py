@@ -444,3 +444,25 @@ config:
     assert c.result[3].time == TimePoint.from_str('2000-01-02T03:04:05')
     assert c.result[4].time < now
     assert c.result[4].time > now - Duration(100, 'ms')
+
+def test_emulate_control():
+    url = Config.load(f'''yamls://
+tll.proto: yaml
+name: yaml
+dump: scheme
+emulate-control: stream-server
+config.0:
+  name: Block
+  type: control
+  seq: 20
+  data.type: Type
+''')
+
+    class ControlAccum(Accum):
+        MASK = Accum.MsgMask.Control
+    c = ControlAccum(url)
+    c.open()
+    c.process()
+    assert [(m.type, m.msgid, m.seq) for m in c.result] == [(c.Type.Control, c.scheme_control['Block'].msgid, 20)]
+    m = c.unpack(c.result[0])
+    assert m.as_dict() == {'type': 'Type'}

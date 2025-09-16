@@ -6,9 +6,9 @@
  */
 
 #include "channel/yaml.h"
+#include "channel/emulate-control.hpp"
 
 #include "tll/util/memoryview.h"
-#include "tll/scheme/util.h"
 
 using namespace tll;
 
@@ -34,20 +34,16 @@ int ChYaml::_init(const tll::Channel::Url &url, tll::Channel *master)
 		return _log.fail(EINVAL, "Need either filename in host or 'config' subtree");
 
 	auto reader = channel_props_reader(url);
+
 	_autoclose = reader.getT("autoclose", true);
 	_autoseq = reader.getT("autoseq", false);
 	_encoder.settings.strict = reader.getT("strict", true);
-	auto control = reader.get("scheme-control");
+
+	if (auto r = _init_emulate_control(reader); r)
+		return r;
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
-
-	if (control) {
-		_log.debug("Loading control scheme from {}...", control->substr(0, 64));
-		_scheme_control.reset(context().scheme_load(*control));
-		if (!_scheme_control)
-			return _log.fail(EINVAL, "Failed to load control scheme from {}...", control->substr(0, 64));
-	}
 
 	if (!_scheme_url)
 		_log.info("Working with raw data without scheme");

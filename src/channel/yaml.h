@@ -8,10 +8,10 @@
 #ifndef _TLL_CHANNEL_YAML_H
 #define _TLL_CHANNEL_YAML_H
 
-#include "tll/channel/base.h"
+#include "channel/emulate-control.h"
 #include "tll/scheme/encoder.h"
 
-class ChYaml : public tll::channel::Base<ChYaml>
+class ChYaml : public tll::channel::EmulateControl<ChYaml>
 {
 	std::string _filename;
 	tll::ConstConfig _config;

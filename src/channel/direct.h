@@ -9,11 +9,12 @@
 #define _TLL_CHANNEL_DIRECT_H
 
 #include "tll/channel/autoseq.h"
+#include "channel/emulate-control.h"
 
 #include <memory>
 #include <mutex>
 
-class ChDirect : public tll::channel::AutoSeq<ChDirect>
+class ChDirect : public tll::channel::EmulateControl<ChDirect, tll::channel::AutoSeq<ChDirect>>
 {
 	using Base = tll::channel::AutoSeq<ChDirect>;
 	enum Mode { Master = 0, Slave = 1 } _mode = Slave;
@@ -76,8 +77,6 @@ class ChDirect : public tll::channel::AutoSeq<ChDirect>
 	int _process(long timeout, int flags) { return EAGAIN; }
 
 	void _update_state(tll_state_t state);
-
-	int _merge_control(std::string_view scheme, std::string_view name);
  private:
 	Mode _invert(Mode m) { return (Mode) (1 - m); }
 };
