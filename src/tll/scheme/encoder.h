@@ -224,10 +224,10 @@ int ConfigEncoder::_fill_numeric(T * ptr, const tll::scheme::Field * field, std:
 					return fail(EINVAL, "Invalid number '{}': negative value", s);
 				m = -m;
 			}
-			auto r = tll::util::FixedPoint<T, 0>::normalize_mantissa(m, u->exponent, prec);
-			if (!std::holds_alternative<T>(r))
-				return fail(EINVAL, "Invalid number '{}': {}", s, std::get<1>(r));
-			*ptr = std::get<0>(r);
+			auto r = tll::util::fixed_point::convert_mantissa(m, u->exponent, prec);
+			if (!r)
+				return fail(EINVAL, "Invalid number '{}': {}", s, r.error());
+			*ptr = *r;
 			return 0;
 		}
 	} else if (field->sub_type == field->TimePoint) {

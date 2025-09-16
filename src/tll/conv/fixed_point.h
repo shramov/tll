@@ -57,10 +57,10 @@ struct parse<tll::util::FixedPoint<T, P>>
 				return error("Negative value");
 			m = -m;
 		}
-		auto r = tll::util::FixedPoint<T, 0>::normalize_mantissa(m, u->exponent, prec);
-		if (!std::holds_alternative<T>(r))
-			return error(std::get<1>(r));
-		return value_type(std::get<0>(r));
+		auto r = tll::util::fixed_point::convert_mantissa(m, u->exponent, prec);
+		if (!r)
+			return error(r.error());
+		return value_type(*r);
 	}
 };
 

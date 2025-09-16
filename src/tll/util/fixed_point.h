@@ -12,6 +12,8 @@
 #include <string_view>
 #include <variant>
 
+#include <tll/compat/expected.h>
+
 namespace tll::util {
 
 namespace {
@@ -24,6 +26,48 @@ inline constexpr unsigned long long _pow10()
 		return 10 * _pow10<exponent - 1>();
 }
 }
+
+namespace fixed_point {
+
+/**
+ * Convert mantissa from one exponent to another.
+ */
+template <typename T>
+static constexpr tll::compat::expected<T, std::string_view> convert_mantissa(T m, int expfrom, int expto)
+{
+	using namespace std::literals;
+	using namespace tll::compat;
+
+	if (m == 0)
+		return m;
+	if (expfrom == expto)
+		return m;
+
+	long expdiff = expfrom - expto;
+	constexpr auto digits = std::numeric_limits<T>::digits10 + 1;
+	if (expdiff < 0) {
+		if (-expdiff > digits)
+			return unexpected("Exponent difference too large"sv);
+		T div = 1;
+		for (int i = 0; i != expdiff; i--)
+			div *= 10;
+		auto r = m % div;
+		m = m / div;
+		if (r != 0)
+			return unexpected("Inexact rounding"sv);
+	} else {
+		if (expdiff > digits)
+			return unexpected("Exponent difference too large"sv);
+		T mul = 1;
+		for (int i = 0; i != expdiff; i++)
+			mul *= 10;
+		if (std::numeric_limits<T>::max() / mul < m)
+			return unexpected("Value too large"sv);
+		m *= mul;
+	}
+	return m;
+}
+} // namespace fixed_point
 
 template <typename T, unsigned Prec>
 class FixedPoint
@@ -59,38 +103,10 @@ class FixedPoint
 	friend FixedPoint operator - (FixedPoint l, const FixedPoint &r) { return l -= r; }
 	friend FixedPoint operator * (FixedPoint l, long long r) { return l *= r; }
 
+	[[deprecated("Use tll::util::fixed_point::convert_mantissa")]]
 	static constexpr std::variant<T, std::string_view> normalize_mantissa(T m, int expfrom, int expto)
 	{
-		using namespace std::literals;
-
-		if (m == 0)
-			return m;
-		if (expfrom == expto)
-			return m;
-
-		long expdiff = expfrom - expto;
-		constexpr auto digits = std::numeric_limits<T>::digits10 + 1;
-		if (expdiff < 0) {
-			if (-expdiff > digits)
-				return "Exponent difference too large"sv;
-			T div = 1;
-			for (int i = 0; i != expdiff; i--)
-				div *= 10;
-			auto r = m % div;
-			m = m / div;
-			if (r != 0)
-				return "Inexact rounding"sv;
-		} else {
-			if (expdiff > digits)
-				return "Exponent difference too large"sv;
-			T mul = 1;
-			for (int i = 0; i != expdiff; i++)
-				mul *= 10;
-			if (std::numeric_limits<T>::max() / mul < m)
-				return "Value too large"sv;
-			m *= mul;
-		}
-		return m;
+		return fixed_point::convert_mantissa(m, expfrom, expto);
 	}
 };
 
