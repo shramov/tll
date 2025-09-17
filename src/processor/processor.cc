@@ -16,6 +16,7 @@
 #include <set>
 
 #include "tll/scheme/channel/timer.h"
+#include "tll/version.h"
 
 TLL_DECLARE_IMPL(tll::processor::_::Worker);
 
@@ -67,7 +68,7 @@ int Processor::_init(const tll::Channel::Url &url, Channel * master)
 {
 	_log = { fmt::format("tll.processor.context.{}", name) };
 
-	_log.info("Init processor");
+	_log.info("Init processor (version {})", TLL_VERSION_STRING);
 
 	tll::Config lcfg;
 	lcfg.set("name", fmt::format("tll.processor.context.{}.loop", name));

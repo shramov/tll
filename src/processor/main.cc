@@ -10,6 +10,7 @@
 #include "tll/processor.h"
 #include "tll/stat.h"
 #include "tll/util/argparse.h"
+#include "tll/version.h"
 
 #include <signal.h>
 #include <stdio.h>
@@ -30,7 +31,9 @@ int main(int argc, char *argv[])
 	tll::util::ArgumentParser parser("config [-Dkey=value]");
 	std::string curl;
 	std::vector<std::string> defs;
+	bool version = false;
 	parser.add_argument({"CONFIG"}, "configuration file", &curl);
+	parser.add_argument({"--version"}, "print version and exit", &version);
 	parser.add_argument({"-D"}, "extra configuration variables", &defs);
 	auto pr = parser.parse(argc, argv);
 	if (!pr) {
@@ -39,6 +42,11 @@ int main(int argc, char *argv[])
 	} else if (parser.help) {
 		printf("Usage %s %s\n", argv[0], parser.format_help().c_str());
 		return 1;
+	}
+
+	if (version) {
+		printf("%s\n", TLL_VERSION_STRING);
+		return 0;
 	}
 
 	//std::string curl(argv[1]);
