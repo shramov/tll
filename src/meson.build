@@ -6,11 +6,12 @@ sources += ['time.cc']
 sources += ['ring.c']
 sources += ['decimal128.cc']
 
-
+subdir('tll')
 subdir('logger')
 subdir('channel')
 subdir('processor')
 
+sources += version_sources
 sources += channel_sources
 sources += processor_sources
 
@@ -47,6 +48,6 @@ executable('tll-processor'
 pkg = import('pkgconfig')
 pkg.generate(tll_lib, requires: 'fmt') # meson > 0.46
 
-install_subdir('tll', install_dir : get_option('includedir'))
+install_subdir('tll', install_dir: get_option('includedir'), exclude_files: ['meson.build'])
 
 subdir('logic')
