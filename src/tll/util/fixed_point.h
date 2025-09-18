@@ -112,19 +112,24 @@ class FixedPoint
 
 	/// Convert from FixedPoint with different precision
 	template <unsigned FPrec>
-	static constexpr tll::compat::expected<FixedPoint, std::string_view> from(const FixedPoint<T, FPrec>& rhs)
+	[[nodiscard]]
+	tll::compat::expected<FixedPoint, std::string_view> from(const FixedPoint<T, FPrec>& rhs)
 	{
-		auto m = fixed_point::convert_mantissa(rhs.value(), rhs.exponent, -Prec);
-		if (m)
-			return FixedPoint { *m };
-		return unexpected(m.error());
+		auto m = rhs.template into<Prec>();
+		if (!m)
+			return unexpected(m.error());
+		_value = m->_value;
+		return *this;
 	}
 
 	/// Convert into FixedPoint with different precision
 	template <unsigned IPrec>
 	constexpr tll::compat::expected<FixedPoint<T, IPrec>, std::string_view> into() const
 	{
-		return FixedPoint<T, IPrec>::from(*this);
+		auto m = fixed_point::convert_mantissa(_value, exponent, -IPrec);
+		if (m)
+			return FixedPoint<T, IPrec>{*m};
+		return unexpected(m.error());
 	}
 };
 
