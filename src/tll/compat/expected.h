@@ -29,34 +29,34 @@ class unexpected
 };
 
 template <typename T, typename E>
-class expected : public std::variant<T, E>
+class expected
 {
+	std::variant<T, E> _data;
  public:
-	typedef std::variant<T, E> parent_variant;
 	typedef E error_type;
 	typedef T value_type;
 
-	constexpr expected(const T & value) : parent_variant(std::in_place_index<0>, value) {}
-	constexpr expected(T && value) : parent_variant(std::in_place_index<0>, std::move(value)) {}
+	constexpr expected(const T & value) : _data(std::in_place_index<0>, value) {}
+	constexpr expected(T && value) : _data(std::in_place_index<0>, std::move(value)) {}
 
 	template <typename S>
-	constexpr expected(const S & value) : parent_variant(std::in_place_index<0>, value) {}
+	constexpr expected(const S & value) : _data(std::in_place_index<0>, value) {}
 
-	template <typename S>
-	constexpr expected(const expected<S, E> & e) : parent_variant(e) {}
+	template <typename SE>
+	constexpr expected(const unexpected<SE> & e) : _data(std::in_place_index<1>, e.error()) {}
 
-	constexpr expected(const unexpected<E> & e) : parent_variant(std::in_place_index<1>, e.error()) {}
-	constexpr expected(unexpected<E> && e) : parent_variant(std::in_place_index<1>, std::move(e.error())) {}
+	template <typename SE>
+	constexpr expected(unexpected<SE> && e) : _data(std::in_place_index<1>, std::move(e.error())) {}
 
-	constexpr bool has_value() const { return parent_variant::index() == 0; }
+	constexpr bool has_value() const { return _data.index() == 0; }
 	explicit constexpr operator bool () const { return has_value(); }
 
-	constexpr value_type && operator * () && { return std::get<0>(std::move(*this)); }
-	constexpr value_type & operator * () & { return std::get<0>(*this); }
-	constexpr const value_type & operator * () const & { return std::get<0>(*this); }
+	constexpr value_type && operator * () && { return std::get<0>(std::move(_data)); }
+	constexpr value_type & operator * () & { return std::get<0>(_data); }
+	constexpr const value_type & operator * () const & { return std::get<0>(_data); }
 
-	constexpr value_type * operator -> () { return &std::get<0>(*this); }
-	constexpr const value_type * operator -> () const { return &std::get<0>(*this); }
+	constexpr value_type * operator -> () { return &std::get<0>(_data); }
+	constexpr const value_type * operator -> () const { return &std::get<0>(_data); }
 
 	template <typename U>
 	constexpr T value_or(U && default_value) const &
@@ -70,9 +70,32 @@ class expected : public std::variant<T, E>
 		if (*this) return std::move(**this); else return static_cast<T>(std::forward<U>(default_value));
 	}
 
+	constexpr const E & error() const & noexcept { return std::get<1>(_data); }
+	constexpr E & error() & noexcept { return std::get<1>(_data); }
+	constexpr E && error() && noexcept { return std::get<1>(std::move(_data)); }
+};
+
+template <typename E>
+class expected<void, E>
+{
+	std::variant<std::monostate, E> _data;
+ public:
+	typedef E error_type;
+	typedef void value_type;
+
+	constexpr expected() : _data(std::in_place_index<0>) {}
+
+	template <typename SE>
+	constexpr expected(const unexpected<SE> & e) : _data(std::in_place_index<1>, e.error()) {}
+	template <typename SE>
+	constexpr expected(unexpected<SE> && e) : _data(std::in_place_index<1>, std::move(e.error())) {}
+
+	constexpr bool has_value() const { return _data.index() == 0; }
+	explicit constexpr operator bool () const { return has_value(); }
+
 	constexpr const E & error() const & noexcept { return std::get<1>(*this); }
-	constexpr E & error() & noexcept { return std::get<1>(*this); }
-	constexpr E && error() && noexcept { return std::get<1>(std::move(*this)); }
+	constexpr E & error() & noexcept { return std::get<1>(_data); }
+	constexpr E && error() && noexcept { return std::get<1>(std::move(_data)); }
 };
 
 } // namespace expected_ns
