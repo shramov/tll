@@ -7,6 +7,7 @@
 
 #define TLL_VERSION_HEX ((TLL_VERSION_MAJOR << 16) | (TLL_VERSION_MINOR << 8) | (TLL_VERSION_PATCH))
 
-#define TLL_VERSION_STRING "@STRING@"
+//TODO: Move into library on next ABI bump
+static inline const char * tll_version_string() { return "@STRING@"; }
 
 #endif//_TLL_VERSION_H

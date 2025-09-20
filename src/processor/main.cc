@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (version) {
-		printf("%s\n", TLL_VERSION_STRING);
+		printf("%s\n", tll_version_string());
 		return 0;
 	}
 

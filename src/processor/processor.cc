@@ -68,7 +68,7 @@ int Processor::_init(const tll::Channel::Url &url, Channel * master)
 {
 	_log = { fmt::format("tll.processor.context.{}", name) };
 
-	_log.info("Init processor (version {})", TLL_VERSION_STRING);
+	_log.info("Init processor (version {})", tll_version_string());
 
 	tll::Config lcfg;
 	lcfg.set("name", fmt::format("tll.processor.context.{}.loop", name));
