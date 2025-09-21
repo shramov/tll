@@ -1096,3 +1096,11 @@ async def test_close_in_block(asyncloop, tmp_path):
     assert (await c.recv_state()) == c.State.Closed
 
     assert [(m.type, m.msgid) for m in c.result] == [(c.Type.Control, scheme['BeginOfBlock'].msgid), (c.Type.Control, scheme['EndOfBlock'].msgid)]
+
+def test_max_size(context, tmp_path):
+    s = context.Channel(f'stream+null://;request=null://;storage=file://{tmp_path}/file.dat;mode=server;dump=frame;max-size=1kb')
+    s.open()
+    assert s.state == s.State.Active
+    s.post(b'xxx', seq=10)
+    with pytest.raises(TLLError):
+        s.post(b'x' * 1025, seq=20)

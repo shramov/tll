@@ -29,6 +29,7 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	tll::Channel::Url _blocks_url;
 
 	long long _seq = -1;
+	size_t _max_size = 0;
 
 	struct Request
 	{

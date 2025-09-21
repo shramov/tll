@@ -71,6 +71,9 @@ this parameter (and storage channel has ``Rotate`` control message) then ``Rotat
 storage. For example ``rotate-on-block=default`` will create new file each time ``default`` block is
 created for stream server with ``rotate+file://`` storage.
 
+``max-size=<size>``, default unlimited - check that posted message size does not exceed this
+parameter.
+
 Open parameters
 ~~~~~~~~~~~~~~~
 

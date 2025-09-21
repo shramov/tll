@@ -12,6 +12,7 @@
 
 #include "tll/scheme/encoder.h"
 #include "tll/scheme/merge.h"
+#include "tll/util/size.h"
 
 #include <sys/fcntl.h>
 #include <unistd.h>
@@ -51,6 +52,7 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 	_init_block = reader.getT("init-block", std::string(url.sub("blocks") ? "default" : ""));
 	_rotate_on_block = reader.getT("rotate-on-block", std::string());
 	_init_config = url.sub("init-message-data").value_or(_init_config);
+	_max_size = reader.getT<tll::util::Size>("max-size", std::numeric_limits<size_t>::max());
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
@@ -692,7 +694,11 @@ int StreamServer::_post(const tll_msg_t * msg, int flags)
 				return _log.fail(r, "Failed to send control message {}", msg->msgid);
 		}
 		return 0;
-	}
+	} else if (msg->type != TLL_MESSAGE_DATA)
+		return 0;
+
+	if (msg->size > _max_size)
+		return _log.fail(EMSGSIZE, "Message size too large: {} > maximum {}", msg->size, _max_size);
 
 	msg = _autoseq.update(msg);
 	if (msg->seq <= _seq)
