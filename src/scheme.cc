@@ -1812,17 +1812,26 @@ std::string dump_type(tll_scheme_field_type_t t, const tll::scheme::Field * f)
 	return "unknown";
 }
 
+bool options_nonempty(const tll::scheme::Option * options)
+{
+	for (auto &o : list_wrap(options)) {
+		if (o.name != std::string_view("_auto") && o.name != std::string_view("_import"))
+			return true;
+	}
+	return false;
+}
+
 std::string dump(const tll::scheme::Option * options, std::string_view key = "options")
 {
-	if (!options) return "";
-	std::string r;
-	r += fmt::format("{}: {{", key);
-	bool comma = false;
 	std::map<std::string_view, std::string_view> map;
 	for (auto &o : list_wrap(options)) {
 		if (o.name == std::string_view("_auto") || o.name == std::string_view("_import")) continue;
 		map.emplace(o.name, o.value);
 	}
+
+	std::string r;
+	r += fmt::format("{}: {{", key);
+	bool comma = false;
 
 	for (auto & [k, v] : map) {
 		if (comma)
@@ -1883,7 +1892,7 @@ std::string dump(const tll::scheme::Enum * e)
 	r += "{";
 	r += fmt::format("type: {}, ", dump_type(e->type, nullptr));
 	r += dump_body(e);
-	if (e->options)
+	if (options_nonempty(e->options))
 		r += ", " + dump(e->options);
 	r += "}";
 	return r;
@@ -1896,7 +1905,7 @@ std::string dump(const tll::scheme::BitFields * b)
 	r += "{";
 	r += fmt::format("type: {}, ", dump_type(b->type, nullptr));
 	r += dump_body(b);
-	if (b->options)
+	if (options_nonempty(b->options))
 		r += ", " + dump(b->options);
 	r += "}";
 	return r;
@@ -1907,15 +1916,15 @@ std::string dump_options(const tll::scheme::Field * f, bool skip=false)
 	std::string r;
 	switch (f->type) {
 	case tll::scheme::Field::Array:
-		if (!skip && f->options)
+		if (!skip && options_nonempty(f->options))
 			r += ", " + dump(f->options, "list-options");
 		return r + dump_options(f->type_array, true);
 	case tll::scheme::Field::Pointer:
-		if (!skip && f->options)
+		if (!skip && options_nonempty(f->options))
 			r += ", " + dump(f->options, "list-options");
 		return r + dump_options(f->type_ptr, true);
 	default:
-		if (f->options)
+		if (options_nonempty(f->options))
 			return ", " + dump(f->options);
 	}
 	return r;
@@ -1935,7 +1944,7 @@ std::string dump(const tll::scheme::Field * f)
 	if (f->sub_type == tll::scheme::Field::Enum) {
 		if (tll::getter::get(f->type_enum->options, "_auto").value_or("") == "inline")
 			r += ", " + dump_body(f->type_enum);
-		//if (f->type_enum->options)
+		//if (options_nonempty(f->type_enum->options))
 		//	r += ", " + dump(f->type_enum->options, "enum-options");
 	}
 	if (f->sub_type == tll::scheme::Field::Bits) {
@@ -1952,7 +1961,7 @@ std::string dump(const tll::scheme::Message * m)
 	r += fmt::format("- name: '{}'\n", m->name);
 	if (m->msgid)
 		r += "  " + fmt::format("id: {}\n", m->msgid);
-	if (m->options)
+	if (options_nonempty(m->options))
 		r += "  " + dump(m->options) + "\n";
 	if (m->enums) {
 		r += "  enums:\n";
@@ -2002,7 +2011,7 @@ char * tll_scheme_dump(const tll_scheme_t * s, const char * format)
 	std::string r;
 	if (s->options || s->enums || s->bits || s->unions || s->aliases) {
 		r += "- name: ''\n";
-		if (s->options)
+		if (options_nonempty(s->options))
 			r += "  " + dump(s->options) + "\n";
 		if (s->enums) {
 			r += "  enums:\n";
