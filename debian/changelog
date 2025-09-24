@@ -1,3 +1,45 @@
+tll (0.4.2) unstable; urgency=medium
+
+  * blocks: Fix (unlikely) fd leak when on block write
+  * channel: Copy flags in tll_msg_copy_info function
+  * config: Fix segfault when loading emtpy config 'yamls+gz://'
+  * convert: Do not convert non-data messages
+  * file: Split TempFile into util headers
+  * memoryview: Return const pointer for immutable buffer
+  * meson: Generate version header
+  * processor:
+    Include Suspend flag for channels in StateUpdate
+    Report compile time version
+    Set default pending steps to 8
+  * python:
+    Call dlclose after reloading python
+    Check if message exists in scheme
+  * ring: Fix data races on arm64 when using as pub-sub
+  * rotate: Autoseq mode
+  * scheme:
+    Do not include 'options: {}' in dump
+    Import list in the API
+    Support const types for immutable buffers in binder
+    Support list copy in binder
+  * schemegen: Add option to skip channel open
+  * stream:
+    Do not export storage reader config
+    Message size limit
+    New Request message from client
+    Report begin of block
+  * templates: Copy function for messages and fix incorrect const submessage getter
+  * tll: Bunch of cleanups found by coverity/clang-tidy
+  * util:
+    Add from/into helpers to FixedPoint
+    Fix incorrect return value from nonblock helper
+    Initialize whole tll_msg_t structure in OwnedMessage
+    Split std::expected backport into compat headers
+    Trivial implementation of std::jthread
+  * worker: Do not handle messages in inactive state
+  * yaml: Emulate control scheme of known channels
+
+ -- Pavel Shramov <shramov@mexmat.net>  Wed, 24 Sep 2025 13:37:36 +0300
+
 tll (0.4.1) unstable; urgency=medium
 
   * config: Clear parent when child node is removed
