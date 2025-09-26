@@ -735,6 +735,42 @@ async def test_stream_aggregate(asyncloop, context, tmp_path):
     assert [i.name for i in s.children if '/client' in i.name] == []
 
 @asyncloop_run
+async def test_stream_aggregate_eob_online(asyncloop, context, tmp_path):
+    context.register(Aggregate)
+
+    Aggregate.STORAGE = []
+
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage;name=server;mode=server;blocks=aggr://')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+
+    s.open()
+
+    s.post(b'xxx', msgid=10, seq=0)
+    s.post(b'yyy', msgid=20, seq=10)
+    s.post({'type':'default'}, name='Block', type=s.Type.Control)
+
+    assert Aggregate.STORAGE == [(10, {10: b'xxx', 20: b'yyy'})]
+
+    c.open(block='0', mode='block')
+
+    m = await c.recv()
+    assert (m.type, m.msgid, m.seq) == (c.Type.Control, c.scheme_control['BeginOfBlock'].msgid, 9)
+    assert c.unpack(m).as_dict() == {'last_seq': 10}
+
+    m = await c.recv()
+    assert (m.seq, m.msgid, m.data.tobytes()) == (9, 10, b'xxx')
+
+    m = await c.recv()
+    assert (m.seq, m.msgid, m.data.tobytes()) == (10, 20, b'yyy')
+
+    m = await c.recv()
+    assert (m.type, c.scheme_control[m.msgid].name, m.seq) == (c.Type.Control, 'EndOfBlock', 10)
+
+    m = await c.recv()
+    assert (m.type, c.scheme_control[m.msgid].name, m.seq) == (c.Type.Control, 'Online', 10)
+
+@asyncloop_run
 async def test_stream_aggregate_error(asyncloop, context, tmp_path):
     context.register(Aggregate)
 

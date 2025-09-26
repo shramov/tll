@@ -178,14 +178,27 @@ int StreamClient::_report_online()
 
 int StreamClient::_report_block()
 {
+	_reopen_cfg = tll::Config();
+	_reopen_cfg.set("mode", "seq");
+	_reopen_cfg.set("seq", _config_seq, this);
+	config_info().set("reopen", _reopen_cfg);
+
+	if (_block_end == -1)
+		return 0;
 	_log.info("Block finished at seq {}", _block_end - 1);
+
 	tll_msg_t m = {
 		.type = TLL_MESSAGE_CONTROL,
 		.msgid = stream_control_scheme::EndOfBlock::meta_id(),
 		.seq = _block_end - 1,
 	};
+
+	_block_end = -1;
+	auto guard = state_guard();
 	if (_report_block_end)
 		_callback(&m);
+	if (guard)
+		return EINTR;
 	return 0;
 }
 
@@ -300,15 +313,9 @@ int StreamClient::_on_request_data(const tll::Channel *, const tll_msg_t *msg)
 {
 	_log.debug("Seq {}, state {}, ring {}", msg->seq, (int) _state, _ring.empty());
 	if (_state == State::Connected) {
-		auto guard = state_guard();
 		if (_seq < _block_end && msg->seq >= _block_end) {
 			_seq = msg->seq;
-			_reopen_cfg = tll::Config();
-			_reopen_cfg.set("mode", "seq");
-			_reopen_cfg.set("seq", _config_seq, this);
-			config_info().set("reopen", _reopen_cfg);
-			_report_block();
-			if (guard)
+			if (_report_block())
 				return 0;
 		}
 
@@ -317,6 +324,8 @@ int StreamClient::_on_request_data(const tll::Channel *, const tll_msg_t *msg)
 		if (_seq == _server_seq && _ring.empty()) {
 			_log.info("Reached reported server seq {}, no online data", _server_seq);
 			_post_done(msg->seq);
+			if (_report_block())
+				return 0;
 			_report_online(); // FIXME: Do it through pending, 2 messages from one process
 			return 0;
 		}
@@ -378,15 +387,8 @@ int StreamClient::_on_request_data(const tll::Channel *, const tll_msg_t *msg)
 			_log.info("Server has no old data for us, channel is online (seq {})", _server_seq);
 			_seq = _server_seq;
 
-			_reopen_cfg = tll::Config();
-			_reopen_cfg.set("mode", "seq");
-			_reopen_cfg.set("seq", _config_seq, this);
-			config_info().set("reopen", _reopen_cfg);
-
-			auto guard = state_guard();
-			if (_block_end > 0)
-				_report_block();
-			if (guard) return 0;
+			if (_report_block())
+				return 0;
 			_report_online();
 			_request->close();
 		} else if (_server_seq < *_open_seq) {
