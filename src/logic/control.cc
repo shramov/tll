@@ -153,7 +153,7 @@ int Control::_init(const tll::Channel::Url &url, tll::Channel * master)
 		if (getdomainname(domainbuf.data(), domainbuf.size()))
 			return _log.fail(EINVAL, "Failed to get domain name: {}", strerror(errno));
 		std::string_view host = hostbuf.data(), domain = domainbuf.data();
-		if (domain.size())
+		if (domain.size() && domain != "(none)")
 			_hostname = fmt::format("{}.{}", host, domain);
 		else
 			_hostname = host;
