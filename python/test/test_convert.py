@@ -498,3 +498,34 @@ def test_control(context):
     c.open()
 
     c.post({'f0': 10}, name='Data', type=c.Type.Control)
+
+def test_input(context, tmp_path):
+    SFrom = '''yamls://
+- name: Data
+  id: 10
+  enums.E: { type: int8, enum: { A: 10 }}
+  fields:
+    - { name: f0, type: E }
+'''
+
+    SInto = '''yamls://
+- name: Data
+  id: 10
+  enums.E: { type: int8, enum: { A: 10, Fallback: 0 }, options.fallback-value: Fallback }
+  fields:
+    - { name: f0, type: E }
+'''
+
+    fw = context.Channel(f'file://{tmp_path}/file.dat', scheme=SFrom, name='writer', dir='w')
+    fw.open()
+    fw.post({'f0': 'A'}, name='Data')
+    fw.close()
+
+    c = Accum(f'convert+file://{tmp_path}/file.dat', name='convert', autoclose='yes', **{'convert.scheme': SInto})
+    c.open()
+    assert (c.caps & c.Caps.InOut) == c.Caps.Input
+    assert c.state == c.State.Active
+
+    crw = Accum(f'convert+file://{tmp_path}/file.dat', name='convert', autoclose='yes', **{'convert.scheme': SInto, 'convert.dir': 'rw'})
+    crw.open()
+    assert crw.state == crw.State.Error

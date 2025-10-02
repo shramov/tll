@@ -15,6 +15,8 @@ class Convert : public tll::channel::Prefix<Convert>
 	ConvertBuf _convert_into;
 	ConvertBuf _convert_from;
 
+	bool _derive_caps = false;
+
  public:
 	static constexpr auto prefix_scheme_policy() { return PrefixSchemePolicy::Override; }
 	static constexpr std::string_view channel_protocol() { return "convert+"; }
@@ -25,6 +27,7 @@ class Convert : public tll::channel::Prefix<Convert>
 			return r;
 		if (!_scheme_url)
 			return _log.fail(EINVAL, "Convert prefix needs scheme");
+		_derive_caps = (internal.caps & tll::caps::InOut) == 0;
 		return 0;
 	}
 
@@ -33,13 +36,32 @@ class Convert : public tll::channel::Prefix<Convert>
 		auto s = _child->scheme();
 		if (!s)
 			return _log.fail(EINVAL, "Child without scheme, can not convert");
+		if (_derive_caps) {
+			auto caps = _child->caps() & tll::caps::InOut;
+			if (caps == 0)
+				caps = tll::caps::InOut;
+			internal.caps ^= (internal.caps & tll::caps::InOut) | caps;
+		}
 		if (auto r = _scheme_load(*this->_scheme_url); r)
 			return r;
-		if (auto r = _convert_from.init(_log, s, _scheme.get()); r)
-			return _log.fail(r, "Can not initialize converter from the child");
-		if (auto r = _convert_into.init(_log, _scheme.get(), s); r)
-			return _log.fail(r, "Can not initialize converter into the child");
+		if (internal.caps & tll::caps::Input) {
+			if (auto r = _convert_from.init(_log, s, _scheme.get()); r)
+				return _log.fail(r, "Can not initialize converter from the child");
+		} else
+			_log.debug("Do not initialize converter from child, no Input cap");
+		if (internal.caps & tll::caps::Output) {
+			if (auto r = _convert_into.init(_log, _scheme.get(), s); r)
+				return _log.fail(r, "Can not initialize converter into the child");
+		} else
+			_log.debug("Do not initialize converter into child, no Output cap");
 		return Base::_on_active();
+	}
+
+	int _on_closed()
+	{
+		_convert_from.reset();
+		_convert_into.reset();
+		return Base::_on_closed();
 	}
 
 	int _on_data(const tll_msg_t *msg)
