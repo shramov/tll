@@ -1501,6 +1501,20 @@ BitFields * copy_bits(const BitFields *src)
 	return r;
 }
 
+tll_scheme_import_t * copy_imports(const tll_scheme_import_t *src)
+{
+	if (!src) return nullptr;
+	auto r = (tll_scheme_import_t *) malloc(sizeof(tll_scheme_import_t));
+	*r = {};
+	r->name = strdup(src->name);
+	r->url = strdup(src->url);
+	if (src->filename)
+		r->filename = strdup(src->filename);
+	r->options = copy_options(src->options);
+	r->next = copy_imports(src->next);
+	return r;
+}
+
 Field * copy_fields(Scheme *ds, Message *dm, Field **result, const Field *src, const Message *sm);
 
 void copy_field_body(Scheme *ds, Message *dm, Field *r, const Field *src, const Message *sm)
@@ -1589,6 +1603,7 @@ tll_scheme_t * tll_scheme_copy(const tll_scheme_t *src)
 	r->enums = copy_enums(src->enums);
 	r->unions = copy_unions(r, &m, src->unions);
 	r->bits = copy_bits(src->bits);
+	r->imports = copy_imports(src->imports);
 	r->aliases = nullptr;
 
 	copy_fields(r, &m, &r->aliases, src->aliases, nullptr);
