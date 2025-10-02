@@ -1583,10 +1583,8 @@ tll_scheme_t * tll_scheme_copy(const tll_scheme_t *src)
 
 	if (!src) return nullptr;
 	auto r = (tll::scheme::Scheme *) malloc(sizeof(tll::scheme::Scheme));
-	*r = *src;
+	*r = {};
 	r->internal = new tll_scheme_internal_t;
-	r->user = nullptr;
-	r->user_free = nullptr;
 	r->options = copy_options(src->options);
 	r->enums = copy_enums(src->enums);
 	r->unions = copy_unions(r, &m, src->unions);
