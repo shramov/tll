@@ -24,6 +24,20 @@ ctx = C.Context()
 def context():
     return C.Context()
 
+def test_null_client(context):
+    c = context.Channel('null://;name=null;scheme=yamls://{}')
+    assert c.config.sub('client', throw=False) is None
+    c.open()
+    assert c.config.sub('client').as_dict() == {
+            'init': {
+                'tll': {'proto': 'null'},
+                'scheme': 'sha256://e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+            },
+            'scheme': {'sha256://e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855': 'yamls+gz://'}
+        }
+    c.close()
+    assert c.config.sub('client', throw=False) is None
+
 def test_duplicate(context):
     c0 = context.Channel('null://;name=dup;first=yes')
 
