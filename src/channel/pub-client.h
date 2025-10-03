@@ -25,6 +25,8 @@ class ChPubClient : public tll::channel::LastSeqRx<ChPubClient, tll::channel::Tc
  public:
 	static constexpr std::string_view channel_protocol() { return "pub"; }
 
+	static constexpr auto readwrite_policy() { return ReadWritePolicy::ReadOnly; }
+
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
 
 	int _open(const tll::ConstConfig &url);

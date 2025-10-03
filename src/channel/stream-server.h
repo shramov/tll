@@ -96,6 +96,7 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	static constexpr std::string_view channel_protocol() { return "stream+"; }
 	static constexpr auto process_policy() { return ProcessPolicy::Never; }
 	static constexpr auto prefix_config_policy() { return PrefixConfigPolicy::Manual; }
+	static constexpr auto readwrite_policy() { return ReadWritePolicy::WriteOnly; }
 
 	std::optional<const tll_channel_impl_t *> _init_replace(const tll::Channel::Url &url, tll::Channel *master);
 

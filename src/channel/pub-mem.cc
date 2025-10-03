@@ -114,6 +114,7 @@ class MemSub : public tll::channel::LastSeqRx<MemSub, MemCommon<MemSub>>
  public:
 	static constexpr std::string_view channel_protocol() { return "pub+mem"; }
 	static constexpr std::string_view param_prefix() { return "pub"; }
+	static constexpr auto readwrite_policy() { return ReadWritePolicy::ReadOnly; }
 
 	constexpr std::string_view scheme_control_string() const
 	{
@@ -138,6 +139,7 @@ class MemPub : public tll::channel::LastSeqTx<MemPub, MemCommon<MemPub>>
 	static constexpr std::string_view channel_protocol() { return "pub+mem"; }
 	static constexpr std::string_view param_prefix() { return "pub"; }
 	static constexpr auto process_policy() { return ProcessPolicy::Never; }
+	static constexpr auto readwrite_policy() { return ReadWritePolicy::WriteOnly; }
 
 	int _open(const tll::ConstConfig &);
 	int _close();

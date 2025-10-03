@@ -27,6 +27,9 @@ async def test(asyncloop, tmp_path, protocol):
     s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test;stream.protocol={protocol}')
 
+    assert (s.caps & s.Caps.InOut) == s.Caps.Output
+    assert (c.caps & c.Caps.InOut) == c.Caps.Input
+
     assert [x.name for x in s.children] == ['server/stream', 'server/request', 'server/storage']
     assert [x.name for x in c.children] == ['client/stream', 'client/request']
 

@@ -28,6 +28,9 @@ def client(asyncloop, tmp_path):
 def test(server, client):
     s, c = server, client
 
+    assert (s.caps & s.Caps.InOut) == s.Caps.Output
+    assert (c.caps & c.Caps.InOut) == c.Caps.Input
+
     s.open()
     assert s.state == s.State.Active
     assert len(s.children) == 1
@@ -237,6 +240,10 @@ async def test_client(asyncloop, server):
 async def test_mem(asyncloop, tmp_path):
     s = asyncloop.Channel(f'pub+mem:///{tmp_path}/memory', mode='server', name='server', dump='frame', size='16kb')
     c = asyncloop.Channel(f'pub+mem:///{tmp_path}/memory', mode='client', name='client', dump='frame')
+
+    assert (s.caps & s.Caps.InOut) == s.Caps.Output
+    assert (c.caps & c.Caps.InOut) == c.Caps.Input
+
     s.open()
     c.open()
     assert await c.recv_state() == c.State.Active

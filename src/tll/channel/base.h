@@ -118,6 +118,16 @@ class Base
 	};
 	static constexpr auto child_policy() { return ChildPolicy::Never; }
 
+	/// Specify how to handle 'dir' parameter and set Input/Output caps
+	enum class ReadWritePolicy
+	{
+		Normal, ///< Set caps from dir parameter
+		Manual, ///< Ignore dir parameter
+		ReadOnly, ///< Ignore dir parameter, set caps to caps::Input
+		WriteOnly, ///< Ignore dir parameter, set caps to caps::Output
+	};
+	static constexpr auto readwrite_policy() { return ReadWritePolicy::Normal; }
+
 	enum class SchemePolicy { Normal, Manual };
 	static constexpr auto scheme_policy() { return SchemePolicy::Normal; }
 
@@ -235,6 +245,20 @@ class Base
 
 		enum rw_t { None = 0, R = 1, W = 2, RW = R | W };
 		auto dir = reader.getT("dir", None, {{"r", R}, {"w", W}, {"rw", RW}, {"in", R}, {"out", W}, {"inout", RW}});
+		switch (channelT()->readwrite_policy()) {
+		case ReadWritePolicy::Normal:
+			if (dir & R) internal.caps |= caps::Input;
+			if (dir & W) internal.caps |= caps::Output;
+			break;
+		case ReadWritePolicy::Manual:
+			break;
+		case ReadWritePolicy::ReadOnly:
+			internal.caps |= caps::Input;
+			break;
+		case ReadWritePolicy::WriteOnly:
+			internal.caps |= caps::Output;
+			break;
+		}
 		{
 			using namespace tll::channel::log_msg_format;
 			internal.dump = reader.getT("dump", Disable, {{"no", Disable}, {"yes", Auto}, {"frame", Frame}, {"text", Text}, {"text+hex", TextHex}, {"scheme", Scheme}, {"auto", Auto}});
@@ -242,9 +266,6 @@ class Base
 		//_log = { fmt::format("tll.channel.{}.{}", T::param_prefix(), name) };
 		if (!reader)
 			return _log.fail(EINVAL, "Invalid url: {}", reader.error());
-
-		if (dir & R) internal.caps |= caps::Input;
-		if (dir & W) internal.caps |= caps::Output;
 
 		internal.name = name.c_str();
 		internal.logger = _log.ptr();
