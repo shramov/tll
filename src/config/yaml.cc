@@ -165,7 +165,7 @@ int state_t::parse(const yaml_event_t &event)
 							it--;
 						auto path = std::string_view(it.data_begin, it.end - it.data_begin);
 						const auto & mark = event.start_mark;
-						_log.warning("Parent '{}' with value conflicts with new node '{}' at line {}", path, full, mark.line + 1);
+						_log.error("Parent '{}' with value conflicts with new node '{}' at line {}", path, full, mark.line + 1);
 						break;
 					}
 				}
@@ -179,7 +179,7 @@ int state_t::parse(const yaml_event_t &event)
 				}
 				auto full = key_full(k);
 				const auto & mark = event.start_mark;
-				_log.warning("Conflicting value at '{}', node has children [{}] at line {}", full, names, mark.line + 1);
+				_log.error("Conflicting value at '{}', node has children [{}] at line {}", full, names, mark.line + 1);
 			}
 			if (event.data.scalar.tag) {
 				std::string_view tag((const char *) event.data.scalar.tag);
