@@ -230,6 +230,9 @@ std::optional<Processor::PreObject> Processor::init_pre(std::string_view extname
 	if (!url)
 		return log.fail(std::nullopt, "Failed to load url: {}", url.error());
 
+	if (cfg.sub("url"))
+		log.warning("'url' subtree is deprecated, rename to 'init'");
+
 	if (url->has("name"))
 		return log.fail(std::nullopt, "Duplicate name parameter");
 	url->set("name", name);
