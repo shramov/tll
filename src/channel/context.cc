@@ -23,6 +23,7 @@
 #include "tll/stat.h"
 #include "tll/util/listiter.h"
 #include "tll/util/refptr.h"
+#include "tll/util/value_tree_check.h"
 
 #include "channel/channels.h"
 
@@ -627,6 +628,7 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 
 	std::string url_str = std::string(url.proto()) + "://" + std::string(url.host());
 	std::string url_short = url_str;
+	std::set<std::string> url_keys;
 	for (auto & p : url.browse("**")) {
 		auto cvalue = p.second.get();
 		auto value = cvalue.value_or("");
@@ -637,6 +639,7 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 			url_short += fmt::format(";{}={}...", p.first, value.substr(0, 80));
 		else
 			url_short += fmt::format(";{}={}", p.first, value);
+		url_keys.emplace(p.first);
 	}
 
 	_log.info("Init channel {}", url_short);
@@ -663,6 +666,9 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 			return _log.fail(nullptr, "Failed to init channel {}: NULL internal pointer", url_str);
 		break;
 	} while (true);
+
+	for (auto & k : tll::util::check_value_tree_nodes(url_keys))
+		tll_logger_printf(c->internal->logger, TLL_LOGGER_ERROR, "Invalid url, key '%s' has both value and subtree", k.c_str());
 
 	if (!*internal && c->internal->name) {
 		auto lock = wlock();

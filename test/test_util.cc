@@ -18,6 +18,7 @@
 #include "tll/util/sockaddr.h"
 #include "tll/util/string.h"
 #include "tll/util/time.h"
+#include "tll/util/value_tree_check.h"
 #include "tll/util/url.h"
 #include "tll/util/varint.h"
 #include "tll/util/zlib.h"
@@ -820,4 +821,14 @@ TEST(Util, MemoryViewConst)
 	ASSERT_TRUE(is_const_ptr<decltype(cv0.dataT<char>())>);
 	ASSERT_TRUE(is_const_ptr<decltype(cv1.dataT<char>())>);
 	ASSERT_TRUE(is_const_ptr<decltype(cv2.dataT<char>())>);
+}
+
+TEST(Util, ValueTreeCheck)
+{
+	std::set<std::string> nodes;
+	for (auto s: {"a", "a-", "a~", "ab", "a0", "b", "b.c", "b-", "b~", "b0"})
+		nodes.insert(s);
+	auto r = tll::util::check_value_tree_nodes(nodes);
+	ASSERT_EQ(r.size(), 1);
+	ASSERT_EQ(r.front(), std::string_view("b"));
 }
