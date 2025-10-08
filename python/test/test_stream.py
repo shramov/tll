@@ -23,8 +23,8 @@ def context():
 @asyncloop_run
 @pytest.mark.parametrize("protocol", ["old", "new"])
 async def test(asyncloop, tmp_path, protocol):
-    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server')
+    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request.url=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file:///{tmp_path}/storage.dat;name=server;mode=server')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test;stream.protocol={protocol}')
 
     assert (s.caps & s.Caps.InOut) == s.Caps.Output
@@ -78,8 +78,8 @@ async def test(asyncloop, tmp_path, protocol):
 
 @asyncloop_run
 async def test_seq_data(asyncloop, tmp_path):
-    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server')
+    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request.url=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file:///{tmp_path}/storage.dat;name=server;mode=server')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     s.open()
@@ -104,8 +104,8 @@ async def test_seq_data(asyncloop, tmp_path):
 
 @asyncloop_run
 async def test_overlapped(asyncloop, tmp_path):
-    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server')
+    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request.url=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file:///{tmp_path}/storage.dat;name=server;mode=server')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     s.open()
@@ -151,8 +151,8 @@ async def test_overlapped(asyncloop, tmp_path):
 
 @asyncloop_run
 async def test_slow_online(asyncloop, tmp_path):
-    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server')
+    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request.url=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file:///{tmp_path}/storage.dat;name=server;mode=server')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     assert s.children[0].name == 'server/stream'
@@ -203,8 +203,8 @@ async def test_slow_online(asyncloop, tmp_path):
 
 @asyncloop_run
 async def test_recent(asyncloop, tmp_path):
-    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server')
+    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request.url=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file:///{tmp_path}/storage.dat;name=server;mode=server')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     s.open()
@@ -226,8 +226,8 @@ async def test_recent(asyncloop, tmp_path):
 
 @asyncloop_run
 async def test_reopen(asyncloop, tmp_path):
-    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server')
+    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request.url=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file:///{tmp_path}/storage.dat;name=server;mode=server')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     s.open()
@@ -262,8 +262,8 @@ async def test_reopen(asyncloop, tmp_path):
         ])
 @asyncloop_run
 async def test_block(asyncloop, tmp_path, req, result, protocol):
-    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request.url=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file://{tmp_path}/storage.dat;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test;stream.protocol={protocol}')
 
     assert [x.name for x in s.children] == ['server/stream', 'server/request', 'server/storage', 'server/blocks']
@@ -329,7 +329,7 @@ async def test_init_message(asyncloop, tmp_path, init_seq, init_block):
    id: 20
    fields: [{name: i32, type: int32}]
 '''
-    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;storage.dump=frame;blocks.dump=frame'
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request.url=tcp://{tmp_path}/request.sock;dump=frame;storage.dump=frame;blocks.dump=frame'
     s = asyncloop.Channel(f'{common};storage.url=file://{tmp_path}/storage.dat;name=server;mode=server;blocks.url=blocks://{tmp_path}/blocks.yaml;init-message=Initial;init-seq={init_seq};init-block={init_block};init-message-data.i64=100', scheme=SCHEME)
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test', scheme=SCHEME)
 
@@ -371,8 +371,8 @@ async def test_init_message(asyncloop, tmp_path, init_seq, init_block):
 
 @asyncloop_run
 async def test_autoseq(asyncloop, tmp_path):
-    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;autoseq=yes')
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request.url=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file://{tmp_path}/storage.dat;name=server;mode=server;autoseq=yes')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     s.open()
@@ -401,8 +401,8 @@ async def test_autoseq(asyncloop, tmp_path):
 
 @asyncloop_run
 async def test_block_clear(asyncloop, tmp_path):
-    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request.url=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file://{tmp_path}/storage.dat;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test;report-block-begin=no;report-block-end=no')
 
     s.open()
@@ -511,8 +511,8 @@ def test_blocks_channel(context, tmp_path):
 
 @asyncloop_run
 async def test_rotate(asyncloop, tmp_path):
-    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=rotate+file://{tmp_path}/storage;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request.url=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=rotate+file://{tmp_path}/storage;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     s.open()
@@ -529,8 +529,8 @@ async def test_rotate(asyncloop, tmp_path):
 
 @asyncloop_run
 async def test_rotate_on_block(asyncloop, tmp_path):
-    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=rotate+file://{tmp_path}/storage;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml;rotate-on-block=rotate')
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request.url=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=rotate+file://{tmp_path}/storage;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml;rotate-on-block=rotate')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     s.open()
@@ -675,8 +675,8 @@ async def test_stream_aggregate(asyncloop, context, tmp_path):
 
     Aggregate.STORAGE = []
 
-    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage;name=server;mode=server;blocks=aggr://')
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request.url=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file://{tmp_path}/storage;name=server;mode=server;blocks=aggr://')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     s.open()
@@ -743,8 +743,8 @@ async def test_stream_aggregate_eob_online(asyncloop, context, tmp_path):
 
     Aggregate.STORAGE = []
 
-    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage;name=server;mode=server;blocks=aggr://')
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request.url=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file://{tmp_path}/storage;name=server;mode=server;blocks=aggr://')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     s.open()
@@ -779,8 +779,8 @@ async def test_stream_aggregate_error(asyncloop, context, tmp_path):
 
     Aggregate.STORAGE = []
 
-    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage;name=server;mode=server;blocks.url=aggr://;blocks.fail-mode=yes')
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request.url=tcp://{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file://{tmp_path}/storage;name=server;mode=server;blocks.url=aggr://;blocks.fail-mode=yes')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     s.open()
@@ -801,8 +801,8 @@ async def test_stream_aggregate_feed(asyncloop, context, tmp_path):
 
     Aggregate.STORAGE = []
 
-    common = f'stream+null://;request=null://;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage;name=server;mode=server;blocks=aggr://')
+    common = f'stream+null://;request.url=null://;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file://{tmp_path}/storage;name=server;mode=server;blocks=aggr://')
     f = asyncloop.Channel(f'file://{tmp_path}/storage', dir='w', name='file')
     f.open()
     for i in range(5):
@@ -820,8 +820,8 @@ async def test_stream_aggregate_feed(asyncloop, context, tmp_path):
 
 @asyncloop_run
 async def test_ring(asyncloop, tmp_path):
-    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server')
+    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request.url=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file:///{tmp_path}/storage.dat;name=server;mode=server')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     s.open()
@@ -873,8 +873,8 @@ async def test_ring(asyncloop, tmp_path):
 
 @asyncloop_run
 async def test_ring_autoclose(asyncloop, tmp_path):
-    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file:///{tmp_path}/storage.dat;name=server;mode=server;storage.autoclose=yes')
+    common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request.url=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file:///{tmp_path}/storage.dat;name=server;mode=server;storage.autoclose=yes')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     s.open()
@@ -921,7 +921,7 @@ async def test_ring_autoclose(asyncloop, tmp_path):
 @asyncloop_run
 async def test_export_client(asyncloop, tmp_path):
     scheme = 'yamls://[{name: Test, id: 10}]'
-    server = asyncloop.Channel(f'stream+pub+tcp:///{tmp_path}/stream.sock;request=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame;storage=file:///{tmp_path}/storage.dat;name=server;mode=server', scheme=scheme)
+    server = asyncloop.Channel(f'stream+pub+tcp:///{tmp_path}/stream.sock;request.url=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame;storage.url=file:///{tmp_path}/storage.dat;name=server;mode=server', scheme=scheme)
     server.open()
     server.post(b'xxx', seq=100)
 
@@ -940,7 +940,7 @@ async def test_export_client(asyncloop, tmp_path):
 @asyncloop_run
 async def test_export_client_wildcard(asyncloop, tmp_path):
     scheme = 'yamls://[{name: Test, id: 10}]'
-    server = asyncloop.Channel(f'stream+pub+tcp://*:0;request=tcp://*:0;dump=frame;storage=file:///{tmp_path}/storage.dat;name=server;mode=server', scheme=scheme)
+    server = asyncloop.Channel(f'stream+pub+tcp://*:0;request.url=tcp://*:0;dump=frame;storage.url=file:///{tmp_path}/storage.dat;name=server;mode=server', scheme=scheme)
     server.open()
     server.post(b'xxx', seq=100)
 
@@ -969,7 +969,7 @@ async def test_request_close(asyncloop, tmp_path, path_srcdir, mode, rseq, oseq)
     request = asyncloop.Channel('direct://', name='request', scheme=f'yaml://{path_srcdir / "src/channel/stream-scheme.yaml"}')
     request.open()
 
-    client = asyncloop.Channel(f'stream+direct://;request=direct://', dump='frame', name='client', mode='client', protocol='new',
+    client = asyncloop.Channel(f'stream+direct://;request.url=direct://', dump='frame', name='client', mode='client', protocol='new',
                                **{'request.master': 'request', 'request.dump': 'frame', 'direct.dump': 'frame'})
     client.open(mode='seq', seq='10')
 
@@ -1000,7 +1000,7 @@ async def test_request_close(asyncloop, tmp_path, path_srcdir, mode, rseq, oseq)
 
 @asyncloop_run
 async def test_client(asyncloop, tmp_path):
-    s = asyncloop.Channel(f'stream+pub+tcp://::1:{ports.TCP6};request=tcp://127.0.0.1:{ports()}', storage=f'file://{tmp_path}/file.dat', name='server', mode='server')
+    s = asyncloop.Channel(f'stream+pub+tcp://::1:{ports.TCP6};request.url=tcp://127.0.0.1:{ports()}', storage=f'file://{tmp_path}/file.dat', name='server', mode='server')
     s.open()
     s.post(b'xxx', seq=10)
 
@@ -1020,8 +1020,8 @@ async def test_client(asyncloop, tmp_path):
 
 @asyncloop_run
 async def test_block_in_future(asyncloop, tmp_path):
-    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request.url=tcp://{tmp_path}/request.sock;dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file://{tmp_path}/storage.dat;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     assert [x.name for x in s.children] == ['server/stream', 'server/request', 'server/storage', 'server/blocks']
@@ -1061,7 +1061,7 @@ async def test_block_in_future(asyncloop, tmp_path):
 
 @asyncloop_run
 async def test_online_gap(asyncloop, tmp_path):
-    common = Url.parse(f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;storage.dump=frame')
+    common = Url.parse(f'stream+pub+tcp://{tmp_path}/stream.sock;request.url=tcp://{tmp_path}/request.sock;dump=frame')
     s = asyncloop.Channel(common, storage=f'file://{tmp_path}/storage.dat', name='server', mode='server', **{'tll.proto': 'stream+null'})
     spub = asyncloop.Channel(common, name='online', mode='server', **{'tll.proto': 'pub+tcp'})
     c = asyncloop.Channel(common, name='client')
@@ -1088,8 +1088,8 @@ async def test_online_gap(asyncloop, tmp_path):
 
 @asyncloop_run
 async def test_online_last_seq(asyncloop, tmp_path):
-    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server')
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request.url=tcp://{tmp_path}/request.sock;dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file://{tmp_path}/storage.dat;name=server;mode=server')
     c = asyncloop.Channel(f'pub+tcp://{tmp_path}/stream.sock;name=client;mode=client;peer=test')
 
     s.open()
@@ -1116,8 +1116,8 @@ async def test_online_last_seq(asyncloop, tmp_path):
 
 @asyncloop_run
 async def test_close_in_block(asyncloop, tmp_path):
-    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame;storage.dump=frame'
-    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request.url=tcp://{tmp_path}/request.sock;dump=frame;storage.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file://{tmp_path}/storage.dat;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     s.open()
@@ -1137,7 +1137,7 @@ async def test_close_in_block(asyncloop, tmp_path):
     assert [(m.type, m.msgid) for m in c.result] == [(c.Type.Control, scheme['BeginOfBlock'].msgid), (c.Type.Control, scheme['EndOfBlock'].msgid)]
 
 def test_max_size(context, tmp_path):
-    s = context.Channel(f'stream+null://;request=null://;storage=file://{tmp_path}/file.dat;mode=server;dump=frame;max-size=1kb')
+    s = context.Channel(f'stream+null://;request.url=null://;storage.url=file://{tmp_path}/file.dat;mode=server;dump=frame;max-size=1kb')
     s.open()
     assert s.state == s.State.Active
     s.post(b'xxx', seq=10)

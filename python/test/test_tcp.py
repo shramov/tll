@@ -354,7 +354,7 @@ class TestTcpUnix(_test_tcp_base):
         assert [(len(m.data), m.seq) for m in s.result] == [(16 * 1024, j) for j in range(i + 1)]
 
 def test_prefix():
-    s = Accum('tcp://./tcp.sock;mode=server;socket=lz4+tcp://;socket.tcp.dump=frame;dump=frame')
+    s = Accum('tcp://./tcp.sock;mode=server;socket.url=lz4+tcp://;socket.tcp.dump=frame;dump=frame')
     c = Accum('lz4+tcp://./tcp.sock;mode=client')
     s.open()
     c.open()

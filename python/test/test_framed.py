@@ -66,7 +66,7 @@ def test_pack(type, frame, pack, fields, ftype, context):
     if ftype not in (type, 'all'):
         pytest.skip(f'Unsupported mode {ftype}')
 
-    s = Accum(f'frame+direct://;frame={frame};name=server;frame.type={type}', context=context, dump='text+hex')
+    s = Accum(f'frame+direct://;frame.frame={frame};name=server;frame.type={type}', context=context, dump='text+hex')
     c = context.Channel(f'direct://', master=s, dump='text+hex')
 
     s.open()
