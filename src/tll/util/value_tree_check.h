@@ -21,8 +21,11 @@ inline std::list<std::string> check_value_tree_nodes(const std::set<std::string>
 			auto c = (*j)[off];
 			if (c < '.')
 				continue;
-			if (c == '.')
+			if (c == '.') {
+				if (j->substr(0, off) != *it)
+					continue;
 				r.emplace_back(*it);
+			}
 			break;
 		}
 	}

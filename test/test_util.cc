@@ -826,7 +826,7 @@ TEST(Util, MemoryViewConst)
 TEST(Util, ValueTreeCheck)
 {
 	std::set<std::string> nodes;
-	for (auto s: {"a", "a-", "a~", "ab", "a0", "b", "b.c", "b-", "b~", "b0"})
+	for (auto s: {"a", "a-", "a~", "ab", "a0", "b", "b.c", "b-", "b~", "b0", "c", "d.e"})
 		nodes.insert(s);
 	auto r = tll::util::check_value_tree_nodes(nodes);
 	ASSERT_EQ(r.size(), 1);
