@@ -150,7 +150,7 @@ int state_t::parse(const yaml_event_t &event)
 			auto k = key_string();
 			bool created = !cfg.sub(k, false);
 			auto sub = cfg.sub(k, true);
-			if (sub->value())
+			if (!sub || sub->value())
 				return _log.fail(EINVAL, "Failed to set value {}: duplicate entry", k);
 			if (created) {
 				auto index = 0;
