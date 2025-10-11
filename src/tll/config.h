@@ -553,7 +553,8 @@ public:
 			auto value = i.substr(sep + 1);
 			if (r.has(key))
 				return tll::error("Duplicate key: " + std::string(key));
-			r.set(key, value);
+			if (r.set(key, value))
+				return tll::error("Failed to set key: " + std::string(key));
 		}
 		return r;
 	}
