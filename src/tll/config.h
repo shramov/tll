@@ -523,7 +523,8 @@ public:
 
 		if (hsep == s.npos) {
 			cfg.set("tll.proto", proto);
-			cfg.set("tll.host", host);
+			if (host.size())
+				cfg.set("tll.host", host);
 			return cfg;
 		}
 
@@ -535,7 +536,8 @@ public:
 		if (r->has("tll.host")) return tll::error("Duplicate key: tll.host");
 		cfg = *r;
 		cfg.set("tll.proto", proto);
-		cfg.set("tll.host", host);
+		if (host.size())
+			cfg.set("tll.host", host);
 		return cfg;
 	}
 
