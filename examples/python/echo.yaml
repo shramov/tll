@@ -12,10 +12,10 @@ processor.alias:
 
 processor.objects:
   tcp:
-    url: prefix+tcp://*:8080;mode=server;dump=text;frame=none
+    init: prefix+tcp://*:8080;mode=server;dump=text;frame=none
     depends: echo
   echo:
-    url: echo://
+    init: echo://
     channels.input: tcp
 
 # vim: sts=2 sw=2 et

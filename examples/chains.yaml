@@ -1,5 +1,5 @@
 logger.levels:
-  tll: DEBUG
+  tll._: {name: tll, level: DEBUG}
   tll.channel.chains/*: WARNING
 
 processor.module:
@@ -11,11 +11,11 @@ processor:
   chain.root:
     - name: l0
       objects:
-        a: {url: 'null://;'}
+        a: {init: 'null://;'}
 
     - name: l1
       objects:
-        b: {url: 'null://;'}
+        b: {init: 'null://;'}
       spawn: aux1
 
     - name: l2
@@ -24,7 +24,7 @@ processor:
     - name: l3
       objects:
         fwd:
-          url: 'forward://'
+          init: 'forward://'
           channels:
             output: a
             input: zz # reference to objects in sub chains
@@ -35,15 +35,15 @@ processor:
   chain.aux1:
     - name: l0 # level id is unique per chain
       objects:
-        zz: {url: 'null://;'}
+        zz: {init: 'null://;'}
 
   chain.aux2:
     - name: l0
       objects:
-        xx: {url: 'null://;'}
+        xx: {init: 'null://;'}
 
     - name: l1
       objects:
-        yy: {url: 'null://;'}
+        yy: {init: 'null://;'}
 
 # vim: sts=2 sw=2 et

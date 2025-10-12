@@ -10,14 +10,14 @@ processor.worker.default.stat: yes
 
 processor.objects:
   stat:
-    url: stat://;header-level=debug
+    init: stat://;header-level=debug
     channels.timer: stat-timer
     worker: stat
   stat-timer:
-    url: timer://;interval=1s;stat=no
+    init: timer://;interval=1s;stat=no
     depends: stat
     worker: stat
   zero:
-    url: timer://;interval=1ms;stat=yes
+    init: timer://;interval=1ms;stat=yes
 
 # vim: sts=2 sw=2 et

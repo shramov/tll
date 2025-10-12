@@ -3,5 +3,5 @@ processor.defaults:
   timer.dump: frame # Channel defaults
 
 processor.objects:
-  c0.url: timer://;interval=1s
-  c1.url: timer://;interval=500ms
+  c0.init: timer://;interval=1s
+  c1.init: timer://;interval=500ms

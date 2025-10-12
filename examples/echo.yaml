@@ -8,10 +8,10 @@ processor.module:
 
 processor.objects:
   tcp:
-    url: tcp://*:8080;mode=server;dump=text;frame=none
+    init: tcp://*:8080;mode=server;dump=text;frame=none
     depends: echo
   echo:
-    url: forward://
+    init: forward://
     channels.input: tcp
     channels.output: tcp
 
