@@ -49,9 +49,9 @@ def test_open_link(context):
     cfg = Config.load('''yamls://
 processor.objects:
   null:
-    url: null://
+    init: null://
   test:
-    url: open-test://;shutdown-on=close
+    init: open-test://;shutdown-on=close
     open:
       state: !link /sys/null/state
     depends: null
@@ -101,13 +101,13 @@ def test_forward(context, asynctll):
 name: test
 processor.objects:
   output:
-    url: mem://;size=1mb;dump=frame
+    init: mem://;size=1mb;dump=frame
   forward:
-    url: forward://
+    init: forward://
     depends: output
     channels: {input: input, output: output}
   input:
-    url: mem://;size=1mb;dump=frame
+    init: mem://;size=1mb;dump=frame
     depends: forward
 ''')
 
@@ -154,7 +154,7 @@ async def test_control(asyncloop, context):
 name: test
 processor.objects:
   object:
-    url: direct://;master=object-client;tll.processor.ignore-master-dependency=yes
+    init: direct://;master=object-client;tll.processor.ignore-master-dependency=yes
 ''')
 
     oclient = asyncloop.Channel('direct://;name=object-client;dump=yes')
@@ -275,13 +275,13 @@ mock:
 name: processor
 processor.objects:
   output:
-    url: !link /mock/output
+    init: !link /mock/output
   forward:
-    url: forward://
+    init: forward://
     depends: output
     channels: {input: input, output: output}
   input:
-    url: !link /mock/input
+    init: !link /mock/input
     depends: forward
 ''')
 
@@ -310,7 +310,7 @@ name: processor
 processor.scheme-path: [{tmp_path}]
 processor.objects:
   null:
-    url: null://;scheme=yaml://{filename}
+    init: null://;scheme=yaml://{filename}
 ''')
 
     mock.open()
