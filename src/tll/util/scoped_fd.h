@@ -15,6 +15,7 @@ class ScopedFd
 	int _fd = -1;
 
  public:
+	ScopedFd() = default;
 	explicit ScopedFd(int fd) noexcept : _fd(fd) {}
 	ScopedFd(const ScopedFd &) = delete;
 	ScopedFd(ScopedFd && rhs) noexcept : _fd(std::exchange(rhs._fd, -1)) {}
