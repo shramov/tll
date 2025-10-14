@@ -15,8 +15,10 @@
 #include "tll/util/cppring.h"
 #include "tll/util/fixed_point.h"
 #include "tll/util/memoryview.h"
+#include "tll/util/mmstruct.h"
 #include "tll/util/sockaddr.h"
 #include "tll/util/string.h"
+#include "tll/util/tempfile.h"
 #include "tll/util/time.h"
 #include "tll/util/value_tree_check.h"
 #include "tll/util/url.h"
@@ -831,4 +833,24 @@ TEST(Util, ValueTreeCheck)
 	auto r = tll::util::check_value_tree_nodes(nodes);
 	ASSERT_EQ(r.size(), 1);
 	ASSERT_EQ(r.front(), std::string_view("b"));
+}
+
+TEST(Util, MMStruct)
+{
+	auto tmp = tll::util::TempFile("mmstruct");
+	tll::util::MMStruct<long long> r, w;
+	ASSERT_FALSE(r.init(tmp.filename().string(), r.ReadOnly));
+	ASSERT_TRUE(w.init(tmp.filename().string()));
+	ASSERT_TRUE(r.init(tmp.filename().string(), r.ReadOnly));
+
+	ASSERT_NE(w.ptr(), nullptr);
+	ASSERT_NE(r.ptr(), nullptr);
+
+	ASSERT_EQ(*w, 0);
+	ASSERT_EQ(*r, 0);
+
+	*w = 100;
+
+	ASSERT_EQ(*w, 100);
+	ASSERT_EQ(*r, 100);
 }
