@@ -15,8 +15,11 @@ def unpack(b):
     m = memoryview(b)
     if len(m) != 16:
         raise ValueError(f"Invalid size of packed decimal128 'f{b}': {len(m)}")
+    return unpack_buf(PyMemoryView_GET_BUFFER(m))
+
+cdef object unpack_buf(const Py_buffer * buf):
     cdef tll_decimal128_unpacked_t u
-    tll_decimal128_unpack(&u, <const tll_decimal128_t *>(PyMemoryView_GET_BUFFER(m).buf))
+    tll_decimal128_unpack(&u, <const tll_decimal128_t *>(buf.buf))
     if u.exponent >= TLL_DECIMAL128_INF:
         if u.exponent == TLL_DECIMAL128_INF:
             if u.sign:

@@ -23,3 +23,5 @@ cdef extern from "tll/util/decimal128.h":
 
     cdef int tll_decimal128_pack(tll_decimal128_t *, const tll_decimal128_unpacked_t *)
     cdef int tll_decimal128_unpack(tll_decimal128_unpacked_t *, const tll_decimal128_t *)
+
+cdef object unpack_buf(const Py_buffer * buf)

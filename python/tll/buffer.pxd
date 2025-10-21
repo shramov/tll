@@ -9,6 +9,7 @@ cdef extern from "Python.h":
 
     cdef Py_buffer * PyMemoryView_GET_BUFFER(object mview)
     cdef int PyMemoryView_Check(object obj)
+    cdef object PyMemoryView_FromBuffer(const Py_buffer *)
 
 cdef extern from "string.h":
     cdef size_t strnlen(const char *, size_t)

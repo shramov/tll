@@ -18,6 +18,7 @@ from .buffer cimport *
 from . import chrono
 from . import bits as B
 from . import decimal128
+from . cimport decimal128
 
 class Type(enum.Enum):
     Int8 = TLL_SCHEME_FIELD_INT8
@@ -212,6 +213,23 @@ OFFSET_PTR_INVALID.offset = 0
 OFFSET_PTR_INVALID.size = -1
 OFFSET_PTR_INVALID.entity = 0
 
+cdef Py_buffer pybuf_copy(const Py_buffer * buf):
+    cdef Py_buffer r
+    memcpy(&r, buf, sizeof(r))
+    return r
+
+cdef Py_buffer * pybuf_shift(Py_buffer * buf, size_t offset):
+    if buf.len < offset:
+        buf.len = 0
+    else:
+        buf.len -= offset
+        buf.buf = offset + <char *>buf.buf
+    return buf
+
+cdef Py_buffer * pybuf_crop(Py_buffer * buf, size_t size):
+    buf.len = size
+    return buf
+
 cdef int pack_fused(primitive_t v, object dest):
     if not PyMemoryView_Check(dest): return EINVAL
     cdef Py_buffer * buf = PyMemoryView_GET_BUFFER(dest)
@@ -220,16 +238,14 @@ cdef int pack_fused(primitive_t v, object dest):
     memcpy(buf.buf, &v, sizeof(v))
     #(<typeof(v) *>buf.buf)[0] = v;
 
-cdef primitive_t unpack_fused(primitive_t v, object src):
-    if not PyMemoryView_Check(src): return 0 #EINVAL
-    cdef Py_buffer * buf = PyMemoryView_GET_BUFFER(src)
+cdef primitive_t unpack_fused(primitive_t v, const Py_buffer * buf):
     if buf.len < <ssize_t>(sizeof(v)): return 0 #EMSGSIZE
 #        raise TLLError("Dest buffer too small: {} < {}".format(buf.len, sizeof(typeof(v))))
     memcpy(&v, buf.buf, sizeof(v))
     return v
     #(<typeof(v) *>buf.buf)[0] = v;
 
-cdef offset_ptr_t read_optr_default(Py_buffer * buf, unsigned entity):
+cdef offset_ptr_t read_optr_default(const Py_buffer * buf, unsigned entity):
     if buf.len < <ssize_t>(sizeof(tll_scheme_offset_ptr_t)): return OFFSET_PTR_INVALID
     cdef tll_scheme_offset_ptr_t * ptr = <tll_scheme_offset_ptr_t *>buf.buf
     cdef offset_ptr_t r
@@ -242,7 +258,7 @@ cdef offset_ptr_t read_optr_default(Py_buffer * buf, unsigned entity):
     r.offset = offset
     return r
 
-cdef offset_ptr_t read_optr_legacy_short(Py_buffer * buf, unsigned entity):
+cdef offset_ptr_t read_optr_legacy_short(const Py_buffer * buf, unsigned entity):
     if buf.len < <ssize_t>(sizeof(tll_scheme_offset_ptr_legacy_short_t)): return OFFSET_PTR_INVALID
     cdef tll_scheme_offset_ptr_legacy_short_t * ptr = <tll_scheme_offset_ptr_legacy_short_t *>buf.buf
     cdef offset_ptr_t r
@@ -251,7 +267,7 @@ cdef offset_ptr_t read_optr_legacy_short(Py_buffer * buf, unsigned entity):
     r.entity = entity
     return r
 
-cdef offset_ptr_t read_optr_legacy_long(Py_buffer * buf, unsigned entity):
+cdef offset_ptr_t read_optr_legacy_long(const Py_buffer * buf, unsigned entity):
     if buf.len < <ssize_t>(sizeof(tll_scheme_offset_ptr_legacy_long_t)): return OFFSET_PTR_INVALID
     cdef tll_scheme_offset_ptr_legacy_long_t * ptr = <tll_scheme_offset_ptr_legacy_long_t *>buf.buf
     cdef offset_ptr_t r
@@ -260,9 +276,7 @@ cdef offset_ptr_t read_optr_legacy_long(Py_buffer * buf, unsigned entity):
     r.entity = ptr.entity
     return r
 
-cdef offset_ptr_t read_optr(object src, int optr_type, unsigned entity):
-    if not PyMemoryView_Check(src): return OFFSET_PTR_INVALID
-    cdef Py_buffer * buf = PyMemoryView_GET_BUFFER(src)
+cdef offset_ptr_t read_optr(const Py_buffer * buf, int optr_type, unsigned entity):
     if optr_type == TLL_SCHEME_OFFSET_PTR_DEFAULT:
         return read_optr_default(buf, entity)
     elif optr_type == TLL_SCHEME_OFFSET_PTR_LEGACY_SHORT:
@@ -314,13 +328,13 @@ cdef class FBase:
 
     cdef pack(FBase self, v, dest, tail, int tail_offset):
         pass
-    cdef unpack(FBase self, src):
+    cdef unpack(FBase self, const Py_buffer * src):
         pass
     cdef convert(FBase self, v):
         return v
     cdef from_string(FBase self, str s):
         raise NotImplementedError("Conversion from string not implemented")
-    cdef reflection(FBase self, src):
+    cdef reflection(FBase self, const Py_buffer * src):
         return self.unpack(src)
     cdef as_dict(self, v):
         return v
@@ -329,7 +343,7 @@ _TYPES = {}
 cdef class FInt8(FBase):
     default = int
     cdef pack(FInt8 self, v, dest, tail, int tail_offset): return pack_fused(<int8_t>v, dest)
-    cdef unpack(FInt8 self, src): return unpack_fused(<int8_t>0, src)
+    cdef unpack(FInt8 self, const Py_buffer * src): return unpack_fused(<int8_t>0, src)
     cdef convert(FInt8 self, v): return <int8_t>v
     cdef from_string(FInt8 self, str s): return int(s, 0)
 _TYPES[Type.Int8] = FInt8
@@ -337,7 +351,7 @@ _TYPES[Type.Int8] = FInt8
 cdef class FInt16(FBase):
     default = int
     cdef pack(FInt16 self, v, dest, tail, int tail_offset): return pack_fused(<int16_t>v, dest)
-    cdef unpack(FInt16 self, src): return unpack_fused(<int16_t>0, src)
+    cdef unpack(FInt16 self, const Py_buffer * src): return unpack_fused(<int16_t>0, src)
     cdef convert(FInt16 self, v): return <int16_t>v
     cdef from_string(FInt16 self, str s): return int(s, 0)
 _TYPES[Type.Int16] = FInt16
@@ -345,7 +359,7 @@ _TYPES[Type.Int16] = FInt16
 cdef class FInt32(FBase):
     default = int
     cdef pack(FInt32 self, v, dest, tail, int tail_offset): return pack_fused(<int32_t>v, dest)
-    cdef unpack(FInt32 self, src): return unpack_fused(<int32_t>0, src)
+    cdef unpack(FInt32 self, const Py_buffer * src): return unpack_fused(<int32_t>0, src)
     cdef convert(FInt32 self, v): return <int32_t>v
     cdef from_string(FInt32 self, str s): return int(s, 0)
 _TYPES[Type.Int32] = FInt32
@@ -353,7 +367,7 @@ _TYPES[Type.Int32] = FInt32
 cdef class FInt64(FBase):
     default = int
     cdef pack(FInt64 self, v, dest, tail, int tail_offset): return pack_fused(<int64_t>v, dest)
-    cdef unpack(FInt64 self, src): return unpack_fused(<int64_t>0, src)
+    cdef unpack(FInt64 self, const Py_buffer * src): return unpack_fused(<int64_t>0, src)
     cdef convert(FInt64 self, v): return <int64_t>v
     cdef from_string(FInt64 self, str s): return int(s, 0)
 _TYPES[Type.Int64] = FInt64
@@ -361,7 +375,7 @@ _TYPES[Type.Int64] = FInt64
 cdef class FUInt8(FBase):
     default = int
     cdef pack(FUInt8 self, v, dest, tail, int tail_offset): return pack_fused(<uint8_t>v, dest)
-    cdef unpack(FUInt8 self, src): return unpack_fused(<uint8_t>0, src)
+    cdef unpack(FUInt8 self, const Py_buffer * src): return unpack_fused(<uint8_t>0, src)
     cdef convert(FUInt8 self, v): return <uint8_t>v
     cdef from_string(FUInt8 self, str s): return int(s, 0)
 _TYPES[Type.UInt8] = FUInt8
@@ -369,7 +383,7 @@ _TYPES[Type.UInt8] = FUInt8
 cdef class FUInt16(FBase):
     default = int
     cdef pack(FUInt16 self, v, dest, tail, int tail_offset): return pack_fused(<uint16_t>v, dest)
-    cdef unpack(FUInt16 self, src): return unpack_fused(<uint16_t>0, src)
+    cdef unpack(FUInt16 self, const Py_buffer * src): return unpack_fused(<uint16_t>0, src)
     cdef convert(FUInt16 self, v): return <uint16_t>v
     cdef from_string(FUInt16 self, str s): return int(s, 0)
 _TYPES[Type.UInt16] = FUInt16
@@ -377,7 +391,7 @@ _TYPES[Type.UInt16] = FUInt16
 cdef class FUInt32(FBase):
     default = int
     cdef pack(FUInt32 self, v, dest, tail, int tail_offset): return pack_fused(<uint32_t>v, dest)
-    cdef unpack(FUInt32 self, src): return unpack_fused(<uint32_t>0, src)
+    cdef unpack(FUInt32 self, const Py_buffer * src): return unpack_fused(<uint32_t>0, src)
     cdef convert(FUInt32 self, v): return <uint32_t>v
     cdef from_string(FUInt32 self, str s): return int(s, 0)
 _TYPES[Type.UInt32] = FUInt32
@@ -385,7 +399,7 @@ _TYPES[Type.UInt32] = FUInt32
 cdef class FUInt64(FBase):
     default = int
     cdef pack(FUInt64 self, v, dest, tail, int tail_offset): return pack_fused(<uint64_t>v, dest)
-    cdef unpack(FUInt64 self, src): return unpack_fused(<uint64_t>0, src)
+    cdef unpack(FUInt64 self, const Py_buffer * src): return unpack_fused(<uint64_t>0, src)
     cdef convert(FUInt64 self, v): return <uint64_t>v
     cdef from_string(FUInt64 self, str s): return int(s, 0)
 _TYPES[Type.UInt64] = FUInt64
@@ -393,7 +407,7 @@ _TYPES[Type.UInt64] = FUInt64
 cdef class FDouble(FBase):
     default = float
     cdef pack(FDouble self, v, dest, tail, int tail_offset): return pack_fused(<double>v, dest)
-    cdef unpack(FDouble self, src): return unpack_fused(<double>0, src)
+    cdef unpack(FDouble self, const Py_buffer * src): return unpack_fused(<double>0, src)
     cdef convert(FDouble self, v): return float(v)
     cdef from_string(FDouble self, str s): return float(s)
 _TYPES[Type.Double] = FDouble
@@ -404,8 +418,8 @@ cdef class FDecimal128(FBase):
     cdef pack(FDecimal128 self, v, dest, tail, int tail_offset):
         b = decimal128.pack(v)
         return pack_bytes(b, dest, tail, tail_offset)
-    cdef unpack(FDecimal128 self, src):
-        return decimal128.unpack(src[:16])
+    cdef unpack(FDecimal128 self, const Py_buffer * src):
+        return decimal128.unpack_buf(src)
     cdef convert(FDecimal128 self, v):
         return decimal_value_check(decimal128.context.create_decimal, v)
     cdef from_string(FDecimal128 self, str s):
@@ -421,7 +435,9 @@ cdef class FBytes(FBase):
         self.size = f.size
 
     cdef pack(FBytes self, v, dest, tail, int tail_offset): return pack_bytes(v, dest, tail, tail_offset)
-    cdef unpack(FBytes self, src): return unpack_bytes(src[:self.size])
+    cdef unpack(FBytes self, const Py_buffer * src):
+        cdef Py_buffer buf = pybuf_copy(src)
+        return unpack_bytes(pybuf_crop(&buf, self.size))
     cdef convert(FBytes self, v):
         if isinstance(v, str):
             v = v.encode('utf-8')
@@ -435,8 +451,8 @@ _TYPES[Type.Bytes] = FBytes
 
 cdef class FArray(FBase):
     cdef int count
-    cdef object type_array
-    cdef object count_ptr
+    cdef CField type_array
+    cdef CField count_ptr
     cdef object default
 
     def __init__(self, f):
@@ -452,19 +468,21 @@ cdef class FArray(FBase):
             self.type_array.pack_data(e, dest[off:off + self.type_array.size], tail, tail_offset - off)
             off += self.type_array.size
 
-    cdef _unpack(FArray self, src, f):
+    cdef _unpack(FArray self, const Py_buffer * src, object (*f)(CField, const Py_buffer *)):
         r = self.default()
         cdef int i = 0
         off = self.type_array.offset
         cdef int size = self.count_ptr.unpack_data(src)
+        cdef Py_buffer buf = pybuf_copy(src)
+        pybuf_shift(&buf, self.type_array.offset)
         while i < size:
-            list.append(r, f(src[off:]))
-            off += self.type_array.size
+            list.append(r, f(self.type_array, &buf))
+            pybuf_shift(&buf, self.type_array.size)
             i += 1
         return r
 
-    cdef unpack(FArray self, src): return self._unpack(src, self.type_array.unpack_data)
-    cdef reflection(FArray self, src): return self._unpack(src, self.type_array.unpack_reflection)
+    cdef unpack(FArray self, const Py_buffer * src): return self._unpack(src, self.type_array.unpack_data)
+    cdef reflection(FArray self, const Py_buffer * src): return self._unpack(src, self.type_array._unpack_reflection)
 
     cdef convert(FArray self, l):
         if not isinstance(l, (tuple, list)):
@@ -481,7 +499,7 @@ _TYPES[Type.Array] = FArray
 cdef class FPointer(FBase):
     cdef int version
     cdef int size
-    cdef object type_ptr
+    cdef CField type_ptr
     cdef object default
 
     def __init__(self, f):
@@ -507,7 +525,7 @@ cdef class FPointer(FBase):
         tail.extend(b)
         tail.extend(tnew)
 
-    cdef _unpack(FPointer self, src, f):
+    cdef _unpack(FPointer self, const Py_buffer * src, object (*f)(CField, const Py_buffer *buf)):
         cdef offset_ptr_t ptr = read_optr(src, self.version, self.size)
         if ptr.size < 0: return None
         r = self.default()
@@ -515,18 +533,19 @@ cdef class FPointer(FBase):
             raise ValueError("Truncated offset ptr")
         if ptr.size == 0:
             return r
-        if ptr.offset + ptr.entity * ptr.size > len(src):
-            raise ValueError("Truncated list (size {}): end {} out of buffer size {}".format(ptr.size, ptr.offset + ptr.entity * ptr.size, len(src)))
-        off = ptr.offset
+        if ptr.offset + ptr.entity * ptr.size > src.len: # len(src):
+            raise ValueError("Truncated list (size {}): end {} out of buffer size {}".format(ptr.size, ptr.offset + ptr.entity * ptr.size, src.len))
         cdef int i = 0
+        cdef Py_buffer buf = pybuf_copy(src)
+        pybuf_shift(&buf, ptr.offset)
         while i < ptr.size:
-            list.append(r, f(src[off:]))
-            off += ptr.entity
+            list.append(r, f(self.type_ptr, &buf))
+            pybuf_shift(&buf, ptr.entity)
             i += 1
         return r
 
-    cdef unpack(FPointer self, src): return self._unpack(src, self.type_ptr.unpack_data)
-    cdef reflection(FPointer self, src): return self._unpack(src, self.type_ptr.unpack_reflection)
+    cdef unpack(FPointer self, const Py_buffer * src): return self._unpack(src, self.type_ptr.unpack_data)
+    cdef reflection(FPointer self, const Py_buffer * src): return self._unpack(src, self.type_ptr._unpack_reflection)
 
     cdef convert(FPointer self, l):
         if not isinstance(l, (tuple, list)):
@@ -548,10 +567,10 @@ cdef class FMessage(FBase):
     cdef pack(FMessage self, v, dest, tail, int tail_offset):
         return self.type_msg.pack(v, dest, tail, tail_offset)
 
-    cdef unpack(FMessage self, src):
-        return self.type_msg.unpack(src)
-    cdef reflection(FMessage self, src):
-        return self.type_msg.reflection(src)
+    cdef unpack(FMessage self, const Py_buffer * src):
+        return unpack_message(self.type_msg, src, self.default())
+    cdef reflection(FMessage self, const Py_buffer * src):
+        return self.type_msg.reflection(PyMemoryView_FromBuffer(src))
 
     cdef convert(FMessage self, v):
         if isinstance(v, dict):
@@ -568,7 +587,7 @@ _TYPES[Type.Message] = FMessage
 
 cdef class FUnion(FBase):
     cdef object type_union
-    cdef object type_ptr
+    cdef CField type_ptr
     cdef object default
 
     def __init__(self, f):
@@ -581,14 +600,15 @@ cdef class FUnion(FBase):
         self.type_ptr.pack_data(f.union_index, dest[:self.type_ptr.size], b'', 0)
         return f.pack_data(v[1], dest[f.offset:f.offset + f.size], tail, tail_offset - f.offset)
 
-    cdef unpack(FUnion self, src):
+    cdef unpack(FUnion self, const Py_buffer * src):
         idx = self.type_ptr.unpack_data(src)
         if idx < 0 or idx > len(self.type_union.fields):
             raise ValueError(f"Invalid union index: {idx}")
-        f = self.type_union.fields[idx]
-        return self.type_union.klass(f.name, f.unpack_data(src[f.offset:]))
+        cdef CField f = self.type_union.fields[idx]
+        cdef Py_buffer buf = pybuf_copy(src)
+        return self.type_union.klass(f.name, f.unpack_data(pybuf_shift(&buf, f.offset)))
     """
-    cdef reflection(FUnion self, src):
+    cdef reflection(FUnion self, const Py_buffer * src):
         return self.type_msg.reflection(src)
     """
 
@@ -628,7 +648,7 @@ cdef class FEnum(FBase):
 
     cdef pack(FEnum self, v, dest, tail, int tail_offset):
         return self.base.pack(v.value, dest, tail, tail_offset)
-    cdef unpack(FEnum self, src):
+    cdef unpack(FEnum self, const Py_buffer * src):
         return self.enum_class(self.base.unpack(src))
     cdef convert(FEnum self, v):
         if isinstance(v, str):
@@ -668,7 +688,7 @@ cdef class FFixed(FBase):
 
     cdef pack(FFixed self, v, dest, tail, int tail_offset):
         return self.base.pack(v.scaleb(self.fixed_precision).to_integral_value(), dest, tail, tail_offset)
-    cdef unpack(FFixed self, src):
+    cdef unpack(FFixed self, const Py_buffer * src):
         return Decimal(self.base.unpack(src)) * Decimal((0, (1,), -self.fixed_precision))
     cdef convert(FFixed self, v):
         if isinstance(v, int):
@@ -698,7 +718,7 @@ cdef class FTimePoint(FBase):
 
     cdef pack(FTimePoint self, v, dest, tail, int tail_offset):
         return self.base.pack(chrono.TimePoint(v, self.time_resolution, type=self.base.default).value, dest, tail, tail_offset)
-    cdef unpack(FTimePoint self, src):
+    cdef unpack(FTimePoint self, const Py_buffer * src):
         return chrono.TimePoint(self.base.unpack(src), self.time_resolution, type=self.base.default)
     cdef convert(FTimePoint self, v):
         if isinstance(v, str):
@@ -721,7 +741,7 @@ cdef class FDuration(FBase):
 
     cdef pack(FDuration self, v, dest, tail, int tail_offset):
         return self.base.pack(chrono.Duration(v, self.time_resolution, type=self.base.default).value, dest, tail, tail_offset)
-    cdef unpack(FDuration self, src):
+    cdef unpack(FDuration self, const Py_buffer * src):
         return chrono.Duration(self.base.unpack(src), self.time_resolution, type=self.base.default)
     cdef convert(FDuration self, v):
         if isinstance(v, str):
@@ -743,7 +763,7 @@ cdef class FBits(FBase):
 
     cdef pack(FBits self, v, dest, tail, int tail_offset):
         return self.base.pack(v._value, dest, tail, tail_offset)
-    cdef unpack(FBits self, src):
+    cdef unpack(FBits self, const Py_buffer * src):
         return self.default(self.base.unpack(src))
     cdef convert(FBits self, v):
         if isinstance(v, str):
@@ -767,7 +787,9 @@ cdef class FFixedString(FBase):
         self.size = f.size
 
     cdef pack(FFixedString self, v, dest, tail, int tail_offset): return pack_bytes(v, dest, tail, tail_offset)
-    cdef unpack(FFixedString self, src): return unpack_str(src[:self.size])
+    cdef unpack(FFixedString self, const Py_buffer * src):
+        cdef Py_buffer buf = pybuf_copy(src)
+        return unpack_str(pybuf_crop(&buf, self.size))
     cdef convert(FFixedString self, v):
         v = convert_str(v)
         if len(v) > self.size:
@@ -796,7 +818,7 @@ cdef class FVString(FBase):
             return None
         tail.extend(b + b'\0')
 
-    cdef unpack(FVString self, src):
+    cdef unpack(FVString self, const Py_buffer * src):
         return unpack_vstring(src, self.version)
     cdef convert(FVString self, v): return convert_str(v)
     cdef from_string(FVString self, str s): return s
@@ -814,28 +836,22 @@ cdef pack_bytes(v, dest, tail, tail_offset):
     #if inbuf.len < buf.len:
     #    memset(buf.buf + inbuf.len, 0, buf.len - inbuf.len)
 
-cdef unpack_bytes(src):
-    if not PyMemoryView_Check(src): return None #EINVAL
-    #cdef Py_buffer * buf = PyMemoryView_GET_BUFFER(src)
-    return bytearray(src) #<char *>buf.buf, buf.len)
+cdef unpack_bytes(const Py_buffer * buf):
+    return bytearray((<char *>buf.buf)[:buf.len]) #<char *>buf.buf, buf.len)
 
-cdef unpack_str(src):
-    if not PyMemoryView_Check(src): return None #EINVAL
-    cdef Py_buffer * buf = PyMemoryView_GET_BUFFER(src)
+cdef unpack_str(const Py_buffer * buf):
     cdef int l = strnlen(<char *>buf.buf, buf.len)
-    return b2s(bytearray(src[:l])) #<char *>buf.buf, buf.len)
+    return b2s((<char *>buf.buf)[:l])
 
-cdef unpack_vstring(object src, int optr_version):
+cdef unpack_vstring(const Py_buffer * src, int optr_version):
     cdef offset_ptr_t ptr = read_optr(src, optr_version, 1)
     if ptr.size < 0: return None
     if ptr.size == 0:
         return "" #src[sizeof(tll_scheme_offset_ptr_t):sizeof(tll_scheme_offset_ptr_t)]
-    if ptr.offset + ptr.size > len(src):
-        raise ValueError(f"Offset string at {ptr.offset}+{ptr.size} out of tail size {len(src)}")
-    r = src[ptr.offset:ptr.offset + ptr.size - 1]
-    if PY_MAJOR_VERSION == 2:
-        return r.tobytes()
-    return str(r, encoding='utf-8')
+    if ptr.offset + ptr.size > src.len:
+        raise ValueError(f"Offset string at {ptr.offset}+{ptr.size} out of tail size {src.len}")
+    cdef char * r = <char *>src.buf
+    return str(r[ptr.offset:ptr.offset + ptr.size - 1], encoding='utf-8')
 
 def convert_str(v):
     if isinstance(v, bytes):
@@ -861,19 +877,29 @@ def _as_dict_msg(msg, v, only=set(), ignore=set()):
         r[f.name] = f.as_dict(x)
     return r
 
-class Field:
+cdef class CField:
+    cdef public size_t offset
+    cdef public size_t size
+    cdef public int index
+    cdef public FBase impl
+    cdef public str name
+    cdef public bytes name_bytes
+    cdef public CField type_ptr
+    cdef public CField type_array
+    cdef dict __dict__
+
     Type = _Type
     Sub = SubType
-    def init(self, name, type):
+    def init(self, name, type, sub_type):
         impl = _TYPES.get(type)
         if impl is None:
             raise NotImplementedError(f"Type {type} is not implemented")
         self.impl = impl(self)
 
-        if self.sub_type != SubType.NONE:
-            impl = _SUBTYPES.get((type, self.sub_type))
+        if sub_type != SubType.NONE:
+            impl = _SUBTYPES.get((type, sub_type))
             if impl is None:
-                impl = _SUBTYPES.get(self.sub_type)
+                impl = _SUBTYPES.get(sub_type)
             if impl is not None:
                 #raise NotImplementedError(f"Sub-type {self.sub_type} for type {type} is not implemented")
                 self.impl = impl(self)
@@ -893,11 +919,14 @@ class Field:
         cdef FBase impl = self.impl
         return impl.pack(v, dest, tail, tail_offset)
 
-    def unpack_data(self, src):
+    cdef unpack_data(self, const Py_buffer * src):
         cdef FBase impl = self.impl
         return impl.unpack(src)
 
     def unpack_reflection(self, src):
+        return self._unpack_reflection(PyMemoryView_GET_BUFFER(memoryview(src)))
+
+    cdef _unpack_reflection(self, const Py_buffer * src):
         cdef FBase impl = self.impl
         return impl.reflection(src)
 
@@ -907,7 +936,7 @@ class Field:
 
     def unpack(self, src):
         memoryview_check(src)
-        return self.unpack_data(src[self.offset:self.offset + self.size])
+        return self.unpack_data(PyMemoryView_GET_BUFFER(src[self.offset:self.offset + self.size]))
 
     def from_string(self, v : str):
         cdef FBase impl = self.impl
@@ -924,6 +953,9 @@ class Field:
     def optional(self):
         return self.index >= 0
 
+class Field(CField):
+    pass
+
 for t in Type:
     setattr(Field, t.name, t)
 
@@ -937,15 +969,15 @@ cdef object field_wrap(Scheme s, object m, tll_scheme_field_t * ptr):
     r.type = Type(ptr.type)
     r.sub_type = SubType(ptr.sub_type)
     r.index = ptr.index
-    if r.type in (r.Int8, r.Int16, r.Int32, r.Int64):
+    if r.type in (Type.Int8, Type.Int16, Type.Int32, Type.Int64):
         r.limits_max = 2 ** (8 * ptr.size - 1) - 1
         r.limits_min = -r.limits_max
-    elif r.type in (r.UInt8, r.UInt16, r.UInt32, r.UInt64):
+    elif r.type in (Type.UInt8, Type.UInt16, Type.UInt32, Type.UInt64):
         r.limits_max = 2 ** (8 * ptr.size) - 1
         r.limits_min = 0
-    if r.type == r.Message:
+    if r.type == Type.Message:
         r.type_msg = s[ptr.type_msg.name]
-    elif r.type == r.Array:
+    elif r.type == Type.Array:
         r.count = ptr.count
         r.count_ptr = field_wrap(s, m, ptr.count_ptr)
         r.type_array = field_wrap(s, m, ptr.type_array)
@@ -954,7 +986,7 @@ cdef object field_wrap(Scheme s, object m, tll_scheme_field_t * ptr):
             SCHEME = r.type_array
         L.__name__ = r.name
         r.list = L
-    elif r.type == r.Pointer:
+    elif r.type == Type.Pointer:
         r.offset_ptr_version = OffsetPtrVersion(ptr.offset_ptr_version)
         r.type_ptr = field_wrap(s, m, ptr.type_ptr)
 
@@ -962,7 +994,7 @@ cdef object field_wrap(Scheme s, object m, tll_scheme_field_t * ptr):
             SCHEME = r.type_ptr
         L.__name__ = r.name
         r.list = L
-    elif r.type == r.Union:
+    elif r.type == Type.Union:
         uname = b2s(ptr.type_union.name)
         r.type_union = m.unions.get(uname, s.unions.get(uname, None))
         if r.type_union is None:
@@ -988,7 +1020,7 @@ cdef object field_wrap(Scheme s, object m, tll_scheme_field_t * ptr):
 
     r.size = ptr.size
     r.offset = ptr.offset
-    r.init(r.name, r.type) #b2s(ptr.name), Type(ptr.type))
+    r.init(r.name, r.type, r.sub_type) #b2s(ptr.name), Type(ptr.type))
     return r
 
 class List(list):
@@ -1136,22 +1168,29 @@ class Message(OrderedDict):
 
     def unpack(self, src, v=None):
         memoryview_check(src)
-        if len(src) < self.size:
-            raise ValueError("Buffer size {} less then message size {}".format(len(src), self.size))
-        pmap = src[self.pmap.offset:self.pmap.offset + self.pmap.size] if self.pmap else None
         v = self.object() if v is None else v
-        for f in self.fields:
-            if pmap:
-                if f.index >= 0 and pmap[f.index // 8] & (1 << (f.index % 8)) == 0:
-                    continue
-                elif self.pmap.name == f.name:
-                    continue
-            r = f.unpack_data(src[f.offset:])
-            object.__setattr__(v, f.name, r)
-        return v
+        return unpack_message(self, PyMemoryView_GET_BUFFER(src), v)
 
-    @property
-    def fields(s): return s.values()
+cdef unpack_message(object self, const Py_buffer * src, v):
+    if src.len < self.size:
+        raise ValueError("Buffer size {} less then message size {}".format(src.len, self.size))
+    cdef const unsigned char * pmap = NULL
+    if self.pmap:
+        pmap = <const unsigned char *>src.buf + <size_t>(self.pmap.offset)
+    cdef CField f
+    cdef Py_buffer buf = pybuf_copy(src)
+    for f in self.fields:
+        if pmap:
+            if f.index >= 0 and pmap[f.index // 8] & (1 << (f.index % 8)) == 0:
+                continue
+            elif self.pmap.name == f.name:
+                continue
+        buf.buf = src.buf
+        buf.len = src.len
+        pybuf_shift(&buf, f.offset)
+        r = f.impl.unpack(&buf)
+        object.__setattr__(v, f.name, r)
+    return v
 
 @staticmethod
 cdef object message_wrap(Scheme s, tll_scheme_message_t * ptr):
@@ -1206,6 +1245,7 @@ cdef object message_wrap(Scheme s, tll_scheme_message_t * ptr):
         elif tmp.type in (Type.Array, Type.Pointer):
             if tmp.sub_type != SubType.ByteString:
                 r.fields_init.append(tmp)
+    r.fields = list(r.values())
 
     if ptr.pmap:
         r.pmap = r[b2s(ptr.pmap.name)]

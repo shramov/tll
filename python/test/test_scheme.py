@@ -270,7 +270,7 @@ def _test_alias(s):
     assert [(f.name, f.type) for f in msg.fields] == [("f0", F.Bytes), ("f1", F.Pointer), ("f2", F.Pointer)]
     assert [(f.name, f.sub_type) for f in msg.fields if f.sub_type != F.Sub.NONE] == \
         [("f0", F.Sub.ByteString)]
-    assert [(f.name, f.type_ptr.type, f.type_ptr.sub_type) for f in msg.fields if hasattr(f, 'type_ptr')] == \
+    assert [(f.name, f.type_ptr.type, f.type_ptr.sub_type) for f in msg.fields if getattr(f, 'type_ptr', None) != None] == \
         [("f1", F.Bytes, F.Sub.ByteString), ("f2", F.Bytes, F.Sub.ByteString)]
 
     #m0 = M.object(f0 = "license", f1 = ['a', 'b'], f2 = ['c', 'd'])
