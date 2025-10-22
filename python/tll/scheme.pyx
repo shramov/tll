@@ -908,27 +908,22 @@ cdef class CField:
         return "<Field {0.name}, type: {0.type}, size: {0.size}, offset: {0.offset}>".format(self)
 
     def default(self):
-        cdef FBase impl = self.impl
-        return impl.default()
+        return self.impl.default()
 
     def convert(self, v):
-        cdef FBase impl = self.impl
-        return impl.convert(v)
+        return self.impl.convert(v)
 
     def pack_data(self, v, dest, tail, tail_offset):
-        cdef FBase impl = self.impl
-        return impl.pack(v, dest, tail, tail_offset)
+        return self.impl.pack(v, dest, tail, tail_offset)
 
     cdef unpack_data(self, const Py_buffer * src):
-        cdef FBase impl = self.impl
-        return impl.unpack(src)
+        return self.impl.unpack(src)
 
     def unpack_reflection(self, src):
         return self._unpack_reflection(PyMemoryView_GET_BUFFER(memoryview(src)))
 
     cdef _unpack_reflection(self, const Py_buffer * src):
-        cdef FBase impl = self.impl
-        return impl.reflection(src)
+        return self.impl.reflection(src)
 
     def pack(self, v, dest, tail, tail_offset = 0):
         memoryview_check(dest)
@@ -939,15 +934,13 @@ cdef class CField:
         return self.unpack_data(PyMemoryView_GET_BUFFER(src[self.offset:self.offset + self.size]))
 
     def from_string(self, v : str):
-        cdef FBase impl = self.impl
         try:
-            return impl.convert(impl.from_string(v))
+            return self.impl.convert(self.impl.from_string(v))
         except NotImplementedError:
             raise TypeError("Field {} with type {} can not be constructed from string".format(self.name, self.type))
 
     def as_dict(self, v):
-        cdef FBase impl = self.impl
-        return impl.as_dict(v)
+        return self.impl.as_dict(v)
 
     @property
     def optional(self):
