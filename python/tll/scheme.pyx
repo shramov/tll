@@ -1198,11 +1198,6 @@ cdef object message_wrap(Scheme s, tll_scheme_message_t * ptr):
     r.bits = OrderedDict()
     r.fields_init = []
 
-    class D(Data):
-        SCHEME = r
-    D.__name__ = r.name
-    r.klass = D
-
     class R(Reflection):
         SCHEME = r
     R.__name__ = r.name
@@ -1239,6 +1234,12 @@ cdef object message_wrap(Scheme s, tll_scheme_message_t * ptr):
             if tmp.sub_type != SubType.ByteString:
                 r.fields_init.append(tmp)
     r.fields = list(r.values())
+
+    class D(Data):
+        __slots__ = list([i.name for i in r.fields])
+        SCHEME = r
+    D.__name__ = r.name
+    r.klass = D
 
     if ptr.pmap:
         r.pmap = r[b2s(ptr.pmap.name)]
