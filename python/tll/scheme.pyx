@@ -562,7 +562,7 @@ cdef class FMessage(FBase):
 
     def __init__(self, f):
         self.type_msg = f.type_msg
-        self.default = self.type_msg.object
+        self.default = self.type_msg.klass
 
     cdef pack(FMessage self, v, dest, tail, int tail_offset):
         return self.type_msg.pack(v, dest, tail, tail_offset)
