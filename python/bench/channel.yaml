@@ -4,6 +4,6 @@ module:
   - module: ../build/python/tll-python
 channel:
   - null://
-  - python://;python=./bench:Null
+  - python://;python=./bench/channel:Null
   - echo://
-  - python://;python=./bench:Echo
+  - python://;python=./bench/channel:Echo
