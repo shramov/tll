@@ -54,7 +54,11 @@ struct tll_config_t : public tll::util::refbase_t<tll_config_t, 0>
 	std::variant<std::monostate, std::string, cb_pair_t, path_t> data = {};
 
 	tll_config_t(tll_config_t *p = nullptr) : parent(p) { /*printf("  new %p\n", this);*/ }
-	~tll_config_t() { /*printf("  del %p\n", this);*/ }
+	~tll_config_t()
+	{
+		for (auto &[_, k] : kids)
+			k->parent = nullptr;
+	}
 
 	tll_config_t(const tll_config_t &_cfg, unsigned depth, bool root)
 	{

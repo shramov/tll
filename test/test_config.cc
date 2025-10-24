@@ -320,3 +320,21 @@ TEST(Config, Link)
 	ASSERT_TRUE(copy.get("b.c"));
 	ASSERT_EQ(*copy.get("b.c"), "100");
 }
+
+TEST(Config, ParentFree)
+{
+	auto c = tll::Config::load(R"(yamls://{a.b: 100, a.l: !link /c, c: 200})");
+	ASSERT_TRUE(c);
+	auto s = c->sub("a");
+	ASSERT_TRUE(s);
+	ASSERT_EQ(s->parent(), c);
+	ASSERT_TRUE(s->get("b"));
+	ASSERT_EQ(*s->get("b"), "100");
+	ASSERT_TRUE(s->get("l"));
+	ASSERT_EQ(*s->get("l"), "200");
+	c = {};
+	ASSERT_EQ(s->parent(), std::nullopt);
+	ASSERT_TRUE(s->get("b"));
+	ASSERT_EQ(*s->get("b"), "100");
+	ASSERT_FALSE(s->get("l"));
+}
