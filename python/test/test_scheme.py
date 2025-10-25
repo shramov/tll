@@ -96,6 +96,9 @@ def _test(s):
 def test():
     return _test(S.Scheme(scheme))
 
+def test_ref():
+    return _test(S.Scheme(scheme).ref())
+
 def test_copy():
     return _test(S.Scheme(scheme).copy())
 
@@ -276,6 +279,7 @@ def _test_alias(s):
     #m0 = M.object(f0 = "license", f1 = ['a', 'b'], f2 = ['c', 'd'])
 
 def test_alias(): return _test_alias(S.Scheme(SCHEME_ALIAS))
+def test_alias_ref(): return _test_alias(S.Scheme(SCHEME_ALIAS).ref())
 def test_alias_copy(): return _test_alias(S.Scheme(SCHEME_ALIAS).copy())
 def test_alias_dump():
     print(S.Scheme(SCHEME_ALIAS).dump())

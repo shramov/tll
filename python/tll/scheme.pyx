@@ -1270,10 +1270,17 @@ cdef class Scheme:
         tll_scheme_unref(self._ptr)
         self._ptr = NULL
 
-    def copy(self):
+    def ref(self) -> Scheme:
+        """ Create new Scheme object that reference same C API pointer """
         if not self._ptr:
             raise RuntimeError("Uninitialized pointer")
         return Scheme.wrap(tll_scheme_ref(self._ptr))
+
+    def copy(self) -> Scheme:
+        """ Create new Scheme object with copy of C API pointer """
+        if not self._ptr:
+            raise RuntimeError("Uninitialized pointer")
+        return Scheme.wrap(tll_scheme_copy(self._ptr))
 
     @property
     def options(self): return self.options
