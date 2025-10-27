@@ -26,8 +26,12 @@ int Rate::_init(const Channel::Url &url, tll::Channel *master)
 	if (auto r = Base::_init(url, master); r)
 		return r;
 
-	if (auto r = _parse_bucket(url); r)
-		return r;
+	_master = tll::channel_cast<Rate>(master);
+
+	if (!_master) {
+		if (auto r = _parse_bucket(url); r)
+			return r;
+	}
 
 	for (auto & [n, cfg] : url.browse("bucket.*", true)) {
 		if (auto r = _parse_bucket(cfg); r)
@@ -46,6 +50,9 @@ int Rate::_init(const Channel::Url &url, tll::Channel *master)
 	} else
 		_scheme_control.reset(cscheme);
 
+	if (_master)
+		return 0;
+
 	auto curl = this->child_url_parse("timer://;clock=realtime", "timer");
 	if (!curl)
 		return this->_log.fail(EINVAL, "Failed to parse timer url: {}", curl.error());
@@ -54,6 +61,8 @@ int Rate::_init(const Channel::Url &url, tll::Channel *master)
 		return this->_log.fail(EINVAL, "Failed to create timer channel");
 	_timer->callback_add([](auto * c, auto * m, void * user) { return static_cast<Rate *>(user)->_on_timer(m); }, this, TLL_MESSAGE_MASK_DATA);
 	this->_child_add(_timer.get(), "timer");
+
+	_notify.insert(this);
 
 	return 0;
 }
@@ -102,10 +111,56 @@ int Rate::_on_timer(const tll_msg_t *)
 		return 0;
 	}
 
+	_notify_last = (_notify_last + 1) % _notify.size();
+	for (auto i = _notify_last; i != _notify_last + _notify.size(); i++) {
+		if (auto s = _notify[i % _notify.size()]; s)
+			s->_rate_ready();
+	}
+	_notify.rebuild();
+
+	return 0;
+}
+
+void Rate::_rate_full()
+{
+	if (internal.caps & tll::caps::Output)
+		_callback_control(tcp_client_scheme::WriteFull::meta_id());
+	else
+		_child->suspend();
+}
+
+void Rate::_rate_ready()
+{
 	if (internal.caps & tll::caps::Output)
 		_callback_control(tcp_client_scheme::WriteReady::meta_id());
 	else
 		_child->resume();
+}
+
+int Rate::_update_buckets(tll::time_point now, size_t count)
+{
+	if (_master)
+		return _master->_update_buckets(now, count);
+
+	tll::duration next = {};
+	for (auto & b : _buckets) {
+		const size_t size = b.conf.unit == Unit::Byte ? count : 1;
+		b.update(b.conf, now);
+
+		b.consume(size);
+
+		if (b.empty())
+			next = std::max(next, b.next(b.conf, now));
+	}
+
+	if (next.count()) {
+		if (_rearm(next))
+			return _log.fail(EINVAL, "Failed to rearm timer");
+		for (auto s : _notify) {
+			if (s)
+				s->_rate_full();
+		}
+	}
 
 	return 0;
 }
@@ -115,23 +170,8 @@ int Rate::_on_data(const tll_msg_t * msg)
 	if (internal.caps & tll::caps::Output)
 		return Base::_on_data(msg);
 
-	auto now = tll::time::now();
-	tll::duration next = {};
-	for (auto & b : _buckets) {
-		const size_t size = b.conf.unit == Unit::Byte ? msg->size : 1;
-		b.update(b.conf, now);
-
-		b.consume(size);
-
-		if (b.empty())
-			next = std::max(next, b.next(b.conf, now));
-	}
-
-	if (next.count() != 0) {
-		if (_rearm(next))
-			return _log.fail(EINVAL, "Failed to rearm timer");
-		_child->suspend();
-	}
+	if (auto r = _update_buckets(tll::time::now(), msg->size); r)
+		return r;
 	return Base::_on_data(msg);
 }
 
@@ -157,22 +197,7 @@ int Rate::_post(const tll_msg_t *msg, int flags)
 	if (auto r = _child->post(msg, flags); r)
 		return r;
 
-	tll::duration next = {};
-	for (auto & b : _buckets) {
-		const size_t size = b.conf.unit == Unit::Byte ? msg->size : 1;
-
-		b.consume(size);
-
-		if (b.empty())
-			next = std::max(next, b.next(b.conf, now));
-	}
-
-	if (next.count()) {
-		if (_rearm(next))
-			return _log.fail(EINVAL, "Failed to rearm timer");
-		_callback_control(tcp_client_scheme::WriteFull::meta_id());
-	}
-	return 0;
+	return _update_buckets(now, msg->size);
 }
 
 int Rate::_rearm(const tll::duration &dt)

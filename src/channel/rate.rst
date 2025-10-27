@@ -43,6 +43,9 @@ Input is affected only in read-only mode (``r`` or ``in``). Read-write or write-
 output stream. To limit input stream on bidirectional channel ``rate.dir=in`` parameter should be
 used.
 
+``master=<name>`` (default none) - if master is rate channel then use its limits and ignore own
+bucket settings.
+
 Bucket settings
 ~~~~~~~~~~~~~~~
 

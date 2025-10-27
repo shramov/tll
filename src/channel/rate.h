@@ -10,6 +10,7 @@
 
 #include "tll/channel/prefix.h"
 #include "tll/channel/rate.h"
+#include "tll/util/pointer_list.h"
 
 namespace tll::channel {
 
@@ -22,6 +23,10 @@ class Rate : public tll::channel::Prefix<Rate>
 		rate::Settings conf;
 	};
 	std::vector<Bucket> _buckets;
+
+	Rate * _master = nullptr;
+	tll::util::PointerList<Rate> _notify;
+	size_t _notify_last = 0;
 
  public:
 	using Base = tll::channel::Prefix<Rate>;
@@ -36,23 +41,44 @@ class Rate : public tll::channel::Prefix<Rate>
 	}
 
 	int _init(const Channel::Url &url, tll::Channel *master);
+	void _free()
+	{
+		for (auto s : _notify) {
+			if (s)
+				s->_master = nullptr;
+		}
+	}
+
 	int _open(const tll::ConstConfig &cfg)
 	{
 		for (auto & b: _buckets)
 			b.reset();
-		_timer->open();
+		if (_timer)
+			_timer->open();
+		if (_master) {
+			_master->_notify.insert(this);
+			auto empty = false;
+			for (auto b : _master->_buckets)
+				empty = empty || b.empty();
+			if (empty)
+				_rate_full();
+		}
+
 		return Base::_open(cfg);
 	}
 
 	int _on_closed()
 	{
-		_timer->close(true);
+		if (_timer)
+			_timer->close(true);
 		if (!(internal.caps & tll::caps::Output) && (_child->dcaps() & tll::dcaps::SuspendPermanent)) {
 			if (internal.dcaps & tll::dcaps::Suspend) {
 				_child->internal->dcaps ^= tll::dcaps::SuspendPermanent; // Remove suspend lock
 			} else
 				_child->resume();
 		}
+		if (_master)
+			_master->_detach(this);
 		return Base::_on_closed();
 	}
 
@@ -63,6 +89,16 @@ class Rate : public tll::channel::Prefix<Rate>
  private:
 	int _on_timer(const tll_msg_t *msg);
 	int _rearm(const tll::duration &dt);
+
+	void _rate_full();
+	void _rate_ready();
+	int _update_buckets(tll::time_point now, size_t size);
+
+	void _detach(const Rate *ptr)
+	{
+		_notify.erase(ptr);
+		_notify_last = 0;
+	}
 
 	int _parse_bucket(const tll::ConstConfig &cfg);
 

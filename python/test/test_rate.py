@@ -6,6 +6,7 @@ from tll.config import Config
 from tll.error import TLLError
 from tll.test_util import Accum
 from tll.chrono import TimePoint
+from tll.processor import Loop
 
 import pytest
 import select
@@ -256,3 +257,41 @@ def test_client(context):
     c.open()
 
     assert c.config['client.init.tll.proto'] == 'tcp'
+
+def test_many(context):
+    r0 = Accum('rate+null://;initial=32b;max-window=128b;speed=3200b', name='r0', dump='frame', context=context)
+    r1 = Accum('rate+null://', name='r1', dump='frame', context=context, master=r0)
+    r2 = Accum('rate+null://', name='r2', dump='frame', context=context, master=r0)
+
+    writeFull = r0.scheme_control.messages.WriteFull.msgid
+    writeReady = r0.scheme_control.messages.WriteReady.msgid
+
+    loop = Loop()
+    assert r0.children[-1].name == "r0/timer"
+    loop.add(r0.children[1])
+
+    r0.open()
+    r1.open()
+
+    r0.post(b'x' * 64)
+
+    assert [m.msgid for m in r0.result] == [writeFull]
+    assert [m.msgid for m in r1.result] == [writeFull]
+    assert [m.msgid for m in r2.result] == []
+
+    r2.open()
+    assert [m.msgid for m in r2.result] == [writeFull]
+
+    loop.step(0.1)
+
+    assert [m.msgid for m in r0.result] == [writeFull, writeReady]
+    assert [m.msgid for m in r1.result] == [writeFull, writeReady]
+    assert [m.msgid for m in r2.result] == [writeFull, writeReady]
+
+    for r in [r0, r1, r2]:
+        r.result = []
+
+    r1.post(b'x' * 128)
+    assert [m.msgid for m in r0.result] == [writeFull]
+    assert [m.msgid for m in r1.result] == [writeFull]
+    assert [m.msgid for m in r2.result] == [writeFull]
