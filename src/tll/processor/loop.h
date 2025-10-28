@@ -30,71 +30,16 @@
 
 #ifdef __cplusplus
 
+#include "tll/util/pointer_list.h"
 #include "tll/util/time.h"
 
 #include <chrono>
 #include <list>
-#include <vector>
 
 namespace tll::processor {
 
 template <typename T>
-struct List
-{
-	std::vector<T *> list;
-	unsigned size = 0;
-
-	using iterator = typename std::vector<T *>::iterator;
-	using reference = typename std::vector<T *>::reference;
-
-	iterator begin() { return list.begin(); }
-	iterator end() { return list.begin() + size; }
-
-	reference operator [] (size_t i) { return list[i]; }
-
-	void rebuild()
-	{
-		auto to = begin();
-		for (auto & i : *this) {
-			if (!i) continue;
-			std::swap(i, *to++);
-		}
-		size = to - begin();
-	}
-
-	void add(T *v)
-	{
-		for (auto & i : *this) {
-			if (i == v)
-				return;
-			if (!i) {
-				i = v;
-				return;
-			}
-		}
-		if (size < list.size()) {
-			list[size++] = v;
-			return;
-		}
-		list.push_back(v);
-		size++;
-	}
-
-	void del(const T *v)
-	{
-		for (unsigned i = 0; i < size; i++) {
-			if (list[i] == v) {
-				list[i] = nullptr;
-				break;
-			}
-		}
-
-		for (; size > 0; size--) {
-			if (list[size - 1] != nullptr)
-				break;
-		}
-	}
-};
+using List = tll::util::PointerList<T>;
 
 namespace loop {
 static constexpr timespec tll2ts(tll::duration ts)
@@ -430,8 +375,8 @@ struct tll_processor_loop_t
 		}
 	}
 
-	bool pending() { _log.debug("Pending check: {}, {}", list_nofd.size, list_pending.size); return list_nofd.size + list_pending.size; }
-	//bool pending() const { return list_nofd.size + list_pending.size; }
+	bool pending() { _log.debug("Pending check: {}, {}", list_nofd.size(), list_pending.size()); return list_nofd.size() + list_pending.size(); }
+	//bool pending() const { return list_nofd.size() + list_pending.size(); }
 
 	int step(tll::duration timeout)
 	{
@@ -452,7 +397,7 @@ struct tll_processor_loop_t
 	{
 		if (_poll_enable) {
 			tll::time_point start = {};
-			if (_pending_steps && list_pending.size) {
+			if (_pending_steps && list_pending.size()) {
 				if (_pending_count++ < _pending_steps) {
 					if (_stat) {
 						if (auto s = tll::stat::acquire(_stat); s) {
@@ -460,7 +405,7 @@ struct tll_processor_loop_t
 							tll::stat::release(_stat, s);
 						}
 					}
-					_log.trace("Process pending: {} channels", list_pending.size);
+					_log.trace("Process pending: {} channels", list_pending.size());
 					process_list(list_pending);
 					return nullptr;
 				} else
@@ -479,11 +424,11 @@ struct tll_processor_loop_t
 			} else if (time_cache_enable)
 				tll::time::now();
 			if (_poll.is_pending(r)) {
-				_log.trace("Process pending: {} channels", list_pending.size);
+				_log.trace("Process pending: {} channels", list_pending.size());
 				process_list(list_pending);
 				return nullptr;
 			} else if (_poll.is_nofd(r)) {
-				_log.trace("Process nofd: {} channels", list_nofd.size);
+				_log.trace("Process nofd: {} channels", list_nofd.size());
 				process_list(list_nofd);
 				_poll.nofd_flush();
 				return nullptr;
@@ -515,7 +460,7 @@ struct tll_processor_loop_t
 	int process_list(tll::processor::List<tll::Channel> &l)
 	{
 		int r = 0;
-		for (unsigned i = 0; i < l.size; i++) {
+		for (unsigned i = 0; i < l.size(); i++) {
 			if (l[i] == nullptr) continue;
 			r |= l[i]->process() ^ EAGAIN;
 		}
@@ -539,7 +484,7 @@ struct tll_processor_loop_t
 
 	void pending_add(tll::Channel *c)
 	{
-		bool empty = list_pending.size == 0;
+		bool empty = list_pending.size() == 0;
 		list_pending.add(c);
 		if (!empty) return;
 		if (_poll_enable)
@@ -549,7 +494,7 @@ struct tll_processor_loop_t
 	void pending_del(const tll::Channel *c)
 	{
 		list_pending.del(c);
-		if (list_pending.size) return;
+		if (list_pending.size()) return;
 		if (_poll_enable)
 			_poll.pending_disable();
 	}
@@ -566,7 +511,7 @@ struct tll_processor_loop_t
 
 		if (fd == -1) {
 			_log.debug("Add channel {} to nofd list", c->name());
-			bool empty = list_nofd.size == 0;
+			bool empty = list_nofd.size() == 0;
 			list_nofd.add(c);
 			if (!empty) return 0;
 			if (_poll_enable)
@@ -586,7 +531,7 @@ struct tll_processor_loop_t
 		if (fd == -1) {
 			_log.debug("Drop channel {} from nofd list", c->name());
 			list_nofd.del(c);
-			if (list_nofd.size) return 0;
+			if (list_nofd.size()) return 0;
 			if (_poll_enable)
 				_poll.nofd_disable();
 		} else if (_poll_enable) {
