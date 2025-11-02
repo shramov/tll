@@ -206,7 +206,7 @@ format_result_t to_strings(const tll::scheme::Field * field, const View &data)
 		else if (ptr->offset + ptr->size * ptr->entity > data.size())
 			return unexpected(path_error_t {"", fmt::format("Offset data out of bounds: offset {} + data {} * entity {} > data size {}", ptr->offset, (unsigned) ptr->size, ptr->entity, data.size())});
 		if (field->sub_type == Field::ByteString) {
-			secret = tll::getter::getT(field->type_ptr->options, "tll.secret", false).value_or(false);
+			secret = tll::getter::getT(field->type_ptr->options, "tll.secret", false).value_or(secret);
 			if (secret)
 				return std::list<std::string>{'"' + std::string(std::max(ptr->size, 1u) - 1, '*') + '"'};
 
