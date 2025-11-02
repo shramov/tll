@@ -597,7 +597,7 @@ TYPED_TEST(SchemeOffsetPtr, OffsetPtr)
 		entity_size = 4;
 
 	_test_offset_ptr(&ptr, entity_size);
-	_test_offset_ptr((const ptr_t *) &ptr, entity_size); 
+	_test_offset_ptr((const ptr_t *) &ptr, entity_size);
 }
 
 TEST(Scheme, Conv)
