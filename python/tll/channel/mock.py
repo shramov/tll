@@ -10,6 +10,7 @@ class Mock:
     def __init__(self, loop, config):
         if not isinstance(config, Config):
             config = Config.load(config)
+        self._channel = None
         self._config = config
         self._inner = {}
         self._channels = {}
@@ -39,6 +40,8 @@ class Mock:
         url = self._config.get_url('channel')
         if 'dump' not in url:
             url['dump'] = 'yes'
+        if 'name' not in url:
+            url['name'] = 'mock'
         self._channel = loop.Channel(url)
 
     def open(self, inner : bool = True, skip = []):
@@ -54,7 +57,8 @@ class Mock:
         self._channel.open()
 
     def close(self):
-        self._channel.close()
+        if self._channel:
+            self._channel.close()
 
         for c in self._inner.values():
             c.close()
@@ -65,7 +69,8 @@ class Mock:
     def destroy(self):
         self.close()
 
-        self._channel.free()
+        if self._channel:
+            self._channel.free()
 
         for c in self._inner.values():
             c.free()
