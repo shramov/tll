@@ -226,8 +226,6 @@ class List : public Base<Buf>
 
 		if (ptr->size && buf_end == data_end) {
 			auto dview = this->_buf.view(ptr->data_offset());
-			if constexpr (is_binder) // XXX: Is this memset needed?
-				memset(dview.data(), 0, dview.size());
 			dview.resize(entity * size);
 			optr()->size = size;
 		} else if constexpr (entity_header) {
