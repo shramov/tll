@@ -97,7 +97,7 @@ All configuration is located in ``spdlog`` subtree. Default values for sink type
 
 For exact meaning of parameters see spdlog-sinks_ documentation of sinks.
 
-.. _fmt: http://fmtlib.net/
+.. _fmt: https://fmtlib.net/
 .. _spdlog: https://github.com/gabime/spdlog
 .. _spdlog-sinks: https://github.com/gabime/spdlog/wiki/4.-Sinks
 
