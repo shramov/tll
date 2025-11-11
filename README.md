@@ -66,5 +66,32 @@ It is possible to build extensions with Meson, in this case `-Dwith_cython_build
 have to be passed to `meson setup`. However module files are created in build directory and should
 be symlinked into `python/tll/` subtree.
 
-For debian based systems easier way is to call `dpkg-buildpackage -uc -b -rfakeroot` and then
+For debian based systems easier way is to call `dpkg-buildpackage -uc -b` and then
 install result using `dpkg -i`.
+
+### Running simple service
+
+Create file `echo.yaml` (if you are running from build directory replace `tll-logic-forward`
+module name with `build/src/logic/tll-logic-forward`):
+
+```
+logger:
+  type: spdlog
+  levels:
+    tll: INFO
+
+processor.module:
+  - module: tll-logic-forward
+
+processor.objects:
+  tcp:
+    init: tcp://*:8080;mode=server;dump=text;frame=none
+    depends: echo
+  echo:
+    init: forward://
+    channels.input: tcp
+    channels.output: tcp
+```
+
+And then run `tll-processor echo.yaml`. Connect to echo service with `nc ::1 8080` and type
+something, service will respond with same data.
