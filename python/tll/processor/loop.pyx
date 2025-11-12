@@ -50,7 +50,10 @@ cdef class Loop:
         error.wrap(r, "Failed to delete channel {} from loop", channel.name)
 
     def poll(self, timeout=0.001):
-        cdef tll_channel_t * r = tll_processor_loop_poll(self._ptr, int(timeout * 1000))
+        cdef long ms = int(timeout * 1000)
+        cdef tll_channel_t * r = NULL
+        with nogil:
+            r = tll_processor_loop_poll(self._ptr, ms)
         if r == NULL:
             return
         return Channel.wrap(r)
@@ -59,22 +62,32 @@ cdef class Loop:
         tll_processor_loop_process(self._ptr)
 
     def step(self, timeout : float = 0):
-        error.wrap(tll_processor_loop_step(self._ptr, int(timeout * 1000)), "tll_processor_loop_step failed")
+        cdef int r = 0
+        cdef long ms = int(timeout * 1000)
+        with nogil:
+            tll_processor_loop_step(self._ptr, ms)
+        error.wrap(r, "tll_processor_loop_step failed")
 
     def run(self, timeout):
-        error.wrap(tll_processor_loop_run(self._ptr, int(timeout * 1000)), "tll_processor_loop_run failed")
+        cdef int r = 0
+        cdef long ms = int(timeout * 1000)
+        with nogil:
+            r = tll_processor_loop_run(self._ptr, ms)
+        error.wrap(r, "tll_processor_loop_run failed")
 
     def run_signal(self, timeout, signals=[signal.SIGINT]):
+        cdef long ms = int(timeout * 1000)
         cdef size_t sigsize = len(signals)
         if sigsize == 0:
             return self.run(timeout)
         cdef int * array = <int *>malloc(sizeof(int) * sigsize)
         for i in range(sigsize):
             array[i] = signals[i]
-        try:
-            error.wrap(tll_processor_loop_run_signal(self._ptr, int(timeout * 1000), array, sigsize), "tll_processor_loop_run failed")
-        finally:
-            free(array)
+        cdef int r = 0
+        with nogil:
+            r = tll_processor_loop_run_signal(self._ptr, ms, array, sigsize)
+        free(array)
+        error.wrap(r, "tll_processor_loop_run failed")
 
     @property
     def pending(self):
