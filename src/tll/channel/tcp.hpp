@@ -429,20 +429,19 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 template <typename T, typename S>
 int TcpClient<T, S>::_open(const ConstConfig &url)
 {
-	tll::network::hostport peer;
 	if (!_peer) {
 		auto reader = this->channelT()->channel_props_reader(url);
 		auto af = reader.getT("af", network::AddressFamily::UNSPEC);
-		peer = reader.template getT<tll::network::hostport>("host");
+		_peer_active = reader.template getT<tll::network::hostport>("host");
 		if (!reader)
 			return this->_log.fail(EINVAL, "Invalid open parameters: {}", reader.error());
-		if (peer.set_af(af))
-			return this->_log.fail(EINVAL, "Mismatched address family: parameter {}, parsed {}", af, peer.af);
+		if (_peer_active.set_af(af))
+			return this->_log.fail(EINVAL, "Mismatched address family: parameter {}, parsed {}", af, _peer_active.af);
 	} else
-		peer = *_peer;
-	auto addr = tll::network::resolve(peer.af, SOCK_STREAM, peer.host, peer.port);
+		_peer_active = *_peer;
+	auto addr = tll::network::resolve(_peer_active.af, SOCK_STREAM, _peer_active.host, _peer_active.port);
 	if (!addr)
-		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", peer.host, addr.error());
+		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _peer_active.host, addr.error());
 	std::swap(_addr_list, *addr);
 	_addr = _addr_list.begin();
 

@@ -225,6 +225,7 @@ class TcpClient : public S
 {
  protected:
 	std::optional<tll::network::hostport> _peer;
+	tll::network::hostport _peer_active;
 	bool _timestamping = false;
 
 	using addr_list_t = std::vector<tll::network::sockaddr_any>;
