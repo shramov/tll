@@ -54,11 +54,15 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 	_init_config = url.sub("init-message-data").value_or(_init_config);
 	_max_size = reader.getT<tll::util::Size>("max-size", std::numeric_limits<size_t>::max());
 
+	_initial_reply = url.sub("blocks") ? Initial::Block : Initial::Seq;
+	_initial_reply = reader.getT("initial-reply", _initial_reply, {{"seq", Initial::Seq}, {"block", Initial::Block}});
+	if (_initial_reply == Initial::Block) {
+		_initial_reply_block = reader.getT<std::string>("initial-reply-block", "default");
+		_initial_reply_block_index = reader.getT("initial-reply-block-index", 0u);
+	}
+
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
-
-	//if (_blocks_filename.empty())
-	//	return _log.fail(EINVAL, "Need non-empty filename for data blocks");
 
 	{
 		auto curl = url.getT<tll::Channel::Url>("request");
@@ -435,6 +439,10 @@ int StreamServer::_on_request_data(const tll_msg_t *msg)
 			request.data = Request::Block { block.get_block(), block.get_index() };
 			break;
 		}
+		case data.index_initial: {
+			request.data = Request::Initial {};
+			break;
+		}
 		default:
 			return _log.fail(0, "Invalid request from client '{}': unknown union type {}", request.client, data.union_type());
 		}
@@ -493,9 +501,34 @@ tll::result_t<int> StreamServer::Client::init(const StreamServer::Request &req)
 	block_end = -1;
 
 	name = req.client;
-	if (std::holds_alternative<Request::Block>(req.data)) {
-		auto &[block, index] = std::get<Request::Block>(req.data);
-		_log.info("Request from client '{}' (addr {}) for block '{}' index {}", name, req.addr, block, index);
+
+	std::string_view block;
+	int64_t block_index = 0;
+
+	if (auto ptr = std::get_if<Request::Block>(&req.data); ptr) {
+		block = ptr->first;
+		block_index = ptr->second;
+	} else if (std::holds_alternative<Request::Initial>(req.data)) {
+		_log.info("Request from client '{}' (addr {}) for initial data", name, req.addr, seq);
+		if (parent->_seq == -1) {
+			seq = -1;
+			_log.info("No server data available, tell client to wait");
+		} else if (parent->_initial_reply == Initial::Block) {
+			block = parent->_initial_reply_block;
+			block_index = parent->_initial_reply_block_index;
+			_log.info("Translated initial request to block '{}', index {}", block, block_index);
+		} else if (auto start = parent->_storage->config().getT("info.seq-begin", -1); start) {
+			seq = *start;
+			_log.info("Translated initial request to seq {}", seq);
+		} else
+			return error("Failed to request start seq from storage");
+	} else {
+		seq = std::get<uint64_t>(req.data);
+		_log.info("Request from client '{}' (addr {}) for seq {}", name, req.addr, seq);
+	}
+
+	if (block.size()) {
+		_log.info("Request from client '{}' (addr {}) for block '{}' index {}", name, req.addr, block, block_index);
 
 		if (!parent->_blocks)
 			return error("Requested block, but no block storage configured");
@@ -505,7 +538,7 @@ tll::result_t<int> StreamServer::Client::init(const StreamServer::Request &req)
 		blocks->callback_add(on_storage, this);
 
 		tll::Config ocfg;
-		ocfg.setT("block", index);
+		ocfg.setT("block", block_index);
 		ocfg.set("block-type", block);
 
 		if (blocks->open(ocfg))
@@ -532,10 +565,7 @@ tll::result_t<int> StreamServer::Client::init(const StreamServer::Request &req)
 		if (blocks->state() != tll::state::Closed)
 			storage_next = std::move(blocks);
 
-		_log.info("Translated block type '{}' number {} to seq {}, storage seq {}", block, index, seq, block_end);
-	} else {
-		seq = std::get<uint64_t>(req.data);
-		_log.info("Request from client '{}' (addr {}) for seq {}", name, req.addr, seq);
+		_log.info("Translated block type '{}' number {} to seq {}, storage seq {}", block, block_index, seq, block_end);
 	}
 
 	if (block_end != -1 && block_end > parent->_seq + 1)

@@ -1143,3 +1143,72 @@ def test_max_size(context, tmp_path):
     s.post(b'xxx', seq=10)
     with pytest.raises(TLLError):
         s.post(b'x' * 1025, seq=20)
+
+@asyncloop_run
+@pytest.mark.parametrize("params", ["no-block", "force"])
+async def test_open_initial_seq(asyncloop, tmp_path, params):
+    extra = {}
+    if params == "force":
+        extra = {'blocks': f'blocks://{tmp_path}/blocks.yaml', 'initial-reply': 'seq'}
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server', **extra)
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test;stream.protocol=new')
+
+    s.open()
+    c.open(mode='initial')
+    assert c.config.sub('info.reopen').as_dict() == {'mode': 'initial'}
+
+    assert (await c.recv_state()) == c.State.Active
+    with pytest.raises(TimeoutError): await c.recv(0.01)
+    s.post(b'aaa', seq=10)
+
+    m = await c.recv()
+    assert (m.type, m.seq, m.data.tobytes()) == (m.Type.Data, 10, b'aaa')
+
+    m = await c.recv()
+    assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control['Online'].msgid, 10)
+    assert c.config.sub('info.reopen').as_dict() == {'mode': 'seq', 'seq': '10'}
+
+    c.close()
+    c.open(mode='initial')
+
+    m = await c.recv()
+    assert (m.type, m.seq, m.data.tobytes()) == (m.Type.Data, 10, b'aaa')
+
+    m = await c.recv()
+    assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control['Online'].msgid, 10)
+    assert c.config.sub('info.reopen').as_dict() == {'mode': 'seq', 'seq': '10'}
+
+@asyncloop_run
+async def test_open_initial_block(asyncloop, tmp_path):
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;blocks=blocks://{tmp_path}/block.yaml;name=server;mode=server')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test;stream.protocol=new')
+
+    s.open()
+    c.open(mode='initial')
+    assert c.config.sub('info.reopen').as_dict() == {'mode': 'initial'}
+
+    assert (await c.recv_state()) == c.State.Active
+    with pytest.raises(TimeoutError): await c.recv(0.01)
+    s.post(b'aaa', seq=10)
+    s.post({}, name='Block', type=s.Type.Control)
+
+    m = await c.recv()
+    assert (m.type, m.seq, m.data.tobytes()) == (m.Type.Data, 10, b'aaa')
+
+    m = await c.recv()
+    assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control['Online'].msgid, 10)
+    assert c.config.sub('info.reopen').as_dict() == {'mode': 'seq', 'seq': '10'}
+
+    c.close()
+    c.open(mode='initial')
+
+    m = await c.recv()
+    assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control['BeginOfBlock'].msgid, 10)
+    m = await c.recv()
+    assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control['EndOfBlock'].msgid, 10)
+    m = await c.recv()
+    assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control['Online'].msgid, 10)
+
+    assert c.config.sub('info.reopen').as_dict() == {'mode': 'seq', 'seq': '10'}

@@ -48,9 +48,13 @@ defaults).
 Open parameters
 ---------------
 
-``mode={online|seq|seq-data|block}`` - mandatory parameter, no default value
+``mode={online|initial|seq|seq-data|block}`` - mandatory parameter, no default value
 
  - ``online`` - do not request any data from the server, similar to online channel client.
+
+ - ``initial`` - request initial dataset from the server, either last block or linear history,
+   depending on server settings. If server has no data - wait for first message and report online
+   after it.
 
  - ``seq`` - additional mandatory ``seq=<unsigned>`` parameter, request linear history starting from
    ``seq``. However if there is gap in the stream user can receive first message with seq greater
