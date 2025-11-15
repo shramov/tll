@@ -18,7 +18,7 @@ namespace tll::channel {
 class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::Prefix<StreamClient>>
 {
  public:
-	enum class State { Closed, Opening, Connected, Overlapped, Drain, Online };
+	enum class State { Closed, Opening, Connected, Overlapped, Drain, WaitOnline, Online };
 
  private:
 	using Base = LastSeqRx<StreamClient, Prefix<StreamClient>>;
@@ -41,6 +41,7 @@ class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::
 	bool _report_block_begin = true;
 	bool _report_block_end = true;
 	bool _protocol_old = true;
+	bool _initial_open = false;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "stream+"; }

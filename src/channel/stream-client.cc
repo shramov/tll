@@ -29,6 +29,7 @@ struct tll::conv::dump<StreamClient::State> : public tll::conv::to_string_from_s
 		case StreamClient::State::Overlapped: return "Overlapped";
 		case StreamClient::State::Drain: return "Drain";
 		case StreamClient::State::Online: return "Online";
+		case StreamClient::State::WaitOnline: return "WaitOnline";
 		}
 		return "UNKNOWN";
         }
@@ -98,17 +99,23 @@ int StreamClient::_open(const ConstConfig &url)
 			rnew.set_client(_peer);
 	}
 
-	enum Mode { Undefined, Online, Seq, SeqData, Block };
-	auto mode = reader.getT("mode", Undefined, {{"online", Online}, {"seq", Seq}, {"seq-data", SeqData}, {"block", Block}});
+	enum Mode { Undefined, Online, Seq, SeqData, Block, Init };
+	auto mode = reader.getT("mode", Undefined, {{"online", Online}, {"seq", Seq}, {"seq-data", SeqData}, {"block", Block}, {"initial", Init}});
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid open parameters: {}", reader.error());
 
+	_initial_open = mode == Init;
 	if (mode == Undefined) {
 		return _log.fail(EINVAL, "Need mode=online/seq/block parameter");
 	} else if (mode == Online) {
 		_request_buf.resize(0);
 		_reopen_cfg.set("mode", "online");
+	} else if (mode == Init) {
+		if (_protocol_old)
+			return _log.fail(EINVAL, "Old protocol has no support for mode=initial");
+		_reopen_cfg.set("mode", "initial");
+		rnew.get_data().set_initial(0);
 	} else if (mode == Seq || mode == SeqData) {
 		_open_seq = reader.getT<long long>("seq");
 		if (!_open_seq)
@@ -165,7 +172,7 @@ int StreamClient::_close(bool force)
 int StreamClient::_report_online()
 {
 	_log.info("Stream is online on seq {}", _seq);
-	if (_state == State::Overlapped)
+	if (_state == State::Overlapped || _state == State::WaitOnline)
 		_state = State::Online;
 	else
 		_state = State::Drain;
@@ -288,6 +295,13 @@ int StreamClient::_on_data(const tll_msg_t *msg)
 			return _log.fail(EINVAL, "Message seq in the past: {}, last was {}", msg->seq, _seq);
 		_seq = msg->seq;
 		return _callback_data(msg);
+	} else if (_state == State::WaitOnline) {
+		_seq = msg->seq;
+		_reopen_cfg.set("mode", "seq");
+		_reopen_cfg.set("seq", _config_seq, this);
+		_callback_data(msg);
+		_report_online();
+		return 0;
 	} else if (_state == State::Drain) {
 		if (msg->seq <= _seq)
 			return 0;
@@ -368,21 +382,26 @@ int StreamClient::_on_request_data(const tll::Channel *, const tll_msg_t *msg)
 		state(tll::state::Active);
 		if (guard.changed(1)) return 0;
 		if (!_open_seq) {
-			_log.info("Translated block request to seq {}", data.get_requested_seq());
+			_log.info("Translated {} request to seq {}", _initial_open ? "initial" : "block", data.get_requested_seq());
 			_open_seq = data.get_requested_seq();
-			int64_t body = _block_end - 1;
-			tll_msg_t m = {
-				.type = TLL_MESSAGE_CONTROL,
-				.msgid = stream_control_scheme::BeginOfBlock::meta_id(),
-				.seq = std::min(body, data.get_requested_seq()),
-				.data = &body,
-				.size = sizeof(body),
-			};
-			if (_report_block_begin)
-				_callback(&m);
+			if (_block_end > 0) {
+				int64_t body = _block_end - 1;
+				tll_msg_t m = {
+					.type = TLL_MESSAGE_CONTROL,
+					.msgid = stream_control_scheme::BeginOfBlock::meta_id(),
+					.seq = std::min(body, data.get_requested_seq()),
+					.data = &body,
+					.size = sizeof(body),
+				};
+				if (_report_block_begin)
+					_callback(&m);
+			}
 		}
 		if (_server_seq == -1) {
-			return state_fail(0, "Server has no data for now, can not open from seq {}", *_open_seq);
+			if (!_initial_open)
+				return state_fail(0, "Server has no data for now, can not open from seq {}", *_open_seq);
+			_state = State::WaitOnline;
+			_request->close();
 		} else if (_server_seq + 1 == *_open_seq) {
 			_log.info("Server has no old data for us, channel is online (seq {})", _server_seq);
 			_seq = _server_seq;

@@ -36,7 +36,8 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 		std::string_view client;
 		uint64_t addr = 0;
 		using Block = std::pair<std::string_view, int64_t>;
-		std::variant<uint64_t, Block> data;
+		struct Initial {};
+		std::variant<uint64_t, Block, Initial> data;
 	};
 
 	struct Client
@@ -91,6 +92,10 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	std::string _init_block;
 
 	std::string _rotate_on_block;
+
+	enum Initial { Seq, Block } _initial_reply = Initial::Seq;
+	std::string _initial_reply_block;
+	long long _initial_reply_block_index = 0;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "stream+"; }
