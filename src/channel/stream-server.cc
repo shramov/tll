@@ -145,12 +145,17 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 	if (_blocks)
 		_child_add(_blocks.get(), "blocks");
 
+	config_info().set("forward-open", _forward_open);
+
 	return 0;
 }
 
 int StreamServer::_open(const ConstConfig &cfg)
 {
 	_seq = -1;
+
+	_forward_open.remove("seq");
+	_forward_open.set("mode", "initial");
 
 	Config sopen;
 	if (auto sub = cfg.sub("storage"); sub)
@@ -197,6 +202,10 @@ int StreamServer::_open(const ConstConfig &cfg)
 	}
 
 	_autoseq.reset(_seq);
+	if (_seq != -1) {
+		_forward_open.set("mode", "seq-data");
+		_forward_open.set_ptr("seq", &_seq);
+	}
 
 	auto ocfg = cfg.copy();
 	if (_seq != -1)
@@ -739,6 +748,10 @@ int StreamServer::_post(const tll_msg_t * msg, int flags)
 	}
 	if (auto r = _storage->post(msg, flags); r)
 		return _log.fail(r, "Failed to store message {}", msg->seq);
+	if (_seq == -1) {
+		_forward_open.set("mode", "seq-data");
+		_forward_open.set_ptr("seq", &_seq);
+	}
 	_seq = msg->seq;
 	_last_seq_tx(msg->seq);
 	return _child->post(msg, flags);

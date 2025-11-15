@@ -85,6 +85,7 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	std::unique_ptr<const tll::Scheme> _control_storage;
 
 	tll::Config _child_open;
+	tll::Config _forward_open;
 
 	std::string _init_message;
 	tll::ConstConfig _init_config;

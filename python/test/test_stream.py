@@ -36,9 +36,13 @@ async def test(asyncloop, tmp_path, protocol):
     s.open()
     assert s.state == s.State.Active # No need to wait
 
+    assert s.config.sub('info.forward-open').as_dict() == {'mode': 'initial'}
     s.post(b'aaa', msgid=10, seq=10)
+    assert s.config.sub('info.forward-open').as_dict() == {'mode': 'seq-data', 'seq': '10'}
     s.post(b'bbb', msgid=10, seq=20)
+    assert s.config.sub('info.forward-open').as_dict() == {'mode': 'seq-data', 'seq': '20'}
     s.post(b'ccc', msgid=10, seq=30)
+    assert s.config.sub('info.forward-open').as_dict() == {'mode': 'seq-data', 'seq': '30'}
 
     with pytest.raises(TLLError): s.post(b'ddd', msgid=10, seq=25)
     with pytest.raises(TLLError): s.post(b'ddd', msgid=10, seq=30)
