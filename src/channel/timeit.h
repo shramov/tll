@@ -15,8 +15,6 @@ class ChTimeIt : public tll::channel::Prefix<ChTimeIt>
  public:
 	using Base = tll::channel::Prefix<ChTimeIt>;
 	static constexpr std::string_view channel_protocol() { return "timeit+"; }
-	// Use timeit+ as test for Extend policy until normal user appears
-	static constexpr auto prefix_config_policy() { return PrefixConfigPolicy::Extend; }
 	static constexpr auto prefix_export_policy() { return PrefixExportPolicy::Strip; }
 
 	struct StatType : public Base::StatType
