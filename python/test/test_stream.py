@@ -1183,7 +1183,7 @@ async def test_open_initial_seq(asyncloop, tmp_path, params):
 async def test_open_initial_block(asyncloop, tmp_path):
     common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame'
     s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;blocks=blocks://{tmp_path}/block.yaml;name=server;mode=server')
-    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test;stream.protocol=new')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
 
     s.open()
     c.open(mode='initial')

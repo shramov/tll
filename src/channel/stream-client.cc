@@ -48,7 +48,7 @@ int StreamClient::_init(const Channel::Url &url, tll::Channel *master)
 	_peer = reader.getT<std::string>("peer", "");
 	_report_block_begin = reader.getT("report-block-begin", true);
 	_report_block_end = reader.getT("report-block-end", true);
-	_protocol_old = reader.getT("protocol", true, {{"old", true}, {"new", false}});
+	_protocol_old = reader.getT("protocol", false, {{"old", true}, {"new", false}});
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
