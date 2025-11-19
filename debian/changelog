@@ -1,3 +1,27 @@
+tll (0.4.4) unstable; urgency=medium
+
+  * channel: Check for value-tree conflicts in init parameters
+  * config:
+    Check return value when parsing url
+    Check that node can be created
+    Clear parent pointer on child nodes (#18)
+    Do not set tll.host when it is empty
+  * processor: Split pointer list into separate header
+  * python:
+    Add Scheme.ref function and do copy in Scheme.copy
+    Faster unpack for messages
+    Release GIL in Loop step/run functions
+  * rate: Several channels sharing same rate limit
+  * scheme: Look for both inner and outer secret option in lists
+  * stream:
+    Initial open mode
+    Use new request protocol by default
+  * tcp: Save host:port passed in open for later use
+  * timeit: Export full child config info
+  * util: Memory mapped structure helper
+
+ -- Pavel Shramov <shramov@mexmat.net>  Wed, 19 Nov 2025 10:57:05 +0300
+
 tll (0.4.3) unstable; urgency=medium
 
   * channel: Add policy to control direction parameter
