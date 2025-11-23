@@ -257,6 +257,14 @@ int tll_channel_open_cfg(tll_channel_t *, const tll_config_t * cfg);
 /// Close channel
 int tll_channel_close(tll_channel_t *, int force);
 
+/// Flags for tll_channel_process call
+typedef enum {
+	TLL_PROCESS_READ = 0x1, ///< Wakeup event hint, fd is ready for read
+	TLL_PROCESS_WRITE = 0x2, ///< Wakeup event hint, fd is ready for write
+	TLL_PROCESS_PENDING = 0x4, ///< Wakup event hint, pending process
+	TLL_PROCESS_HINT_MASK = 0x7, ///< Mask for event hints
+} tll_channel_process_flag_t;
+
 int tll_channel_process(tll_channel_t *c, long flags, int reserved);
 
 /// Flags for tll_channel_post call

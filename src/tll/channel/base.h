@@ -106,6 +106,9 @@ class Base
 	enum class ProcessAPI { TimeoutFlags, Flags, Void };
 	static constexpr auto process_api_version() { return ProcessAPI::TimeoutFlags; }
 
+	enum class ProcessFlagsPolicy { Normal, PollHint };
+	static constexpr auto process_flags_policy() { return ProcessFlagsPolicy::Normal; }
+
 	enum class OpenPolicy { Auto, Manual };
 	static constexpr auto open_policy() { return OpenPolicy::Auto; }
 
@@ -408,6 +411,12 @@ class Base
 	{
 		if (state() == state::Error || state() == state::Closed)
 			return 0;
+
+		if constexpr (ChannelT::process_flags_policy() == ProcessFlagsPolicy::PollHint) {
+			if ((flags & TLL_PROCESS_HINT_MASK) == 0)
+				flags |= TLL_PROCESS_HINT_MASK;
+		}
+
 		int r = 0;
 		if constexpr(constexpr auto v = ChannelT::process_api_version(); v == ProcessAPI::TimeoutFlags) {
 			r = static_cast<ChannelT *>(this)->_process(0, flags);
