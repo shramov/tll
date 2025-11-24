@@ -147,10 +147,10 @@ struct EPoll
 	void poll_update(int cfd, const tll::Channel * c, unsigned caps) { _poll_helper(EPOLL_CTL_MOD, cfd, c, caps); }
 	void poll_del(int cfd) { _poll_helper(EPOLL_CTL_DEL, cfd, nullptr, 0); }
 
-	bool is_timeout(void *c) const { return c == nullptr; }
-	bool is_pending(void *c) { return c == (void *) &fd_pending; }
-	bool is_nofd(void *c) { return c == (void *) &fd_nofd; }
-	bool is_error(void *c) { return c == this; }
+	constexpr bool is_timeout(void *c) const { return c == nullptr; }
+	constexpr bool is_pending(void *c) const { return c == (void *) &fd_pending; }
+	constexpr bool is_nofd(void *c) const { return c == (void *) &fd_nofd; }
+	constexpr bool is_error(void *c) const { return c == this; }
 
 	void * poll(tll::duration timeout)
 	{
@@ -240,10 +240,10 @@ struct KQueue
 	void poll_update(int fd, const tll::Channel * c, unsigned caps) { _fd_helper(EV_ADD | EV_DISABLE, fd, c, caps); }
 	void poll_del(int fd) { _fd_helper(EV_DISABLE, fd, nullptr, 0); }
 
-	bool is_timeout(void *c) const { return c == nullptr; }
-	bool is_pending(void *c) { return c == (void *) &kev_pending; }
-	bool is_nofd(void *c) { return c == (void *) &kev_nofd; }
-	bool is_error(void *c) { return c == this; }
+	constexpr bool is_timeout(void *c) const { return c == nullptr; }
+	constexpr bool is_pending(void *c) const { return c == (void *) &kev_pending; }
+	constexpr bool is_nofd(void *c) const { return c == (void *) &kev_nofd; }
+	constexpr bool is_error(void *c) const { return c == this; }
 
 	void * poll(tll::duration timeout)
 	{
