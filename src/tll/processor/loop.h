@@ -49,6 +49,12 @@ static constexpr timespec tll2ts(tll::duration ts)
 	return { (time_t) s.count(), (long) nanoseconds(ts - s).count() };
 }
 
+struct PollResult
+{
+	void * ptr = nullptr;
+	int events = 0;
+};
+
 #ifdef __linux__
 struct EPoll
 {
@@ -152,19 +158,27 @@ struct EPoll
 	constexpr bool is_nofd(void *c) const { return c == (void *) &fd_nofd; }
 	constexpr bool is_error(void *c) const { return c == this; }
 
-	void * poll(tll::duration timeout)
+	PollResult poll(tll::duration timeout)
 	{
 		epoll_event ev = {};
 		int r = epoll_wait(fd, &ev, 1, std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count());
 		if (!r)
-			return nullptr;
+			return {};
 		if (r < 0) {
 			if (errno == EINTR)
-				return nullptr;
-			return this; //_log.fail(nullptr, "epoll failed: {}", strerror(errno));
+				return {};
+			return { this }; //_log.fail(nullptr, "epoll failed: {}", strerror(errno));
 		}
 
-		return ev.data.ptr;
+		int events = 0;
+		if constexpr (EPOLLIN == (int) TLL_PROCESS_READ && EPOLLOUT == (int) TLL_PROCESS_WRITE) {
+			events = ev.events & (TLL_PROCESS_READ | TLL_PROCESS_WRITE);
+		} else {
+			if (ev.events & EPOLLIN) events |= TLL_PROCESS_READ;
+			if (ev.events & EPOLLOUT) events |= TLL_PROCESS_WRITE;
+		}
+
+		return { (void *) ev.data.ptr, events };
 	}
 };
 #endif//__linux__
@@ -245,20 +259,26 @@ struct KQueue
 	constexpr bool is_nofd(void *c) const { return c == (void *) &kev_nofd; }
 	constexpr bool is_error(void *c) const { return c == this; }
 
-	void * poll(tll::duration timeout)
+	PollResult poll(tll::duration timeout)
 	{
 		struct timespec ts = tll2ts(timeout);
 		struct kevent kev = {};
 		int r = kevent(kq, nullptr, 0, &kev, 1, &ts);
 		if (!r)
-			return nullptr;
+			return {};
 		if (r < 0) {
 			if (errno == EINTR)
-				return nullptr;
-			return this; //_log.fail(nullptr, "kevent failed: {}", strerror(errno));
+				 return {};
+			return { this }; //_log.fail(nullptr, "kevent failed: {}", strerror(errno));
 		}
 
-		return kev.udata;
+		int events = 0;
+		switch (kev.filter) {
+		case EVFILT_READ:  events = TLL_PROCESS_READ; break;
+		case EVFILT_WRITE: events = TLL_PROCESS_WRITE; break;
+		default: break;
+		}
+		return { kev.udata, events };
 	}
 };
 #endif//WITH_KQUEUE
@@ -380,19 +400,18 @@ struct tll_processor_loop_t
 
 	int step(tll::duration timeout)
 	{
-		auto c = poll(timeout);
-		if (c)
-			c->process();
+		poll<true>(timeout);
 		return 0;
 	}
 
 	int run(tll::duration timeout = std::chrono::milliseconds(1000))
 	{
 		while (!stop)
-			step(timeout);
+			poll<true>(timeout);
 		return 0;
 	}
 
+	template <bool Process = false>
 	tll::Channel * poll(tll::duration timeout)
 	{
 		if (_poll_enable) {
@@ -413,7 +432,7 @@ struct tll_processor_loop_t
 			}
 			if (_stat)
 				start = tll::time::now();
-			auto r = _poll.poll(timeout);
+			auto [r, events] = _poll.poll(timeout);
 			if (_stat) {
 				std::chrono::nanoseconds dt = tll::time::now() - start;
 				if (auto s = tll::stat::acquire(_stat); s) {
@@ -425,7 +444,7 @@ struct tll_processor_loop_t
 				tll::time::now();
 			if (_poll.is_pending(r)) {
 				_log.trace("Process pending: {} channels", list_pending.size());
-				process_list(list_pending);
+				process_list(list_pending, TLL_PROCESS_PENDING);
 				return nullptr;
 			} else if (_poll.is_nofd(r)) {
 				_log.trace("Process nofd: {} channels", list_nofd.size());
@@ -439,6 +458,8 @@ struct tll_processor_loop_t
 			} else {
 				auto c = static_cast<tll::Channel *>(r);
 				_log.trace("Poll on {}", c->name());
+				if constexpr (Process)
+					c->process(events);
 				return c;
 			}
 			return nullptr;
@@ -457,12 +478,12 @@ struct tll_processor_loop_t
 		return nullptr;
 	}
 
-	int process_list(tll::processor::List<tll::Channel> &l)
+	int process_list(tll::processor::List<tll::Channel> &l, unsigned flags = 0)
 	{
 		int r = 0;
 		for (unsigned i = 0; i < l.size(); i++) {
 			if (l[i] == nullptr) continue;
-			r |= l[i]->process() ^ EAGAIN;
+			r |= l[i]->process(flags) ^ EAGAIN;
 		}
 		return r == 0 ? EAGAIN : 0;
 	}
