@@ -27,6 +27,7 @@ class ChPubSocket : public tll::channel::TcpSocket<ChPubSocket>
 
  public:
 	static constexpr auto open_policy() { return OpenPolicy::Manual; }
+	static constexpr auto process_flags_policy() { return ProcessFlagsPolicy::PollHint; }
 
 	static constexpr std::string_view channel_protocol() { return "pub"; }
 	static constexpr std::string_view impl_protocol() { return "pub-socket"; } // Only visible in logs

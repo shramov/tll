@@ -290,12 +290,15 @@ int ChPubSocket::_process(long timeout, int flags)
 {
 	if (state() == state::Opening)
 		return _process_open();
-	auto r = _process_data(true);
-	if (r == EAGAIN) {
+	if (flags & TLL_PROCESS_WRITE) {
+		if (auto r = _process_data(true); r == 0 || r != EAGAIN)
+			return r;
+	}
+	if (flags & TLL_PROCESS_READ) {
 		// Check for connection close
 		_recv(4);
 		if (rsize())
 			return _log.fail(EINVAL, "Got unexpected data from client '{}', disconnect him", _peer);
 	}
-	return r;
+	return 0;
 }
