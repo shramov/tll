@@ -827,6 +827,8 @@ int File<TIO>::_block_seq(size_t block, tll_msg_t *msg)
 	}
 
 	_io.shift(frame);
+	if (_io.offset + sizeof(frame) > _file_size_cache)
+		return EAGAIN;
 	return _read_seq(msg);
 }
 

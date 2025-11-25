@@ -539,3 +539,66 @@ def test_write_lock(context, filename):
 
     w1.open()
     with pytest.raises(TLLError): w0.open()
+
+def test_meta_page_boundary(context, filename):
+    '''
+    Metadata has to be 4093 bytes (4096 - 3, frame overlaps with page boundary)
+    '''
+    body = ''.join([
+        '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'
+    ])
+    scheme = f'''yamls://
+- name: Data
+  options.doc: {body}
+  fields:
+    - {{name: f0, type: int32}}
+'''
+    f = context.Channel(f'file://{filename}', name='writer', dir='w', io='mmap', scheme=scheme)
+    f.open(overwrite='yes')
