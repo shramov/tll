@@ -735,11 +735,11 @@ void tll_channel_free(tll_channel_t *c)
 	delete c;
 }
 
-int tll_channel_process(tll_channel_t *c, long timeout, int flags)
+int tll_channel_process(tll_channel_t *c, long flags, int reserved)
 {
 	if (!c || !c->impl || !c->internal) return EINVAL;
 	if (!tll::dcaps::need_process(c->internal->dcaps)) return EAGAIN;
-	return (*c->impl->process)(c, timeout, flags);
+	return (*c->impl->process)(c, flags, reserved);
 }
 
 int tll_channel_post(tll_channel_t *c, const tll_msg_t *msg, int flags)

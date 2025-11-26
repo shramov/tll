@@ -24,7 +24,7 @@ struct tll_channel_impl_t
 	int (*open)(tll_channel_t *, const tll_config_t *);
 	int (*close)(tll_channel_t *, int);
 
-	int (*process)(tll_channel_t *, long timeout, int flags);
+	int (*process)(tll_channel_t *, long flags, int reserved);
 	int (*post)(tll_channel_t *, const tll_msg_t *msg, int flags);
 
 	const tll_scheme_t * (*scheme)(const tll_channel_t *, int);
@@ -253,7 +253,7 @@ public:
 	}
 	static int _close(tll_channel_t * c, int force) { return _dataT(c)->close(force); }
 
-	static int _process(tll_channel_t *c, long timeout, int flags) { return _dataT(c)->process(timeout, flags); }
+	static int _process(tll_channel_t *c, long flags, int reserved) { return _dataT(c)->process(flags); }
 	static int _post(tll_channel_t *c, const tll_msg_t *msg, int flags) { return _dataT(c)->post(msg, flags); }
 
 	static const tll_scheme_t * _scheme(const tll_channel_t *c, int type) { return _dataT(c)->scheme(type); }

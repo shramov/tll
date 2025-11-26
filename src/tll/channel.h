@@ -257,7 +257,7 @@ int tll_channel_open_cfg(tll_channel_t *, const tll_config_t * cfg);
 /// Close channel
 int tll_channel_close(tll_channel_t *, int force);
 
-int tll_channel_process(tll_channel_t *c, long timeout, int flags);
+int tll_channel_process(tll_channel_t *c, long flags, int reserved);
 
 /// Flags for tll_channel_post call
 typedef enum {
@@ -493,7 +493,11 @@ public:
 	const Scheme * scheme(int type = TLL_MESSAGE_DATA) const { return tll_channel_scheme(this, type); }
 
 	/// Process channel. See @ref tll_channel_process
-	int process(long timeout = 0, int flags = 0) { return tll_channel_process(this, timeout, flags); }
+	int process(unsigned flags = 0) { return tll_channel_process(this, flags, 0); }
+	/// Process channel, deprecated form.
+	[[deprecated]]
+	int process(long timeout, int flags) { return tll_channel_process(this, flags, 0); }
+
 	/// Post message to channel. See @ref tll_channel_post
 	int post(const tll_msg_t *msg, int flags = 0) { return tll_channel_post(this, msg, flags); }
 

@@ -103,6 +103,9 @@ class Base
 	enum class ProcessPolicy { Normal, Never, Always, Custom };
 	static constexpr auto process_policy() { return ProcessPolicy::Normal; }
 
+	enum class ProcessAPI { TimeoutFlags, Flags, Void };
+	static constexpr auto process_api_version() { return ProcessAPI::TimeoutFlags; }
+
 	enum class OpenPolicy { Auto, Manual };
 	static constexpr auto open_policy() { return OpenPolicy::Auto; }
 
@@ -401,12 +404,20 @@ class Base
 		return 0;
 	}
 
-	int process(long timeout, int flags)
+	int process(unsigned flags)
 	{
-		//return _process(timeout, flags);
 		if (state() == state::Error || state() == state::Closed)
 			return 0;
-		int r = static_cast<ChannelT *>(this)->_process(timeout, flags);
+		int r = 0;
+		if constexpr(constexpr auto v = ChannelT::process_api_version(); v == ProcessAPI::TimeoutFlags) {
+			r = static_cast<ChannelT *>(this)->_process(0, flags);
+		} else if (v == ProcessAPI::Flags) {
+			r = static_cast<ChannelT *>(this)->_process(flags);
+		} else if (v == ProcessAPI::Void) {
+			r = static_cast<ChannelT *>(this)->_process();
+		} else {
+			static_assert("Unknown process api");
+		}
 		if (r && r != EAGAIN) {
 			_log.error("Process failed");
 			state(tll::state::Error);
@@ -414,7 +425,7 @@ class Base
 		return r;
 	}
 
-	int _process(long timeout, int flags)
+	int _process(long timeout = 0, int flags = 0)
 	{
 		return 0;
 	}
