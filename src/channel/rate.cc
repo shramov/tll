@@ -48,7 +48,7 @@ int Rate::_init(const Channel::Url &url, tll::Channel *master)
 			return _log.fail(EINVAL, "Failed to merge control scheme: {}", r.error());
 		_scheme_control.reset(*r);
 	} else
-		_scheme_control.reset(cscheme);
+		_scheme_control.reset(cscheme->ref());
 
 	if (_master)
 		return 0;
