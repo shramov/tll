@@ -16,7 +16,7 @@ class ChJSON : public tll::channel::Codec<ChJSON>
 {
 	tll::json::JSON _json = { _log };
 
-	using Base = tll::channel::Prefix<ChJSON>;
+	using Base = tll::channel::Codec<ChJSON>;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "json+"; }

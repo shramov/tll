@@ -184,3 +184,26 @@ def test_pointer_large(context):
     s.post(s.unpack(m).as_dict(), name='Data')
 
     assert json.loads(c.result[0].data.tobytes()) == {'_tll_name': 'Data', '_tll_seq': 0, 'list': [{"body": "0000"}, {"body": "1111"}]}
+
+def test_inverted(context):
+    scheme = """yamls://
+- name: Data
+  id: 10
+  fields:
+    - {name: f0, type: int32}
+"""
+    s = Accum('json+direct://', scheme=scheme, name='json', dump='yes', inverted='yes', context=context)
+    c = Accum('direct://', name='raw', master=s, dump='text', context=context)
+
+    s.open()
+    c.open()
+
+    s.post(json.dumps({'_tll_name': 'Data', '_tll_seq': 100, 'f0': 1000}).encode('utf-8'))
+
+    m = c.result[0]
+    assert (m.seq, m.msgid) == (100, 10)
+    assert c.unpack(m).as_dict() == {'f0': 1000}
+
+    c.post(m)
+
+    assert json.loads(s.result[0].data.tobytes()) == {'_tll_name': 'Data', '_tll_seq': 100, 'f0': 1000}
