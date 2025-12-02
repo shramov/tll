@@ -406,6 +406,8 @@ cdef Impl pychannel_lookup(object module):
             impl = Impl(obj)
             obj._TLL_IMPL = impl
         return impl
+    except:
+        log.exception(f"Failed to build impl for {module}")
     finally:
         if path:
             sys.path.remove(path)
