@@ -25,6 +25,7 @@
 #include "tll/util/memoryview.h"
 #include "tll/util/listiter.h"
 #include "tll/util/buffer.h"
+#include "tll/util/time.h"
 
 namespace tll::json {
 
@@ -143,6 +144,18 @@ struct DataHandler : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Data
 		return true;
 	}
 
+	template <typename T, typename Res>
+	bool decode_duration(memoryview<Buf>& view, const std::string_view &str)
+	{
+		return decode_scalar<std::chrono::duration<T, Res>>(view, str);
+	}
+
+	template <typename T, typename Res>
+	bool decode_time(memoryview<Buf>& view, const std::string_view &str)
+	{
+		return decode_scalar<std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<T, Res>>>(view, str);
+	}
+
 	template <typename T>
 	bool decode_number(const std::string_view &str)
 	{
@@ -150,7 +163,28 @@ struct DataHandler : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Data
 		auto fview = state.fview();
 		if (f->sub_type == Field::SubNone) {
 			return decode_scalar<T>(fview, str);
-		//} else if (f->sub_type == Field::Duration) {
+		} else if (f->sub_type == Field::Duration) {
+			switch (f->time_resolution) {
+			case TLL_SCHEME_TIME_NS: return decode_duration<T, std::nano>(fview, str); break;
+			case TLL_SCHEME_TIME_US: return decode_duration<T, std::micro>(fview, str); break;
+			case TLL_SCHEME_TIME_MS: return decode_duration<T, std::milli>(fview, str); break;
+			case TLL_SCHEME_TIME_SECOND: return decode_duration<T, std::ratio<1, 1>>(fview, str); break;
+			case TLL_SCHEME_TIME_MINUTE: return decode_duration<T, std::ratio<60, 1>>(fview, str); break;
+			case TLL_SCHEME_TIME_HOUR: return decode_duration<T, std::ratio<3600, 1>>(fview, str); break;
+			case TLL_SCHEME_TIME_DAY: return decode_duration<T, std::ratio<86400, 1>>(fview, str); break;
+			}
+			return decode_scalar<T>(fview, str);
+		} else if (f->sub_type == Field::TimePoint) {
+			switch (f->time_resolution) {
+			case TLL_SCHEME_TIME_NS: return decode_time<T, std::nano>(fview, str); break;
+			case TLL_SCHEME_TIME_US: return decode_time<T, std::micro>(fview, str); break;
+			case TLL_SCHEME_TIME_MS: return decode_time<T, std::milli>(fview, str); break;
+			case TLL_SCHEME_TIME_SECOND: return decode_time<T, std::ratio<1, 1>>(fview, str); break;
+			case TLL_SCHEME_TIME_MINUTE: return decode_time<T, std::ratio<60, 1>>(fview, str); break;
+			case TLL_SCHEME_TIME_HOUR: return decode_time<T, std::ratio<3600, 1>>(fview, str); break;
+			case TLL_SCHEME_TIME_DAY: return decode_time<T, std::ratio<86400, 1>>(fview, str); break;
+			}
+			return decode_scalar<T>(fview, str);
 		} else if (f->sub_type == Field::Enum) {
 			for (auto e = f->type_enum->values; e; e = e->next) {
 				if (e->name == str) {
@@ -601,7 +635,18 @@ class JSON
 			return encode_number(writer, v);
 		else if (field->sub_type == Field::Duration)
 			return encode_duration(writer, v, field->time_resolution);
-		else if (field->sub_type == Field::Enum && !meta->enum_number) {
+		else if (field->sub_type == Field::TimePoint) {
+			switch (field->time_resolution) {
+			case TLL_SCHEME_TIME_NS: return encode_time<W, T, std::nano>(writer, v); break;
+			case TLL_SCHEME_TIME_US: return encode_time<W, T, std::micro>(writer, v); break;
+			case TLL_SCHEME_TIME_MS: return encode_time<W, T, std::milli>(writer, v); break;
+			case TLL_SCHEME_TIME_SECOND: return encode_time<W, T, std::ratio<1, 1>>(writer, v); break;
+			case TLL_SCHEME_TIME_MINUTE: return encode_time<W, T, std::ratio<60, 1>>(writer, v); break;
+			case TLL_SCHEME_TIME_HOUR: return encode_time<W, T, std::ratio<3600, 1>>(writer, v); break;
+			case TLL_SCHEME_TIME_DAY: return encode_time<W, T, std::ratio<86400, 1>>(writer, v); break;
+			}
+			return encode_number(writer, v);
+		} else if (field->sub_type == Field::Enum && !meta->enum_number) {
 			auto it = meta->enum_values.find(v);
 			if (it == meta->enum_values.end())
 				return encode_number(writer, v);
@@ -624,7 +669,17 @@ class JSON
 	{
 		auto r = conv::to_string_buf(v, _buf);
 		r = tll::conv::append(_buf, r, scheme::time_resolution_str(res));
-		writer.RawValue(r.data(), r.size(), rapidjson::kStringType);
+		writer.String(r.data(), r.size());
+		return 0;
+	}
+
+	template <typename W, typename T, typename Res>
+	int encode_time(W &writer, const T& v)
+	{
+		using duration = std::chrono::duration<T, Res>;
+		using time_point = std::chrono::time_point<std::chrono::system_clock, duration>;
+		auto r = conv::to_string_buf(time_point(duration(v)), _buf);
+		writer.String(r.data(), r.size());
 		return 0;
 	}
 

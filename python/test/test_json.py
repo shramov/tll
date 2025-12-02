@@ -5,6 +5,7 @@
 from tll.test_util import Accum
 from tll.channel import Context
 from tll.error import TLLError
+from tll.chrono import *
 
 import decimal
 import json
@@ -54,8 +55,8 @@ def context():
     ('string', 'abcd'),
 #    ('decimal128', (decimal.Decimal('1234567890.e-5'), '1234567890.e-5')),
 #    ('int32, options.type: fixed3', decimal.Decimal('123.456')),
-#    ('int32, options.type: duration, options.resolution: us', (Duration(123000, Resolution.us), '12300us')),
-#    ('int64, options.type: time_point, options.resolution: s', (TimePoint(1609556645, Resolution.second), '2021-01-02T03:04:05')),
+    ('int32, options.type: duration, options.resolution: us', (Duration(123000, Resolution.us), '123000us')),
+    ('int64, options.type: time_point, options.resolution: s', (TimePoint(1609556645, Resolution.second), '2021-01-02T03:04:05')),
     ('"int32[4]"', [1, 2, 3]),
     ('"*int32"', [1, 2, 3]),
     ('"*string"', ['a', 'bc', 'def']),
