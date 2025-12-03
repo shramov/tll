@@ -135,7 +135,7 @@ struct DataHandler : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Data
 	}
 
 	template <typename T>
-	bool decode_scalar(memoryview<Buf>& view, const std::string_view &str)
+	bool decode_scalar(memoryview<Buf>& view, std::string_view str)
 	{
 		auto r = conv::to_any<T>(str);
 		if (!r)
@@ -145,19 +145,19 @@ struct DataHandler : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Data
 	}
 
 	template <typename T, typename Res>
-	bool decode_duration(memoryview<Buf>& view, const std::string_view &str)
+	bool decode_duration(memoryview<Buf>& view, std::string_view str)
 	{
 		return decode_scalar<std::chrono::duration<T, Res>>(view, str);
 	}
 
 	template <typename T, typename Res>
-	bool decode_time(memoryview<Buf>& view, const std::string_view &str)
+	bool decode_time(memoryview<Buf>& view, std::string_view str)
 	{
 		return decode_scalar<std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<T, Res>>>(view, str);
 	}
 
 	template <typename T>
-	bool decode_number(const std::string_view &str)
+	bool decode_number(std::string_view str)
 	{
 		auto f = state.field;
 		auto fview = state.fview();
@@ -207,7 +207,7 @@ struct DataHandler : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Data
 			++*state.index;
 		return r;
 	}
-	bool decode(const std::string_view &str)
+	bool decode(std::string_view str)
 	{
 		auto f = state.field;
 		if (!f) return true;
@@ -508,7 +508,7 @@ class JSON
 		return it->second;
 	}
 
-	const scheme::Message * lookup(const std::string_view name) const
+	const scheme::Message * lookup(std::string_view name) const
 	{
 		auto meta = static_cast<const scheme_meta_t *>(_scheme->user);
 		auto it = meta->index.find(name);
