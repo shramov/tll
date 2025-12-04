@@ -46,6 +46,18 @@ class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
 
 	std::map<std::string, ChannelExport, std::less<>> _exports;
 
+	struct ConfigQueue {
+		std::deque<std::pair<std::string, std::string>> pending;
+		bool next = false;
+
+		operator bool () const { return pending.size() || next; }
+	};
+
+	bool _async_config_dump = true;
+	ConfigQueue _config_queue; // Only for uplink
+	int _msgid_write_full = 0;
+	int _msgid_write_ready = 0;
+
  public:
 	static constexpr std::string_view channel_protocol() { return "control"; }
 
@@ -57,6 +69,8 @@ class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
 		_exports.clear();
 		return 0;
 	}
+
+	int _process(long flags = 0, int reserved = 0);
 
 	int _on_processor_active()
 	{
@@ -114,6 +128,7 @@ class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
  private:
 
 	tll::Channel * _processor() { return _channels.get<Processor>().front().first; }
+	tll::Channel * _uplink() { return _channels.get<Uplink>().front().first; }
 	tll::result_t<int> _message_forward(const tll_msg_t * msg);
 	tll::result_t<int> _set_log_level(const tll_msg_t * msg);
 	tll::result_t<int> _channel_close(const tll_msg_t * msg);
@@ -129,6 +144,8 @@ int Control::_init(const tll::Channel::Url &url, tll::Channel * master)
 
 	if (check_channels_size<Processor>(1, 1))
 		return EINVAL;
+	if (check_channels_size<Uplink>(0, 1))
+		return EINVAL;
 	if (check_channels_size<Resolve>(0, 1))
 		return EINVAL;
 
@@ -136,6 +153,7 @@ int Control::_init(const tll::Channel::Url &url, tll::Channel * master)
 
 	auto reader = channel_props_reader(url);
 	_service = reader.getT<std::string>("service", "");
+	_async_config_dump = reader.getT("async-config-dump", true);
 	if (resolve) {
 		if (_service.empty())
 			return _log.fail(EINVAL, "Empty service name, mandatory when resolve is enabled");
@@ -223,11 +241,25 @@ int Control::callback_tag(TaggedChannel<Uplink> *c, const tll_msg_t *msg)
 
 		c->post(&m);
 
+		_msgid_write_full = _msgid_write_ready = 0;
+		if (auto s = c->scheme(TLL_MESSAGE_CONTROL); s) {
+			if (auto m = s->lookup("WriteFull"); m)
+				_msgid_write_full = m->msgid;
+			if (auto m = s->lookup("WriteReady"); m)
+				_msgid_write_ready = m->msgid;
+		}
+
 		return _on_processor_active();
-	} else if (msg->type != TLL_MESSAGE_DATA) {
-		return 0;
-	}
-	return _on_external(c, msg);
+	} else if (msg->type == TLL_MESSAGE_CONTROL) {
+		if (msg->msgid == _msgid_write_full) {
+			_update_dcaps(0, tll::dcaps::Process | tll::dcaps::Pending);
+		} else if (msg->msgid == _msgid_write_ready) {
+			if (_config_queue)
+				_update_dcaps(tll::dcaps::Process | tll::dcaps::Pending);
+		}
+	} else if (msg->type == TLL_MESSAGE_DATA)
+		return _on_external(c, msg);
+	return 0;
 }
 
 int Control::_on_external(tll::Channel * channel, const tll_msg_t * msg)
@@ -244,6 +276,14 @@ int Control::_on_external(tll::Channel * channel, const tll_msg_t * msg)
 		tll_msg_t m = { TLL_MESSAGE_DATA };
 		m.msgid = data.meta_id();
 		m.addr = msg->addr;
+
+		if (_async_config_dump && req.get_path() == "**" && channel == _uplink()) {
+			_log.info("Queue config dump request");
+			if (!_config_queue)
+				_update_dcaps(tll::dcaps::Process | tll::dcaps::Pending);
+			_config_queue.next = true;
+			break;
+		}
 
 		for (auto & [k, cfg] : _config.root().browse(req.get_path())) {
 			auto v = cfg.get();
@@ -526,6 +566,44 @@ int Control::_post_export(ChannelExport &channel, std::string_view name, const t
 		_post_export(channel, cname, cfg);
 	}
 
+	return 0;
+}
+
+int Control::_process(long, int)
+{
+	if (!_config_queue) {
+		_log.debug("Config dump done, disable process");
+		_update_dcaps(0, tll::dcaps::Process | tll::dcaps::Pending);
+		return EAGAIN;
+	}
+	if (_config_queue.pending.empty()) {
+		_log.debug("Create new config dump from queued request");
+		for (auto & [k, cfg] : _config.root().browse("**")) {
+			auto v = cfg.get();
+			if (!v)
+				continue;
+			_config_queue.pending.emplace_back(std::move(k), std::string(*v));
+		}
+		_config_queue.pending.emplace_back("", "");
+		_config_queue.next = false;
+	}
+	if (_config_queue.pending.empty())
+		return EAGAIN;
+
+	auto & front = _config_queue.pending.front();
+	tll_msg_t m = { TLL_MESSAGE_DATA };
+	if (front.first.size()) {
+		auto data = control_scheme::ConfigValue::bind_reset(_buf);
+		data.set_key(front.first);
+		data.set_value(front.second);
+
+		m.msgid = data.meta_id();
+		m.data = data.view().data();
+		m.size = data.view().size();
+	} else
+		m.msgid = control_scheme::ConfigEnd::meta_id();
+	_config_queue.pending.pop_front();
+	_uplink()->post(&m);
 	return 0;
 }
 

@@ -327,3 +327,65 @@ channel:
     assert tproc.unpack(await tproc.recv()).SCHEME.name == 'StateDump'
     tproc.post({'channel': 'tcp', 'state': 'Active'}, name='StateUpdate')
     await check(tinput)
+
+@asyncloop_run
+async def test_queue(asyncloop, path_srcdir):
+    scheme = path_srcdir / "src/logic/control.yaml"
+
+    mock = Mock(asyncloop, f'''yamls://
+mock:
+  uplink: direct://;scheme=channel://logic:input;emulate-control=tcp-client;dump=frame
+  processor: null://
+channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;name=logic;service=mock
+''')
+
+    mock.open(skip=['uplink'])
+    mock.inner('uplink').open()
+
+    ci = mock.io('uplink')
+
+    m = await ci.recv()
+
+    assert ci.unpack(m).as_dict() == {'service': 'mock', 'version': 1}
+
+    ci.post({'path': '**'}, name='ConfigGet')
+    ci.post(b'', name='WriteFull', type=ci.Type.Control)
+
+    await asyncloop.sleep(0.001)
+
+    ci.post({}, name='Ping')
+    ci.post({'path': '**'}, name='ConfigGet')
+    assert ci.unpack(await ci.recv()).SCHEME.name == 'Pong'
+
+    await asyncloop.sleep(0.001)
+
+    ci.post({}, name='Ping')
+    ci.post({'path': '**'}, name='ConfigGet')
+    assert ci.unpack(await ci.recv()).SCHEME.name == 'Pong'
+
+    ci.post(b'', name='WriteReady', type=ci.Type.Control)
+
+    result = []
+    for i in range(100):
+        if i < 2:
+            ci.post({'path': '**'}, name='ConfigGet')
+        m = ci.unpack(await ci.recv())
+        if m.SCHEME.name == 'ConfigEnd':
+            break
+        if m.key.endswith('.state'):
+            result.append((m.key, m.value))
+    assert result == sorted([('_mock_master_uplink.state', 'Active'), ('uplink.state', 'Active'), ('logic.state', 'Active'), ('processor.state', 'Active')])
+
+    await asyncloop.sleep(0.001)
+
+    result = []
+    for i in range(100):
+        m = ci.unpack(await ci.recv())
+        if m.SCHEME.name == 'ConfigEnd':
+            break
+        if m.key.endswith('.state'):
+            result.append((m.key, m.value))
+    assert result == sorted([('_mock_master_uplink.state', 'Active'), ('uplink.state', 'Active'), ('logic.state', 'Active'), ('processor.state', 'Active')])
+
+    ci.post({}, name='Ping')
+    assert ci.unpack(await ci.recv()).SCHEME.name == 'Pong'
