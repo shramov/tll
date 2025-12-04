@@ -32,6 +32,7 @@ class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
 	tll::json::JSON _json = { _log };
 
 	tll::Channel * _resolve = nullptr;
+	tll::Channel * _uplink = nullptr;
 	std::string _service;
 	std::string _hostname;
 	std::vector<std::string> _service_tags;
@@ -47,10 +48,16 @@ class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
 	std::map<std::string, ChannelExport, std::less<>> _exports;
 
 	struct ConfigQueue {
-		std::deque<std::pair<std::string, std::string>> pending;
-		bool next = false;
+		std::deque<std::pair<std::string, std::string>> current;
+		std::deque<std::string> pending;
 
-		operator bool () const { return pending.size() || next; }
+		operator bool () const { return current.size() || pending.size(); }
+
+		void append(std::string_view req)
+		{
+			if (std::find(pending.begin(), pending.end(), req) == pending.end())
+				pending.emplace_back(req);
+		}
 	};
 
 	bool _async_config_dump = true;
@@ -128,7 +135,6 @@ class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
  private:
 
 	tll::Channel * _processor() { return _channels.get<Processor>().front().first; }
-	tll::Channel * _uplink() { return _channels.get<Uplink>().front().first; }
 	tll::result_t<int> _message_forward(const tll_msg_t * msg);
 	tll::result_t<int> _set_log_level(const tll_msg_t * msg);
 	tll::result_t<int> _channel_close(const tll_msg_t * msg);
@@ -150,6 +156,8 @@ int Control::_init(const tll::Channel::Url &url, tll::Channel * master)
 		return EINVAL;
 
 	auto resolve = _channels.get<Resolve>().size() > 0;
+	if (auto l = _channels.get<Uplink>(); l.size() > 0)
+		_uplink = l.front().first;
 
 	auto reader = channel_props_reader(url);
 	_service = reader.getT<std::string>("service", "");
@@ -277,11 +285,11 @@ int Control::_on_external(tll::Channel * channel, const tll_msg_t * msg)
 		m.msgid = data.meta_id();
 		m.addr = msg->addr;
 
-		if (_async_config_dump && req.get_path() == "**" && channel == _uplink()) {
-			_log.info("Queue config dump request");
+		if (_async_config_dump && channel == _uplink) {
+			_log.info("Queue config dump request '{}'", req.get_path());
 			if (!_config_queue)
 				_update_dcaps(tll::dcaps::Process | tll::dcaps::Pending);
-			_config_queue.next = true;
+			_config_queue.append(req.get_path());
 			break;
 		}
 
@@ -576,21 +584,22 @@ int Control::_process(long, int)
 		_update_dcaps(0, tll::dcaps::Process | tll::dcaps::Pending);
 		return EAGAIN;
 	}
-	if (_config_queue.pending.empty()) {
-		_log.debug("Create new config dump from queued request");
-		for (auto & [k, cfg] : _config.root().browse("**")) {
+	if (_config_queue.current.empty()) {
+		auto req = _config_queue.pending.front();
+		_log.debug("Create new config dump from queued request '{}'", req);
+		for (auto & [k, cfg] : _config.root().browse(req)) {
 			auto v = cfg.get();
 			if (!v)
 				continue;
-			_config_queue.pending.emplace_back(std::move(k), std::string(*v));
+			_config_queue.current.emplace_back(std::move(k), std::string(*v));
 		}
-		_config_queue.pending.emplace_back("", "");
-		_config_queue.next = false;
+		_config_queue.current.emplace_back("", "");
+		_config_queue.pending.pop_front();
 	}
-	if (_config_queue.pending.empty())
+	if (_config_queue.current.empty())
 		return EAGAIN;
 
-	auto & front = _config_queue.pending.front();
+	auto & front = _config_queue.current.front();
 	tll_msg_t m = { TLL_MESSAGE_DATA };
 	if (front.first.size()) {
 		auto data = control_scheme::ConfigValue::bind_reset(_buf);
@@ -602,8 +611,8 @@ int Control::_process(long, int)
 		m.size = data.view().size();
 	} else
 		m.msgid = control_scheme::ConfigEnd::meta_id();
-	_config_queue.pending.pop_front();
-	_uplink()->post(&m);
+	_config_queue.current.pop_front();
+	_uplink->post(&m);
 	return 0;
 }
 
