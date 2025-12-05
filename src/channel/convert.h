@@ -27,6 +27,13 @@ class Convert : public tll::channel::Prefix<Convert>
 			return r;
 		if (!_scheme_url)
 			return _log.fail(EINVAL, "Convert prefix needs scheme");
+
+		auto reader = tll::make_props_reader(cfg);
+		_convert_into.settings.init(reader);
+		_convert_from.settings = _convert_into.settings;
+		if (!reader)
+			return _log.fail(EINVAL, "Invalid params: {}", reader.error());
+
 		_derive_caps = (internal.caps & tll::caps::InOut) == 0;
 		return 0;
 	}

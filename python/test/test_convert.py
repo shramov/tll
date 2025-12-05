@@ -448,7 +448,8 @@ def test_msgid(context):
     ('Sub', '"int16[4]"'),
     ('Union', '"int16[4]"'),
 ])
-def test_incompatible(context, tfrom, tinto):
+@pytest.mark.parametrize("fail_on", ["", "init", "data"])
+def test_incompatible(context, tfrom, tinto, fail_on):
     SFrom = f'''yamls://
 - name: Sub
 - name: Data
@@ -471,10 +472,17 @@ def test_incompatible(context, tfrom, tinto):
   fields:
     - {{ name: f0, type: {tinto} }}
 '''
-    s = Accum('convert+null://;name=convert', scheme=SFrom, context=context, **{'null.scheme': SInto})
+    extra = {'null.scheme': SInto}
+    if fail_on != '':
+        extra['convert-fail-on'] = fail_on
+    s = Accum('convert+null://;name=convert', scheme=SFrom, context=context, **extra)
 
     s.open()
-    assert s.state == s.State.Error
+    if fail_on != 'data':
+        assert s.state == s.State.Error
+        return
+    assert s.state == s.State.Active
+    with pytest.raises(TLLError): s.post({}, name='Data')
 
 def test_control(context):
     SFrom = '''yamls://

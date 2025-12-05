@@ -62,6 +62,8 @@ int Rotate::_on_init(tll::Channel::Url &curl, const tll::Channel::Url &url, tll:
 	auto reader = channel_props_reader(url);
 	_autoclose = reader.getT("autoclose", true);
 	_convert_enable = reader.getT("convert", false);
+	if (_convert_enable)
+		_convert.settings.init(reader);
 	auto key_first = reader.getT("filename-key", true, {{"first", true}, {"last", false}});
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());

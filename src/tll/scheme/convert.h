@@ -19,6 +19,14 @@ struct Convert : public ErrorStack
 	std::map<int, const Message *> map_from;
 	SchemePtr scheme_from;
 	SchemePtr scheme_into;
+	struct Settings {
+		bool fail_early = true;
+
+		template <typename R>
+		void init(R &reader) {
+			fail_early = reader.getT("convert-fail-on", true, {{"init", true}, {"data", false}});
+		}
+	} settings;
 
 	struct Ratio
 	{
@@ -86,8 +94,11 @@ struct Convert : public ErrorStack
 			auto into = scheme_into->lookup(m->name);
 			if (!into)
 				continue;
-			if (!convertible(into, m))
-				return log.fail(EINVAL, "Message {} can not be converted at {}: {}", m->name, format_stack(), error);
+			if (!convertible(into, m)) {
+				if (settings.fail_early)
+					return log.fail(EINVAL, "Message {} can not be converted at {}: {}", m->name, format_stack(), error);
+				log.warning("Message {} can not be converted at {}: {}", m->name, format_stack(), error);
+			}
 		}
 		return 0;
 	}
