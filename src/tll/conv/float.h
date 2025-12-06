@@ -72,6 +72,59 @@ struct unpacked_float
 	unpacked_float() = default;
 	unpacked_float(const unpacked_float &) = default;
 	unpacked_float(unpacked_float &&) = default;
+
+	enum Flags {
+		ZeroAfterDot = 0x01,
+		LowerCaseE = 0x02,
+	};
+
+	template <typename Buf>
+	inline std::string_view to_string_buf(Buf &buf, unsigned flags = 0) const
+	{
+		constexpr size_t size = 1 + (3 * 8 * sizeof(mantissa) / 10 + 1) + 4 + (3 * 8 * sizeof(exponent) / 10 + 1);
+		buf.resize(size); //[-]digits.[0]E[-]exp
+
+		const auto end = ((char *) buf.data()) + size;
+		auto ptr = end;
+		auto exp = exponent;
+
+		if (exp > 0 || exp < -9 || sizeof(mantissa) > 8) { // Scientific notation
+			bool expsign = exp < 0;
+			if (expsign)
+				exp = -exp;
+			ptr = rwrite_uint(ptr, exp, 1);
+			if (expsign)
+				*--ptr = '-';
+			if (flags & LowerCaseE)
+				*--ptr = 'e';
+			else
+				*--ptr = 'E';
+			if (flags & ZeroAfterDot)
+				*--ptr = '0';
+			*--ptr = '.';
+
+			ptr = rwrite_uint(ptr, mantissa);
+		} else if (exp == 0) {
+			if (flags & ZeroAfterDot)
+				*--ptr = '0';
+			*--ptr = '.';
+			ptr = rwrite_uint(ptr, mantissa);
+		} else { // Exp in [-9, 0) range
+			unsigned div = 1;
+			for (auto i = exp; i; i++)
+				div *= 10;
+			auto lo = mantissa % div;
+			auto hi = mantissa / div;
+			ptr = rwrite_uint(ptr, lo, -exp);
+			*--ptr = '.';
+			ptr = rwrite_uint(ptr, hi, 1);
+		}
+
+		if (sign)
+			*--ptr = '-';
+
+		return std::string_view(ptr, end - ptr);
+	}
 };
 
 template <typename T>
@@ -82,42 +135,7 @@ struct dump<unpacked_float<T>> : public to_string_from_string_buf<unpacked_float
 	template <typename Buf>
 	static inline std::string_view to_string_buf(const value_type &v, Buf &buf)
 	{
-		constexpr size_t size = 1 + (3 * 8 * sizeof(v.mantissa) / 10 + 1) + 3 + (3 * 8 * sizeof(v.exponent) / 10 + 1);
-		buf.resize(size); //[-]digits.E[-]exp
-
-		auto end = ((char *) buf.data()) + size;
-		auto ptr = end;
-		auto exp = v.exponent;
-
-		if (exp > 0 || exp < -9 || sizeof(v.mantissa) > 8) { // Scientific notation
-			bool expsign = exp < 0;
-			if (expsign)
-				exp = -exp;
-			ptr = rwrite_uint(ptr, exp, 1);
-			if (expsign)
-				*--ptr = '-';
-			*--ptr = 'E';
-			*--ptr = '.';
-
-			ptr = rwrite_uint(ptr, v.mantissa);
-		} else if (exp == 0) {
-			*--ptr = '.';
-			ptr = rwrite_uint(ptr, v.mantissa);
-		} else { // Exp in [-9, 0) range
-			unsigned div = 1;
-			for (auto i = exp; i; i++)
-				div *= 10;
-			auto lo = v.mantissa % div;
-			auto hi = v.mantissa / div;
-			ptr = rwrite_uint(ptr, lo, -exp);
-			*--ptr = '.';
-			ptr = rwrite_uint(ptr, hi, 1);
-		}
-
-		if (v.sign)
-			*--ptr = '-';
-
-		return std::string_view(ptr, end - ptr);
+		return v.to_string_buf(buf);
 	}
 };
 

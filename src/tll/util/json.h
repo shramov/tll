@@ -17,11 +17,13 @@
 #include <rapidjson/error/en.h>
 
 #include "tll/channel.h"
+#include "tll/conv/decimal128.h"
 #include "tll/logger.h"
 #include "tll/scheme.h"
 #include "tll/scheme/types.h"
 #include "tll/scheme/util.h"
 #include "tll/scheme/optr-util.h"
+#include "tll/util/decimal128.h"
 #include "tll/util/memoryview.h"
 #include "tll/util/listiter.h"
 #include "tll/util/buffer.h"
@@ -135,7 +137,7 @@ struct DataHandler : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Data
 	}
 
 	template <typename T>
-	bool decode_scalar(memoryview<Buf>& view, std::string_view str)
+	bool decode_scalar(memoryview<Buf> view, std::string_view str)
 	{
 		auto r = conv::to_any<T>(str);
 		if (!r)
@@ -252,7 +254,9 @@ struct DataHandler : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Data
 			return _log.fail(false, "Got scalar value for pointer field {}: {}", f->name, str);
 		}
 		case Field::Message: return _log.fail(false, "Got scalar value for Message field: {}", str);
-		case Field::Decimal128: return _log.fail(false, "Decimal128 not supported");
+		case Field::Decimal128:
+			return decode_scalar<tll::util::Decimal128>(state.fview(), str);
+
 		case Field::Union: return _log.fail(false, "Union not supported");
 		}
 		return true;
@@ -717,8 +721,15 @@ inline int JSON::encode_field(W &writer, const memoryview<Buf> &data, const Fiel
 		}
 		return _log.fail(EINVAL, "Bytes not implemented");
 	}
-	case Field::Decimal128:
-		return _log.fail(EINVAL, "Decimal128 not implemented");
+	case Field::Decimal128: {
+		tll::util::Decimal128::Unpacked u;
+		data.template dataT<tll::util::Decimal128>()->unpack(u);
+		tll::conv::unpacked_float<decltype(u.mantissa.value)> uf { u.sign != 0, u.mantissa.value, u.exponent };
+
+		auto r = uf.to_string_buf(_buf, uf.ZeroAfterDot | uf.LowerCaseE);
+		writer.RawValue(r.data(), r.size(), rapidjson::kNumberType);
+		return 0;
+	}
 	case Field::Message:
 		if (encode_message(writer, data, field->type_msg, !meta->message_inline))
 			return _log.fail(EINVAL, "Failed to encode sub-message {}", field->type_msg->name);
