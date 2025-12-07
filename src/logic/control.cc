@@ -48,7 +48,7 @@ class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
 	std::map<std::string, ChannelExport, std::less<>> _exports;
 
 	struct ConfigQueue {
-		std::deque<std::pair<std::string, std::string>> current;
+		std::deque<std::pair<std::string, tll::optional_config_string>> current;
 		std::deque<std::string> pending;
 
 		operator bool () const { return current.size() || pending.size(); }
@@ -591,9 +591,9 @@ int Control::_process(long, int)
 			auto v = cfg.get();
 			if (!v)
 				continue;
-			_config_queue.current.emplace_back(std::move(k), std::string(*v));
+			_config_queue.current.emplace_back(std::move(k), std::move(v));
 		}
-		_config_queue.current.emplace_back("", "");
+		_config_queue.current.emplace_back("", tll::optional_config_string());
 		_config_queue.pending.pop_front();
 	}
 	if (_config_queue.current.empty())
@@ -604,7 +604,7 @@ int Control::_process(long, int)
 	if (front.first.size()) {
 		auto data = control_scheme::ConfigValue::bind_reset(_buf);
 		data.set_key(front.first);
-		data.set_value(front.second);
+		data.set_value(*front.second);
 
 		m.msgid = data.meta_id();
 		m.data = data.view().data();
