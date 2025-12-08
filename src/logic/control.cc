@@ -58,6 +58,12 @@ class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
 			if (std::find(pending.begin(), pending.end(), req) == pending.end())
 				pending.emplace_back(req);
 		}
+
+		void clear()
+		{
+			current.clear();
+			pending.clear();
+		}
 	};
 
 	bool _async_config_dump = true;
@@ -115,6 +121,7 @@ class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
 
 	int _on_external(tll::Channel * channel, const tll_msg_t * msg);
 	int _on_state_update(std::string_view name, tll_state_t state);
+	int _on_uplink_active(tll::Channel *, const tll_msg_t *);
 
 	int _forward(const tll_msg_t * msg)
 	{
@@ -235,29 +242,44 @@ int Control::callback_tag(TaggedChannel<Input> *c, const tll_msg_t *msg)
 	return _on_external(c, msg);
 }
 
+int Control::_on_uplink_active(tll::Channel * c, const tll_msg_t * msg)
+{
+	auto data = control_scheme::Hello::bind_reset(_buf);
+	data.set_version((uint16_t) control_scheme::Version::Current);
+	data.set_service(_service);
+
+	tll_msg_t m = { .type = TLL_MESSAGE_DATA, .msgid = data.meta_id() };
+	m.addr = msg->addr;
+	m.data = data.view().data();
+	m.size = data.view().size();
+
+	c->post(&m);
+
+	_msgid_write_full = _msgid_write_ready = 0;
+	if (auto s = c->scheme(TLL_MESSAGE_CONTROL); s) {
+		if (auto m = s->lookup("WriteFull"); m)
+			_msgid_write_full = m->msgid;
+		if (auto m = s->lookup("WriteReady"); m)
+			_msgid_write_ready = m->msgid;
+	}
+
+	return _on_processor_active();
+}
+
 int Control::callback_tag(TaggedChannel<Uplink> *c, const tll_msg_t *msg)
 {
-	if (msg->type == TLL_MESSAGE_STATE && msg->msgid == tll::state::Active) {
-		auto data = control_scheme::Hello::bind_reset(_buf);
-		data.set_version((uint16_t) control_scheme::Version::Current);
-		data.set_service(_service);
-
-		tll_msg_t m = { .type = TLL_MESSAGE_DATA, .msgid = data.meta_id() };
-		m.addr = msg->addr;
-		m.data = data.view().data();
-		m.size = data.view().size();
-
-		c->post(&m);
-
-		_msgid_write_full = _msgid_write_ready = 0;
-		if (auto s = c->scheme(TLL_MESSAGE_CONTROL); s) {
-			if (auto m = s->lookup("WriteFull"); m)
-				_msgid_write_full = m->msgid;
-			if (auto m = s->lookup("WriteReady"); m)
-				_msgid_write_ready = m->msgid;
+	if (msg->type == TLL_MESSAGE_STATE) {
+		switch ((tll_state_t) msg->msgid) {
+		case tll::state::Active:
+			return _on_uplink_active(c, msg);
+		case tll::state::Error:
+		case tll::state::Closed:
+			_config_queue.clear();
+			_update_dcaps(0, tll::dcaps::Process | tll::dcaps::Pending);
+			break;
+		default:
+			break;
 		}
-
-		return _on_processor_active();
 	} else if (msg->type == TLL_MESSAGE_CONTROL) {
 		if (msg->msgid == _msgid_write_full) {
 			_update_dcaps(0, tll::dcaps::Process | tll::dcaps::Pending);

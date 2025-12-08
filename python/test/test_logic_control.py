@@ -398,3 +398,14 @@ channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;na
 
     ci.post({}, name='Ping')
     assert ci.unpack(await ci.recv()).SCHEME.name == 'Pong'
+
+    ci.post({'path': '**.state'}, name='ConfigGet')
+    mock.inner('uplink').close()
+
+    await asyncloop.sleep(0.001)
+
+    mock.inner('uplink').open()
+    assert ci.unpack(await ci.recv()).SCHEME.name == 'Hello'
+
+    ci.post({}, name='Ping')
+    assert ci.unpack(await ci.recv()).SCHEME.name == 'Pong'
