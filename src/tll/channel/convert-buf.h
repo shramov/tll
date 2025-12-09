@@ -28,12 +28,18 @@ struct ConvertBuf : public tll::scheme::Convert
 		if (m->size < message->size)
 			return fail(std::nullopt, "Message {} too small: {} < minimum {}", message->name, m->size, message->size);
 		auto user = static_cast<const tll::scheme::Convert::MessageInto *>(message->user);
-		if (user->trivial)
-			return m;
+		if (user->trivial) {
+			if (user->into->msgid == m->msgid)
+				return m;
+			msg = *m;
+			msg.msgid = user->into->msgid;
+			return &msg;
+		}
 		buffer.resize(0);
 		if (auto r = tll::scheme::Convert::convert(tll::make_view(buffer), message, tll::make_view(*m)); r)
 			return std::nullopt;
 		msg = *m;
+		msg.msgid = user->into->msgid;
 		msg.data = buffer.data();
 		msg.size = buffer.size();
 		return &msg;

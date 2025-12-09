@@ -537,3 +537,27 @@ def test_input(context, tmp_path):
     crw = Accum(f'convert+file://{tmp_path}/file.dat', name='convert', autoclose='yes', **{'convert.scheme': SInto, 'convert.dir': 'rw'})
     crw.open()
     assert crw.state == crw.State.Error
+
+@pytest.mark.parametrize("into", ["int8", "int16"])
+def test_msgid(context, into):
+    SFrom = '''yamls://
+- name: Data
+  id: 10
+  fields:
+    - { name: f0, type: int8 }
+'''
+
+    SInto = f'''yamls://
+- name: Data
+  id: 100
+  fields:
+    - {{ name: f0, type: {into} }}
+'''
+
+    s = Accum('convert+direct://;name=server', dump='yes', scheme=SInto, context=context, **{'direct.scheme': SFrom, 'direct.dump': 'yes'})
+    c = Accum('direct://;name=client', context=context, master=s)
+    s.open()
+    c.open()
+
+    c.post({'f0': 10}, name='Data', seq=1)
+    assert [(m.msgid, m.seq) for m in s.result] == [(100, 1)]
