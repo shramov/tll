@@ -289,6 +289,7 @@ class TcpServer : public Base<T>
 	std::map<int, tcp_socket_t *> _clients;
 	bool _cleanup_flag = false;
 	tcp_settings_t _settings = {};
+	unsigned _listen_backlog = 10;
 	tll::Channel::Url _socket_url;
 	tll::Channel::Url _client_init;
 	tll::Config _client_config;

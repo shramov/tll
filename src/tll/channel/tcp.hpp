@@ -613,6 +613,7 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	auto reader = this->channelT()->channel_props_reader(url);
 	auto af = reader.getT("af", network::AddressFamily::UNSPEC);
 	_host = reader.template getT<tll::network::hostport>("tll.host");
+	_listen_backlog = reader.getT("listen-backlog", 10u);
 	_settings.timestamping = reader.getT("timestamping", false);
 	_settings.keepalive = reader.getT("keepalive", true);
 	_settings.nodelay = reader.getT("nodelay", true);
@@ -730,7 +731,7 @@ int TcpServer<T, C>::_bind(tll::network::sockaddr_any &addr)
 	if (bind(fd, addr, addr.size))
 		return this->_log.fail(errno, "Failed to bind: {}", strerror(errno));
 
-	if (listen(fd, 10))
+	if (listen(fd, _listen_backlog))
 		return this->_log.fail(errno, "Failed to listen on socket: {}", strerror(errno));
 
 	if ((addr->sa_family == AF_INET && addr.in()->sin_port == 0) ||
