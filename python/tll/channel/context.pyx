@@ -406,18 +406,21 @@ cdef Impl pychannel_lookup(object module):
             impl = Impl(obj)
             obj._TLL_IMPL = impl
         return impl
-    except:
-        log.exception(f"Failed to build impl for {module}")
     finally:
         if path:
             sys.path.remove(path)
 
 cdef api:
     cdef tll_channel_impl_t * tll_pychannel_lookup(const char *s) with gil:
-        cdef Impl impl = pychannel_lookup(b2s(s))
-        if impl is None:
-            return NULL
-        return &impl.impl
+        cdef Impl impl = None
+        try:
+            impl = pychannel_lookup(b2s(s))
+            if impl is None:
+                return NULL
+            return &impl.impl
+        except:
+            log = Logger("tll.channel.python")
+            log.exception(f"Failed to build impl for {b2s(s)}")
 
 class PyLoader:
     PROTO = 'python'

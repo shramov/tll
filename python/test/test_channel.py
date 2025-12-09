@@ -106,6 +106,7 @@ class TestLogic(Logic):
 def test():
     ctx = C.Context()
 
+    with pytest.raises(TLLError): ctx.Channel("python://;python=tll.logger:TLLChannelImplementation")
     with pytest.raises(TLLError): ctx.Channel("echo://;name=echo")
     ctx.register(Echo)
     c = Accum("echo://;name=echo", context=ctx, dump='text', scheme='yamls://[{name: Data, id: 10}]')
