@@ -68,7 +68,7 @@ async def test_uplink(asyncloop, path_srcdir):
 mock:
   processor: direct://;scheme=yaml://{scheme}
   uplink: direct://;scheme=yaml://{scheme}
-channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;name=logic;service=service-name
+channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;name=logic;service=service-name;hostname=host-name
 ''')
 
     mock.open(skip=['uplink'])
@@ -82,7 +82,7 @@ channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;na
 
     m = tinput.unpack(await tinput.recv())
     assert m.SCHEME.name == 'Hello'
-    assert m.as_dict() == {'version': 1, 'service': 'service-name'}
+    assert m.as_dict() == {'version': 1, 'service': 'service-name', 'hostname': 'host-name'}
 
     m = await tproc.recv()
     assert tproc.unpack(m).SCHEME.name == 'StateDump'
@@ -336,7 +336,7 @@ async def test_queue(asyncloop, path_srcdir):
 mock:
   uplink: direct://;scheme=channel://logic:input;emulate-control=tcp-client;dump=frame
   processor: null://
-channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;name=logic;service=mock
+channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;name=logic;service=mock;hostname=host
 ''')
 
     mock.open(skip=['uplink'])
@@ -346,7 +346,7 @@ channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;na
 
     m = await ci.recv()
 
-    assert ci.unpack(m).as_dict() == {'service': 'mock', 'version': 1}
+    assert ci.unpack(m).as_dict() == {'service': 'mock', 'hostname': 'host', 'version': 1}
 
     ci.post({'path': '**.state'}, name='ConfigGet')
     ci.post(b'', name='WriteFull', type=ci.Type.Control)

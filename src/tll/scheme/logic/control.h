@@ -5,7 +5,7 @@
 
 namespace control_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJydVE1v2zAMvfdX6KZLAsRZ6ia5DUm7DejWAt06DEUPqk27Qh3Jk+RsWZH/XkqWv5I4GXpJaPGBpN571JAItoI5ofSMEBDFSs8xIITeg9JcCjonr2aTI6LgwgThwIHwkC4KpUAYBATb7dmwqrOQIuHpJzC2II8xO8Ig4ZDFvvSQvHpszswzHZCyPtVGcZHSvVr3LCugqjbur/YCmwPFupi1q3Wy5aWIq4YfRk3y5qU6nbROL5WSqkqc988HDnek9x2Ya5lewxqyqlw4asvSw6KChP89efXM1a1RVs4pfsrcoMzaKmoz1A6K/ei2pbTihkcsw9z5gNAlPBWplX1Q3R35wPiLSCSGYwy/KxbZUiOMfzIl7DxI5XZ3JgVRgTZbw7vm+iZ9i1+gd214a1t6Ei9aYt3K5nzaOv8MWSarxKxfxLVfi868QbjHtga15tFRq90ZZmBZrPLGVLNwJ/0jj/G3BgTBeGdNHaq7pNOGoY+RseSWoiwyqSH2lNkPr4qTFMeTGy9wW9SbHLx6gVPviZuq9VXGUr3/PjgEeaiJMCy1NMgk0WBcc83/ga03aNgqNPaJW7CggT1ue9WInpkQbVf3eF87lmpUSdouKHH3qUHl9Q7p1XodJsF42iC+gtb2tqd31lm6blVa6P92UQpUKvPrt2SGWUH3Fsv+nWYFfndmCCd7EBbHquv1A6DYTnHE6J6WK6n+MNWi7iLs5SdGQ56cv9u3Ir/9mJf2cMZv2s7G7/DTG2jKGOc=)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJydVMFu2zAMvfcrfNMlAeKsdZPchqTdBnRrgW0dhmEH1aYdoY7kSXK2rMi/j5JlW3biZOjFoMUHknrvUeOA0w0sAkIuggB4uVELDIKAPIJUTHCyCF70rkBEybgOo5EF4SFZllIC1wgI9/uLcV1nKXjKsnegTUGWYHaCQcogT1zpcfDisAXVazIKqvpEacl4Rg5qPdK8hLradLjaM+yOFOtitrbW2ZY3PKkbvpm0yfvn+vTSO72RUsg6cTU8H1jcid6fQd+J7A62kNflookvywCLElL25+zVc1u3QRk5Z/grCo0yK6OoyRAzKPYje09pyTSLaY65q1FAVvBUZkb2UX135APjDzwVGE4x/CJpbEpNMP5GJTfzIJX7/kwS4hJttoVXzfVJuBbfQfVt+GBaOhKvPbEeRHs+887fQ56LOjEfFnHr1qIzbxgdsK1Abll8zGpd3FoobcKTvtBUw6rcFK375lEv/bVI8NsAwnDa22eL6m7zrKXybayNCpV6y1woSBy35sfJZ7XH8cTOOcFX/74AJ3NoZX5ium59m9NMHT4kFhH8aBjTNDM0iDRVoG1zxf6CqTdqaS0V9kk8WNjCfu4HZYvXlHPf/gNyKMtSg6pI64NSe58GVF3vmF7eM3IZTmct4iMoZW57frmt95tWldf+b2kFR6Vyt6crqqkR9GADB7zXN/OvzgzR5QGEJonsLsURUGKmOGF0R8utkL+p9Ki7jgb5SdCQZ+fv9q3J91/9yh7W+G3b+fQVfvoHzUwlqw==)";
 
 enum class Version: uint16_t
 {
@@ -28,6 +28,12 @@ struct ConfigGet
 		static constexpr auto meta_name() { return ConfigGet::meta_name(); }
 		static constexpr auto meta_id() { return ConfigGet::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
+
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+			set_path(rhs.get_path());
+		}
 
 		std::string_view get_path() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_path); }
 		void set_path(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_path, v); }
@@ -58,6 +64,13 @@ struct ConfigValue
 		static constexpr auto meta_id() { return ConfigValue::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
 
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+			set_key(rhs.get_key());
+			set_value(rhs.get_value());
+		}
+
 		std::string_view get_key() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_key); }
 		void set_key(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_key, v); }
 
@@ -87,6 +100,11 @@ struct ConfigEnd
 		static constexpr auto meta_name() { return ConfigEnd::meta_name(); }
 		static constexpr auto meta_id() { return ConfigEnd::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
+
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+		}
 	};
 
 	template <typename Buf>
@@ -111,6 +129,11 @@ struct Ok
 		static constexpr auto meta_name() { return Ok::meta_name(); }
 		static constexpr auto meta_id() { return Ok::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
+
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+		}
 	};
 
 	template <typename Buf>
@@ -136,6 +159,12 @@ struct Error
 		static constexpr auto meta_name() { return Error::meta_name(); }
 		static constexpr auto meta_id() { return Error::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
+
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+			set_error(rhs.get_error());
+		}
 
 		std::string_view get_error() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_error); }
 		void set_error(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_error, v); }
@@ -183,6 +212,14 @@ struct SetLogLevel
 		static constexpr auto meta_id() { return SetLogLevel::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
 
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+			set_prefix(rhs.get_prefix());
+			set_level(rhs.get_level());
+			set_recursive(rhs.get_recursive());
+		}
+
 		std::string_view get_prefix() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_prefix); }
 		void set_prefix(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_prefix, v); }
 
@@ -217,6 +254,11 @@ struct Ping
 		static constexpr auto meta_name() { return Ping::meta_name(); }
 		static constexpr auto meta_id() { return Ping::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
+
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+		}
 	};
 
 	template <typename Buf>
@@ -241,6 +283,11 @@ struct Pong
 		static constexpr auto meta_name() { return Pong::meta_name(); }
 		static constexpr auto meta_id() { return Pong::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
+
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+		}
 	};
 
 	template <typename Buf>
@@ -252,11 +299,12 @@ struct Pong
 
 struct Hello
 {
-	static constexpr size_t meta_size() { return 10; }
+	static constexpr size_t meta_size() { return 18; }
 	static constexpr std::string_view meta_name() { return "Hello"; }
 	static constexpr int meta_id() { return 90; }
 	static constexpr size_t offset_version = 0;
 	static constexpr size_t offset_service = 2;
+	static constexpr size_t offset_hostname = 10;
 
 	template <typename Buf>
 	struct binder_type : public tll::scheme::Binder<Buf>
@@ -268,12 +316,23 @@ struct Hello
 		static constexpr auto meta_id() { return Hello::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
 
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+			set_version(rhs.get_version());
+			set_service(rhs.get_service());
+			set_hostname(rhs.get_hostname());
+		}
+
 		using type_version = uint16_t;
 		type_version get_version() const { return this->template _get_scalar<type_version>(offset_version); }
 		void set_version(type_version v) { return this->template _set_scalar<type_version>(offset_version, v); }
 
 		std::string_view get_service() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_service); }
 		void set_service(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_service, v); }
+
+		std::string_view get_hostname() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_hostname); }
+		void set_hostname(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_hostname, v); }
 	};
 
 	template <typename Buf>
@@ -298,6 +357,11 @@ struct StateDump
 		static constexpr auto meta_name() { return StateDump::meta_name(); }
 		static constexpr auto meta_id() { return StateDump::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
+
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+		}
 	};
 
 	template <typename Buf>
@@ -352,6 +416,14 @@ struct StateUpdate
 		static constexpr auto meta_id() { return StateUpdate::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
 
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+			set_channel(rhs.get_channel());
+			set_state(rhs.get_state());
+			set_flags(rhs.get_flags());
+		}
+
 		std::string_view get_channel() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_channel); }
 		void set_channel(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_channel, v); }
 
@@ -386,6 +458,11 @@ struct StateDumpEnd
 		static constexpr auto meta_name() { return StateDumpEnd::meta_name(); }
 		static constexpr auto meta_id() { return StateDumpEnd::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
+
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+		}
 	};
 
 	template <typename Buf>
@@ -419,6 +496,16 @@ struct Message
 		static constexpr auto meta_size() { return Message::meta_size(); }
 		static constexpr auto meta_name() { return Message::meta_name(); }
 		void view_resize() { this->_view_resize(meta_size()); }
+
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+			set_type(rhs.get_type());
+			set_name(rhs.get_name());
+			set_seq(rhs.get_seq());
+			set_addr(rhs.get_addr());
+			set_data(rhs.get_data());
+		}
 
 		using type_type = type;
 		type_type get_type() const { return this->template _get_scalar<type_type>(offset_type); }
@@ -464,11 +551,19 @@ struct MessageForward
 		static constexpr auto meta_id() { return MessageForward::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
 
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+			set_dest(rhs.get_dest());
+			get_data().copy(rhs.get_data());
+		}
+
 		std::string_view get_dest() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_dest); }
 		void set_dest(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_dest, v); }
 
 		using type_data = Message::binder_type<Buf>;
-		const type_data get_data() const { return this->template _get_binder<type_data>(offset_data); }
+		using const_type_data = Message::binder_type<const Buf>;
+		const_type_data get_data() const { return this->template _get_binder<const_type_data>(offset_data); }
 		type_data get_data() { return this->template _get_binder<type_data>(offset_data); }
 	};
 
@@ -495,6 +590,12 @@ struct ChannelClose
 		static constexpr auto meta_name() { return ChannelClose::meta_name(); }
 		static constexpr auto meta_id() { return ChannelClose::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
+
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+			set_channel(rhs.get_channel());
+		}
 
 		std::string_view get_channel() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_channel); }
 		void set_channel(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_channel, v); }

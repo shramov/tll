@@ -41,6 +41,7 @@
   fields:
     - {name: version, type: uint16}
     - {name: service, type: string}
+    - {name: hostname, type: string}
 
 # Copy of processor.yaml
 
