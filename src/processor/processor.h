@@ -71,6 +71,7 @@ struct Processor : public tll::channel::Base<Processor>
 	std::unique_ptr<tll::Channel> _timer;
 
 	std::vector<char> _buf;
+	int _exit_code = 0;
 
 	~Processor()
 	{

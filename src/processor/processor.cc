@@ -137,6 +137,8 @@ int Processor::_init(const tll::Channel::Url &url, Channel * master)
 int Processor::_open(const tll::ConstConfig &)
 {
 	loop.stop = false;
+	_exit_code = 0;
+	config_info().set_ptr("exit-code", &_exit_code);
 	if (_ipc->open())
 		return _log.fail(EINVAL, "Failed to open IPC channel");
 	if (_timer->open())
@@ -541,6 +543,7 @@ int Processor::cb(const Channel * c, const tll_msg_t * msg)
 	case scheme::Exit::id: {
 		auto data = (const scheme::Exit *) msg->data;
 		if (state() == state::Closing) return 0;
+		_exit_code = data->code;
 		if (data->channel)
 			_log.info("Shutdown requested by channel {}", data->channel->name());
 		else
@@ -725,6 +728,7 @@ void Processor::_close_workers()
 int Processor::_close(bool force)
 {
 	_log.info("Close processor");
+	config_info().setT("exit-code", _exit_code);
 	for (auto & o : _objects) {
 		decay(&o);
 	}

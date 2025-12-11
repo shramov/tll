@@ -154,5 +154,5 @@ int main(int argc, char *argv[])
 
 	loader.reset();
 
-	return 0;
+	return proc->config().getT("info.exit-code", 0).value_or(0);
 }
