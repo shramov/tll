@@ -1,3 +1,23 @@
+tll (0.4.5) unstable; urgency=medium
+
+  * channel:
+    Poll hint flags for tll_channel_process
+    Rename tll_channel_process parameters
+  * control:
+    Async config dump
+    Export service name and tags in Hello
+  * convert:
+    Fail either on init or on first bad message
+    Set message id after conversion
+  * file: Check file size when reading block seq
+  * json: Support decimal128 and time fields
+  * processor: Exit with non-zero code on errors
+  * python: Do not catch impl lookup exception in native Python
+  * rate: Fix control scheme double free bug
+  * tcp: Configurable listen backlog
+
+ -- Pavel Shramov <shramov@mexmat.net>  Fri, 12 Dec 2025 12:31:40 +0300
+
 tll (0.4.4) unstable; urgency=medium
 
   * channel: Check for value-tree conflicts in init parameters
