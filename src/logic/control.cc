@@ -168,13 +168,11 @@ int Control::_init(const tll::Channel::Url &url, tll::Channel * master)
 
 	auto reader = channel_props_reader(url);
 	_service = reader.getT<std::string>("service", "");
+	_service_tags = reader.getT("service-tags", std::vector<std::string>());
 	_async_config_dump = reader.getT("async-config-dump", true);
 	_hostname = reader.getT<std::string>("hostname", "");
-	if (resolve) {
-		if (_service.empty())
-			return _log.fail(EINVAL, "Empty service name, mandatory when resolve is enabled");
-		_service_tags = reader.getT("service-tags", std::vector<std::string>());
-	}
+	if (resolve && _service.empty())
+		return _log.fail(EINVAL, "Empty service name, mandatory when resolve is enabled");
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid parameters: {}", reader.error());
 
@@ -248,6 +246,12 @@ int Control::_on_uplink_active(tll::Channel * c, const tll_msg_t * msg)
 	data.set_version((uint16_t) control_scheme::Version::Current);
 	data.set_service(_service);
 	data.set_hostname(_hostname);
+	if (_service_tags.size()) {
+		data.get_tags().resize(_service_tags.size());
+		auto idx = 0u;
+		for (auto & tag : _service_tags)
+			data.get_tags()[idx++] = tag;
+	}
 
 	tll_msg_t m = { .type = TLL_MESSAGE_DATA, .msgid = data.meta_id() };
 	m.addr = msg->addr;

@@ -5,7 +5,7 @@
 
 namespace control_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJydVMFu2zAMvfcrfNMlAeKsdZPchqTdBnRrgW0dhmEH1aYdoY7kSXK2rMi/j5JlW3biZOjFoMUHknrvUeOA0w0sAkIuggB4uVELDIKAPIJUTHCyCF70rkBEybgOo5EF4SFZllIC1wgI9/uLcV1nKXjKsnegTUGWYHaCQcogT1zpcfDisAXVazIKqvpEacl4Rg5qPdK8hLradLjaM+yOFOtitrbW2ZY3PKkbvpm0yfvn+vTSO72RUsg6cTU8H1jcid6fQd+J7A62kNflookvywCLElL25+zVc1u3QRk5Z/grCo0yK6OoyRAzKPYje09pyTSLaY65q1FAVvBUZkb2UX135APjDzwVGE4x/CJpbEpNMP5GJTfzIJX7/kwS4hJttoVXzfVJuBbfQfVt+GBaOhKvPbEeRHs+887fQ56LOjEfFnHr1qIzbxgdsK1Abll8zGpd3FoobcKTvtBUw6rcFK375lEv/bVI8NsAwnDa22eL6m7zrKXybayNCpV6y1woSBy35sfJZ7XH8cTOOcFX/74AJ3NoZX5ium59m9NMHT4kFhH8aBjTNDM0iDRVoG1zxf6CqTdqaS0V9kk8WNjCfu4HZYvXlHPf/gNyKMtSg6pI64NSe58GVF3vmF7eM3IZTmct4iMoZW57frmt95tWldf+b2kFR6Vyt6crqqkR9GADB7zXN/OvzgzR5QGEJonsLsURUGKmOGF0R8utkL+p9Ki7jgb5SdCQZ+fv9q3J91/9yh7W+G3b+fQVfvoHzUwlqw==)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJydVVFv2jAQfu+vyJulCSTCaAq8TdBuk7q10rZOVbUHN7mAVWNntsPGKv77zo5DHCCl6gu6+D7dnb/vO9OPBF3BNCLkLIpAlCs9xSCKyB0ozaQg0+jZbApElEyYOOk5EB6SWakUCIOAeLs969d1ZlLkbPERjC3IMswOMMgZ8MyX7kfPHltQsyS9qKpPtFFMLMhBrTvKS6irDburPcHmSLE2Zu1qnWx5KbK64ftBk7x5qk9HwemlUlLVifPu+cDhXuj9Dcy1XFzDGnhdLhmEsnSwqCBnf09enbu6O5SVc4yfsjAos7aK2gyxg2I/sg2UVsywlHLMnfciMofHcmFl79V3Rz4w/ixyieEQw++KprbUAOOfVAk7D1K53Z9JQVqizdbwprm+St/iHvS+DW9tS0/iRSDWrWzOx8H5J+Bc1olJt4hrvxateePkgG0Nas3SY1Zr45ZSGxueBBq60A3o3RH3GGpgXq6KxqOTZC/9o8jwdweI4+He1jtUe+fHDeEfUmO1qjSecakh8wrYDy+ycwiOJzfeL6FHbgrwZoidGR6ZqVtfcXvDg+fGIaKHHa/IgyVL5rkG45pr9g9svV5DfqmxTxbA4gb2a9spbrqkQoRL0qGFdiztUBVp+6CctxSrrndMr+CxGcXDcYP4Alrb255+AtyG7FpVjnzdakuBSnG/zXNqqBX0YE9f5VANv1szJKMDCM0y1V6dI6DMTvHCM+lpuZLqD1UBdRdJJz8ZGvLk/O2+Nfnhf0NlD2f8pu1k+AY//Qc/nDDp)";
 
 enum class Version: uint16_t
 {
@@ -299,12 +299,13 @@ struct Pong
 
 struct Hello
 {
-	static constexpr size_t meta_size() { return 18; }
+	static constexpr size_t meta_size() { return 26; }
 	static constexpr std::string_view meta_name() { return "Hello"; }
 	static constexpr int meta_id() { return 90; }
 	static constexpr size_t offset_version = 0;
 	static constexpr size_t offset_service = 2;
 	static constexpr size_t offset_hostname = 10;
+	static constexpr size_t offset_tags = 18;
 
 	template <typename Buf>
 	struct binder_type : public tll::scheme::Binder<Buf>
@@ -322,6 +323,7 @@ struct Hello
 			set_version(rhs.get_version());
 			set_service(rhs.get_service());
 			set_hostname(rhs.get_hostname());
+			get_tags().copy(rhs.get_tags());
 		}
 
 		using type_version = uint16_t;
@@ -333,6 +335,11 @@ struct Hello
 
 		std::string_view get_hostname() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_hostname); }
 		void set_hostname(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_hostname, v); }
+
+		using type_tags = tll::scheme::binder::List<Buf, tll::scheme::binder::String<Buf, tll_scheme_offset_ptr_t>, tll_scheme_offset_ptr_t>;
+		using const_type_tags = tll::scheme::binder::List<const Buf, tll::scheme::binder::String<const Buf, tll_scheme_offset_ptr_t>, tll_scheme_offset_ptr_t>;
+		const_type_tags get_tags() const { return this->template _get_binder<const_type_tags>(offset_tags); }
+		type_tags get_tags() { return this->template _get_binder<type_tags>(offset_tags); }
 	};
 
 	template <typename Buf>
