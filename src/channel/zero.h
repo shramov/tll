@@ -19,11 +19,12 @@ class ChZero : public tll::channel::Event<ChZero>
 
  public:
 	static constexpr std::string_view channel_protocol() { return "zero"; }
+	static constexpr auto process_api_version() { return ProcessAPI::Void; }
 
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
 	int _open(const tll::ConstConfig &url);
 
-	int _process(long timeout, int flags)
+	int _process()
 	{
 		_msg.seq++;
 		_callback(&_msg);

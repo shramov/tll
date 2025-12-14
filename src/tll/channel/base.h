@@ -420,9 +420,9 @@ class Base
 		int r = 0;
 		if constexpr(constexpr auto v = ChannelT::process_api_version(); v == ProcessAPI::TimeoutFlags) {
 			r = static_cast<ChannelT *>(this)->_process(0, flags);
-		} else if (v == ProcessAPI::Flags) {
+		} else if constexpr (v == ProcessAPI::Flags) {
 			r = static_cast<ChannelT *>(this)->_process(flags);
-		} else if (v == ProcessAPI::Void) {
+		} else if constexpr (v == ProcessAPI::Void) {
 			r = static_cast<ChannelT *>(this)->_process();
 		} else {
 			static_assert("Unknown process api");
