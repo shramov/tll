@@ -231,7 +231,6 @@ class Base
 		internal.state = state::Closed;
 		_config.set("state", "Closed");
 		_config.set("init", url.copy());
-		_config.link("url", "../init");
 
 		auto replace = channelT()->_init_replace(url, master);
 		if (!replace)

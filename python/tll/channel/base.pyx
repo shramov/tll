@@ -230,7 +230,6 @@ cdef class Base:
         self.internal.state = C.State.Closed
         self.config["state"] = "Closed"
         self.config['init'] = url.copy()
-        self.config.set_link('url', '../init')
 
         self.internal.name = str(url.get("name", "noname"))
         self.internal.logger = self.log = Logger("tll.channel.{}".format(self.name))

@@ -113,7 +113,7 @@ def test():
     cfg = c.config
 
     with pytest.raises(RuntimeError): cfg['info.a'] = 'b'
-    with pytest.raises(RuntimeError): cfg.unlink('url')
+    with pytest.raises(RuntimeError): cfg.unlink('init')
 
     pyc = C.channel_cast(c)
     assert isinstance(pyc, Echo)
@@ -268,7 +268,6 @@ def test_alias():
 
     c = ctx.Channel('aecho://;name=echo')
     assert str(Url(c.config.sub('init'))) == 'echo://;name=echo'
-    assert str(Url(c.config.sub('url'))) == 'echo://;name=echo' # Compatibility
 
     c = ctx.Channel('aprefix+aecho://;name=prefix')
     assert str(Url(c.config.sub('init'))) == 'prefix+aecho://;name=prefix'

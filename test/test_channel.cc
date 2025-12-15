@@ -172,7 +172,7 @@ void _test_channel(tll::channel::Context &ctx, std::string_view url, const tll_c
 
 	auto cfg = c->config();
 	ASSERT_EQ(std::string(cfg.get("state").value_or("")), "Active");
-	ASSERT_EQ(tll::conv::to_string(tll::Channel::Url(*cfg.sub("url"))), eurl);
+	ASSERT_EQ(tll::conv::to_string(tll::Channel::Url(*cfg.sub("init"))), eurl);
 
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	msg.seq = 100;
@@ -263,7 +263,7 @@ TEST(Channel, AliasNull)
 	auto c = ctx.channel("alias://;name=alias");
 	ASSERT_NE(c.get(), nullptr);
 	ASSERT_EQ(c->impl, &Null::impl);
-	ASSERT_EQ(tll::conv::to_string(tll::Channel::Url(*c->config().sub("url"))), "echo://;name=alias;null=yes");
+	ASSERT_EQ(tll::conv::to_string(tll::Channel::Url(*c->config().sub("init"))), "echo://;name=alias;null=yes");
 }
 
 TEST(Channel, InitReplace)
