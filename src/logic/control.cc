@@ -538,9 +538,9 @@ int Control::_on_state_update(std::string_view name, tll_state_t state)
 		auto config = it->second.config = channel->config();
 
 		auto reader = tll::make_props_reader(config);
-		auto exp = reader.getT("url.tll.resolve.export", false);
+		auto exp = reader.getT("init.tll.resolve.export", false);
 		if (exp)
-			it->second.export_name = reader.getT("url.tll.resolve.export-name", std::string(name));
+			it->second.export_name = reader.getT("init.tll.resolve.export-name", std::string(name));
 		if (!reader)
 			return _log.fail(EINVAL, "Invalid export parameters in url: {}", reader.error());
 	}
