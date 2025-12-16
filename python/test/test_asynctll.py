@@ -161,7 +161,11 @@ def test_async_mask(asynctll):
         c.open()
 
         m = await c.recv()
-        assert m.type == m.Type.State
-        assert c.State(m.msgid) == c.State.Opening
+        assert (m.type, m.msgid) == (m.Type.State, c.State.Opening.value)
+
+        m = await c.recv()
+        assert (m.type, m.msgid) == (m.Type.State, c.State.Active.value)
+
+        with pytest.raises(TimeoutError): await c.recv(0.001)
 
     loop.run(main(loop))
