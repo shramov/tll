@@ -246,6 +246,14 @@ class Tagged : public tll::channel::Base<T>
 		return Base::_open(cfg);
 	}
 
+	int _fail_on(int r, const tll::Channel * c, const tll_msg_t *msg)
+	{
+		auto text = fmt::format("Logic failed, channel: '{}',", c->name());
+		tll_channel_log_msg(c, this->_log.name(), TLL_LOGGER_ERROR, TLL_MESSAGE_LOG_AUTO, msg, text.data(), text.size());
+		this->state(tll::state::Error);
+		return r;
+	}
+
 	template <typename Tag>
 	int callback_tag_wrapper(TaggedChannel<Tag> * c, const tll_msg_t *msg)
 	{
@@ -264,8 +272,11 @@ class Tagged : public tll::channel::Base<T>
 			return 0;
 		}
 
-		if (!this->_stat_enable)
-			return this->channelT()->callback_tag(c, msg);
+		if (!this->_stat_enable) {
+			if (auto r = this->channelT()->callback_tag(c, msg); r)
+				return _fail_on(r, _::TaggedHelper<Tag>::get(c), msg);
+			return 0;
+		}
 
 		auto start = tll::time::now();
 		auto r = this->channelT()->callback_tag(c, msg);
@@ -279,6 +290,8 @@ class Tagged : public tll::channel::Base<T>
 			}
 			this->channelT()->stat()->release(page);
 		}
+		if (r)
+			return _fail_on(r, _::TaggedHelper<Tag>::get(c), msg);
 		return r;
 	}
 

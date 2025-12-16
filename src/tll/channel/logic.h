@@ -86,6 +86,14 @@ class Logic : public Base<T>
 	int logic(const Channel * c, const tll_msg_t *msg) { return 0; }
 
  private:
+	int _fail_on(int r, const tll::Channel * c, const tll_msg_t *msg)
+	{
+		auto text = fmt::format("Logic failed, channel: '{}',", c->name());
+		tll_channel_log_msg(c, this->_log.name(), TLL_LOGGER_ERROR, TLL_MESSAGE_LOG_AUTO, msg, text.data(), text.size());
+		this->state(tll::state::Error);
+		return r;
+	}
+
 	int _logic(const Channel * c, const tll_msg_t *msg)
 	{
 		if (msg->type == TLL_MESSAGE_STATE && msg->msgid == tll::state::Destroy) {
@@ -106,8 +114,11 @@ class Logic : public Base<T>
 			return 0;
 		}
 
-		if (!this->_stat_enable)
-			return this->channelT()->logic(c, msg);
+		if (!this->_stat_enable) {
+			if (auto r = this->channelT()->logic(c, msg); r)
+				return _fail_on(r, c, msg);
+			return 0;
+		}
 
 		auto start = tll::time::now();
 		auto r = this->channelT()->logic(c, msg);
@@ -121,6 +132,8 @@ class Logic : public Base<T>
 			}
 			this->channelT()->stat()->release(page);
 		}
+		if (r)
+			return _fail_on(r, c, msg);
 		return r;
 	}
 

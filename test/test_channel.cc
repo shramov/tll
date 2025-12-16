@@ -10,8 +10,10 @@
 #include "tll/compat/filesystem.h"
 
 #include "tll/channel/base.h"
+#include "tll/channel/logic.h"
 #include "tll/channel/prefix.h"
 #include "tll/channel/reopen.h"
+#include "tll/channel/tagged.h"
 #include "tll/processor/loop.h"
 #include "tll/util/ownedmsg.h"
 
@@ -114,6 +116,36 @@ class ReopenChild : public tll::channel::Base<ReopenChild>
 };
 
 TLL_DEFINE_IMPL(ReopenChild);
+
+class Logic : public tll::channel::Logic<Logic>
+{
+ public:
+	static constexpr std::string_view channel_protocol() { return "logic"; }
+
+	int logic(const tll::Channel * c, const tll_msg_t *msg)
+	{
+		if (msg->seq % 2 == 1)
+			return _log.fail(EINVAL, "Odd seq: {}", msg->seq);
+		return 0;
+	}
+};
+
+TLL_DEFINE_IMPL(Logic);
+
+class Tagged : public tll::channel::Tagged<Tagged, tll::channel::Input>
+{
+ public:
+	static constexpr std::string_view channel_protocol() { return "tagged"; }
+
+	int callback_tag(tll::channel::TaggedChannel<tll::channel::Input> * c, const tll_msg_t *msg)
+	{
+		if (msg->seq % 2 == 1)
+			return _log.fail(EINVAL, "Odd seq: {}", msg->seq);
+		return 0;
+	}
+};
+
+TLL_DEFINE_IMPL(Tagged);
 
 TEST(Channel, Register)
 {
@@ -616,4 +648,43 @@ TEST(Channel, ReopenInternal)
 	reopen.on_state(Closing, now + 2 * reopen.timeout_tremble); // Close after long activity
 	reopen.on_state(Closed, now + 1ns);
 	ASSERT_EQ(reopen.next - now, 1ns);
+}
+
+template <typename Logic>
+void _test_logic()
+{
+	auto ctx = tll::channel::Context(tll::Config());
+	ASSERT_EQ(ctx.reg(&Logic::impl), 0);
+
+	auto im = ctx.channel("direct://;name=master");
+	ASSERT_TRUE(im);
+	auto in = ctx.channel("direct://;name=input", im.get());
+	ASSERT_TRUE(in);
+	auto logic = ctx.channel("logic://;name=logic;tll.channel.input=input", nullptr, &Logic::impl);
+	ASSERT_TRUE(logic);
+
+	ASSERT_EQ(im->open(), 0);
+	ASSERT_EQ(in->open(), 0);
+	ASSERT_EQ(logic->open(), 0);
+
+	tll_msg_t msg = { .type = TLL_MESSAGE_DATA, .msgid = 10, .seq = 10 };
+	msg.data = "body";
+	msg.size = 4;
+
+	im->post(&msg);
+
+	ASSERT_EQ(logic->state(), tll::state::Active);
+	msg.seq = 11;
+	im->post(&msg);
+	ASSERT_EQ(logic->state(), tll::state::Error);
+}
+
+TEST(Channel, Logic)
+{
+	_test_logic<Logic>();
+}
+
+TEST(Channel, Tagged)
+{
+	_test_logic<Tagged>();
 }
