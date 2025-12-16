@@ -272,6 +272,7 @@ int File<TIO>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_tail_extra_size = reader.getT("extra-space", util::Size { 0 });
 	_access_mode = reader.getT("access-mode", 0644u);
 	_exact_last_seq = reader.getT("exact-last-seq", true);
+	_end_of_data = reader.getT("end-of-data", EOD::Once, {{"once", EOD::Once}, {"before-close", EOD::BeforeClose}, {"many", EOD::Many}});
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -295,7 +296,7 @@ template <typename TIO>
 int File<TIO>::_open(const ConstConfig &props)
 {
 	auto filename = _filename;
-	_end_of_data = false;
+	_seq_eod = std::numeric_limits<long long>::min();
 	_compression = _compression_init;
 	_version = _version_init;
 	_size_marker = 0;
@@ -1100,16 +1101,22 @@ int File<TIO>::_process(long timeout, int flags)
 	if (auto r = _read_frame(&frame); r) {
 		if (r != EAGAIN)
 			return r;
-		if (!_end_of_data) {
+		if (_seq_eod != _seq) {
+			const bool eod = (!_autoclose || _end_of_data == EOD::BeforeClose) &&
+				(_end_of_data == EOD::Many || _seq_eod == std::numeric_limits<long long>::min());
+			if (eod) {
+				tll_msg_t msg = { .type = TLL_MESSAGE_CONTROL, .msgid = control_eod_msgid };
+				auto guard = this->state_guard();
+				this->_callback(&msg);
+				if (guard)
+					return EAGAIN;
+			}
+			_seq_eod = _seq;
 			if (_autoclose) {
 				this->_log.info("All messages processed. Closing");
 				this->close();
 				return EAGAIN;
 			}
-			_end_of_data = true;
-			tll_msg_t msg = { TLL_MESSAGE_CONTROL };
-			msg.msgid = control_eod_msgid;
-			this->_callback(&msg);
 		} else
 			this->_dcaps_pending(false);
 		return EAGAIN;
@@ -1133,6 +1140,7 @@ int File<TIO>::_process(long timeout, int flags)
 	_shift(frame);
 	this->_dcaps_pending(true);
 
+	_seq = msg.seq;
 	this->_callback_data(&msg);
 
 	return 0;

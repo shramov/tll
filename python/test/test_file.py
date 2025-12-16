@@ -602,3 +602,41 @@ def test_meta_page_boundary(context, filename):
 '''
     f = context.Channel(f'file://{filename}', name='writer', dir='w', io='mmap', scheme=scheme)
     f.open(overwrite='yes')
+
+@pytest.mark.parametrize("eod", ["", "once", "many", "before-close"])
+@pytest.mark.parametrize("autoclose", ["autoclose", "no-autoclose"])
+def test_eod(context, filename, writer, eod, autoclose):
+    autoclose = autoclose == "autoclose"
+    writer.open()
+
+    reader = Accum(f'file://{filename}', name='reader', dump='frame', context=context, autoclose=str(autoclose).lower(), **{'end-of-data': eod})
+    reader.open()
+    assert reader.state == reader.State.Active
+    reader.process()
+    if autoclose:
+        assert reader.state == reader.State.Closed
+        if eod == 'before-close':
+            assert [(m.type, m.msgid) for m in reader.result] == [(reader.Type.Control, reader.scheme_control['EndOfData'].msgid)]
+        return
+    assert [(m.type, m.msgid) for m in reader.result] == [(reader.Type.Control, reader.scheme_control['EndOfData'].msgid)]
+    writer.post(b'xxx', msgid=100, seq=10)
+    reader.result = []
+    reader.process()
+    assert [(m.type, m.msgid) for m in reader.result] == [(reader.Type.Data, 100)]
+    reader.result = []
+    reader.process()
+    if eod == 'many':
+        assert [(m.type, m.msgid) for m in reader.result] == [(reader.Type.Control, reader.scheme_control['EndOfData'].msgid)]
+    else:
+        assert [(m.type, m.msgid) for m in reader.result] == []
+
+    writer.post(b'xxx', msgid=200, seq=20)
+    reader.result = []
+    reader.process()
+    assert [(m.type, m.msgid) for m in reader.result] == [(reader.Type.Data, 200)]
+    reader.result = []
+    reader.process()
+    if eod == 'many':
+        assert [(m.type, m.msgid) for m in reader.result] == [(reader.Type.Control, reader.scheme_control['EndOfData'].msgid)]
+    else:
+        assert [(m.type, m.msgid) for m in reader.result] == []

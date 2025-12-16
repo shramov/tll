@@ -41,6 +41,7 @@ class File : public tll::channel::AutoSeq<File<TIO>>
 
 	long long _seq = -1;
 	long long _seq_begin = -1;
+	long long _seq_eod = -1;
 
 	size_t _block_size = 0;
 	size_t _block_init = 0;
@@ -61,7 +62,7 @@ class File : public tll::channel::AutoSeq<File<TIO>>
 	Version _version = Version::Stable, _version_init = Version::Stable;
 	uint32_t _size_marker = 0;
 	bool _autoclose = true;
-	bool _end_of_data = false;
+	enum class EOD : char { Once, BeforeClose, Many } _end_of_data = EOD::Once;
 	bool _exact_last_seq = true;
 	unsigned _access_mode = 0644;
 
