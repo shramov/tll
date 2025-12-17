@@ -104,6 +104,7 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 	_end_of_data = false;
 	_seq_first = -1;
 	_seq_last = -1;
+	_seq_close = -1;
 	_open_cfg = tll::Config();
 	_state = State::Closed;
 	_convert.reset();
@@ -160,6 +161,7 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 			auto lock = _files->lock();
 			_current_file = _files->files.begin();
 			_open_cfg.set("filename", _current_file->second.filename);
+			_seq_close = _current_file->second.seq_close();
 		}
 
 		if (_seq_first != -1)
@@ -221,7 +223,7 @@ int Rotate::_post_rotate(const tll_msg_t *msg)
 {
 	if (internal.caps & caps::Input)
 		return _log.fail(EINVAL, "Can not rotate input channel");
-	if (_current_file == _files->files.end()) {
+	if (_current_empty) {
 		_log.info("Skip rotating empty file");
 		return 0;
 	}
@@ -247,9 +249,9 @@ int Rotate::_rotate()
 		auto file = const_cast<Files::File *>(&_current_file->second); // It's safe to const cast
 		file->filename = next;
 		file->last = _seq_last;
+		file->current = false;
 		_current_file = _files->files.end();
 	}
-	_current_empty = true;
 	_child->open(_open_cfg);
 
 	auto s = _child->scheme();
@@ -282,7 +284,11 @@ int Rotate::_seek(long long seq)
 	if (_child->state() != tll::state::Closed)
 		_child->close(true);
 	_current_file = it;
-	_open_cfg.set("filename", it->second.filename);
+	{
+		auto lock = _files->lock();
+		_open_cfg.set("filename", it->second.filename);
+		_seq_close = it->second.seq_close();
+	}
 	_open_cfg.set("seq", tll::conv::to_string(seq));
 	_state = State::Read;
 	return _child->open(_open_cfg);
@@ -309,8 +315,6 @@ int Rotate::_post(const tll_msg_t *msg, int flags)
 	if (_current_empty) {
 		if (_seq_first == -1)
 			_seq_first = msg->seq;
-		auto lock = _files->lock();
-		_current_file = _files->files.emplace(_seq_last, Files::File {_last_filename, _seq_last}).first;
 		_current_empty = false;
 	}
 	return 0;
@@ -326,9 +330,16 @@ int Rotate::_on_active()
 			_convert.reset();
 	}
 
-	if (state() == tll::state::Active)
+	if (_state == State::Write) {
+		auto lock = _files->lock();
+		if (_current_file == _files->files.end()) {
+			_current_file = _files->files.emplace(_seq_last + 1, Files::File { _last_filename, -1, true }).first;
+			_current_empty = true;
+		}
+	} else if (_state != State::Read)
 		return 0;
-	if (_state != State::Read && _state != State::Write)
+
+	if (state() == tll::state::Active)
 		return 0;
 
 	auto scheme = _child->scheme(TLL_MESSAGE_CONTROL);
@@ -353,7 +364,7 @@ int Rotate::_on_closed()
 		return Base::_on_closed();
 	if (_state != State::Read)
 		return 0;
-	if (_current_last()) {
+	if (_current_file->second.current) {
 		close();
 		return 0;
 	}
@@ -361,6 +372,7 @@ int Rotate::_on_closed()
 		auto lock = _files->lock();
 		_open_cfg.set("filename", (++_current_file)->second.filename);
 		_open_cfg.set("seq", conv::to_string(_current_file->first));
+		_seq_close = _current_file->second.seq_close();
 	}
 
 	notify();
@@ -377,6 +389,8 @@ int Rotate::_on_data(const tll_msg_t *msg)
 	if (_state != State::Read)
 		return 0;
 	_seq_last = msg->seq;
+	if (_seq_last == _seq_close)
+		notify();
 	if (_convert.scheme_from) {
 		_log.debug("Try convert");
 		if (auto m = _convert.convert(msg); m) {
@@ -398,7 +412,7 @@ int Rotate::_on_other(const tll_msg_t *msg)
 	_log.trace("Got control message {}, eod {}", msg->msgid, _control_eod_msgid);
 	if (_control_eod_msgid && msg->msgid == _control_eod_msgid) {
 		// Switch to next
-		if (_current_last()) {
+		if (_current_file->second.current) {
 			if (!_end_of_data) {
 				_end_of_data = true;
 				tll_msg_t m = *msg;
@@ -489,6 +503,7 @@ int Rotate::_build_map()
 
 		if (e.path() == _last_filename) {
 			current = emplace.first;
+			emplace.first->second.current = true;
 			files->scheme = std::move(scheme);
 		}
 
@@ -503,6 +518,8 @@ int Rotate::_build_map()
 	if (current)
 		_current_file = *current;
 	_current_empty = _current_file == map.end();
+	if (current && _current_file == map.end())
+		_current_file = map.emplace(_seq_last + 1, Files::File { _last_filename, -1, true }).first;
 	_files = files;
 	_state = State::Closed;
 
@@ -516,9 +533,10 @@ int Rotate::_process(long timeout, int flags)
 		return _child->open(_open_cfg);
 	{
 		auto lock = _files->lock();
-		if (_seq_last < _current_file->second.last)
+		if (_current_file->second.current)
 			return 0;
-		if (_current_file == --_files->files.end())
+		_seq_close = _current_file->second.last;
+		if (_seq_last < _seq_close)
 			return 0;
 	}
 	_child->close();

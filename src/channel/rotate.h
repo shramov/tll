@@ -22,6 +22,7 @@ class Rotate : public AutoSeq<Rotate, Prefix<Rotate>>
 	Rotate * _master = nullptr;
 	long long _seq_first = -1;
 	long long _seq_last = -1;
+	long long _seq_close = -1;
 
 	ConvertBuf _convert;
 
@@ -31,6 +32,14 @@ class Rotate : public AutoSeq<Rotate, Prefix<Rotate>>
 		{
 			std::string filename;
 			long long last = -1;
+			bool current = false;
+
+			long long seq_close() const
+			{
+				if (current)
+					return -1;
+				return last;
+			}
 		};
 
 		using Map = std::map<long long, File>;
@@ -110,12 +119,6 @@ class Rotate : public AutoSeq<Rotate, Prefix<Rotate>>
 	int _post_rotate(const tll_msg_t *msg);
 	int _rotate();
 	int _seek(long long seq);
-
-	bool _current_last()
-	{
-		auto lock = _files->lock();
-		return _current_file == --_files->files.end();
-	}
 };
 
 } // namespace tll::channel

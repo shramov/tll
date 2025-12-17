@@ -179,8 +179,10 @@ async def test_autoclose(asyncloop, tmp_path):
         assert (m.type, m.seq) == (r.Type.Data, i)
         if i % 3 == 0:
             m = await r.recv()
-            name = 'Rotate' if i < 9 else 'EndOfData'
-            assert (m.type, m.msgid, m.seq) == (r.Type.Control, r.scheme_control[name].msgid, 0)
+            assert (m.type, m.msgid, m.seq) == (r.Type.Control, r.scheme_control['Rotate'].msgid, 0)
+
+    m = await r.recv()
+    assert (m.type, m.msgid, m.seq) == (r.Type.Control, r.scheme_control['EndOfData'].msgid, 0)
 
     assert (await r.recv_state()) == r.State.Closed
 
@@ -333,3 +335,32 @@ def test_autoseq(context, tmp_path):
     w.post(b'', name='Rotate', type=w.Type.Control)
     assert os.path.exists(tmp_path / 'rotate.0.dat')
     assert os.path.exists(tmp_path / 'rotate.3.dat')
+
+@pytest.mark.parametrize("with_master", [True])
+def test_rotate_after_eod(context, tmp_path, with_master):
+    w = context.Channel(f'rotate+file://{tmp_path}/rotate;dump=frame;file.dump=frame', name='writer', dir='w')
+    w.open()
+    w.post(b'aaa', msgid=100, seq=10)
+    w.post(b'bbb', msgid=100, seq=20)
+    w.post(b'ccc', msgid=100, seq=30)
+
+    r = Accum(f'rotate+file://{tmp_path}/rotate;dump=frame;file.dump=frame', autoclose='no', name='reader', context=context, master=w if with_master else None)
+    r.open()
+    assert r.state == r.State.Active
+
+    for _ in range(5):
+        r.process()
+        r.children[0].process()
+
+    assert [(m.type, m.seq) for m in r.result] == [(r.Type.Data, 10), (r.Type.Data, 20), (r.Type.Data, 30), (r.Type.Control, 0)]
+
+    w.post(b'xxx', msgid=100, seq=40)
+    w.post(b'', name='Rotate', type=w.Type.Control)
+    w.post(b'yyy', msgid=100, seq=50)
+    assert os.path.exists(tmp_path / 'rotate.10.dat')
+
+    r.result = []
+    for _ in range(5):
+        r.process()
+        r.children[0].process()
+    assert [(m.type, m.seq) for m in r.result] == [(r.Type.Data, 40), (r.Type.Control, 0), (r.Type.Data, 50)]
