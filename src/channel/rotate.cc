@@ -364,13 +364,15 @@ int Rotate::_on_closed()
 		return Base::_on_closed();
 	if (_state != State::Read)
 		return 0;
-	if (_current_file->second.current) {
+
+	if (++_current_file == _files->files.end()) {
 		close();
 		return 0;
 	}
+
 	{
 		auto lock = _files->lock();
-		_open_cfg.set("filename", (++_current_file)->second.filename);
+		_open_cfg.set("filename", _current_file->second.filename);
 		_open_cfg.set("seq", conv::to_string(_current_file->first));
 		_seq_close = _current_file->second.seq_close();
 	}

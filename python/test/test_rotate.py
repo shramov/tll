@@ -364,3 +364,32 @@ def test_rotate_after_eod(context, tmp_path, with_master):
         r.process()
         r.children[0].process()
     assert [(m.type, m.seq) for m in r.result] == [(r.Type.Data, 40), (r.Type.Control, 0), (r.Type.Data, 50)]
+
+def test_open_without_current(context, tmp_path):
+    w = context.Channel(f'rotate+file://{tmp_path}/rotate;dump=frame;file.dump=frame', name='writer', dir='w')
+    w.open()
+    w.post(b'aaa', msgid=100, seq=10)
+    w.post(b'bbb', msgid=100, seq=20)
+    w.post(b'ccc', msgid=100, seq=30)
+    w.post(b'', name='Rotate', type=w.Type.Control)
+
+    w.close()
+    os.unlink(tmp_path / 'rotate.current.dat')
+
+    r = Accum(f'rotate+file://{tmp_path}/rotate;dump=frame;file.dump=frame', autoclose='no', name='reader', context=context)
+    r.open()
+    assert r.state == r.State.Active
+
+    for _ in range(5):
+        r.process()
+        r.children[0].process()
+
+    assert [(m.type, m.seq) for m in r.result] == [(r.Type.Data, 10), (r.Type.Data, 20), (r.Type.Data, 30)]
+
+    w.open()
+    assert os.path.exists(tmp_path / 'rotate.current.dat')
+    w.post(b'', name='Rotate', type=w.Type.Control)
+    w.post(b'xxx', msgid=100, seq=40)
+    w.post(b'', name='Rotate', type=w.Type.Control)
+    assert os.path.exists(tmp_path / 'rotate.10.dat')
+    assert os.path.exists(tmp_path / 'rotate.current.dat')
