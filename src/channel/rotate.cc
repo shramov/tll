@@ -453,7 +453,7 @@ int Rotate::_build_map()
 	Files::Map & map = files->files;
 	files->seq_first = &_seq_first;
 	files->seq_last = &_seq_last;
-	std::optional<Files::Map::const_iterator> current = std::nullopt;
+	auto current = map.end();
 
 	std::error_code ec;
 	for (auto & e : std::filesystem::directory_iterator { _directory, ec }) {
@@ -484,7 +484,7 @@ int Rotate::_build_map()
 		if (first < 0 || last < 0) {
 			if (e.path() == _last_filename) {
 				_log.info("Last file without data");
-				current = map.end();
+				current = map.emplace(-1, Files::File { _last_filename, -1, true }).first;
 				files->scheme = std::move(scheme);
 				continue;
 			}
@@ -509,19 +509,22 @@ int Rotate::_build_map()
 			files->scheme = std::move(scheme);
 		}
 
-		if (!current && emplace.first == --map.end())
+		if (current == map.end() && emplace.first == --map.end())
 			files->scheme = std::move(scheme);
 	}
 
 	if (ec)
 		return _log.fail(EINVAL, "Failed to scan directory '{}': {}", _directory, ec.message());
 
-	_current_file = map.end(); // Can not use value_or due to gcc 9.4.0 bug
-	if (current)
-		_current_file = *current;
-	_current_empty = _current_file == map.end();
-	if (current && _current_file == map.end())
-		_current_file = map.emplace(_seq_last + 1, Files::File { _last_filename, -1, true }).first;
+	if (current == map.end()) {
+		_current_empty = true;
+	} else if (current->first == -1) {
+		auto node = map.extract(current);
+		node.key() = _seq_last + 1;
+		current = map.insert(map.end(), std::move(node));
+		_current_empty = true;
+	}
+	_current_file = current;
 	_files = files;
 	_state = State::Closed;
 

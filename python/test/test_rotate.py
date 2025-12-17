@@ -397,3 +397,28 @@ def test_open_without_current(context, tmp_path):
     w.post(b'', name='Rotate', type=w.Type.Control)
     assert os.path.exists(tmp_path / 'rotate.10.dat')
     assert os.path.exists(tmp_path / 'rotate.current.dat')
+
+@pytest.mark.parametrize("count", [9, 10])
+def test_rotate_reorder(context, tmp_path, count):
+    w = context.Channel(f'rotate+file://{tmp_path}/rotate;dump=frame;file.dump=frame', name='writer', dir='w')
+    w.open()
+    for i in range(count):
+        w.post(b'aaa', msgid=100, seq=i)
+        if i % 3 == 2:
+            w.post(b'', name='Rotate', type=w.Type.Control)
+    w.close()
+
+    os.mkdir(tmp_path / 'tmp')
+    for i in [0, 3, 6, 'current']:
+        os.rename(tmp_path / f'rotate.{i}.dat', tmp_path / 'tmp' / f'rotate.{i}.dat')
+
+    r = Accum(f'rotate+file://{tmp_path}/tmp/rotate;dump=frame;file.dump=frame', name='reader', context=context)
+    r.open()
+
+    assert r.state == r.State.Active
+
+    for _ in range(20):
+        r.process()
+        r.children[0].process()
+
+    assert [(m.seq) for m in r.result if m.type == m.Type.Data] == list(range(count))
