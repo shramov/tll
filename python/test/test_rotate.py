@@ -15,6 +15,10 @@ from tll.test_util import Accum
 def context():
     return Context()
 
+@pytest.fixture
+def asyncloop_config():
+    return {'nofd-interval': '10ms'}
+
 @asyncloop_run
 async def test_basic(asyncloop, tmp_path):
     w = asyncloop.Channel(f'rotate+file://{tmp_path}/rotate;filename-key=last', dir='w', name='write', dump='frame')

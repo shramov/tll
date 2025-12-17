@@ -1117,8 +1117,8 @@ int File<TIO>::_process(long timeout, int flags)
 				this->close();
 				return EAGAIN;
 			}
-		} else
-			this->_dcaps_pending(false);
+		}
+		this->_dcaps_pending(false);
 		return EAGAIN;
 	}
 
