@@ -682,7 +682,8 @@ TEST(Util, BitsWrapper)
 	bits -= A;
 	ASSERT_EQ((uint32_t) bits, 0u);
 
-	using tll::conv::to_any;
+	using namespace tll::conv;
+	using namespace std::literals;
 
 	ASSERT_FALSE(to_any<BitsABC>("z"));
 	ASSERT_FALSE(to_any<BitsABC>("-1"));
@@ -693,6 +694,11 @@ TEST(Util, BitsWrapper)
 	ASSERT_TRUE(to_any<BitsABC>("a")); ASSERT_EQ(*to_any<BitsABC>("a"), BitsABC().a(true));
 	ASSERT_TRUE(to_any<BitsABC>("a | 0x8")); ASSERT_EQ(*to_any<BitsABC>("a | 0x8"), BitsABC(1 | (1 << 3)));
 	ASSERT_TRUE(to_any<BitsABC>("a|b")); ASSERT_EQ(*to_any<BitsABC>("a|b"), BitsABC(1 | (3 << 1)));
+
+	ASSERT_EQ(tll::conv::to_string<BitsABC>(0x9), "a | c"sv);
+	ASSERT_EQ(tll::conv::to_string<BitsABC>(0x1), "a"sv);
+	ASSERT_EQ(tll::conv::to_string<BitsABC>(0x1 | 0xf00), "a | 0xf00"sv);
+	ASSERT_EQ(tll::conv::to_string<BitsABC>(0xfe00), "0xfe00"sv);
 }
 
 TEST(Util, SockAddr)

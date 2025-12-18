@@ -16,14 +16,44 @@
 
 namespace tll::conv {
 
-/*
 template <typename T>
-struct dump<T, typename std::enable_if<!std::is_same_v<std::result_of_t<typename tll::util::BitsDescriptor<T>::descriptor>, void>>::type> : public to_string_from_string_buf<T>
+struct dump<T, typename std::enable_if<std::is_base_of_v<tll::util::Bits<typename T::value_type>, T>>::type> : public to_string_from_string_buf<T>
 {
 	template <typename Buf>
-	static inline std::string_view to_string_buf(T v, Buf &buf) { return to_string_buf_int<T, Buf, 16>((typename T::value_type) v, buf); }
+	static inline std::string_view to_string_buf(T v, Buf &buf)
+	{
+		const auto desc = T::bits_descriptor();
+		T left = v;
+		std::string_view r;
+		for (auto &[name, bit]: desc) {
+			if ((left & bit) != 0) {
+				if (r.size())
+					r = tll::conv::append(buf, r, " | ");
+				r = tll::conv::append(buf, r, name);
+				left &= ~bit;
+			}
+		}
+		if (left == T {})
+			return r;
+		if (r.size())
+			r = tll::conv::append(buf, r, " | ");
+		auto digits = 0u;
+		for (; digits < sizeof(T) * 2; digits++) {
+			if (left >> 4 * digits == 0)
+				break;
+		}
+		auto off = r.size() ? r.data() - (char *) buf.data() : 0;
+		buf.resize(off + r.size() + digits + 2);
+		r = { (char *) buf.data(), r.size() + 2 + digits };
+		auto ptr = (char *) r.end() - 2 - digits;
+		*ptr++ = '0';
+		*ptr++ = 'x';
+		static const char lookup[] = "0123456789abcdef";
+		for (; digits; digits--)
+			*ptr++ = lookup[0xf & (left >> (digits - 1) * 4)];
+		return r;
+	}
 };
-*/
 
 template <typename T>
 struct parse<T, typename std::enable_if<std::is_base_of_v<tll::util::Bits<typename T::value_type>, T>>::type>
