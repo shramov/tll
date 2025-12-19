@@ -189,8 +189,14 @@ class optional_config_string
 	optional_config_string() {}
 	optional_config_string(const std::nullopt_t &) {}
 	optional_config_string(optional_config_string && rhs) { std::swap(_data, rhs._data); }
+	optional_config_string(const optional_config_string & rhs)
+	{
+		_data = { tll_config_value_dup(rhs->data(), rhs->size()), rhs->size() };
+	}
 
 	~optional_config_string() { if (_data.data()) tll_config_value_free(_data.data()); }
+
+	optional_config_string & operator = (optional_config_string rhs) { std::swap(_data, rhs._data); return *this; }
 
 	std::string_view operator * () const { return _data; }
 	const std::string_view * operator -> () const { return &_data; }
