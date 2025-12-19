@@ -52,6 +52,23 @@ spdlog::level::level_enum tll2spdlog(tll_logger_level_t l)
 }
 }
 
+template <>
+struct tll::conv::parse<spdlog::level::level_enum>
+{
+        static result_t<spdlog::level::level_enum> to_any(std::string_view level)
+	{
+		if (stricmp(level, "trace")) return spdlog::level::trace;
+		else if (stricmp(level, "debug")) return spdlog::level::debug;
+		else if (stricmp(level, "info")) return spdlog::level::info;
+		else if (stricmp(level, "warning")) return spdlog::level::warn;
+		else if (stricmp(level, "warn")) return spdlog::level::warn;
+		else if (stricmp(level, "error")) return spdlog::level::err;
+		else if (stricmp(level, "critical")) return spdlog::level::critical;
+		else if (stricmp(level, "crit")) return spdlog::level::critical;
+		return tll::error("Invalid level name: " + std::string(level));
+	}
+};
+
 #if SPDLOG_VERSION > 10500
 
 static inline uint64_t _gettid()
@@ -118,9 +135,9 @@ void spdlog_thread_name_set(const char * name)
 
 struct sink_t
 {
-	spdlog::level::level_enum level = tll2spdlog(tll::Logger::Trace);
-	spdlog::level::level_enum flush_level = tll2spdlog(tll::Logger::Info);
-	std::unique_ptr<spdlog::sinks::sink> sink;
+	spdlog::level::level_enum level = spdlog::level::trace;
+	spdlog::level::level_enum flush_level = spdlog::level::info;
+	std::shared_ptr<spdlog::sinks::sink> sink;
 
 	static constexpr std::string_view default_format = "%^%Y-%m-%d %H:%M:%S.%e %l %n%$: %v";
 
@@ -248,16 +265,27 @@ struct spdlog_impl_t : public tll_logger_impl_t
 		tll::util::refptr_t<node_t> result = new node_t();
 		//std::vector<sink_t> result;
 
+		std::map<std::string, sink_t *, std::less<>> sink_map;
+
 		for (auto & [_, c] : cfg.browse("spdlog.sinks.*", true)) {
 			sink_t sink;
 
+			auto ref = c.get("ref");
 			auto type = c.get("type");
-			if (!type) continue;
+
+			if (ref && ref->size()) {
+				auto it = sink_map.find(*ref);
+				if (it == sink_map.end())
+					return log.fail(EINVAL, "Reference to unknown sink '{}'", *ref);
+				sink = *it->second;
+				type = std::nullopt;
+			} else if (!type)
+				continue;
 
 			auto reader = tll::make_props_reader(tll::make_props_chain(c, cfg.sub("spdlog.defaults." + std::string(*type))));
 
-			sink.level = tll2spdlog(reader.getT("level", tll::Logger::Trace));
-			sink.flush_level = tll2spdlog(reader.getT("flush-level", tll::Logger::Info));
+			sink.level = reader.getT("level", sink.level);
+			sink.flush_level = reader.getT("flush-level", sink.flush_level);
 
 			try {
 				if (*type == "console") {
@@ -306,7 +334,7 @@ struct spdlog_impl_t : public tll_logger_impl_t
 					sink.sink.reset(new spdlog::sinks::syslog_sink_mt(ident, LOG_PID, 0, false));
 #endif
 #endif//_WIN32
-				} else {
+				} else if (!ref && !ref->size()) {
 					log.error("Unknown sink type {}", *type);
 					continue;
 				}
@@ -314,7 +342,8 @@ struct spdlog_impl_t : public tll_logger_impl_t
 				return log.fail(EINVAL, "Failed to create sink {}: {}", *type, e.what());
 			}
 
-			sink.set_pattern(reader.getT("format", format));
+			if (!ref || ref->empty())
+				sink.set_pattern(reader.getT("format", format));
 
 			auto prefix = reader.getT<std::string>("prefix", "");
 			auto additivity = reader.getT("additivity", false);
@@ -341,6 +370,17 @@ struct spdlog_impl_t : public tll_logger_impl_t
 				node = child;
 			}
 			node->sinks.push_back(std::move(sink));
+
+			if (!ref || ref->empty()) {
+				auto name = c.getT("name", std::string{});
+				if (!name || name->empty()) {
+					if (*type == "console")
+						name = "console";
+					name = c.getT("filename", std::string{});
+				}
+				if (name && name->size())
+					sink_map.emplace(*name, &node->sinks.back());
+			}
 		}
 
 		result->finalize();
