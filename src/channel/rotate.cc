@@ -6,7 +6,6 @@
  */
 
 #include "tll/compat/fmt/std.h"
-#include "tll/scheme/merge.h"
 #include "channel/rotate.h"
 
 #include <filesystem>
