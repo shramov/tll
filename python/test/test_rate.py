@@ -295,3 +295,28 @@ def test_many(context):
     assert [m.msgid for m in r0.result] == [writeFull]
     assert [m.msgid for m in r1.result] == [writeFull]
     assert [m.msgid for m in r2.result] == [writeFull]
+
+def test_watermark(context):
+    cfg = Config.load(
+f'''yamls://
+tll.proto: rate+null
+name: rate
+dump: frame
+speed: 1kb
+max-window: 1kb
+initial: 1kb
+watermark: 100b
+''')
+    c = Accum(cfg, context=context)
+
+    c.open()
+    c.post(b'x' * 1024)
+    assert [(m.type, m.msgid) for m in c.result] == [(c.Type.Control, c.scheme_control['WriteFull'].msgid)]
+    c.result.clear()
+    time.sleep(0.01)
+    c.children[1].process()
+    assert [(m.type, m.msgid) for m in c.result] == []
+    time.sleep(0.1)
+    c.children[1].process()
+    assert [(m.type, m.msgid) for m in c.result] == [(c.Type.Control, c.scheme_control['WriteReady'].msgid)]
+    c.post(b'x' * 128)

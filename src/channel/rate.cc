@@ -80,6 +80,7 @@ int Rate::_parse_bucket(const tll::ConstConfig &cfg)
 	_conf.speed = reader.getT<tll::util::SizeT<double>>("speed");
 	_conf.limit = reader.getT<tll::util::Size>("max-window", 16 * 1024);
 	_conf.initial = reader.getT<tll::util::Size>("initial", _conf.limit / 2);
+	_conf.watermark = reader.getT<tll::util::Size>("watermark", 1);
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
@@ -91,6 +92,9 @@ int Rate::_parse_bucket(const tll::ConstConfig &cfg)
 
 	if (_conf.speed == 0) return _log.fail(EINVAL, "Zero speed");
 	if (_conf.limit <= 0) return _log.fail(EINVAL, "Invalid window size: {}", _conf.limit);
+	if (_conf.watermark <= 0) return _log.fail(EINVAL, "Invalid watermark size: {}", _conf.limit);
+	if (_conf.watermark > _conf.limit)
+		return _log.fail(EINVAL, "Watermark {} is larger then window size {}", _conf.watermark, _conf.limit);
 
 	_buckets.emplace_back(Bucket { .conf = _conf });
 
