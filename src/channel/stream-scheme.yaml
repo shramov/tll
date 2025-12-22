@@ -29,6 +29,7 @@
         - {name: seq, type: uint64}
         - {name: block, type: RequestBlock}
         - {name: initial, type: int8} # Body is not used
+        - {name: last, type: int8} # Body is not used
 
   fields:
     - {name: version, type: Version}

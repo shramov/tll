@@ -37,7 +37,8 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 		uint64_t addr = 0;
 		using Block = std::pair<std::string_view, int64_t>;
 		struct Initial {};
-		std::variant<uint64_t, Block, Initial> data;
+		struct Last {};
+		std::variant<uint64_t, Block, Initial, Last> data;
 	};
 
 	struct Client

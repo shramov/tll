@@ -48,7 +48,7 @@ defaults).
 Open parameters
 ---------------
 
-``mode={online|initial|seq|seq-data|block}`` - mandatory parameter, no default value
+``mode={online|initial|seq|seq-data|block|last}`` - mandatory parameter, no default value
 
  - ``online`` - do not request any data from the server, similar to online channel client.
 
@@ -68,6 +68,9 @@ Open parameters
  - ``block`` - additional mandatory ``block=<unsigned>`` and optional ``block-type=<string>`` (default
    ``default``) parameters. Request block number ``block`` from the server and linear history after
    it's end up to last messages, for example ``open: {mode: block, block: 1, block-type: hour}``
+
+ - ``last`` - request last message from the server, same as opening in ``seq`` mode with seq number
+   of last available message.
 
 Control messages
 ----------------

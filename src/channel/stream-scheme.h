@@ -5,7 +5,7 @@
 
 namespace stream_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJylk8tqwzAQRff5Cu0ExYY6DaF41yZdF7roppSg2NNWVJYdPUKD8b9Xkl9xYtWG7oR1NHfunXGIOMkgRhgvEMoLRXMuY1TipChCeyMLkgA291IJINlOJl+QAa4MDVxnMjYHhPArCGmeGrBUp8LUo1xF68AxttxGCwFcmfuoqhZhK/qglKB7rcCqf1BgaVMwRGWDkA4JUF3atkL5p+vhnDwSpseoTu0FDhqkemaplaOpaSby6h4bR1291uKlrIRDDxnb69UVkjBqzU8Z2LM8+Z6kukBkj970QV77fXRlvUbnqVKews+1z0utLtilOWjutqnekC1RxK6H+xijt9H4dFM38HU3sHSGUU4VJWzQ4D2u3qv/z3fm8CbHMsRTG0cHunAGaRbs1Ga5vPWaYESq3YwFFHVskM6BXeRzQAnCpPjXH/ckRC5aH3d+H+C4qYin9TZuVtucQyu68ouOOvwF70iI3g==)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJylk01rg0AQhu/5FXtbKAo1DaF4a5OeCz30UkrY6LRduq5mP0KD+N+7u34brUJv4jzOO+87o484SSBEGK8QSjNFUy5DlOMoy3xbkRmJAJu6VAJIcpDRFySAC0MD14kMzQNC+BWENJ8aMFeXzPSjXAVbzzG23U4LAVyZelAUK78WfVBK0KNWYNU/KLC4auijvEJIg3iobG1HofzTzdAlz4TpMapRe4GTBqmeWWzlaGyGCSZ1z5Wjpl9tcSgr4dRCxvZ2c4VEjFrzcwaOLI2+Z6kmENmiN22Q134fXdtJo8tUKY/h59rnUKsJdm0eNHfXVF7Inihiz8O9DNHbaHy66utNTdez1MEop4oS1hvwvgswItWw+l78f/sLVzu7tD4e27Aa0EXXyzpjlzrp9e2kCev5sOA8RRkqxEtgt5AloARhUvzrf3wSIhW1j7tpH+C4uYjn9XZuV/uUQy26mRYddfgLx7+SWA==)";
 
 enum class Version: int16_t
 {
@@ -179,6 +179,12 @@ struct Request
 		std::optional<int8_t> get_initial() const { if (this->union_type() != index_initial) return std::nullopt; return unchecked_initial(); }
 		int8_t unchecked_initial() const { return this->template _get_scalar<int8_t>(1); }
 		void set_initial(const int8_t &v) { this->_set_type(index_initial); this->template _set_scalar<int8_t>(1, v); }
+
+		static constexpr union_index_type index_last = 3;
+		using type_last = int8_t;
+		std::optional<int8_t> get_last() const { if (this->union_type() != index_last) return std::nullopt; return unchecked_last(); }
+		int8_t unchecked_last() const { return this->template _get_scalar<int8_t>(1); }
+		void set_last(const int8_t &v) { this->_set_type(index_last); this->template _set_scalar<int8_t>(1, v); }
 	};
 
 

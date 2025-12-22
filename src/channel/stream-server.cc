@@ -439,10 +439,12 @@ int StreamServer::_on_request_data(const tll_msg_t *msg)
 			request.data = Request::Block { block.get_block(), block.get_index() };
 			break;
 		}
-		case data.index_initial: {
+		case data.index_initial:
 			request.data = Request::Initial {};
 			break;
-		}
+		case data.index_last:
+			request.data = Request::Last {};
+			break;
 		default:
 			return _log.fail(0, "Invalid request from client '{}': unknown union type {}", request.client, data.union_type());
 		}
@@ -508,6 +510,10 @@ tll::result_t<int> StreamServer::Client::init(const StreamServer::Request &req)
 	if (auto ptr = std::get_if<Request::Block>(&req.data); ptr) {
 		block = ptr->first;
 		block_index = ptr->second;
+	} else if (std::holds_alternative<Request::Last>(req.data)) {
+		if (parent->_seq == -1)
+			return error("Failed to request last message: no data on the server");
+		seq = parent->_seq - 1;
 	} else if (std::holds_alternative<Request::Initial>(req.data)) {
 		_log.info("Request from client '{}' (addr {}) for initial data", name, req.addr, seq);
 		if (parent->_seq == -1) {

@@ -99,8 +99,8 @@ int StreamClient::_open(const ConstConfig &url)
 			rnew.set_client(_peer);
 	}
 
-	enum Mode { Undefined, Online, Seq, SeqData, Block, Init };
-	auto mode = reader.getT("mode", Undefined, {{"online", Online}, {"seq", Seq}, {"seq-data", SeqData}, {"block", Block}, {"initial", Init}});
+	enum Mode { Undefined, Online, Seq, SeqData, Block, Init, Last };
+	auto mode = reader.getT("mode", Undefined, {{"online", Online}, {"seq", Seq}, {"seq-data", SeqData}, {"block", Block}, {"initial", Init}, {"last", Last}});
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid open parameters: {}", reader.error());
@@ -116,6 +116,11 @@ int StreamClient::_open(const ConstConfig &url)
 			return _log.fail(EINVAL, "Old protocol has no support for mode=initial");
 		_reopen_cfg.set("mode", "initial");
 		rnew.get_data().set_initial(0);
+	} else if (mode == Last) {
+		if (_protocol_old)
+			return _log.fail(EINVAL, "Old protocol has no support for mode=last");
+		_reopen_cfg.set("mode", "last");
+		rnew.get_data().set_last(0);
 	} else if (mode == Seq || mode == SeqData) {
 		_open_seq = reader.getT<long long>("seq");
 		if (!_open_seq)

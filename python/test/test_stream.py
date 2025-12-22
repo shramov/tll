@@ -77,7 +77,13 @@ async def test(asyncloop, tmp_path, protocol):
     assert s.state == c.State.Closed
 
 @asyncloop_run
-async def test_seq_data(asyncloop, tmp_path):
+@pytest.mark.parametrize("req,result", [
+        ('mode=seq-data;seq=20', [30, 30]),
+        ('mode=seq;seq=20', [20, 30, 30]),
+        ('mode=last', [30, 30]),
+        ('mode=initial', [10, 20, 30, 30]),
+        ])
+async def test_open(asyncloop, tmp_path, req, result):
     common = f'stream+pub+tcp:///{tmp_path}/stream.sock;request.url=tcp:///{tmp_path}/request.sock;dump=frame;pub.dump=frame;request.dump=frame;storage.dump=frame'
     s = asyncloop.Channel(f'{common};storage.url=file:///{tmp_path}/storage.dat;name=server;mode=server')
     c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
@@ -89,18 +95,19 @@ async def test_seq_data(asyncloop, tmp_path):
     s.post(b'bbb', msgid=10, seq=20)
     s.post(b'ccc', msgid=10, seq=30)
 
-    c.open(seq='20', mode='seq-data')
+    c.open(req)
+    assert c.state == c.State.Opening
 
     m = await s.recv()
-    assert m.type == m.Type.Control
-    assert s.unpack(m).SCHEME.name == 'Connect'
+    assert (m.type, s.unpack(m).SCHEME.name) == (m.Type.Control, 'Connect')
+
+    for seq in result[:-1]:
+        m = await c.recv()
+        assert (m.seq, m.msgid) == (seq, 10)
 
     m = await c.recv()
-    assert (m.seq, m.msgid, m.data.tobytes()) == (30, 10, b'ccc')
-
-    m = await c.recv()
     assert m.type == m.Type.Control
-    assert (m.seq, c.unpack(m).SCHEME.name) == (30, 'Online')
+    assert (m.seq, c.unpack(m).SCHEME.name) == (result[-1], 'Online')
 
 @asyncloop_run
 async def test_overlapped(asyncloop, tmp_path):
