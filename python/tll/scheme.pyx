@@ -20,6 +20,23 @@ from . import bits as B
 from . import decimal128
 from . cimport decimal128
 
+class UnpackError(Exception):
+    def __init__(self, text, stack):
+        super().__init__(text)
+        self.stack = [stack]
+
+    def __str__(self):
+        return f'{self.args[0]} at {self.format_stack()}'
+
+    def format_stack(self):
+        r = []
+        for i in self.stack:
+            if isinstance(i, int):
+                r[-1] = f'{r[-1]}[{i}]'
+            else:
+                r.append(i)
+        return '.'.join(r)
+
 class Type(enum.Enum):
     Int8 = TLL_SCHEME_FIELD_INT8
     Int16 = TLL_SCHEME_FIELD_INT16
@@ -476,10 +493,16 @@ cdef class FArray(FBase):
         cdef int size = self.count_ptr.unpack_data(src)
         cdef Py_buffer buf = pybuf_copy(src)
         pybuf_shift(&buf, self.type_array.offset)
-        while i < size:
-            list.append(r, f(self.type_array, &buf))
-            pybuf_shift(&buf, self.type_array.size)
-            i += 1
+        try:
+            while i < size:
+                list.append(r, f(self.type_array, &buf))
+                pybuf_shift(&buf, self.type_array.size)
+                i += 1
+        except UnpackError as e:
+            e.stack.insert(0, i)
+            raise
+        except Exception as e:
+            raise UnpackError(repr(e), str(i))
         return r
 
     cdef unpack(FArray self, const Py_buffer * src): return self._unpack(src, self.type_array.unpack_data)
@@ -539,10 +562,16 @@ cdef class FPointer(FBase):
         cdef int i = 0
         cdef Py_buffer buf = pybuf_copy(src)
         pybuf_shift(&buf, ptr.offset)
-        while i < ptr.size:
-            list.append(r, f(self.type_ptr, &buf))
-            pybuf_shift(&buf, ptr.entity)
-            i += 1
+        try:
+            while i < ptr.size:
+                list.append(r, f(self.type_ptr, &buf))
+                pybuf_shift(&buf, ptr.entity)
+                i += 1
+        except UnpackError as e:
+            e.stack.insert(0, i)
+            raise
+        except Exception as e:
+            raise UnpackError(repr(e), i)
         return r
 
     cdef unpack(FPointer self, const Py_buffer * src): return self._unpack(src, self.type_ptr.unpack_data)
@@ -1179,17 +1208,23 @@ cdef unpack_message(object self, const Py_buffer * src, v):
         pmap = <const unsigned char *>src.buf + <size_t>(self.pmap.offset)
     cdef CField f
     cdef Py_buffer buf = pybuf_copy(src)
-    for f in self.fields:
-        if pmap:
-            if f.index >= 0 and pmap[f.index // 8] & (1 << (f.index % 8)) == 0:
-                continue
-            elif self.pmap.name == f.name:
-                continue
-        buf.buf = src.buf
-        buf.len = src.len
-        pybuf_shift(&buf, f.offset)
-        r = f.impl.unpack(&buf)
-        object.__setattr__(v, f.name, r)
+    try:
+        for f in self.fields:
+            if pmap:
+                if f.index >= 0 and pmap[f.index // 8] & (1 << (f.index % 8)) == 0:
+                    continue
+                elif self.pmap.name == f.name:
+                    continue
+            buf.buf = src.buf
+            buf.len = src.len
+            pybuf_shift(&buf, f.offset)
+            r = f.impl.unpack(&buf)
+            object.__setattr__(v, f.name, r)
+    except UnpackError as e:
+        e.stack.insert(0, f.name)
+        raise
+    except Exception as e:
+        raise UnpackError(repr(e), f.name)
     return v
 
 @staticmethod

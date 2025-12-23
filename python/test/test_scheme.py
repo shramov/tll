@@ -1075,3 +1075,25 @@ meta.import:
     for i in s1.enums.values(): assert i.options == {}
     for i in s1.bits.values(): assert i.options == {}
     for i in s1.unions.values(): assert i.options == {}
+
+def test_backtrace():
+    s = S.Scheme('''yamls://
+- name: Sub
+  fields:
+    - {name: s0, type: int8, options.type: enum, enum: {A: 1}}
+
+- name: Data
+  fields:
+    - {name: f0, type: Sub}
+    - {name: f1, type: 'Sub[2]'}
+''')
+
+    M = s['Data']
+    try:
+        M.unpack(memoryview(b'\0\0\0\0'))
+    except S.UnpackError as e:
+        assert e.format_stack() == 'f0.s0'
+    try:
+        M.unpack(memoryview(b'\1\1\1\0'))
+    except S.UnpackError as e:
+        assert e.format_stack() == 'f0[1].s0'
