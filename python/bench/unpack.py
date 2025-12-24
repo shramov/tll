@@ -9,6 +9,9 @@ tll.logger.init()
 import tll.scheme as S
 
 scheme = '''
+- name: Enum
+  fields:
+    - {name: e8, type: int8, options.type: enum, enum: {A: 0, B: 1, C: 2, D: 3, E: 4, F: 5, G: 6, H: 7, I: 8, J: 9}}
 - name: KV
   fields:
     - {name: key, type: string}
@@ -35,18 +38,19 @@ benchmarks = {
     'List': {
         'header': 0xbeef,
         'list': [
-            {'key': 'key0', 'value': 'value0'}, 
-            {'key': 'key1', 'value': 'value1'}, 
-            {'key': 'key2', 'value': 'value2'}, 
-            {'key': 'key3', 'value': 'value3'}, 
-            {'key': 'key4', 'value': 'value4'}, 
+            {'key': 'key0', 'value': 'value0'},
+            {'key': 'key1', 'value': 'value1'},
+            {'key': 'key2', 'value': 'value2'},
+            {'key': 'key3', 'value': 'value3'},
+            {'key': 'key4', 'value': 'value4'},
         ]
     },
     'Scalar': {
         'i8': -10, 'i16': -1000, 'i32': -1000000, 'i64': -10000000000,
         'u8': 10, 'u16': 1000, 'u32': 1000000, 'u64': 10000000000,
         'f64': 1234.5678
-    }
+    },
+    'Enum': {'e8': 'F'},
 }
 
 def run_test(name, data, count = 100000):

@@ -97,6 +97,7 @@ cdef enum_wrap(tll_scheme_enum_t * ptr):
         r[b2s(e.name)] = e.value
         e = e.next
     r.klass = EqEnum(r.name, r)
+    r.enum_values = {v.value: v for v in r.klass.__members__.values()}
     return r
 
 class UnionBase:
@@ -640,16 +641,22 @@ cdef class FEnum(FBase):
     cdef object default
     cdef FBase base
     cdef object enum_class
+    cdef object enum_values
 
     def __init__(self, f):
         self.base = f.impl
         self.enum_class = f.type_enum.klass
+        self.enum_values = f.type_enum.enum_values
         self.default = lambda: f.type_enum.klass(0) # XXX: What is default value for enum?
 
     cdef pack(FEnum self, v, dest, tail, int tail_offset):
         return self.base.pack(v.value, dest, tail, tail_offset)
     cdef unpack(FEnum self, const Py_buffer * src):
-        return self.enum_class(self.base.unpack(src))
+        v = self.base.unpack(src)
+        e = self.enum_values.get(v)
+        if e is None:
+            raise ValueError(f"Invalid numeric value {v} for enum {self.enum_class.__name__}")
+        return e
     cdef convert(FEnum self, v):
         if isinstance(v, str):
             return self.enum_class.__members__[v]
