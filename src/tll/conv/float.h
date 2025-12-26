@@ -75,6 +75,7 @@ struct unpacked_float
 
 	enum Flags {
 		ZeroAfterDot = 0x01,
+		ZeroBeforeDot = 0x03,
 		LowerCaseE = 0x02,
 	};
 
@@ -103,12 +104,12 @@ struct unpacked_float
 				*--ptr = '0';
 			*--ptr = '.';
 
-			ptr = rwrite_uint(ptr, mantissa);
+			ptr = rwrite_uint(ptr, mantissa, (flags & ZeroBeforeDot) ? 1 : 0);
 		} else if (exp == 0) {
 			if (flags & ZeroAfterDot)
 				*--ptr = '0';
 			*--ptr = '.';
-			ptr = rwrite_uint(ptr, mantissa);
+			ptr = rwrite_uint(ptr, mantissa, (flags & ZeroBeforeDot) ? 1 : 0);
 		} else { // Exp in [-9, 0) range
 			unsigned div = 1;
 			for (auto i = exp; i; i++)

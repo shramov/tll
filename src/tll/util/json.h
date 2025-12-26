@@ -726,7 +726,7 @@ inline int JSON::encode_field(W &writer, const memoryview<Buf> &data, const Fiel
 		data.template dataT<tll::util::Decimal128>()->unpack(u);
 		tll::conv::unpacked_float<decltype(u.mantissa.value)> uf { u.sign != 0, u.mantissa.value, u.exponent };
 
-		auto r = uf.to_string_buf(_buf, uf.ZeroAfterDot | uf.LowerCaseE);
+		auto r = uf.to_string_buf(_buf, uf.ZeroAfterDot | uf.ZeroBeforeDot | uf.LowerCaseE);
 		writer.RawValue(r.data(), r.size(), rapidjson::kNumberType);
 		return 0;
 	}
