@@ -138,11 +138,18 @@ int Resolve::_on_active()
 {
 	if (auto r = Base::_on_active(); r)
 		return r;
+	auto caps = _child->caps() & tll::caps::InOut;
+	if (caps == 0)
+		caps = tll::caps::InOut;
 	if (auto cscheme = _child->scheme(); cscheme && _scheme_url) {
-		if (auto r = _convert_from.init(_log, cscheme, _scheme.get()); r)
-			return _log.fail(r, "Can not initialize converter from the child");
-		if (auto r = _convert_into.init(_log, _scheme.get(), cscheme); r)
-			return _log.fail(r, "Can not initialize converter into the child");
+		if (caps & tll::caps::Input) {
+			if (auto r = _convert_from.init(_log, cscheme, _scheme.get()); r)
+				return _log.fail(r, "Can not initialize converter from the child");
+		}
+		if (caps & tll::caps::Output) {
+			if (auto r = _convert_into.init(_log, _scheme.get(), cscheme); r)
+				return _log.fail(r, "Can not initialize converter into the child");
+		}
 	}
 	state(tll::state::Active);
 	return 0;
