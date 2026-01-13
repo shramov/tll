@@ -40,8 +40,8 @@ parser.add_argument('--help-template', dest='help_template', action='store_true'
                     default=False,
                     help='show template help message')
 parser.add_argument('-f', '--format', dest='format', type=str,
-                    default='cpp',
-                    help='template to use')
+                    default='cpp', metavar='[PATH/]FORMAT',
+                    help='template to use, with optional path to file before / symbol')
 parser.add_argument('-o', '--output', dest='output', type=str,
                     help='output file, defaults to stdout')
 parser.add_argument('-T', '--template-dir', dest='template_dir', action='append',
@@ -70,8 +70,13 @@ parser.add_argument('--timeout', dest='timeout', type=float,
 
 args, rest = parser.parse_known_args()
 
+dirs = args.template_dir + [importlib.resources.files('tll.templates'), '/usr/share/tll/templates']
+if '/' in args.format:
+    path, args.format = args.format.rsplit('/', 1)
+    dirs += [path]
+
 lookup = TemplateLookup(
-        args.template_dir + [importlib.resources.files('tll.templates'), '/usr/share/tll/templates'],
+        dirs,
         input_encoding='utf-8',
         output_encoding='utf-8',
         )
