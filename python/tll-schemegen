@@ -50,6 +50,12 @@ parser.add_argument('-T', '--template-dir', dest='template_dir', action='append'
 parser.add_argument('-l', '--loglevel', dest='loglevel', default='warning',
                     help='logging level', choices=['trace', 'debug', 'info', 'warning', 'error', 'critical'])
 
+def parsepair(string):
+    r = string.split('=', 1)
+    if len(r) != 2:
+        raise ValueError("Invalid key=value pair")
+    return r
+
 channels = parser.add_argument_group('Channel options')
 channels.add_argument('-c', '--channel', dest='channel', action='store_true',
                     default=False,
@@ -64,9 +70,13 @@ channels.add_argument('-m', '--module', dest='modules', action='append',
                     help='additional channel modules')
 channels.add_argument('--master', dest='master',
                     help='master channel')
-parser.add_argument('--timeout', dest='timeout', type=float,
+channels.add_argument('--timeout', dest='timeout', type=float,
                     default=1,
                     help='open timeout for channel')
+channels.add_argument('--resolve', dest='resolve', type=str,
+                    help='address of resolve service')
+channels.add_argument('--open', dest='open', metavar='KEY=VALUE',
+                    help='open parameters, can be specified multiple times', action='append', default=[], type=parsepair)
 
 args, rest = parser.parse_known_args()
 
@@ -98,11 +108,16 @@ logger.configure({'levels.*': args.loglevel})
 
 if args.channel:
     from tll.channel import Context
+    from tll.config import Config
     from tll.processor import Loop
     import time
 
     timeout = time.time() + args.timeout
-    ctx = Context()
+    defaults = Config()
+    if args.resolve:
+        proto = 'tcp://' if '://' not in args.resolve else ''
+        defaults['resolve.request'] = f'{proto}{args.resolve}'
+    ctx = Context(defaults)
     for m in args.modules:
         ctx.load(m)
     master = ctx.Channel(args.master) if args.master else None
@@ -110,7 +125,10 @@ if args.channel:
     if not args.no_open:
         if master:
             master.open()
-        c.open()
+        cfg = Config()
+        for k,v in args.open:
+            cfg[k] = v
+        c.open(cfg)
         if c.state != c.State.Active:
             loop = Loop()
             if master:
