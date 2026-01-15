@@ -58,6 +58,8 @@ constexpr std::string_view Rotate::scheme_control_string() const
 
 int Rotate::_on_init(tll::Channel::Url &curl, const tll::Channel::Url &url, tll::Channel *master)
 {
+	_seq_last = &_seq_last_local;
+
 	auto reader = channel_props_reader(url);
 	_autoclose = reader.getT("autoclose", true);
 	_convert_enable = reader.getT("convert", false);
@@ -101,8 +103,7 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 {
 	_control_eod_msgid = 0;
 	_end_of_data = false;
-	_seq_first = -1;
-	_seq_last = -1;
+	_seq_last_local = -1;
 	_seq_close = -1;
 	_open_cfg = tll::Config();
 	_state = State::Closed;
@@ -113,15 +114,18 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 	if (!_master) {
 		if (_build_map())
 			return _log.fail(EINVAL, "Failed to build seq map");
+		_seq_last = &_files->seq_last;
 	} else {
 		_files = _master->_files;
+		_seq_last = &_seq_last_local;
+		*_seq_last = _files->seq_last;
 
 		auto lock = _files->lock();
 		_current_file = _files->files.end();
 		_files->listeners.push_back(this);
-		_seq_first = *_files->seq_first;
 	}
-	_autoseq.reset(*_files->seq_last);
+
+	_autoseq.reset(*_seq_last);
 
 	scheme::ConstSchemePtr scheme;
 	{
@@ -136,8 +140,8 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 			return state_fail(EINVAL, "Failed to load scheme from {}...", _scheme_url->substr(0, 64));
 	}
 
-	config_info().set_ptr("seq-begin", _files->seq_first);
-	config_info().set_ptr("seq", _files->seq_last);
+	config_info().set_ptr("seq-begin", &_files->seq_first);
+	config_info().set_ptr("seq", &_files->seq_last);
 
 	if (internal.caps & caps::Input) {
 		_state = State::Read;
@@ -163,8 +167,8 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 			_seq_close = _current_file->second.seq_close();
 		}
 
-		if (_seq_first != -1)
-			_open_cfg.set("seq", conv::to_string(_seq_first));
+		if (_files->seq_first != -1)
+			_open_cfg.set("seq", conv::to_string(_files->seq_first));
 	} else {
 		_open_cfg.set("filename", _last_filename);
 		_state = State::Write;
@@ -200,9 +204,11 @@ int Rotate::_open(const tll::ConstConfig &cfg)
 
 int Rotate::_close(bool force)
 {
+	_seq_last_local = std::max(*_seq_last, _files->seq_last);
+	_seq_last = &_seq_last_local;
 	if (_files) {
-		config_info().setT("seq-begin", *_files->seq_first);
-		config_info().setT("seq", *_files->seq_last);
+		config_info().setT("seq-begin", _files->seq_first);
+		config_info().setT("seq", *_seq_last);
 		auto lock = _files->lock();
 		_files->listeners.remove(this);
 	}
@@ -247,7 +253,7 @@ int Rotate::_rotate()
 		}
 		auto file = const_cast<Files::File *>(&_current_file->second); // It's safe to const cast
 		file->filename = next;
-		file->last = _seq_last;
+		file->last = *_seq_last;
 		file->current = false;
 		_current_file = _files->files.end();
 	}
@@ -310,10 +316,10 @@ int Rotate::_post(const tll_msg_t *msg, int flags)
 	msg = _autoseq.update(msg);
 	if (auto r = _child->post(msg, flags); r)
 		return r;
-	_seq_last = msg->seq;
+	*_seq_last = msg->seq;
 	if (_current_empty) {
-		if (_seq_first == -1)
-			_seq_first = msg->seq;
+		if (_files->seq_first == -1)
+			_files->seq_first = msg->seq;
 		_current_empty = false;
 	}
 	return 0;
@@ -332,7 +338,7 @@ int Rotate::_on_active()
 	if (_state == State::Write) {
 		auto lock = _files->lock();
 		if (_current_file == _files->files.end()) {
-			_current_file = _files->files.emplace(_seq_last + 1, Files::File { _last_filename, -1, true }).first;
+			_current_file = _files->files.emplace(*_seq_last + 1, Files::File { _last_filename, -1, true }).first;
 			_current_empty = true;
 		}
 	} else if (_state != State::Read)
@@ -389,11 +395,10 @@ int Rotate::_on_data(const tll_msg_t *msg)
 {
 	if (_state != State::Read)
 		return 0;
-	_seq_last = msg->seq;
-	if (_seq_last == _seq_close)
+	*_seq_last = msg->seq;
+	if (*_seq_last == _seq_close)
 		notify();
 	if (_convert.scheme_from) {
-		_log.debug("Try convert");
 		if (auto m = _convert.convert(msg); m) {
 			if (*m)
 				return Base::_on_data(*m);
@@ -450,8 +455,6 @@ int Rotate::_build_map()
 
 	std::shared_ptr<Files> files(new Files);
 	Files::Map & map = files->files;
-	files->seq_first = &_seq_first;
-	files->seq_last = &_seq_last;
 	auto current = map.end();
 
 	std::error_code ec;
@@ -491,10 +494,10 @@ int Rotate::_build_map()
 		}
 
 		_log.debug("File {}: first seq: {}, last seq: {}", path, first, last);
-		_seq_last = std::max(last, _seq_last);
-		if (_seq_first == -1)
-			_seq_first = first;
-		_seq_first = std::min(first, _seq_first);
+		files->seq_last = std::max(last, files->seq_last);
+		if (files->seq_first == -1)
+			files->seq_first = first;
+		files->seq_first = std::min(first, files->seq_first);
 
 		auto emplace = map.emplace(first, Files::File { path, last });
 		if (!emplace.second) {
@@ -519,7 +522,7 @@ int Rotate::_build_map()
 		_current_empty = true;
 	} else if (current->first == -1) {
 		auto node = map.extract(current);
-		node.key() = _seq_last + 1;
+		node.key() = files->seq_last + 1;
 		current = map.insert(map.end(), std::move(node));
 		_current_empty = true;
 	}
@@ -540,7 +543,7 @@ int Rotate::_process(long timeout, int flags)
 		if (_current_file->second.current)
 			return 0;
 		_seq_close = _current_file->second.last;
-		if (_seq_last < _seq_close)
+		if (*_seq_last < _seq_close)
 			return 0;
 	}
 	_child->close();

@@ -20,9 +20,10 @@ class Rotate : public AutoSeq<Rotate, Prefix<Rotate>>
 {
  private:
 	Rotate * _master = nullptr;
-	long long _seq_first = -1;
-	long long _seq_last = -1;
 	long long _seq_close = -1;
+
+	long long * _seq_last = nullptr;
+	long long _seq_last_local = -1;
 
 	ConvertBuf _convert;
 
@@ -46,8 +47,8 @@ class Rotate : public AutoSeq<Rotate, Prefix<Rotate>>
 		Map files; // First seq -> filename map
 		std::list<Rotate *> listeners;
 
-		long long * seq_first = nullptr;
-		long long * seq_last = nullptr;
+		long long seq_first = -1;
+		long long seq_last = -1;
 
 		scheme::ConstSchemePtr scheme;
 
