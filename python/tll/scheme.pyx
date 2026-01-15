@@ -4,6 +4,7 @@
 from .scheme cimport *
 from .s2b cimport *
 from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t
+from libc.stdlib cimport free
 from libc.string cimport memcpy, memset
 from libc.errno cimport EINVAL, EMSGSIZE
 from cython cimport typeof
@@ -1356,6 +1357,7 @@ cdef class Scheme:
         if str == NULL:
             raise TLLError("Failed to dump scheme")
         b = bytes(str[:])
+        free(str)
         return b.decode('utf-8')
 
     def _find(self, k):
