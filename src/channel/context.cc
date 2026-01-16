@@ -225,9 +225,8 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 
 		tll::Channel::Url url = cfg.copy();
 		auto lock = wlock();
-		auto r = lookup(cfg);
-		if (r == nullptr)
-			return _log.fail(ENOENT, "Failed to register '{}': can not resolve protocol '{}'", name, cfg.proto());
+		if (auto r = lookup(cfg); !r)
+			return _log.fail(ENOENT, "Failed to register '{}': can not resolve protocol '{}': {}", name, cfg.proto(), r.error());
 		_log.debug("Register alias {} as {}", name, cfg.proto());
 		if (!registry.emplace(name, cfg).second)
 			return _log.fail(EEXIST, "Failed to register '{}': duplicate name", name);
@@ -350,13 +349,15 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		return &i->second;
 	}
 
-	const tll_channel_impl_t * lookup(tll::Channel::Url &url) const
+	tll::result_t<const tll_channel_impl_t *> lookup(tll::Channel::Url &url) const
 	{
 		auto proto = url.proto();
 		do {
+			if (proto.empty())
+				return error("Missing or empty protocol");
 			auto impl = lookup(proto);
 			if (!impl)
-				return _log.fail(nullptr, "Channel impl '{}' not found", proto);
+				return error(fmt::format("Channel impl '{}' not found", proto));
 			if (std::holds_alternative<const tll_channel_impl_t *>(*impl))
 				return std::get<const tll_channel_impl_t *>(*impl);
 			auto alias = std::get<tll::Channel::Url>(*impl);
@@ -370,7 +371,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 			for (auto &[k, v]: alias.browse("**")) {
 				if (k == "tll.proto" || k == "tll.host") continue;
 				if (url.has(k))
-					return _log.fail(nullptr, "Duplicate field '{}': both in alias '{}' and in url", k, alias.proto());
+					return error(fmt::format("Duplicate field '{}': both in alias '{}' and in url", k, alias.proto()));
 				url.set(k, *v.get());
 			}
 			url.proto(proto);
@@ -595,11 +596,29 @@ tll_channel_t * tll_channel_new_url(tll_channel_context_t * ctx, const tll_confi
 tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_channel_t *master, const tll_channel_impl_t * impl)
 {
 	tll::Channel::Url url = _url.copy();
+
+	std::string url_str = std::string(url.proto()) + "://" + std::string(url.host());
+	std::string url_short = url_str;
+	std::set<std::string> url_keys;
+	for (auto & p : url.browse("**")) {
+		auto cvalue = p.second.get();
+		auto value = cvalue.value_or("");
+		if (p.first == "tll.proto" || p.first == "tll.host")
+			continue;
+		url_str += fmt::format(";{}={}", p.first, value);
+		if (value.size() > 80)
+			url_short += fmt::format(";{}={}...", p.first, value.substr(0, 80));
+		else
+			url_short += fmt::format(";{}={}", p.first, value);
+		url_keys.emplace(p.first);
+	}
+
 	if (!impl) {
 		auto lock = rlock();
-		impl = lookup(url);
-		if (!impl)
-			return _log.fail(nullptr, "Channel '{}' not found", url.proto());
+		if (auto r = lookup(url); !r)
+			return _log.fail(nullptr, "Failed to init channel {}: {}", url_short, r.error());
+		else
+			impl = *r;
 	}
 
 	{
@@ -625,22 +644,6 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 	if (!c) return nullptr;
 
 	std::set<const tll_channel_impl_t *> impllog;
-
-	std::string url_str = std::string(url.proto()) + "://" + std::string(url.host());
-	std::string url_short = url_str;
-	std::set<std::string> url_keys;
-	for (auto & p : url.browse("**")) {
-		auto cvalue = p.second.get();
-		auto value = cvalue.value_or("");
-		if (p.first == "tll.proto" || p.first == "tll.host")
-			continue;
-		url_str += fmt::format(";{}={}", p.first, value);
-		if (value.size() > 80)
-			url_short += fmt::format(";{}={}...", p.first, value.substr(0, 80));
-		else
-			url_short += fmt::format(";{}={}", p.first, value);
-		url_keys.emplace(p.first);
-	}
 
 	_log.info("Init channel {}", url_short);
 	do {
