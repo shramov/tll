@@ -84,9 +84,11 @@ different ways:
   * scalar url string value: ``param=null://``, since ``;`` is not escaped it is not possible to
     use this variant to embed list of parameters inside other string url. Yaml configuration is not
     converted to intermediate string so it's ok to pass longer values: ``param: null://;stat=yes``
-    is possible to pass long values, since 
   * broken down parameters url: ``param.tll.proto=null;param.stat=yes`` or config equivalent
-    ``param: {tll.proto: null, stat: yes}``
+    ``param: {tll.proto: null, stat: yes}`` with two special keys:
+
+    - ``tll.proto`` specifies protocol
+    - ``tll.host`` is either string or subtree for host part of the url.
   * mixed variant: ``param: {url: null://, stat: yes}`` or in string variant
     ``param.url=null://;param.stat=yes``
 
