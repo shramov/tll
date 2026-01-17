@@ -1,6 +1,7 @@
 #include <tll/util/bench.h>
 #include <tll/util/refptr.h>
 
+#include <memory>
 #include <thread>
 #include <unistd.h>
 
