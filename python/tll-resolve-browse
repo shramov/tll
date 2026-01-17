@@ -26,6 +26,8 @@ parser.add_argument('-l', '--loglevel', dest='loglevel', default='warning',
                     help='logging level', choices=['trace', 'debug', 'info', 'warning', 'error', 'critical'])
 parser.add_argument('-c', '--count', dest='count', type=int, default=None,
                     help='exit after priting count number of entries')
+parser.add_argument('-t', '--timeout', dest='timeout', action='store_true',
+                    help='exit after first timeout from server')
 
 args = parser.parse_args()
 
@@ -52,8 +54,10 @@ async def main(loop):
     count = 1 if args.count is None else args.count
     while c.state == c.State.Active and count > 0:
         try:
-            m = await c.recv(timeout=3)
+            m = await c.recv(timeout=1)
         except TimeoutError:
+            if args.timeout:
+                return
             continue
         m = c.unpack(m)
         if m.SCHEME.name != 'ExportChannel':
