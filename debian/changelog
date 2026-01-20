@@ -1,3 +1,34 @@
+tll (0.4.6) unstable; urgency=medium
+
+  * channel:
+    Drop 'url' config link to 'init' parameters
+    Fix incorrect process api check
+    Improve error logging on missing proto
+  * config: Add assignment operator for config string
+  * control: Use 'init' subtree instead of 'url'
+  * file:
+    Drop Pending when there is no data after EOD
+    EndOfData message configuration
+  * loader: Add 'enable' parameter
+  * logger: Use same sink for different prefixes
+  * logic: Fail on errors in callback
+  * python:
+    Fix leak in Scheme.dump
+    Gather path to failed field on unpack
+    Improve Enum unpack speed
+  * rate: Watermark settings
+  * resolve: Do not initialize unused converters
+  * rotate:
+    Do not fail when there is no current file
+    Incorrect access to seq from freed master
+    Switch to next file after EOD and rotation
+  * schemegen:
+    Add open parameters and resolve support
+    Allow specifying template as path/name
+  * stream: Add mode=last open mode
+
+ -- Pavel Shramov <shramov@mexmat.net>  Tue, 20 Jan 2026 09:10:24 +0300
+
 tll (0.4.5) unstable; urgency=medium
 
   * channel:
