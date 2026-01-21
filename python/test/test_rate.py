@@ -27,7 +27,7 @@ def test_post(context):
     timer = c.children[1]
 
     assert c.scheme_control is not None
-    assert [m.name for m in c.scheme_control.messages] == ["WriteFull", "WriteReady"]
+    assert [m.name for m in c.scheme_control.messages] == ["WriteFull", "WriteReady", "WriteFlush"]
 
     for _ in range(2):
         c.result = []

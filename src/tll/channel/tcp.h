@@ -214,7 +214,7 @@ class TcpSocket : public Base<T>
 
 	int _sendmsg(const iovec * iov, size_t N);
 
-	void _store_output(const void * base, size_t size, size_t offset = 0);
+	void _store_output(const void * base, size_t size, bool more = false);
 
 	std::chrono::nanoseconds _cmsg_timestamp(msghdr * msg);
 };
