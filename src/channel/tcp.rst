@@ -61,6 +61,9 @@ placed on different network interfaces.
   - ``bson`` - same as ``size32`` but size includes 4 bytes of frame. Output is not prefixed in
     post, input is returned with non stripped frame.
 
+``listen-backlog=<unsigned>`` (default ``10``, only in server mode) - set maximum length of
+pending connections queue (see ``listen(2)`` manual).
+
 ``timestamping=<bool>`` (default ``no``) - enable hardware (if possible) timestamping, for each
 received message ``msg->time`` field is filled with time of last recv operation obtained from
 kernel. If message body was gathered from several recv calls then time of last is used. This

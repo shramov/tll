@@ -147,9 +147,15 @@ int TcpSocket<T>::_post_data(const tll_msg_t *msg, int flags)
 template <typename T>
 int TcpSocket<T>::_post_control(const tll_msg_t *msg, int flags)
 {
-	if (msg->msgid == tcp_scheme::Disconnect::meta_id()) {
+	switch (msg->msgid) {
+	case tcp_scheme::Disconnect::meta_id():
 		this->_log.info("Disconnect client on user request");
 		this->close();
+		break;
+	case tcp_scheme::WriteFlush::meta_id():
+		return _process_output();
+	default:
+		break;
 	}
 	return 0;
 }
@@ -273,18 +279,17 @@ std::chrono::nanoseconds TcpSocket<T>::_cmsg_timestamp(msghdr * msg)
 }
 
 template <typename T>
-void TcpSocket<T>::_store_output(const void * base, size_t size, size_t offset)
+void TcpSocket<T>::_store_output(const void * data, size_t len, bool more)
 {
-	auto len = size - offset;
-	auto data = offset + (const char *) base;
 	if (_wbuf.available() < len)
 		_wbuf.resize(_wbuf.size() + len);
 	memcpy(_wbuf.end(), data, len);
 	_wbuf.extend(len);
 	if (_wbuf.size() == len) {
 		this->channelT()->_on_output_full();
-		this->_update_dcaps(dcaps::CPOLLOUT);
 	}
+	if (!more)
+		this->_update_dcaps(dcaps::CPOLLOUT);
 }
 
 template <typename T>
@@ -320,7 +325,8 @@ int TcpSocket<T>::_sendmsg(const iovec * iov, size_t N)
 				r -= len;
 				continue;
 			}
-			_store_output(iov[i].iov_base, iov[i].iov_len, r);
+			auto data = r + (const char *) iov[i].iov_base;
+			_store_output(data, iov[i].iov_len - r);
 			r = 0;
 		}
 		this->_log.trace("Stored {} bytes of pending data (now {})", _wbuf.size() - old, _wbuf.size());
@@ -346,8 +352,10 @@ int TcpSocket<T>::_process_output()
 		return 0;
 	auto r = ::send(this->fd(), _wbuf.data(), _wbuf.size(), MSG_NOSIGNAL | MSG_DONTWAIT);
 	if (r < 0) {
-		if (errno == EAGAIN)
+		if (errno == EAGAIN) {
+			this->_update_dcaps(dcaps::CPOLLOUT);
 			return 0;
+		}
 		return this->_on_send_error(this->_log.fail(errno, "Failed to send pending data: {}", strerror(errno)));
 	}
 
@@ -357,7 +365,8 @@ int TcpSocket<T>::_process_output()
 	if (!_wbuf.size()) {
 		this->_update_dcaps(0, dcaps::CPOLLOUT);
 		this->channelT()->_on_output_ready();
-	}
+	} else
+		this->_update_dcaps(dcaps::CPOLLOUT);
 	return 0;
 }
 

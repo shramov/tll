@@ -650,3 +650,54 @@ async def test_max_size(asyncloop):
     m = await s.recv()
     assert m.type == m.Type.Data
     assert len(m.data) == 128 * 1024
+
+@asyncloop_run
+async def test_post_more(asyncloop):
+    s = asyncloop.Channel(f'tcp://::1:{ports.TCP6};mode=server;dump=frame', name='server')
+    c = asyncloop.Channel(f'tcp://::1:{ports.TCP6};mode=client;dump=frame', name='client', **{'send-buffer-hwm': '4kb'})
+
+    s.open()
+    c.open()
+
+    try:
+        assert c.State.Active == await c.recv_state()
+        assert (await s.recv(0.001)).type == s.Type.Control
+
+        for i in range(3):
+            c.post(b'x' * 1024, seq=10 * i, flags=s.PostFlags.More)
+            assert c.dcaps & c.DCaps.PollOut == c.DCaps.Zero
+
+        with pytest.raises(TimeoutError): await s.recv(timeout=0.001)
+
+        c.post(b'x' * 1024, seq=30, flags=s.PostFlags.More)
+        assert c.dcaps & c.DCaps.PollOut == c.DCaps.PollOut
+        assert [(m.type, m.msgid) for m in c.result] == [(c.Type.Control, c.scheme_control['WriteFull'].msgid)]
+        c.result.clear()
+
+        assert (await s.recv(timeout=0.001)).seq == 0
+        assert (await s.recv(timeout=0.001)).seq == 10
+        assert (await s.recv(timeout=0.001)).seq == 20
+        assert (await s.recv(timeout=0.001)).seq == 30
+
+        assert [(m.type, m.msgid) for m in c.result] == [(c.Type.Control, c.scheme_control['WriteReady'].msgid)]
+        c.result.clear()
+        assert c.dcaps & c.DCaps.PollOut == c.DCaps.Zero
+
+        c.post(b'x' * 1024, seq=40, flags=s.PostFlags.More)
+        assert c.dcaps & c.DCaps.PollOut == c.DCaps.Zero
+        c.post(b'x' * 1024, seq=50)
+        assert c.dcaps & c.DCaps.PollOut == c.DCaps.PollOut
+
+        assert (await s.recv(timeout=0.001)).seq == 40
+        assert (await s.recv(timeout=0.001)).seq == 50
+
+        c.post(b'x' * 1024, seq=60, flags=s.PostFlags.More)
+        assert c.dcaps & c.DCaps.PollOut == c.DCaps.Zero
+        c.post({}, name='WriteFlush', type=c.Type.Control)
+        assert c.dcaps & c.DCaps.PollOut == c.DCaps.Zero
+
+        assert (await s.recv(timeout=0.001)).seq == 60
+
+    finally:
+        s.close()
+        c.close()

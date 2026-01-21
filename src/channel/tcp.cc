@@ -35,8 +35,10 @@ class FramedSocket : public tll::channel::TcpSocket<T>
 
 	void _on_output_full()
 	{
-		if (this->_wbuf.size() > _send_hwm)
+		if (this->_wbuf.size() > _send_hwm) {
+			this->_update_dcaps(tll::dcaps::CPOLLOUT);
 			Base::_on_output_full();
+		}
 	};
 
 	void send_hwm(size_t hwm)
@@ -219,16 +221,18 @@ int FramedSocket<T, F>::_post_data(const tll_msg_t *msg, int flags)
 	if (msg->type != TLL_MESSAGE_DATA)
 		return 0;
 
-	if (this->_wbuf.size()) {
+	const bool more = flags & TLL_POST_MORE;
+
+	if (more || this->_wbuf.size()) {
 		if (this->_wbuf.size() > _send_hwm)
 			return EAGAIN;
 		this->_log.trace("Store {} + {} bytes of data", FrameT::frame_skip_size(), msg->size);
 		if constexpr (FrameT::frame_skip_size() != 0) {
 			Frame frame;
 			tll::frame::FrameT<Frame>::write(msg, &frame);
-			this->_store_output(&frame, sizeof(frame));
+			this->_store_output(&frame, sizeof(frame), more);
 		}
-		this->_store_output(msg->data, msg->size);
+		this->_store_output(msg->data, msg->size, more);
 		if (this->_wbuf.size() > _send_hwm)
 			_on_output_full();
 		return 0;
