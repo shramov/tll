@@ -21,10 +21,10 @@ class TempFile {
 public:
 	static constexpr std::string_view suffix = ".XXXXXX"; ///< Suffix required for mkstemp (with additional dot)
 
-	explicit TempFile(std::string_view tmpl)
+	explicit TempFile(const std::filesystem::path &tmpl)
 	{
 		std::string str;
-		str.reserve(tmpl.size() + suffix.size());
+		str.reserve(tmpl.string().size() + suffix.size());
 		str += tmpl;
 		str += suffix;
 		_fd = mkstemp(str.data());
