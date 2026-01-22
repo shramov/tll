@@ -313,7 +313,7 @@ int Control::_on_external(tll::Channel * channel, const tll_msg_t * msg)
 		m.addr = msg->addr;
 
 		if (_async_config_dump && channel == _uplink) {
-			_log.info("Queue config dump request '{}'", req.get_path());
+			_log.debug("Queue config dump request '{}'", req.get_path());
 			if (!_config_queue)
 				_update_dcaps(tll::dcaps::Process | tll::dcaps::Pending);
 			_config_queue.append(req.get_path());
