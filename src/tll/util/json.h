@@ -18,12 +18,14 @@
 
 #include "tll/channel.h"
 #include "tll/conv/decimal128.h"
+#include "tll/conv/float.h"
 #include "tll/logger.h"
 #include "tll/scheme.h"
 #include "tll/scheme/types.h"
 #include "tll/scheme/util.h"
 #include "tll/scheme/optr-util.h"
 #include "tll/util/decimal128.h"
+#include "tll/util/fixed_point.h"
 #include "tll/util/memoryview.h"
 #include "tll/util/listiter.h"
 #include "tll/util/buffer.h"
@@ -195,6 +197,20 @@ struct DataHandler : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Data
 				}
 			}
 			return decode_scalar<T>(fview, str);
+		} else if (!std::is_same_v<T, double> && f->sub_type == Field::Fixed) {
+			if constexpr (!std::is_same_v<double, T>) {
+				auto r = conv::to_any<conv::unpacked_float<T>>(str);
+				if (!r)
+					return _log.fail(false, "Failed to decode fixed numeric field {}: {}", str, r.error());
+				if (std::is_unsigned_v<T> && r->sign)
+					return _log.fail(false, "Failed to decode fixed numeric field {}: negative value for unsigned field", str);
+				if (r->sign)
+					r->mantissa = -r->mantissa;
+				auto m = util::fixed_point::convert_mantissa(r->mantissa, r->exponent, -f->fixed_precision);
+				if (!m)
+					return _log.fail(false, "Failed to convert numeric value '{}' to exponent {}: {}", str, -f->fixed_precision, m.error());
+				*fview.template dataT<T>() = (T) *m;
+			}
 		} else
 			return decode_scalar<T>(fview, str);
 		return true;
@@ -656,6 +672,14 @@ class JSON
 				return encode_number(writer, v);
 			writer.String(it->second.data(), it->second.size());
 			return 0;
+		} else if (field->sub_type == Field::Fixed) {
+			if constexpr (!std::is_same_v<T, double>) {
+				tll::conv::unpacked_float<T> uf { v, -static_cast<int>(field->fixed_precision) };
+
+				auto r = uf.to_string_buf(_buf, uf.ZeroAfterDot | uf.ZeroBeforeDot | uf.LowerCaseE);
+				writer.RawValue(r.data(), r.size(), rapidjson::kNumberType);
+				return 0;
+			}
 		}
 		return encode_number(writer, v);
 	}
