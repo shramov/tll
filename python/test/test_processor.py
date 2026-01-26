@@ -148,6 +148,31 @@ processor.objects:
     finally:
         loop.destroy()
 
+def test_default_stage(context):
+    cfg = Config.load('''yamls://
+name: processor
+processor.objects:
+  o0:
+    init: null://
+  o1:
+    init: null://
+    depends: o0
+  o2:
+    init: null://
+    depends: o1
+  o3:
+    init: null://
+''')
+
+    p = Processor(cfg, context=context)
+
+    objects = p.config.sub('objects')
+    assert objects != None
+    objects = objects.as_dict()
+
+    assert sorted(objects.keys()) == ['o0', 'o1', 'o2', 'o3', 'processor/stage/active']
+    assert objects['processor/stage/active'] == {'depends': 'o2,o3', 'name': 'processor/stage/active'}
+
 @asyncloop_run
 async def test_control(asyncloop, context):
     cfg = Config.load('''yamls://

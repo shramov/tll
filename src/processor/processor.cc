@@ -428,7 +428,7 @@ int Processor::init_stages()
 	struct Stage
 	{
 		std::string name;
-		std::set<Object *> objects;
+		std::map<std::string_view, Object *> objects;
 	};
 
 	std::map<std::string, Stage> stages;
@@ -443,7 +443,7 @@ int Processor::init_stages()
 			auto o = find(*v);
 			if (!o)
 				return _log.fail(EINVAL, "Unknown object: '{}'", *v);
-			s.objects.insert(o);
+			s.objects.emplace(o->name(), o);
 		}
 		stages[name] = std::move(s);
 	}
@@ -451,12 +451,16 @@ int Processor::init_stages()
 	if (stages.empty()) {
 		_log.debug("No stages defined, create default one");
 		auto * ptr = &stages.emplace("active", Stage { .name = "active" }).first->second;
+		std::map<std::string_view, Object *> leaf;
+		for (auto & o : _objects)
+			leaf.emplace(o->name(), &o);
 		for (auto & o : _objects) {
-			if (o.rdepends.empty()) {
-				_log.debug("Assign object {} to stage {}", o.name(), ptr->name);
-				ptr->objects.insert(&o);
-			}
+			for (auto & d: o.depends_names)
+				leaf.erase(d);
 		}
+		for (auto &[n, _] : leaf)
+			_log.debug("Assign object {} to stage {}", n, ptr->name);
+		ptr->objects = std::move(leaf);
 	}
 
 	for (auto & [_, s]: stages) {
@@ -465,7 +469,7 @@ int Processor::init_stages()
 			return log.fail(EINVAL, "Empty object list");
 		Worker * worker = nullptr;
 		auto wdefault = fmt::format("{}/worker/default", this->name);
-		for (auto & o : s.objects) {
+		for (auto &[_, o] : s.objects) {
 			if (!worker || o->worker->name == wdefault)
 				worker = o->worker;
 		}
@@ -485,8 +489,8 @@ int Processor::init_stages()
 		o->stage = true;
 		o->stage_name = s.name;
 
-		for (auto & so : s.objects)
-			o->depends_names.push_back(std::string(so->name()));
+		for (auto &[so, _] : s.objects)
+			o->depends_names.push_back(std::string(so));
 		if (o->init(*url))
 			return log.fail(EINVAL, "Failed to init extra parameters for stage channel");
 	}
