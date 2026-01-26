@@ -16,9 +16,9 @@ protected:
 		return R"(yamls://
 processor.objects:
   base:
-    url: null://
+    init: null://;processor.reopen-active-min=1ns
   null:
-    url: null://
+    init: null://
     depends: base
 )";
 	}
@@ -29,7 +29,7 @@ processor.objects:
 
 	tll::Logger log = { "test" };
 	tll::Config config;
-	tll::channel::Context context { tll::Config() };
+	std::unique_ptr<tll::channel::Context> context;
 
 	std::unique_ptr<tll::Processor> proc;
 
@@ -44,10 +44,11 @@ public:
 		cfg->set("name", "test");
 
 		config = *cfg;
+		context.reset(new tll::channel::Context(defaults()));
 
 		ASSERT_EQ(prepare(), 0);
 
-		proc = tll::Processor::init(config, context);
+		proc = tll::Processor::init(config, *context);
 
 		ASSERT_TRUE(proc);
 
@@ -65,6 +66,13 @@ public:
 	virtual void TearDown() override
 	{
 		proc.reset();
+	}
+
+	virtual tll::Config defaults() const
+	{
+		auto r = tll::Config();
+		//r.set("processor.reopen-active-min", "1ns");
+		return r;
 	}
 
 	template <typename F>
@@ -88,7 +96,7 @@ public:
 TEST_F(Processor, Basic)
 {
 
-	auto null = context.get("null");
+	auto null = context->get("null");
 	ASSERT_TRUE(null);
 	ASSERT_EQ(null->state(), Closed);
 
@@ -105,8 +113,8 @@ TEST_F(Processor, Basic)
 
 TEST_F(Processor, Reopen)
 {
-	auto null = context.get("null");
-	auto base = context.get("base");
+	auto null = context->get("null");
+	auto base = context->get("base");
 	ASSERT_TRUE(null);
 	ASSERT_TRUE(base);
 	bool reopen = true;
@@ -175,14 +183,14 @@ processor.objects:
 
 	virtual int prepare()
 	{
-		return context.reg(&Long::impl);
+		return context->reg(&Long::impl);
 	}
 };
 
 TEST_F(ProcessorLong, Test)
 {
 
-	auto null = context.get("null");
+	auto null = context->get("null");
 	ASSERT_TRUE(null);
 	ASSERT_EQ(null->state(), Closed);
 
