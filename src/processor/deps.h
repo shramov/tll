@@ -33,6 +33,7 @@ struct Object
 	bool opening = false;
 	bool verbose = false;
 	bool stage = false;
+	bool subtree_closed = true;
 
 	tll::channel::ReopenData reopen;
 
@@ -69,25 +70,66 @@ struct Object
 
 	int callback(const Channel *, const tll_msg_t *);
 
-	bool ready_open()
+	template <typename F>
+	bool mark_subtree_closed(F func)
 	{
-		if (std::any_of(depends.begin(), depends.end(), [](auto & o) { return o->decay; }))
+		if (subtree_closed) {
+			decay = false;
+			if (ready_open()) {
+				func(this);
+				return true;
+			}
 			return false;
-		if (std::any_of(rdepends.begin(), rdepends.end(), [](auto & o) { return o->decay; }))
+		}
+		if (!std::all_of(rdepends.begin(), rdepends.end(), [](auto & o) { return o->subtree_closed; }))
+			return false;
+		if (state != tll::state::Closed || opening)
+			return false;
+		subtree_closed = true;
+		decay = false;
+		bool r = false;
+		for (auto & o : depends)
+			r = r || o->mark_subtree_closed(func);
+		if (ready_open()) {
+			func(this);
+			r = true;
+		}
+		return r;
+	}
+
+	void mark_subtree_open()
+	{
+		if (!subtree_closed)
+			return;
+		subtree_closed = false;
+		for (auto & o : depends)
+			o->mark_subtree_open();
+	}
+
+	bool ready_restore() const
+	{
+		return std::all_of(rdepends.begin(), rdepends.end(), [](auto & o) { return o->subtree_closed && !o->decay; });
+	}
+
+	bool ready_open() const
+	{
+		if (decay)
+			return false;
+		if (std::any_of(depends.begin(), depends.end(), [](auto & o) { return o->decay; }))
 			return false;
 		return std::all_of(depends.begin(), depends.end(), [](auto & o) { return o->state == state::Active; });
 	}
 
-	bool ready_close()
+	bool ready_close() const
 	{
-		if (std::any_of(rdepends.begin(), rdepends.end(), [](auto & o) { return o->opening; }))
-			return false;
-		return std::all_of(rdepends.begin(), rdepends.end(), [](auto & o) { return o->state == state::Closed; });
+		return std::all_of(rdepends.begin(), rdepends.end(), [](auto & o) { return o->subtree_closed; });
 	}
 
 	void on_state(tll_state_t s)
 	{
 		reopen.on_state(s);
+		if (s != state::Closed)
+			mark_subtree_open();
 		switch (s) {
 		case state::Opening:
 			opening = false;

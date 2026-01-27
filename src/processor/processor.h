@@ -62,6 +62,8 @@ struct Processor : public tll::channel::Base<Processor>
 	std::multimap<tll::time_point, Object *> _pending;
 	std::map<std::string, Object *> _stages_map;
 
+	std::set<Object *> _pending_reactivate;
+
 	tll_channel_t context_channel = {};
 	tll_channel_internal_t context_internal = { TLL_STATE_CLOSED };
 
@@ -88,8 +90,10 @@ struct Processor : public tll::channel::Base<Processor>
 	int object_depth(std::map<std::string, PreObject, std::less<>> &map, PreObject &o, std::list<std::string_view> & path, bool init);
 	Worker * init_worker(std::string_view name);
 
-	void decay(Object * obj, bool root = false);
+	void decay(Object * obj);
 	void activate(Object & obj);
+	void reactivate(Object * obj);
+	void deactivate(Object * obj, std::string_view msg = "", bool failure = false);
 
 	int build_rdepends();
 

@@ -30,33 +30,20 @@ struct CallbackT<tll::processor::_::Processor>
 
 using namespace tll::processor::_;
 
-void Processor::decay(Object * obj, bool root)
+void Processor::decay(Object * obj)
 {
-	if (obj->decay)
+	if (obj->subtree_closed)
 		return;
-	if (!root)
-		obj->decay = true;
 
-	if (obj->reopen.pending()) {
-		_log.debug("Disable pending reopen of object {}", obj->name());
-		pending_del(obj->reopen.next, obj);
-		obj->reopen.next = {};
-	}
-
-	if (obj->state == state::Closed && !obj->opening && obj->ready_close()) {
-		_log.debug("Object {} is already closed, decay not needed", obj->name());
-		obj->decay = false;
-		return;
-	}
+	obj->decay = true;
 
 	_log.debug("Decay subtree of object {}", obj->name());
+	_log.debug("State: {}, opening: {}, ready to close: {}, subtree closed: {}", tll_state_str(obj->state), obj->opening, obj->ready_close(), obj->subtree_closed);
 	for (auto & o : obj->rdepends)
 		decay(o);
 
-	if (obj->rdepends.empty() || obj->ready_close()) {
-		_log.debug("Deactivate decayed leaf object {}", obj->name());
-		post<scheme::Deactivate>(obj, { obj });
-	}
+	if ((obj->state != state::Closed || obj->opening) && obj->ready_close())
+		deactivate(obj, "decayed leaf ");
 }
 
 int Processor::parse_deps(Object &obj, const Config &cfg)
@@ -626,7 +613,7 @@ int Processor::cb(const Channel * c, const tll_msg_t * msg)
 		}
 
 		_log.info("Close object per user request {}", name);
-		post<scheme::Deactivate>(obj, { obj });
+		deactivate(obj);
 		break;
 	}
 	default:
@@ -660,37 +647,18 @@ void Processor::update(Object *o, tll_state_t s)
 		}
 		return;
 	case state::Error:
-		_log.debug("Deactivate failed object {}", o->name());
-		post<scheme::Deactivate>( o, { o });
+		deactivate(o, "failed ", true);
 		break;
 	case state::Closed:
-		if (o->decay) {
-			_log.debug("Clear decay of {}", o->name());
-			o->decay = false;
-		}
-
-		if (!o->ready_close())
-			decay(o, true);
-
-		for (auto & d : o->depends) {
-			_log.debug("Check dependency {} of {}", d->name(), o->name());
-			if (d->decay && d->ready_close())
-				post<scheme::Deactivate>(d, { d });
-			else if (d->state == tll::state::Closed && !d->opening && d->ready_open())
-				activate(*d);
-		}
-
-		if (state() != tll::state::Active)
+		if (o->mark_subtree_closed([this](Object * obj) { this->reactivate(obj); }) && state() == state::Active)
 			break;
 
-		if (o->ready_open()) {
-			using namespace std::chrono;
-			if (o->reopen.next > tll::time::now()) {
-				_log.info("Next open in {}", duration_cast<std::chrono::duration<double, std::ratio<1>>>(o->reopen.timeout()));
-				pending_add(o->reopen.next, o);
-			} else
-				activate(*o);
+		decay(o);
+		for (auto & d : o->depends) {
+			if (d->ready_close())
+				deactivate(d);
 		}
+
 		break;
 	default:
 		break;
@@ -715,7 +683,32 @@ void Processor::activate(Object &o)
 	_log.debug("Activate object {}", o->name());
 	o.opening = true;
 	o.reopen.next = {};
+	o.mark_subtree_open();
 	post(&o, scheme::Activate { &o });
+}
+
+void Processor::deactivate(Object *o, std::string_view msg, bool failure)
+{
+	_log.debug("Dectivate {}object {}", msg, o->name());
+	if (!failure)
+		o->reopen.active_ts = {};
+	post<scheme::Deactivate>(o, { o });
+}
+
+void Processor::reactivate(Object *o)
+{
+	if (state() != state::Active)
+		return;
+
+	_log.debug("Reactivate object {}", o->name());
+	if (o->ready_open()) {
+		using namespace std::chrono;
+		if (o->reopen.next > tll::time::now()) {
+			_log.info("Next open for {} in {}", o->name(), duration_cast<std::chrono::duration<double, std::ratio<1>>>(o->reopen.timeout()));
+			pending_add(o->reopen.next, o);
+		} else
+			activate(*o);
+	}
 }
 
 void Processor::_close_workers()
@@ -815,10 +808,13 @@ int Processor::pending_process(const tll_msg_t * msg)
 		_log.debug("Pending action on {}", o->name());
 		switch (o->reopen.on_timer(_log, now)) {
 		case channel::ReopenData::Action::Open:
-			activate(*o);
+			if (o->decay)
+				_log.debug("Skip pending activate on decayed object {}", o->name());
+			else
+				activate(*o);
 			break;
 		case channel::ReopenData::Action::Close:
-			post<scheme::Deactivate>( o, { o });
+			deactivate(o, "pending ");
 			break;
 		case channel::ReopenData::Action::None:
 			break;

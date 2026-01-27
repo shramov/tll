@@ -290,6 +290,53 @@ processor.objects:
     assert client.unpack(await client.recv()).as_dict(only = {'channel', 'state'}) == {'channel': 'leaf', 'state': State.Opening}
 
 @asyncloop_run
+async def test_reopen_chain(asyncloop, context):
+
+    cfg = Config.load('''yamls://
+name: test
+processor.objects:
+  c0:
+    init: null://
+  c1:
+    init: null://
+    depends: c0
+  c2:
+    init: null://
+    depends: c1
+''')
+
+    p = Processor(cfg, context=context)
+    asyncloop._loop.add(p)
+
+    p.open()
+
+    client = asyncloop.Channel('ipc://;mode=client;dump=yes;name=client;scheme=channel://test', master=p)
+    client.open()
+
+    assert len(p.workers) == 1
+    for w in p.workers:
+        w.open()
+
+    async def check_state(c, s):
+        assert client.unpack(await client.recv(0.1)).as_dict(only = {'channel', 'state'}) == {'channel': c, 'state': s}
+
+    State = client.scheme.messages.StateUpdate.enums['State'].klass
+
+    for c in ['c0', 'c1', 'c2', 'test/stage/active']:
+        await check_state(c, State.Opening)
+        await check_state(c, State.Active)
+
+    client.post({'channel': 'c0'}, name='ChannelClose')
+
+    for c in ['c0', 'test/stage/active', 'c2', 'c1']:
+        await check_state(c, State.Closing)
+        await check_state(c, State.Closed)
+
+    for c in ['c0', 'c1', 'c2', 'test/stage/active']:
+        await check_state(c, State.Opening)
+        await check_state(c, State.Active)
+
+@asyncloop_run
 async def test_forward_helper(asyncloop, tmp_path):
     asyncloop.context.register(Forward)
 
@@ -346,3 +393,48 @@ processor.objects:
 
     with pytest.raises(RuntimeError):
         Scheme('yaml://' + filename)
+
+@asyncloop_run
+async def test_close_decay(asyncloop, context):
+
+    cfg = Config.load('''yamls://
+name: processor
+processor.objects:
+  root-0:
+    init: null://
+  root-1:
+    init: null://
+  leaf:
+    init: null://
+    depends: root-0, root-1
+''')
+
+    p = Processor(cfg, context=context)
+    asyncloop._loop.add(p)
+
+    p.open()
+
+    client = asyncloop.Channel('ipc://;mode=client;dump=yes;name=client;scheme=channel://processor', master=p)
+    client.open()
+
+    assert len(p.workers) == 1
+    for w in p.workers:
+        w.open()
+
+    State = client.scheme.messages.StateUpdate.enums['State'].klass
+
+    async def check_state(c, s):
+        assert client.unpack(await client.recv()).as_dict(only = {'channel', 'state'}) == {'channel': c, 'state': s}
+
+    for c in ['root-0', 'root-1', 'leaf', 'processor/stage/active']:
+        await check_state(c, State.Opening)
+        await check_state(c, State.Active)
+
+    p.close()
+
+    context.get('root-0').close()
+
+    for c in ['root-0', 'processor/stage/active', 'leaf', 'root-1']:
+        await check_state(c, State.Closing)
+        await check_state(c, State.Closed)
+    assert p.state == p.State.Closed
