@@ -112,6 +112,8 @@ class Mock:
         self._control.result.clear()
         state = self._normalize_state(state)
         c = self._context.get(name)
+        if c is None:
+            raise KeyError(f'Channel "{name}" not found')
         if c.state == state:
             return
         end = time.time() + timeout
