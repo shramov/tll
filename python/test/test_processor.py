@@ -438,3 +438,58 @@ processor.objects:
         await check_state(c, State.Closing)
         await check_state(c, State.Closed)
     assert p.state == p.State.Closed
+
+class LongClose(Base):
+    PROTO = "long-close"
+
+    CLOSE_POLICY = Base.ClosePolicy.Long
+    POST_CLOSING_POLICY = Base.PostPolicy.Enable
+    PROCESS_POLICY = Base.ProcessPolicy.Never
+
+    def _close(self, force : bool):
+        if force:
+            return Base._close(self, force)
+
+    def _post(self, msg, flags):
+        if self.state == self.State.Closing:
+            Base._close(self, True)
+
+@asyncloop_run
+async def test_close_pending_reopen(asyncloop, context):
+    context.register(LongClose)
+
+    cfg = Config.load('''yamls://
+name: processor
+processor.objects:
+  root:
+    init: null://
+  l0:
+    init: long-close://
+    depends: root
+  l1:
+    init: null://;reopen-timeout=10ms;reopen-active-min=1s
+    depends: root
+''')
+
+    mock = Mock(asyncloop, cfg)
+    mock.open()
+
+    State = mock._control.scheme.messages.StateUpdate.enums['State'].klass
+
+    async def wait_state(c, s):
+        while True:
+            m = mock.control.unpack(await mock.control.recv(0.01))
+            if m.as_dict(only = {'channel', 'state'}) == {'channel': c, 'state': s}:
+                break
+
+    await wait_state('processor/stage/active', State.Active)
+
+    context.get('l1').close()
+    await wait_state('processor/stage/active', State.Closed)
+    mock._processor.close()
+
+    await asyncloop.sleep(0.015) # Wait more then reopen timeout
+
+    context.get('l0').post(b'')
+
+    await mock.wait('root', 'Closed', timeout=1)

@@ -808,9 +808,10 @@ int Processor::pending_process(const tll_msg_t * msg)
 		_log.debug("Pending action on {}", o->name());
 		switch (o->reopen.on_timer(_log, now)) {
 		case channel::ReopenData::Action::Open:
-			if (o->decay)
-				_log.debug("Skip pending activate on decayed object {}", o->name());
-			else
+			if (!o->ready_open() || state() != state::Active) {
+				_log.debug("Skip pending activate on object {}", o->name());
+				o->reopen.next = {};
+			} else
 				activate(*o);
 			break;
 		case channel::ReopenData::Action::Close:
