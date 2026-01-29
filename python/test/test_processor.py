@@ -515,7 +515,6 @@ processor.objects:
 
 @asyncloop_run
 async def test_close_reorder(asyncloop, context):
-    context.register(LongClose)
     context.config_defaults['processor.timeout-active-min'] = '1ns'
 
     cfg = Config.load('''yamls://
@@ -544,3 +543,41 @@ processor.objects:
 
     mock._processor.close()
     await mock.wait('o0', 'Closed', timeout=0.02)
+
+@asyncloop_run
+async def test_close_multi(asyncloop, context):
+    context.config_defaults['processor.reopen-active-min'] = '1s'
+    context.config_defaults['processor.reopen-timeout'] = '1s'
+
+    cfg = Config.load('''yamls://
+name: processor
+processor.objects:
+  root:
+    init: null://
+  middle:
+    init: null://
+    depends: root
+  l0:
+    init: null://
+    depends: middle
+  l1:
+    init: null://
+    depends: middle
+  l2:
+    init: null://
+    depends: middle
+''')
+
+    mock = Mock(asyncloop, cfg)
+    mock.open()
+
+    await mock.wait_stage('active', 'Active')
+
+    context.get('l0').close()
+    context.get('l1').close()
+
+    await mock.wait_stage('active', 'Closed')
+
+    mock.processor.close()
+
+    await mock.wait_many(timeout=0.1, root='Closed')

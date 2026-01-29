@@ -93,7 +93,7 @@ struct Object
 		subtree_closed = true;
 		bool r = false;
 		for (auto & o : depends)
-			r = r || o->mark_subtree_closed(activate, deactivate);
+			r = o->mark_subtree_closed(activate, deactivate) || r;
 		if (ready_open()) {
 			activate(this);
 			r = true;
