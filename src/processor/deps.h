@@ -71,28 +71,31 @@ struct Object
 
 	int callback(const Channel *, const tll_msg_t *);
 
-	template <typename F>
-	bool mark_subtree_closed(F func)
+	template <typename F1, typename F2>
+	bool mark_subtree_closed(F1 activate, F2 deactivate)
 	{
 		if (subtree_closed) {
-			decay = false;
 			if (ready_open()) {
-				func(this);
+				activate(this);
 				return true;
 			}
 			return false;
 		}
 		if (!std::all_of(rdepends.begin(), rdepends.end(), [](auto & o) { return o->subtree_closed; }))
 			return false;
-		if (state != tll::state::Closed || opening)
+		if (opening)
 			return false;
+		if (state != state::Closed && state != state::Closing) {
+			if (decay)
+				deactivate(this);
+			return false;
+		}
 		subtree_closed = true;
-		decay = false;
 		bool r = false;
 		for (auto & o : depends)
-			r = r || o->mark_subtree_closed(func);
+			r = r || o->mark_subtree_closed(activate, deactivate);
 		if (ready_open()) {
-			func(this);
+			activate(this);
 			r = true;
 		}
 		return r;
@@ -114,8 +117,6 @@ struct Object
 
 	bool ready_open() const
 	{
-		if (decay)
-			return false;
 		if (std::any_of(depends.begin(), depends.end(), [](auto & o) { return o->decay; }))
 			return false;
 		return std::all_of(depends.begin(), depends.end(), [](auto & o) { return o->state == state::Active; });
@@ -123,6 +124,8 @@ struct Object
 
 	bool ready_close() const
 	{
+		if (state == state::Closed || state == state::Closing || closing || opening)
+			return false;
 		return std::all_of(rdepends.begin(), rdepends.end(), [](auto & o) { return o->subtree_closed; });
 	}
 

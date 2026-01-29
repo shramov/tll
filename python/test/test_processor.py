@@ -512,3 +512,35 @@ processor.objects:
 
     context.get('o0').close()
     await mock.wait('o0', 'Closed', timeout=0.02)
+
+@asyncloop_run
+async def test_close_reorder(asyncloop, context):
+    context.register(LongClose)
+    context.config_defaults['processor.timeout-active-min'] = '1ns'
+
+    cfg = Config.load('''yamls://
+name: processor
+processor.objects:
+  o0:
+    init: null://
+  o1:
+    init: null://
+    depends: o0
+  o2:
+    init: null://
+    depends: o1
+''')
+
+    mock = Mock(asyncloop, cfg)
+
+    cb = lambda c, m: c.context.get('o1').close() if (m.type, m.msgid) == (m.Type.State, int(c.State.Closing)) else None
+    cbh = context.get('o2').callback_add(cb, store=False)
+
+    mock.open()
+    await mock.wait('o2', 'Active', timeout=0.02)
+
+    context.get('o2').close()
+    await mock.wait('o2', 'Active', timeout=0.02)
+
+    mock._processor.close()
+    await mock.wait('o0', 'Closed', timeout=0.02)

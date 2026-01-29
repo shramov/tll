@@ -41,9 +41,7 @@ void Processor::decay(Object * obj)
 	for (auto & o : obj->rdepends)
 		decay(o);
 
-	if (obj->state == state::Closing || obj->closing)
-		return;
-	if ((obj->state != state::Closed || obj->opening) && obj->ready_close())
+	if (obj->ready_close())
 		deactivate(obj, "decayed leaf ");
 }
 
@@ -637,6 +635,8 @@ void Processor::update(Object *o, tll_state_t s)
 	o->on_state(s);
 	switch (s) {
 	case state::Opening:
+		if (o->decay && o->ready_close())
+			deactivate(o, "decayed ");
 	case state::Closing:
 		if (o->reopen.pending())
 			pending_add(o->reopen.next, o);
@@ -652,7 +652,10 @@ void Processor::update(Object *o, tll_state_t s)
 		deactivate(o, "failed ", true);
 		break;
 	case state::Closed:
-		if (o->mark_subtree_closed([this](Object * obj) { this->reactivate(obj); }) && state() == state::Active)
+		if (o->mark_subtree_closed(
+					[this](Object * obj) { this->reactivate(obj); },
+					[this](Object * obj) { this->deactivate(obj); })
+				&& state() == state::Active)
 			break;
 
 		decay(o);
@@ -683,6 +686,7 @@ void Processor::activate()
 void Processor::activate(Object &o)
 {
 	_log.debug("Activate object {}", o->name());
+	o.decay = false;
 	o.opening = true;
 	o.reopen.next = {};
 	o.mark_subtree_open();
@@ -692,6 +696,8 @@ void Processor::activate(Object &o)
 void Processor::deactivate(Object *o, std::string_view msg, bool failure)
 {
 	_log.debug("Dectivate {}object {}", msg, o->name());
+	if (o->closing)
+		return;
 	if (!failure)
 		o->reopen.active_ts = {};
 	if (o->state != state::Closing)
@@ -731,7 +737,10 @@ int Processor::_close(bool force)
 	_log.info("Close processor");
 	config_info().setT("exit-code", _exit_code);
 	for (auto & o : _objects) {
-		decay(&o);
+		_log.debug("Force decay of object {}", o.name());
+		o.decay = true;
+		if (o.ready_close())
+			deactivate(&o, "decayed leaf ");
 	}
 
 	_close_workers();
