@@ -145,3 +145,24 @@ class Mock:
 
             if sorted(objects.items()) == sorted(states.items()):
                 return
+
+    async def wait_stage(self, name, state, timeout=1):
+        r = None
+        name = f'{self.processor.name}/stage/{name}'
+        for m in self._control.result:
+            m = self._control.unpack(m)
+            if m.channel == name:
+                r = m.state
+        self._control.result.clear()
+        state = self._normalize_state(state)
+        if r == state:
+            return
+        end = time.time() + timeout
+        while (now := time.time()) < end:
+            m = await self._control.recv(timeout=end - now)
+            m = self._control.unpack(m)
+            if m.channel != name:
+                continue
+            if m.state.name == state.name:
+                return
+        raise TimeoutError(f"Timed out waiting for stage {name} state {state}")
