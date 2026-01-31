@@ -877,7 +877,7 @@ int File<TIO>::_post(const tll_msg_t *msg, int flags)
 
 	msg = this->_autoseq.update(msg);
 	if (msg->seq <= _seq)
-		return this->_log.fail(EINVAL, "Incorrect messsage seq: {} <= last seq {}", msg->seq, _seq);
+		return this->_log.fail(EINVAL, "Incorrect message seq: {} <= last seq {}", msg->seq, _seq);
 
 	const size_t size = sizeof(full_frame_t) + msg->size;
 

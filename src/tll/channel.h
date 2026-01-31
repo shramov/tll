@@ -163,7 +163,7 @@ typedef struct tll_channel_t {
 typedef enum {
 	TLL_MESSAGE_MASK_DATA    = 1u << TLL_MESSAGE_DATA, ///< Data messages
 	TLL_MESSAGE_MASK_CONTROL = 1u << TLL_MESSAGE_CONTROL, ///< Control messages
-	TLL_MESSAGE_MASK_STATE   = 1u << TLL_MESSAGE_STATE, ///< State messsages
+	TLL_MESSAGE_MASK_STATE   = 1u << TLL_MESSAGE_STATE, ///< State messages
 	TLL_MESSAGE_MASK_CHANNEL = 1u << TLL_MESSAGE_CHANNEL, ///< Child channel updates
 	TLL_MESSAGE_MASK_ALL     = 0xffffffffu ^ TLL_MESSAGE_MASK_CHANNEL, ///< Mask for all messages excluding Channel updates
 } tll_message_mask_t;
