@@ -21,6 +21,7 @@
 #include "tll/conv/float.h"
 #include "tll/logger.h"
 #include "tll/scheme.h"
+#include "tll/scheme/error-stack.h"
 #include "tll/scheme/types.h"
 #include "tll/scheme/util.h"
 #include "tll/scheme/optr-util.h"
@@ -501,7 +502,7 @@ struct LookupHandler : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Lo
 	bool EndArray(SizeType elementCount) { depth--; return true; }
 };
 
-class JSON
+class JSON : public tll::scheme::ErrorStack
 {
 	Logger &_log;
 	util::buffer _buf;
@@ -723,7 +724,7 @@ template <typename W, typename Buf>
 inline int JSON::encode_field(W &writer, const memoryview<Buf> &data, const Field *field)
 {
 	auto meta = static_cast<const field_meta_t *>(field->user);
-	if (!meta) return _log.fail(EINVAL, "No user data on field {}", field->name);
+	if (!meta) return fail(EINVAL, "No user data on field");
 	if (meta->skip)
 		return 0;
 
@@ -743,7 +744,7 @@ inline int JSON::encode_field(W &writer, const memoryview<Buf> &data, const Fiel
 			writer.String(data.template dataT<char>(), strnlen(data.template dataT<char>(), field->size));
 			return 0;
 		}
-		return _log.fail(EINVAL, "Bytes not implemented");
+		return fail(EINVAL, "Bytes not implemented");
 	}
 	case Field::Decimal128: {
 		tll::util::Decimal128::Unpacked u;
@@ -755,22 +756,20 @@ inline int JSON::encode_field(W &writer, const memoryview<Buf> &data, const Fiel
 		return 0;
 	}
 	case Field::Message:
-		if (encode_message(writer, data, field->type_msg, !meta->message_inline))
-			return _log.fail(EINVAL, "Failed to encode sub-message {}", field->type_msg->name);
-		return 0;
+		return encode_message(writer, data, field->type_msg, !meta->message_inline);
 	case Field::Array: {
 		auto size = tll::scheme::read_size(field->count_ptr, data);
 		if (size < 0)
-			return _log.fail(EINVAL, "Negative count for field {}: {}", field->name, size);
+			return fail(EINVAL, "Negative count: {}", size);
 		auto af = field->type_array;
 		return encode_list(writer, data.view(af->offset), af, size, af->size);
 	}
 	case Field::Pointer: {
 		auto ptr = scheme::read_pointer(field, data);
 		if (!ptr)
-			return _log.fail(EINVAL, "Invalid offset ptr version: {}", field->offset_ptr_version);
+			return fail(EINVAL, "Invalid offset ptr version: {}", field->offset_ptr_version);
 		if (data.size() < ptr->offset)
-			return _log.fail(EINVAL, "Offset pointer {} out of bounds: +{} < {}", field->name, ptr->offset, data.size());
+			return fail(EINVAL, "Offset pointer out of bounds: +{} < {}", ptr->offset, data.size());
 		if (field->sub_type == Field::ByteString) {
 			if (ptr->size != 0) {
 				writer.String(data.view(ptr->offset).template dataT<const char>(), ptr->size - 1);
@@ -781,7 +780,7 @@ inline int JSON::encode_field(W &writer, const memoryview<Buf> &data, const Fiel
 		return encode_list(writer, data.view(ptr->offset), field->type_ptr, ptr->size, ptr->entity ? ptr->entity : field->type_ptr->size);
 	}
 	case Field::Union:
-		return _log.fail(EINVAL, "Unions not supported");
+		return fail(EINVAL, "Unions not supported");
 	}
 	return 0;
 }
@@ -793,7 +792,7 @@ inline int JSON::encode_list(W &writer, const memoryview<Buf> &data, const Field
 	writer.StartArray();
 	for (auto i = 0u; i < size; i++) {
 		if (encode_field(writer, data.view(i * entity), field))
-			return _log.fail(EINVAL, "Faield to encode element {}[{}]", field->name, size);
+			return fail_index(EINVAL, i);
 	}
 	writer.EndArray();
 	return 0;
@@ -804,9 +803,9 @@ inline int JSON::encode_message(W &writer, const memoryview<Buf> &data, const Me
 {
 	_log.trace("Encode message {}", msg->name);
 	if (data.size() < msg->size)
-		return _log.fail(EMSGSIZE, "Data size less then message {} size: {} < {}", msg->name, data.size(), msg->size);
+		return fail(EMSGSIZE, "Data size less then message {} size: {} < {}", msg->name, data.size(), msg->size);
 	auto meta = static_cast<const message_meta_t *>(msg->user);
-	if (!meta) return _log.fail(EINVAL, "No user data on message {}", msg->name);
+	if (!meta) return fail(EINVAL, "No user data on message {}", msg->name);
 	if (borders) {
 		if (meta->as_list)
 			writer.StartArray();
@@ -820,7 +819,7 @@ inline int JSON::encode_message(W &writer, const memoryview<Buf> &data, const Me
 			writer.Key(f.name);
 		_log.trace("Encode field {}", f.name);
 		if (encode_field(writer, data.view(f.offset), &f))
-			return _log.fail(EINVAL, "Failed to encode field {}", f.name);
+			return fail_field(EINVAL, &f);
 	}
 	if (borders) {
 		if (meta->as_list)
@@ -863,7 +862,7 @@ inline std::optional<const_memory> JSON::encode(const Message * message, const t
 		writer.RawValue(r.data(), r.size(), rapidjson::kNumberType);
 	}
 	if (encode_message(writer, make_view(*msg), message, false))
-		return _log.fail(std::nullopt, "Failed to encode message {}", message->name);
+		return _log.fail(std::nullopt, "Failed to encode message {} at {}: {}", message->name, format_stack(), error);
 	if (meta->as_list)
 		writer.EndArray();
 	else
