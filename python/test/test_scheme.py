@@ -1091,9 +1091,11 @@ def test_backtrace():
     M = s['Data']
     try:
         M.unpack(memoryview(b'\0\0\0\0'))
+        assert False, "Exception not raised"
     except S.UnpackError as e:
         assert e.format_stack() == 'f0.s0'
     try:
-        M.unpack(memoryview(b'\1\1\1\0'))
+        print(M.unpack(memoryview(b'\1\2\1\0')).as_dict())
+        assert False, "Exception not raised"
     except S.UnpackError as e:
-        assert e.format_stack() == 'f0[1].s0'
+        assert e.format_stack() == 'f1[1].s0'
