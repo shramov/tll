@@ -529,12 +529,12 @@ def test_input(context, tmp_path):
     fw.post({'f0': 'A'}, name='Data')
     fw.close()
 
-    c = Accum(f'convert+file://{tmp_path}/file.dat', name='convert', autoclose='yes', **{'convert.scheme': SInto})
+    c = Accum(f'convert+file://{tmp_path}/file.dat', name='convert', autoclose='yes', context=context, **{'convert.scheme': SInto})
     c.open()
     assert (c.caps & c.Caps.InOut) == c.Caps.Input
     assert c.state == c.State.Active
 
-    crw = Accum(f'convert+file://{tmp_path}/file.dat', name='convert', autoclose='yes', **{'convert.scheme': SInto, 'convert.dir': 'rw'})
+    crw = Accum(f'convert+file://{tmp_path}/file.dat', name='convert', autoclose='yes', context=context, **{'convert.scheme': SInto, 'convert.dir': 'rw'})
     crw.open()
     assert crw.state == crw.State.Error
 
