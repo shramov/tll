@@ -63,7 +63,7 @@ per second. Granularity of this parameter is 1 byte, even if ``100mbit`` notatio
 ``initial=<SIZE>`` - default ``max-window / 2``. When first message is seen bucket is initialized
 with ``initial`` number of tokens.
 
-``watermark=<SIZE>`` - default ``1``, report avaiability after this amount of tokens are available
+``watermark=<SIZE>`` - default ``1``, report availability after this amount of tokens are available
 in the bucket, by default report as soon as possible.
 
 ``unit={byte|message}`` - default ``byte``. Use data size in bytes or number of message as rate

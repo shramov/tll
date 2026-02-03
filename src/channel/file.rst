@@ -79,8 +79,8 @@ Following init parameters are used only for reading channel (``dir=r``):
 ``autoclose=<bool>`` (default ``yes``) - close file when last message is read.
 ``end-of-data={once|many|before-close}`` (default ``once``) - when to generate ``EndOfData`` message:
 
-  - ``once``: only one ``EOD`` is produced when file reaches end on first time, when new data is
-    consumed entirely no new control message is produced;
+  - ``once``: only one ``EOD`` is produced when the file reaches the end for the first time; when new data is
+    consumed entirely, no new control message is produced;
   - ``many``: produce ``EOD`` each time there is no new data in the file;
   - ``before-close``: produce ``EOD`` before close when autoclose is enabled, otherwise same as
     ``once``.
@@ -118,7 +118,7 @@ has seq number greater or equal to ``msg->seq`` of the message.
     id: 20
 
 ``EndOfData`` is generated when there is no new data to read, see ``end-of-data`` init option that
-controls if this messages is produced only once or not.
+controls if this message is produced only once or not.
 
 Config variables
 ----------------

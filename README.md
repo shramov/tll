@@ -6,7 +6,7 @@ parts:
  * object abstraction with very low overhead (several nanoseconds) that is suitable both for IO and
    data processing;
  * runner that can execute object graph from text configuration for unified service deployment;
- * set of lighweight APIs, like logging, configuration parsing and statistics gathering;
+ * set of lightweight APIs, like logging, configuration parsing and statistics gathering;
  * number of basic network (TCP, UDP), local (shared memory), transform (JSON encoding, LZ4
    compression) or storage (file) channel implementations included in the core;
  * bindings for different programming languages like C++ (header-only over C API), Python,
@@ -27,7 +27,7 @@ parts:
 
 ## Why should I use it?
 
- * Compatibility layer: it is common issue that libraries used for communication have to be changed
+ * Compatibility layer: it is a common issue that libraries used for communication have to be changed
    during development or when system is already deployed, TLL simplifies such transitions with
    relatively low overhead.
  * Easy prototyping: build proof of concept version in Python and then iteratively rewrite parts in
@@ -63,7 +63,7 @@ LDFLAGS=-L`pwd`/../build/ python3 setup.py build
 ```
 
 It is possible to build extensions with Meson, in this case `-Dwith_cython_build=true` parameter
-have to be passed to `meson setup`. However module files are created in build directory and should
+has to be passed to `meson setup`. However, module files are created in the build directory and should
 be symlinked into `python/tll/` subtree.
 
 For debian based systems easier way is to call `dpkg-buildpackage -uc -b` and then
@@ -71,7 +71,7 @@ install result using `dpkg -i`.
 
 ### Running simple service
 
-Create file `echo.yaml` (if you are running from build directory replace `tll-logic-forward`
+Create file `echo.yaml` (if you are running from the build directory replace `tll-logic-forward`
 module name with `build/src/logic/tll-logic-forward`):
 
 ```

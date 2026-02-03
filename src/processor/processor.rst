@@ -21,7 +21,7 @@ Options
 
 ``CONFIG`` config file.
 
-``-Dkey=value`` override parameter in config file, can be specified multiple times,
+``-Dkey=value`` override parameter in config file, can be specified multiple times.
 
 Configuration format
 --------------------
@@ -64,7 +64,7 @@ variables:
 
   - ``module: <string>`` name of shared object (without ``lib`` prefix and ``.so`` suffix). If ``/``
     symbol is present in the string then it is split into path and object name parts. If path is
-    non-empty then library is loaded from exacth path of form ``{path}/lib{name}.so``. On macOS
+    non-empty then library is loaded from exact path of form ``{path}/lib{name}.so``. On macOS
     suffix is ``.dylib``.
   - ``config: <subtree>`` passed to module init function.
 
@@ -98,8 +98,8 @@ Workers are declared implicitly with ``worker`` keyword in object definition, wi
   - ``poll-interval: <duration>``, default ``100us``: timeout passed to system polling function, not
     used in spin mode.
   - ``nofd-interval: <duration>``, default ``100ms``: interval between processing of objects that do
-    not export pollable file descriptor. Such objects can not be passed to OS polling functions and
-    thus processed periodicaly. Not used in spin mode.
+    not export a pollable file descriptor. Such objects can not be passed to OS polling functions and
+    thus processed periodically. Not used in spin mode.
   - ``time-cache: <bool>``, default ``true``: on each iteration call ``tll_time_now`` and store result
     in TLS variable, so subsequent calls to ``tll_time_now_cached`` return correct value. If disabled
     cached variant behaves like normal function.
@@ -140,8 +140,7 @@ Create TCP server and send back everything received from the client::
       channels: {input: tcp, output: tcp}
 
 ``tcp`` channel declares dependency on ``echo`` forwarding logic and it is opened only after
-``echo`` becomes active. Whithout this dependency ``tcp`` can become active
-
+``echo`` becomes active. Without this dependency ``tcp`` can become active before ``echo`` is ready.
 See also
 --------
 
