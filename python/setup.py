@@ -23,6 +23,7 @@ setup( name = 'tll'
          , Extension("tll.processor.processor", ["tll/processor/processor.pyx"], libraries=["tll"])
          , Extension("tll.scheme", ["tll/scheme.pyx"], libraries=["tll"])
          , Extension("tll.stat", ["tll/stat.pyx"], libraries=["tll"])
+         , Extension("tll.version", ["tll/version.pyx"], libraries=["tll"])
          ]
      , package_data = { 'tll': ['templates/*.mako'] }
      , classifiers =

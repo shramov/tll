@@ -19,7 +19,7 @@ override_dh_auto_configure:
 
 override_dh_auto_build:
 	dh_auto_build --buildsystem meson
-	LDFLAGS=-L$(TLL_LIBRARY_DIR) dh_auto_build --buildsystem pybuild -D python
+	LDFLAGS=-L$(TLL_LIBRARY_DIR) CFLAGS=-I$(TLL_LIBRARY_DIR) dh_auto_build --buildsystem pybuild -D python
 
 override_dh_auto_install:
 	dh_auto_install --buildsystem meson

@@ -66,7 +66,7 @@ jobs:
     - name: pybuild
       run: |
         cd python
-        python3 setup.py build_ext --inplace --library-dirs=../build/src --rpath=`pwd`/../build/src
+        python3 setup.py build_ext --inplace --include-dirs=../src:../build/src --library-dirs=../build/src --rpath=`pwd`/../build/src
     - name: test
       continue-on-error: ${{ runner.os == 'macOS' }}
       run: |
