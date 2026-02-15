@@ -33,9 +33,12 @@ def safe_write(filename, data):
         os.unlink(name)
         raise
 
-parser = argparse.ArgumentParser(description='Generate source code from scheme')
-parser.add_argument('scheme', metavar='SCHEME', type=str,
+parser = argparse.ArgumentParser(description='Generate source code from scheme',
+                                 usage='%(prog)s [-f template] [-o output] SCHEME -- [template options...]')
+parser.add_argument('scheme', metavar='SCHEME', type=str, nargs='?',
                     help='scheme file')
+parser.add_argument('--version', dest='version', action='store_true',
+                    help='print tll version to stdout and exit')
 parser.add_argument('--help-template', dest='help_template', action='store_true',
                     default=False,
                     help='show template help message')
@@ -79,6 +82,16 @@ channels.add_argument('--open', dest='open', metavar='KEY=VALUE',
                     help='open parameters, can be specified multiple times', action='append', default=[], type=parsepair)
 
 args, rest = parser.parse_known_args()
+
+if args.version:
+    from tll.version import version
+    print(version)
+    sys.exit(0)
+
+if args.scheme is None:
+    parser.print_usage()
+    print("Missing required SCHEME argument")
+    sys.exit(1)
 
 dirs = args.template_dir + [importlib.resources.files('tll.templates'), '/usr/share/tll/templates']
 if '/' in args.format:
