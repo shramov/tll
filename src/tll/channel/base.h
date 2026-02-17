@@ -424,7 +424,7 @@ class Base
 		} else if constexpr (v == ProcessAPI::Void) {
 			r = static_cast<ChannelT *>(this)->_process();
 		} else {
-			static_assert("Unknown process api");
+			static_assert(sizeof(*this) == 0, "Unknown process api"); // XXX: false can be used only in recent compilers
 		}
 		if (r && r != EAGAIN) {
 			_log.error("Process failed");
