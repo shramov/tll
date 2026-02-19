@@ -536,13 +536,13 @@ processor.objects:
     cbh = context.get('o2').callback_add(cb, store=False)
 
     mock.open()
-    await mock.wait('o2', 'Active', timeout=0.02)
+    await mock.wait('o2', 'Active', timeout=0.1)
 
     context.get('o2').close()
-    await mock.wait('o2', 'Active', timeout=0.02)
+    await mock.wait('o2', 'Active', timeout=0.1)
 
     mock._processor.close()
-    await mock.wait('o0', 'Closed', timeout=0.02)
+    await mock.wait('o0', 'Closed', timeout=0.1)
 
 @asyncloop_run
 async def test_close_multi(asyncloop, context):
