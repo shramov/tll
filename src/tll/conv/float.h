@@ -75,8 +75,8 @@ struct unpacked_float
 
 	enum Flags {
 		ZeroAfterDot = 0x01,
-		ZeroBeforeDot = 0x03,
-		LowerCaseE = 0x02,
+		ZeroBeforeDot = 0x02,
+		LowerCaseE = 0x04,
 	};
 
 	template <typename Buf>
