@@ -30,6 +30,8 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 
 	long long _seq = -1;
 	size_t _max_size = 0;
+	bool _block_feed = false;
+	bool _wait_control = false;
 
 	struct Request
 	{
@@ -93,6 +95,7 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	std::string _init_block;
 
 	std::string _rotate_on_block;
+	bool _delayed_open = false;
 
 	enum Initial { Seq, Block } _initial_reply = Initial::Seq;
 	std::string _initial_reply_block;
@@ -162,6 +165,8 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 
 	int _on_storage_load(const tll_msg_t * msg);
 	int _try_rotate_on_block(const tll::scheme::Message * message, const tll_msg_t * msg);
+
+	int _activate(const tll::ConstConfig &);
 };
 
 } // namespace tll::channel

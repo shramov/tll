@@ -1219,3 +1219,72 @@ async def test_open_initial_block(asyncloop, tmp_path):
     assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control['Online'].msgid, 10)
 
     assert c.config.sub('info.reopen').as_dict() == {'mode': 'seq', 'seq': '10'}
+
+@asyncloop_run
+async def test_activate_simple(asyncloop, tmp_path):
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;delayed-open=yes')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+
+    s.open()
+
+    assert s.scheme_control != None
+    assert [m.name for m in s.scheme_control.messages][:1] == ['Activate']
+
+    assert s.state == s.State.Opening
+    await asyncloop.sleep(0.001)
+    assert s.state == s.State.Opening
+
+    with pytest.raises(TLLError): c.open(mode='initial')
+    c.close()
+
+    for i in range(5):
+        s.post(b'xxx', seq=i)
+
+    s.post(b'', name='Activate', type=s.Type.Control)
+
+    assert s.state == s.State.Active
+
+    c.open(mode='initial')
+    for i in range(5):
+        assert (await c.recv(0.01)).seq == i
+    m = await c.recv(0.01)
+    assert m.type == m.Type.Control
+
+@asyncloop_run
+async def test_activate_feed(asyncloop, tmp_path):
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server;blocks=blocks://{tmp_path}/blocks.yaml;delayed-open=yes')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+
+    s.open()
+
+    assert s.scheme_control != None
+    assert [m.name for m in s.scheme_control.messages][:1] == ['Activate']
+
+    assert s.state == s.State.Opening
+    await asyncloop.sleep(0.001)
+    assert s.state == s.State.Opening
+
+    for i in range(5):
+        s.post(b'xxx', seq=i)
+
+    s.post(b'', name='Activate', type=s.Type.Control)
+    assert s.state == s.State.Active
+
+    s.close()
+    s.open()
+    assert s.state == s.State.Opening
+    for i in range(5, 10):
+        s.post(b'xxx', seq=i)
+    with pytest.raises(TLLError): s.post({}, name='Block', type=s.Type.Control) # XXX: Block is not allowed while feeding
+    s.post(b'', name='Activate', type=s.Type.Control)
+    assert s.state == s.State.Opening # Still feeding
+
+    assert (await s.recv_state(0.1)) == s.State.Active
+
+    c.open(mode='seq', seq='0')
+    for i in range(10):
+        assert (await c.recv(0.01)).seq == i
+    m = await c.recv(0.01)
+    assert m.type == m.Type.Control

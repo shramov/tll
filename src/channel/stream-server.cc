@@ -9,6 +9,7 @@
 
 #include "channel/stream-client.h"
 #include "channel/stream-scheme.h"
+#include "channel/stream-server.scheme.h"
 
 #include "tll/scheme/encoder.h"
 #include "tll/scheme/merge.h"
@@ -53,6 +54,7 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 	_rotate_on_block = reader.getT("rotate-on-block", std::string());
 	_init_config = url.sub("init-message-data").value_or(_init_config);
 	_max_size = reader.getT<tll::util::Size>("max-size", std::numeric_limits<size_t>::max());
+	_delayed_open = reader.getT("delayed-open", false);
 
 	_initial_reply = url.sub("blocks") ? Initial::Block : Initial::Seq;
 	_initial_reply = reader.getT("initial-reply", _initial_reply, {{"seq", Initial::Seq}, {"block", Initial::Block}});
@@ -134,7 +136,13 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 		if (auto s = _blocks->scheme(TLL_MESSAGE_CONTROL); s)
 			_control_blocks.reset(s->ref());
 	}
-	auto control = tll::scheme::merge({_control_child.get(), _control_request.get(), _control_storage.get(), _control_blocks.get()});
+	scheme::ConstSchemePtr control_activate;
+	if (_delayed_open) {
+		control_activate.reset(context().scheme_load(stream_server_control_scheme::scheme_string));
+		if (!control_activate)
+			return _log.fail(EINVAL, "Failed to load activation control scheme");
+	}
+	auto control = tll::scheme::merge({control_activate.get(), _control_child.get(), _control_request.get(), _control_storage.get(), _control_blocks.get()});
 	if (!control)
 		return _log.fail(EINVAL, "Failed to merge control scheme: {}", control.error());
 	_scheme_control.reset(*control);
@@ -151,6 +159,8 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 int StreamServer::_open(const ConstConfig &cfg)
 {
 	_seq = -1;
+	_wait_control = _delayed_open;
+	_block_feed = false;
 
 	Config sopen;
 	if (auto sub = cfg.sub("storage"); sub)
@@ -248,6 +258,7 @@ int StreamServer::_open(const ConstConfig &cfg)
 			return _log.fail(EINVAL, "Blocks channel last seq in the future: {}, last storage seq {}", *seq, _seq);
 		} else if (*seq < _seq) {
 			_log.info("Blocks seq is behind storage seq: {} < {}, feed from storage", *seq, _seq);
+			_block_feed = true;
 			auto url = _storage_url.copy();
 			url.set("autoclose", "yes");
 			_storage_load = context().channel(url, _storage.get());
@@ -267,6 +278,17 @@ int StreamServer::_open(const ConstConfig &cfg)
 		}
 	}
 
+	if (_delayed_open) {
+		_log.info("Waiting for activation control message");
+		_child_open = ocfg;
+		return 0;
+	}
+
+	return _activate(ocfg);
+}
+
+int StreamServer::_activate(const tll::ConstConfig &ocfg)
+{
 	if (_request->open(ocfg.sub("request").value_or(Config())))
 		return _log.fail(EINVAL, "Failed to open request channel");
 
@@ -350,12 +372,14 @@ int StreamServer::_on_storage_load(const tll_msg_t *msg)
 
 	switch ((tll_state_t) msg->msgid) {
 	case tll::state::Closed:
-		if (_request->open(_child_open.sub("request").value_or(Config())))
-			return _log.fail(0, "Failed to open request channel");
+		_block_feed = false;
+		if (_wait_control) {
+			_log.info("Block feed finished, waiting for control message");
+			return 0;
+		}
 		if (_storage_load)
 			_child_del(_storage_load.get());
-
-		return Base::_open(_child_open);
+		return _activate(_child_open);
 	case tll::state::Error:
 		return state_fail(0, "Storage channel failed");
 	default:
@@ -712,8 +736,20 @@ int StreamServer::_post(const tll_msg_t * msg, int flags)
 	if (msg->type == TLL_MESSAGE_CONTROL) {
 		if (!msg->msgid)
 			return 0;
+		if (_delayed_open && msg->msgid == stream_server_control_scheme::Activate::meta_id()) {
+			if (!_wait_control)
+				return _log.fail(EINVAL, "Activation message already posted");
+			_wait_control = false;
+			if (_block_feed) {
+				_log.debug("Wait for block feed to finish");
+				return 0;
+			}
+			return _activate(_child_open);
+		}
 		if (_control_blocks) {
 			if (auto m = _control_blocks->lookup(msg->msgid); m) {
+				if (_block_feed)
+					return _log.fail(EINVAL, "Failed to post control message: block is feeding from storage");
 				if (auto r = _blocks->post(msg, flags); r)
 					return _log.fail(r, "Failed to send control message {} to blocks", msg->msgid);
 				if (auto r = _try_rotate_on_block(m, msg); r)
@@ -739,7 +775,7 @@ int StreamServer::_post(const tll_msg_t * msg, int flags)
 	msg = _autoseq.update(msg);
 	if (msg->seq <= _seq)
 		return _log.fail(EINVAL, "Non monotonic seq: {} < last posted {}", msg->seq, _seq);
-	if (_blocks) {
+	if (_blocks && !_block_feed) {
 		if (auto r = _blocks->post(msg, flags); r)
 			return _log.fail(r, "Failed to post message into block storage");
 	}
@@ -747,6 +783,8 @@ int StreamServer::_post(const tll_msg_t * msg, int flags)
 		return _log.fail(r, "Failed to store message {}", msg->seq);
 	_seq = msg->seq;
 	_last_seq_tx(msg->seq);
+	if (_wait_control)
+		return 0;
 	return _child->post(msg, flags);
 }
 
