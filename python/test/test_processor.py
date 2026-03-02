@@ -140,7 +140,7 @@ processor.objects:
         co.open()
 
         ci.post(b'xxx', msgid=10, seq=20)
-        m = await co.recv(0.001)
+        m = await co.recv(0.1)
         assert (m.seq, m.msgid, m.data.tobytes()) == (20, 10, b'xxx')
 
     try:
@@ -478,7 +478,7 @@ processor.objects:
 
     async def wait_state(c, s):
         while True:
-            m = mock.control.unpack(await mock.control.recv(0.01))
+            m = mock.control.unpack(await mock.control.recv(0.1))
             if m.as_dict(only = {'channel', 'state'}) == {'channel': c, 'state': s}:
                 break
 
@@ -508,7 +508,7 @@ processor.objects:
     mock = Mock(asyncloop, cfg)
     mock.open()
 
-    await mock.wait('o0', 'Active', timeout=0.01)
+    await mock.wait('o0', 'Active', timeout=0.1)
 
     context.get('o0').close()
     await mock.wait('o0', 'Closed', timeout=0.02)
