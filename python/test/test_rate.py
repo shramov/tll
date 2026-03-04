@@ -16,6 +16,10 @@ import time
 def context():
     return C.Context()
 
+@pytest.mark.parametrize("speed", ["0b", "10bx", "-10b"])
+def test_invalid(context, speed):
+    with pytest.raises(TLLError): context.Channel('rate+null://', name='invalid', speed=speed)
+
 def test_post(context):
     c = Accum('rate+null://;initial=32b;max-window=128b;speed=3200b', name='rate', dump='frame', context=context)
 

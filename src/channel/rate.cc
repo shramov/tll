@@ -91,6 +91,7 @@ int Rate::_parse_bucket(const tll::ConstConfig &cfg)
 	_conf.speed /= interval.count();
 
 	if (_conf.speed == 0) return _log.fail(EINVAL, "Zero speed");
+	if (_conf.speed < 0) return _log.fail(EINVAL, "Negative speed");
 	if (_conf.limit <= 0) return _log.fail(EINVAL, "Invalid window size: {}", _conf.limit);
 	if (_conf.watermark <= 0) return _log.fail(EINVAL, "Invalid watermark size: {}", _conf.limit);
 	if (_conf.watermark > _conf.limit)
