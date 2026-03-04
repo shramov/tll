@@ -137,7 +137,7 @@ int StreamClient::_open(const ConstConfig &url)
 		_reopen_cfg.set("mode", "seq");
 		_reopen_cfg.set("seq", _config_seq, this);
 	}  else if (mode == Block) {
-		auto block = reader.getT<unsigned>("block");
+		auto block = reader.getT<unsigned long>("block");
 		auto type = reader.getT<std::string>("block-type", "default");
 
 		if (_protocol_old) {

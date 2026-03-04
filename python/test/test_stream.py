@@ -583,7 +583,7 @@ class Aggregate(Base):
             self._feed_seq = props.getT("feed-seq", -1)
             return
         assert props.get('block-type', 'default') == 'default'
-        block = int(props.get('block'))
+        block = int(props.get('block')) % (2 ** 16)
 
         self._seq, self._data = self.STORAGE[-(block + 1)]
         self.config_info['seq'] = str(self._seq)
@@ -728,6 +728,7 @@ async def test_stream_aggregate(asyncloop, context, tmp_path):
     c.open(block='0', mode='block')
     assert c.State.Active == await c.recv_state()
     assert [i.name for i in s.children if '/client' in i.name] == ['server/blocks/client']
+    assert s.children[-1].config.sub('open').as_dict() == {'block': '0', 'block-type': 'default'}
 
     m = await c.recv()
     assert (m.type, m.msgid, m.seq) == (c.Type.Control, c.scheme_control['BeginOfBlock'].msgid, 29)
@@ -743,6 +744,23 @@ async def test_stream_aggregate(asyncloop, context, tmp_path):
     assert c.State.Closed == await c.recv_state()
     assert s.unpack(await s.recv()).SCHEME.name == 'Disconnect'
     assert [i.name for i in s.children if '/client' in i.name] == []
+
+    c.open(block=str(2 ** 48), mode='block')
+    assert c.State.Active == await c.recv_state()
+    assert [i.name for i in s.children if '/client' in i.name] == ['server/blocks/client']
+    assert s.children[-1].config.sub('open').as_dict() == {'block': str(2 ** 48), 'block-type': 'default'}
+
+    m = await c.recv()
+    assert (m.type, m.msgid, m.seq) == (c.Type.Control, c.scheme_control['BeginOfBlock'].msgid, 29)
+    assert c.unpack(m).as_dict() == {'last_seq': 30}
+
+    m = await c.recv()
+    assert (m.seq, m.msgid, m.data.tobytes()) == (29, 10, b'xxz')
+    m = await c.recv()
+    assert (m.seq, m.msgid, m.data.tobytes()) == (30, 20, b'yyz')
+
+    s.result.clear()
+    c.close()
 
 @asyncloop_run
 async def test_stream_aggregate_eob_online(asyncloop, context, tmp_path):
