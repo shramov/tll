@@ -71,6 +71,11 @@ struct Convert : public ErrorStack
 		std::map<long long, long long> enum_map;
 	};
 
+	struct UnionFrom
+	{
+		FieldFrom::Mode mode = FieldFrom::Complex;
+	};
+
 	void reset()
 	{
 		scheme_from.reset();
@@ -105,6 +110,7 @@ struct Convert : public ErrorStack
 
 	bool convertible(Message * into, Message * from);
 	bool convertible(Field * into, Field * from);
+	bool convertible(Union * into, Union * from);
 	bool convertible_numeric(Field * into, const Field * from);
 
 	template <typename View, typename ViewIn>
@@ -132,6 +138,29 @@ struct Convert : public ErrorStack
 			if (auto r = convert(view.view(finto->offset), finto, from.view(ffrom->offset), ffrom); r)
 				return fail_field(r, ffrom);
 		}
+		return 0;
+	}
+
+	template <typename View, typename ViewIn>
+	int convert(View into, const Union * uinto, ViewIn from, const Union * ufrom)
+	{
+		auto user = static_cast<const UnionFrom *>(uinto->user);
+		if (!user)
+			return fail(EINVAL, "Union {} has no user data", uinto->name);
+
+		switch (user->mode) {
+		case FieldFrom::Copy:
+		case FieldFrom::Trivial:
+			memcpy(into.data(), from.data(), ufrom->type_ptr->size + ufrom->union_size);
+			return 0;
+		default:
+			break;
+		}
+		auto idx = read_size(ufrom->type_ptr, from);
+		if (idx < 0 || ufrom->fields_size < (size_t) idx)
+			return fail(EINVAL, "Union index out of bounds: {}", idx);
+		write_size(uinto->type_ptr, into, idx);
+		convert(into.view(uinto->type_ptr->size), uinto->fields + idx, from.view(ufrom->type_ptr->size), ufrom->fields + idx);
 		return 0;
 	}
 
@@ -218,6 +247,8 @@ int Convert::convert(View into, const Field * finto, ViewIn from, const Field * 
 		if (ffrom->type != Field::Message)
 			return fail(EINVAL, "Can not convert non-message field {} to message", ffrom->type);
 		return convert(into, ffrom->type_msg, from);
+	case Field::Union:
+		return convert(into, finto->type_union, from, ffrom->type_union);
 	default:
 		break;
 	}
@@ -586,6 +617,28 @@ inline bool Convert::convertible(Message * into, Message * from)
 	return true;
 }
 
+inline bool Convert::convertible(Union * into, Union * from)
+{
+	if (into->user)
+		return true;
+	auto user = new UnionFrom {};
+	into->user = user;
+	into->user_free = [](void * ptr) { delete static_cast<UnionFrom *>(ptr); };
+
+	if (!convertible(into->type_ptr, from->type_ptr))
+		return fail_field(false, into->type_ptr);
+	user->mode = copy_mode(into->type_ptr, from->type_ptr);
+
+	if (from->fields_size != into->fields_size)
+		return fail(false, "Union size differs: {} != {}", into->fields_size, from->fields_size);
+	for (auto i = 0u; i < from->fields_size; i++) {
+		if (!convertible(into->fields + i, from->fields + i))
+			return fail_field(false, into->fields + i);
+		user->mode = std::max(user->mode, copy_mode(into->fields + i, from->fields + i));
+	}
+	return true;
+}
+
 inline bool Convert::convertible(Field * into, Field * from)
 {
 	if (!into->user) {
@@ -623,6 +676,10 @@ inline bool Convert::convertible(Field * into, Field * from)
 		if (from->type != Field::Message)
 			return fail(false, "Can not convert non-message field {} to message", from->type);
 		return convertible(into->type_msg, from->type_msg);
+	case Field::Union:
+		if (from->type != Field::Union)
+			return fail(false, "Can not convert non-union field {} to union", from->type);
+		return convertible(into->type_union, from->type_union);
 	case Field::Array:
 		switch (from->type) {
 		case Field::Array:

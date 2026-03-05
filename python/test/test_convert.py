@@ -561,3 +561,47 @@ def test_msgid(context, into):
 
     c.post({'f0': 10}, name='Data', seq=1)
     assert [(m.msgid, m.seq) for m in s.result] == [(100, 1)]
+
+@pytest.mark.parametrize("tfrom,tinto,v", [
+    ('int8', 'int16', 123),
+    ('string', 'byte8, options.type: string', 'abcd'),
+])
+def test_union(context, tfrom, tinto, v):
+    SInner = f'''yamls://
+- name: Data
+  id: 10
+  unions:
+    Union.union:
+     - {{ name: u0, type: int8 }}
+     - {{ name: u1, type: {tfrom} }}
+  fields:
+    - {{ name: f0, type: Union }}
+'''
+
+    SOuter = f'''yamls://
+- name: Data
+  id: 10
+  unions:
+    Union.union:
+     - {{ name: u0, type: int8 }}
+     - {{ name: u1, type: {tinto} }}
+  fields:
+    - {{ name: header, type: uint8 }}
+    - {{ name: f0, type: Union }}
+    - {{ name: footer, type: uint8 }}
+'''
+    s = Accum('convert+direct://;name=server', dump='yes', scheme=SOuter, context=context, **{'direct.scheme': SInner, 'direct.dump': 'yes'})
+    c = Accum('direct://;name=client', context=context, master=s)
+
+    s.open()
+    c.open()
+
+    assert s.state == s.State.Active
+
+    c.post({'f0': {'u1': v}}, name='Data')
+    assert [m.msgid for m in s.result] == [10]
+    assert s.unpack(s.result[0]).as_dict() == {'f0': {'u1': v}, 'header': 0, 'footer': 0}
+
+    s.post({'f0': {'u1': v}, 'header': 0xff, 'footer': 0xff}, name='Data')
+    assert [m.msgid for m in c.result] == [10]
+    assert c.unpack(c.result[0]).as_dict() == {'f0': {'u1': v}}
