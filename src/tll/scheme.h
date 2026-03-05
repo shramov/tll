@@ -182,6 +182,10 @@ typedef struct tll_scheme_union_t
 	size_t union_size;
 	/// Linked list of options
 	struct tll_scheme_option_t * options;
+	/// User defined data
+	void * user;
+	/// Function to destroy user defined data, if not specified standard ``free`` is used
+	void (*user_free)(void *);
 } tll_scheme_union_t;
 
 /// Descriptor of bit field in bits

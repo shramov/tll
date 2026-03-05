@@ -1559,6 +1559,8 @@ Union * copy_unions(Scheme *ds, Message *dm, const Union *src)
 	if (!src) return nullptr;
 	auto r = (Union *) malloc(sizeof(Union));
 	*r = *src;
+	r->user = nullptr;
+	r->user_free = nullptr;
 	r->name = strdup(src->name);
 	r->options = copy_options(src->options);
 	r->fields = (tll_scheme_field_t *) malloc(sizeof(tll_scheme_field_t) * r->fields_size);
@@ -1723,6 +1725,12 @@ void tll_scheme_field_free(tll_scheme_field_t *f)
 void tll_scheme_union_free(tll_scheme_union_t *u)
 {
 	if (!u) return;
+	if (u->user) {
+		if (u->user_free)
+			(*u->user_free)(u->user);
+		else
+			free(u->user);
+	}
 	tll_scheme_option_free(u->options);
 	if (u->name) free((char *) u->name);
 	tll_scheme_field_free(u->type_ptr);
