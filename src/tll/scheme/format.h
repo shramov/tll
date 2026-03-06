@@ -226,7 +226,7 @@ format_result_t to_strings(const tll::scheme::Field * field, const View &data)
 		if (secret)
 			return std::list<std::string> { "{}" };
 		auto type = read_size(field->type_union->type_ptr, data.view(field->type_union->type_ptr->offset));
-		if (type < 0 || (size_t) type > field->type_union->fields_size)
+		if (type < 0 || (size_t) type >= field->type_union->fields_size)
 			return unexpected(path_error_t {"", fmt::format("Union type out of bounds: {}", type)});
 		auto uf = field->type_union->fields + type;
 		auto r = to_strings(uf, data.view(uf->offset));
