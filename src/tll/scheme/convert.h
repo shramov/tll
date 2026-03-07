@@ -160,7 +160,8 @@ struct Convert : public ErrorStack
 		if (idx < 0 || ufrom->fields_size < (size_t) idx)
 			return fail(EINVAL, "Union index out of bounds: {}", idx);
 		write_size(uinto->type_ptr, into, idx);
-		convert(into.view(uinto->type_ptr->size), uinto->fields + idx, from.view(ufrom->type_ptr->size), ufrom->fields + idx);
+		if (auto r = convert(into.view(uinto->type_ptr->size), uinto->fields + idx, from.view(ufrom->type_ptr->size), ufrom->fields + idx); r)
+			return fail_field(r, ufrom->fields + idx);
 		return 0;
 	}
 
