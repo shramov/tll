@@ -99,7 +99,7 @@ Workers are declared implicitly with ``worker`` keyword in object definition, wi
     used in spin mode.
   - ``nofd-interval: <duration>``, default ``100ms``: interval between processing of objects that do
     not export a pollable file descriptor. Such objects can not be passed to OS polling functions and
-    thus processed periodically. Not used in spin mode.
+    are thus processed periodically. Not used in spin mode.
   - ``time-cache: <bool>``, default ``true``: on each iteration call ``tll_time_now`` and store result
     in TLS variable, so subsequent calls to ``tll_time_now_cached`` return correct value. If disabled
     cached variant behaves like normal function.

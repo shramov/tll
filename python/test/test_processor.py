@@ -488,7 +488,7 @@ processor.objects:
     await wait_state('processor/stage/active', State.Closed)
     mock._processor.close()
 
-    await asyncloop.sleep(0.015) # Wait more then reopen timeout
+    await asyncloop.sleep(0.015) # Wait more than reopen timeout
 
     context.get('l0').post(b'')
 

@@ -695,7 +695,7 @@ void Processor::activate(Object &o)
 
 void Processor::deactivate(Object *o, std::string_view msg, bool failure)
 {
-	_log.debug("Dectivate {}object {}", msg, o->name());
+	_log.debug("Deactivate {}object {}", msg, o->name());
 	if (o->closing)
 		return;
 	if (!failure)
