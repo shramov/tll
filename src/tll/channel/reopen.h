@@ -46,7 +46,7 @@ struct ReopenData
 		timeout_min = reader.getT("reopen-timeout-min", timeout_min);
 		timeout_max = reader.getT("reopen-timeout-max", timeout_max);
 		timeout_tremble = reader.getT("reopen-active-min", timeout_tremble);
-		timeout_close = reader.getT("close-timeout", timeout_tremble);
+		timeout_close = reader.getT("close-timeout", timeout_close);
 		return reader ? 0 : 1;
 	}
 
