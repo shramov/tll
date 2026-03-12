@@ -163,6 +163,8 @@ typedef struct tll_scheme_enum_t
 	struct tll_scheme_enum_value_t * values;
 	/// Linked list of options
 	struct tll_scheme_option_t * options;
+	/// Reserved space
+	long long reserved[4];
 } tll_scheme_enum_t;
 
 /// Union descriptor
@@ -186,6 +188,8 @@ typedef struct tll_scheme_union_t
 	void * user;
 	/// Function to destroy user defined data, if not specified standard ``free`` is used
 	void (*user_free)(void *);
+	/// Reserved space
+	long long reserved[4];
 } tll_scheme_union_t;
 
 /// Descriptor of bit field in bits
@@ -216,6 +220,8 @@ typedef struct tll_scheme_bits_t
 	struct tll_scheme_bit_field_t * values;
 	/// Linked list of options
 	struct tll_scheme_option_t * options;
+	/// Reserved space
+	long long reserved[4];
 } tll_scheme_bits_t;
 
 struct tll_scheme_message_t;
