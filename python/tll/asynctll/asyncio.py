@@ -131,7 +131,7 @@ class AsyncChannel(C.Channel):
 
 class Loop:
     def __init__(self, context = None, tick_interval = 0.1, config={}):
-        self.context = context
+        self.context = context or C.Context()
         self.channels = weakref.WeakKeyDictionary()
         self.asyncchannels = weakref.WeakSet()
         self.log = Logger("tll.python.asynctll")
