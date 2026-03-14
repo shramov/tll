@@ -13,6 +13,7 @@
 
 #include "tll/scheme/logic/stat.h"
 
+#include "logic/rusage.h"
 #include "logic/quantile.h"
 
 #include <regex>
@@ -97,7 +98,7 @@ int Stat::_init(const tll::Channel::Url &url, tll::Channel *)
 
 			auto skip = c.getT<bool>("skip", false);
 			if (!skip)
-				return _log.fail(EINVAL, "Invalid 'skip' value: {}", skip.error()); 
+				return _log.fail(EINVAL, "Invalid 'skip' value: {}", skip.error());
 
 			_log.info("Pages '{}' via logger {}", *m, log.name());
 			_rules.emplace_back(page_rule_t { std::regex(std::string(*m)), std::move(log), *skip });
@@ -309,7 +310,8 @@ std::string Stat::_group(std::string_view name, tll_stat_unit_t unit, int64_t co
 	}
 }
 
+TLL_DEFINE_IMPL(tll::channel::RUsage);
 TLL_DEFINE_IMPL(Quantile);
 TLL_DEFINE_IMPL(Stat);
 
-TLL_DEFINE_MODULE(Quantile, Stat);
+TLL_DEFINE_MODULE(tll::channel::RUsage, Quantile, Stat);
