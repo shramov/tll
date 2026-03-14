@@ -178,6 +178,9 @@ class Tagged : public tll::channel::Base<T>
 
 	static constexpr auto process_policy() { return Base::ProcessPolicy::Never; }
 
+	enum class TaggedStatPolicy { Enable, Disable };
+	static constexpr auto tagged_stat_policy() { return TaggedStatPolicy::Enable; }
+
 	template <typename Tag>
 	int check_channels_size(ssize_t min, ssize_t max)
 	{
@@ -280,15 +283,17 @@ class Tagged : public tll::channel::Base<T>
 
 		auto start = tll::time::now();
 		auto r = this->channelT()->callback_tag(c, msg);
-		auto dt = tll::time::now() - start;
-		auto page = this->channelT()->stat()->acquire();
-		if (page) {
-			page->time = dt.count();
-			if (msg->type == TLL_MESSAGE_DATA) {
-				page->rx = 1;
-				page->rxb = msg->size;
+		if constexpr (Base::ChannelT::tagged_stat_policy() == TaggedStatPolicy::Enable) {
+			auto dt = tll::time::now() - start;
+			auto page = this->channelT()->stat()->acquire();
+			if (page) {
+				page->time = dt.count();
+				if (msg->type == TLL_MESSAGE_DATA) {
+					page->rx = 1;
+					page->rxb = msg->size;
+				}
+				this->channelT()->stat()->release(page);
 			}
-			this->channelT()->stat()->release(page);
 		}
 		if (r)
 			return _fail_on(r, _::TaggedHelper<Tag>::get(c), msg);
