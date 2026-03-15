@@ -42,6 +42,7 @@ endif
 mansources = [
 	'blocks.rst',
 	'common.rst',
+	'convert.rst',
 	'direct.rst',
 	'file.rst',
 	'filter.rst',
