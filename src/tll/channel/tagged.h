@@ -294,6 +294,8 @@ class Tagged : public tll::channel::Base<T>
 				}
 				this->channelT()->stat()->release(page);
 			}
+		} else {
+			(void) start; // Workaround for gcc 9 "set but not used" warning
 		}
 		if (r)
 			return _fail_on(r, _::TaggedHelper<Tag>::get(c), msg);
