@@ -21,10 +21,8 @@ class RUsage : public tll::channel::Tagged<RUsage, Timer>
 {
 	using Base = tll::channel::Tagged<RUsage, Timer>;
 	using ns = std::chrono::nanoseconds;
-	using tns = std::chrono::time_point<std::chrono::system_clock, ns>;
-	tns _last;
-	ns _user;
-	ns _sys;
+	tll::time_point _last;
+	ns _cpu;
 	struct rusage _rusage = {};
 	int _who = RUSAGE_SELF;
 
@@ -34,9 +32,8 @@ class RUsage : public tll::channel::Tagged<RUsage, Timer>
 
 	struct StatType
 	{
-		tll::stat::FloatGroup<tll::stat::Unknown, 'c', 'p', 'u'> cpu;
-		tll::stat::Integer<tll::stat::Max, tll::stat::Unknown, 'c', 'p', 'u', 'u', 's', 'r'> cpu_user;
-		tll::stat::Integer<tll::stat::Max, tll::stat::Unknown, 'c', 'p', 'u', 's', 'y', 's'> cpu_sys;
+		tll::stat::IntegerGroup<tll::stat::Unknown, 'c', 'p', 'u'> cpu;
+		tll::stat::Integer<tll::stat::Max, tll::stat::Ns, 'c', 'p', 'u'> cpuns;
 		tll::stat::Integer<tll::stat::Max, tll::stat::Bytes, 'm', 'e', 'm'> mem;
 	};
 
@@ -57,7 +54,7 @@ class RUsage : public tll::channel::Tagged<RUsage, Timer>
 	int _open(const tll::ConstConfig &)
 	{
 		_last =  {};
-		_user = _sys = {};
+		_cpu = {};
 		return 0;
 	}
 
@@ -68,24 +65,19 @@ class RUsage : public tll::channel::Tagged<RUsage, Timer>
 			return 0;
 		if (getrusage(_who, &_rusage))
 			return _log.fail(EINVAL, "Failed to get rusage: {}", strerror(errno));
-		tns now = tll::time::now();
-		auto user = _tv2ns(_rusage.ru_utime);
-		auto sys = _tv2ns(_rusage.ru_stime);
-		if (_last != tns {} && _last != now) {
+		auto now = tll::time::now();
+		auto cpu = _tv2ns(_rusage.ru_utime) + _tv2ns(_rusage.ru_stime);
+		if (_last != tll::time_point {} && _last != now) {
 			auto dt = now - _last;
-			auto duser = 100 * (user - _user).count() / dt.count();
-			auto dsys = 100 * (sys - _sys).count() / dt.count();
 			if (auto page = stat->acquire(); page) {
 				page->mem = _rusage.ru_maxrss * 1024; // ru_maxrss in kilobytes
-				page->cpu = duser + dsys;
-				page->cpu_user = duser;
-				page->cpu_sys = dsys;
+				page->cpu = 100 * (1. * (cpu - _cpu) / dt);
+				page->cpuns = cpu.count();
 				stat->release(page);
 			}
 		}
 		_last = now;
-		_user = user;
-		_sys = sys;
+		_cpu = cpu;
 		return 0;
 	}
  private:
