@@ -10,6 +10,7 @@
 #include "tll/processor/scheme.h"
 
 #include "tll/logger/prefix.h"
+#include "tll/stat.h"
 #include "tll/util/result.h"
 
 #include <fmt/chrono.h>
@@ -90,6 +91,15 @@ int Processor::_init(const tll::Channel::Url &url, Channel * master)
 	_child_add(_timer.get(), "timer");
 	loop.add(_timer.get());
 
+	child_url_fill(*curl, "timer-stat");
+	curl->set("interval", "500ms");
+	_timer_stat = context().channel(*curl);
+	if (!_timer_stat.get())
+		return _log.fail(EINVAL, "Failed to create timer channel for processor");
+	_timer_stat->callback_add<Processor, &Processor::_on_timer_stat>(this, TLL_MESSAGE_MASK_DATA);
+	_child_add(_timer_stat.get(), "timer");
+	loop.add(_timer_stat.get());
+
 	for (auto &[_, c] : _root.browse("processor.scheme-path.**")) {
 		auto v = c.get();
 		if (!v)
@@ -116,6 +126,10 @@ int Processor::_init(const tll::Channel::Url &url, Channel * master)
 		return _log.fail(EINVAL, "Failed to build dependency graph");
 	if (!_objects.size())
 		return _log.fail(EINVAL, "Empty object list");
+
+	_stat_usage.init(fmt::format("{}/rusage", name));
+	tll_stat_list_add(context().stat_list(), &_stat_usage);
+
 	_log.debug("Processor initialized");
 	return 0;
 }
@@ -129,6 +143,8 @@ int Processor::_open(const tll::ConstConfig &)
 		return _log.fail(EINVAL, "Failed to open IPC channel");
 	if (_timer->open())
 		return _log.fail(EINVAL, "Failed to open timer channel");
+	if (_timer_stat->open())
+		return _log.fail(EINVAL, "Failed to open stat timer channel");
 	return 0;
 }
 
@@ -486,6 +502,8 @@ int Processor::init_stages()
 
 void Processor::_free()
 {
+	tll_stat_list_remove(context().stat_list(), &_stat_usage);
+
 	for (auto c = _objects.rbegin(); c != _objects.rend(); c++) {
 		_log.debug("Destroy object {}", (*c)->name());
 		c->channel.reset(nullptr);
@@ -757,6 +775,7 @@ int Processor::_close(bool force)
 
 	_ipc->close();
 	_timer->close();
+	_timer_stat->close();
 	loop.stop = true;
 
 	return Base::_close();

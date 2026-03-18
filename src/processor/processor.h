@@ -13,6 +13,7 @@
 #include "tll/processor.h"
 #include "tll/processor/loop.h"
 #include "tll/logger.h"
+#include "tll/util/rusage.h"
 
 #include "processor/deps.h"
 #include "processor/worker.h"
@@ -71,9 +72,20 @@ struct Processor : public tll::channel::Base<Processor>
 	std::map<std::string, tll::processor::_::Worker *, std::less<>> _workers;
 	std::unique_ptr<tll::Channel> _ipc;
 	std::unique_ptr<tll::Channel> _timer;
+	std::unique_ptr<tll::Channel> _timer_stat;
 
 	std::vector<char> _buf;
 	int _exit_code = 0;
+
+	struct StatUsage
+	{
+		tll::stat::IntegerGroup<tll::stat::Unknown, 'c', 'p', 'u'> cpu;
+		tll::stat::Integer<tll::stat::Max, tll::stat::Ns, 'c', 'p', 'u'> cpuns;
+		tll::stat::Integer<tll::stat::Max, tll::stat::Bytes, 'm', 'e', 'm'> mem;
+	};
+
+	tll::stat::Block<StatUsage> _stat_usage = { "processor/rusage" };
+	tll::util::RUsage _rusage { tll::util::RUsage::Process };
 
 	~Processor()
 	{
@@ -158,6 +170,18 @@ struct Processor : public tll::channel::Base<Processor>
 	int pending_process(const tll_msg_t * msg);
 
 	void _report_state(const Object *o, tll_state_t s, tll_addr_t addr);
+
+	int _on_timer_stat(const tll::Channel *, const tll_msg_t *msg)
+	{
+		_rusage.update();
+		if (auto page = _stat_usage.acquire(); page) {
+			page->cpu = _rusage.cpu_ratio * 100;
+			page->cpuns = _rusage.cpu.count();
+			page->mem = _rusage.memory;
+			_stat_usage.release(page);
+		}
+		return 0;
+	}
 };
 
 } // namespace tll::processor
