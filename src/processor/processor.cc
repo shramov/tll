@@ -139,6 +139,8 @@ int Processor::_open(const tll::ConstConfig &)
 	loop.stop = false;
 	_exit_code = 0;
 	config_info().set_ptr("exit-code", &_exit_code);
+	config_info().set_ptr("rusage.cpu", &_rusage.cpu_ratio);
+	config_info().set_ptr("rusage.memory", &_rusage.memory);
 	if (_ipc->open())
 		return _log.fail(EINVAL, "Failed to open IPC channel");
 	if (_timer->open())
@@ -754,6 +756,8 @@ int Processor::_close(bool force)
 {
 	_log.info("Close processor");
 	config_info().setT("exit-code", _exit_code);
+	config_info().setT("rusage.cpu", _rusage.cpu_ratio);
+	config_info().setT("rusage.memory", _rusage.memory);
 	for (auto & o : _objects) {
 		_log.debug("Force decay of object {}", o.name());
 		o.decay = true;
