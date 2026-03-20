@@ -138,14 +138,17 @@ int main(int argc, char *argv[])
 				ptr->loop()->run();
 			}, w));
 
+	tll::Logger log { "tll.processor" };
 	auto loop = proc->loop();
 	while (!loop->stop) {
 		using namespace std::chrono_literals;
 		loop->step(100ms);
 		if (counter) {
 			counter = 0;
-			if (proc->state() == tll::state::Opening || proc->state() == tll::state::Active)
+			if (proc->state() == tll::state::Opening || proc->state() == tll::state::Active) {
+				log.info("Termination signal received, closing");
 				proc->close(false);
+			}
 		}
 	}
 
