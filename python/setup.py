@@ -5,7 +5,19 @@ from setuptools import setup, Extension
 from Cython.Distutils import build_ext
 
 setup( name = 'tll'
-     , packages = ['tll', 'tll.asynctll', 'tll.channel', 'tll.processor', 'tll.templates']
+     , packages = [
+        'tll.asynctll',
+        'tll.channel',
+        'tll.processor',
+        'tll.templates',
+        ]
+     , py_modules = [
+        'tll.bits',
+        'tll.chrono',
+        'tll.conv',
+        'tll.error',
+        'tll.test_util',
+        ]
      , scripts = ['tll-pyprocessor', 'tll-schemegen', 'tll-resolve-browse']
      , include_dirs = ["../src"]
      , cmdclass = {'build_ext': build_ext}
