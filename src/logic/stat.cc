@@ -206,13 +206,13 @@ int Stat::_dump(tll_stat_iter_t * iter)
 		r += _dump(*ptr);
 		auto method = ptr->method();
 		if (ptr->type() == TLL_STAT_FLOAT) {
-			if (method != tll::stat::Sum && ptr->fvalue == tll::stat::default_value<tll_stat_float_t>(method))
+			if (ptr->fvalue == tll::stat::default_value<tll_stat_float_t>(method))
 				continue;
 			auto value = field.get_value().set_fvalue();
 			value.set_method(static_cast<stat_scheme::Method>(method));
 			value.set_value(ptr->fvalue);
 		} else {
-			if (method != tll::stat::Sum && ptr->value == tll::stat::default_value<tll_stat_int_t>(method))
+			if (ptr->value == tll::stat::default_value<tll_stat_int_t>(method))
 				continue;
 			auto value = field.get_value().set_ivalue();
 			value.set_method(static_cast<stat_scheme::Method>(method));
