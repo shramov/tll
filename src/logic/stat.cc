@@ -171,7 +171,7 @@ int Stat::_dump(tll_stat_iter_t * iter)
 	for (; ptr != end; ptr++) {
 		if (ptr->name().empty())
 			continue;
-		auto field = fields[size++];
+		auto field = fields[size];
 		if (r.size())
 			r += ", ";
 		if (ptr + 3 < end && ptr->name() == "_tllgrp") {
@@ -179,6 +179,9 @@ int Stat::_dump(tll_stat_iter_t * iter)
 			auto sum = ++ptr;
 			auto min = ++ptr;
 			auto max = ++ptr;
+			if (count->value == 0)
+				continue;
+			size++;
 			field.set_name(sum->name());
 			field.set_unit(static_cast<stat_scheme::Unit>(sum->unit()));
 			if (sum->type() == TLL_STAT_FLOAT) {
@@ -200,18 +203,24 @@ int Stat::_dump(tll_stat_iter_t * iter)
 			}
 			continue;
 		}
-		field.set_name(ptr->name());
-		field.set_unit(static_cast<stat_scheme::Unit>(ptr->unit()));
+		r += _dump(*ptr);
+		auto method = ptr->method();
 		if (ptr->type() == TLL_STAT_FLOAT) {
+			if (method != tll::stat::Sum && ptr->fvalue == tll::stat::default_value<tll_stat_float_t>(method))
+				continue;
 			auto value = field.get_value().set_fvalue();
-			value.set_method(static_cast<stat_scheme::Method>(ptr->method()));
+			value.set_method(static_cast<stat_scheme::Method>(method));
 			value.set_value(ptr->fvalue);
 		} else {
+			if (method != tll::stat::Sum && ptr->value == tll::stat::default_value<tll_stat_int_t>(method))
+				continue;
 			auto value = field.get_value().set_ivalue();
-			value.set_method(static_cast<stat_scheme::Method>(ptr->method()));
+			value.set_method(static_cast<stat_scheme::Method>(method));
 			value.set_value(ptr->value);
 		}
-		r += _dump(*ptr);
+		size++;
+		field.set_name(ptr->name());
+		field.set_unit(static_cast<stat_scheme::Unit>(ptr->unit()));
 	}
 	fields.resize(size);
 

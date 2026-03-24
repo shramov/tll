@@ -81,3 +81,25 @@ channel: stat://;tll.channel.timer=timer;node=test-node
     assert [f.name for f in msg.fields] == ['int', 'float']
     assert msg.fields[0].as_dict() == {'name': 'int', 'unit': Unit.NS, 'value': {'igroup': {'count': 2, 'min': 1, 'max': 10, 'avg': 5.5}}}
     assert msg.fields[1].as_dict() == {'name': 'float', 'unit': Unit.Unknown, 'value': {'fgroup': {'count': 2, 'min': 0.1, 'max': 0.5, 'avg': 0.3}}}
+
+    now = datetime.datetime.now()
+    timer.post(b'')
+
+    m = await stat.recv()
+    assert (m.type, m.msgid) == (stat.Type.Data, 10)
+
+    msg = stat.unpack(m)
+    assert msg.node == 'test-node'
+    assert msg.name == 'fields'
+    assert msg.time.datetime - now < datetime.timedelta(milliseconds=100)
+    assert [f.name for f in msg.fields] == ['sum']
+    assert msg.fields[0].as_dict() == {'name': 'sum', 'unit': Unit.Unknown, 'value': {'ivalue': {'method': Method.Sum, 'value': 0}}}
+
+    m = await stat.recv()
+    assert (m.type, m.msgid) == (stat.Type.Data, 10)
+
+    msg = stat.unpack(m)
+    assert msg.node == 'test-node'
+    assert msg.name == 'groups'
+    assert msg.time.datetime - now < datetime.timedelta(milliseconds=100)
+    assert [f.name for f in msg.fields] == []
