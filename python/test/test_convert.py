@@ -534,7 +534,7 @@ def test_input(context, tmp_path):
     assert (c.caps & c.Caps.InOut) == c.Caps.Input
     assert c.state == c.State.Active
 
-    crw = Accum(f'convert+file://{tmp_path}/file.dat', name='convert', autoclose='yes', context=context, **{'convert.scheme': SInto, 'convert.dir': 'rw'})
+    crw = Accum(f'convert+file://{tmp_path}/file.dat', name='convert-rw', autoclose='yes', context=context, **{'convert.scheme': SInto, 'convert.dir': 'rw'})
     crw.open()
     assert crw.state == crw.State.Error
 

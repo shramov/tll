@@ -675,11 +675,9 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 
 	if (!*internal && c->internal->name) {
 		auto lock = wlock();
-		auto dup = !channels.emplace(c->internal->name, c.get()).second;
-		if (dup) {
-			_log.warning("Duplicate channel name: {}", c->internal->name);
-		} else
-			tll_config_set_config(config, c->internal->name, -1, c->internal->config, 0);
+		if (!channels.emplace(c->internal->name, c.get()).second)
+			return _log.fail(nullptr, "Duplicate channel name: {}", c->internal->name);
+		tll_config_set_config(config, c->internal->name, -1, c->internal->config, 0);
 	}
 
 	if (c->internal->stat) {

@@ -430,7 +430,7 @@ def test_scheme_override(context, filename):
     writer.close()
 
     r0 = context.Channel(f'file://{filename}', name='r0')
-    r1 = context.Channel(f'file://{filename}', name='r0', scheme='yamls://[{name: New}]')
+    r1 = context.Channel(f'file://{filename}', name='r1', scheme='yamls://[{name: New}]')
 
     r0.open()
     r1.open()
@@ -459,12 +459,12 @@ def test_lz4_repeated(context, filename):
         assert m.data.tobytes() == data
 
 def test_lz4_init(context, filename):
-    w0 = context.Channel(f'file://{filename}', name='writer', dir='w', compression='lz4', dump='frame')
+    w0 = context.Channel(f'file://{filename}', name='w0', dir='w', compression='lz4', dump='frame')
     w0.open()
     w0.post(b'xxx', seq=10)
     w0.close()
 
-    w1 = context.Channel(f'file://{filename}', name='writer', dir='w', dump='frame')
+    w1 = context.Channel(f'file://{filename}', name='w1', dir='w', dump='frame')
     w1.open()
     assert w1.config['info.seq'] == '10'
     w1.close()

@@ -44,13 +44,7 @@ def test_duplicate(context):
     assert context.get('dup') == c0
     assert context.config.get('dup.init.first', None) == 'yes'
 
-    c1 = context.Channel('null://;name=dup;first=no')
-
-    assert context.get('dup') == c0
-    assert context.config.get('dup.init.first', None) == 'yes'
-
-    c1.free()
-    del c1
+    with pytest.raises(TLLError): context.Channel('null://;name=dup;first=no')
 
     assert context.get('dup') == c0
     assert context.config.get('dup.init.first', None) == 'yes'

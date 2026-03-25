@@ -34,7 +34,7 @@ class Echo(Base):
     def _open(self, props):
         self._child = self.context.Channel(self._child_url_parse('null://', 'child'))
         self._child_add(self._child)
-        self._child_add(self.context.Channel('null://;name=orphan'))
+        self._child_add(self.context.Channel(f'null://;name={self.name}/orphan'))
         self.config_info['echo'] = 'yes'
 
     def _close(self, force=False):
@@ -132,7 +132,7 @@ def test():
     c.open()
     assert cfg['info.echo'] == 'yes'
 
-    assert [x.name for x in c.children] == ['echo/child', 'orphan']
+    assert [x.name for x in c.children] == ['echo/child', 'echo/orphan']
 
     with pytest.raises(TypeError): C.channel_cast(c.children[0])
 
@@ -157,14 +157,14 @@ def test():
     assert c.result[-1].time == chrono.TimePoint(now, resolution=chrono.Resolution.ns, type=int)
 
     c.close()
-    assert [x.name for x in c.children] == ['orphan']
+    assert [x.name for x in c.children] == ['echo/orphan']
     assert c.state == c.State.Closing
     with pytest.raises(TLLError): c.post(b'')
     c.process()
     assert c.state == c.State.Closed
     del c
 
-    assert ctx.get('orphan') == None
+    assert ctx.get('echo/orphan') == None
 
     ctx.unregister(Echo)
     with pytest.raises(TLLError): ctx.Channel("echo://;name=echo")
