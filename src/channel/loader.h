@@ -23,10 +23,12 @@ public:
 		for (auto &[_, mcfg] : url.browse("module.*", true)) {
 			auto m = mcfg.get("module");
 			if (!m) continue;
-			auto enable = mcfg.getT("enable", true);
+			auto reader = make_props_reader(mcfg);
+			auto enable = reader.getT("enable", true);
+			enable = !reader.getT("disable", !enable);
+			if (!reader)
+				return _log.fail(EINVAL, "Invalid module parameters: {}", reader.error());
 			if (!enable)
-				return _log.fail(EINVAL, "Invalid 'enable' parameter: {}", enable.error());
-			if (!*enable)
 				continue;
 			auto extra = mcfg.sub("config");
 			if (context().load(std::string(*m), extra.value_or(tll::ConstConfig())))
