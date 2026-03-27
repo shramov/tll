@@ -224,8 +224,12 @@ std::optional<Processor::PreObject> Processor::init_pre(std::string_view extname
 	auto log = _log.prefix("object {}:", std::string_view(name)); // TODO: name is moved and left empty without std::string_view wrapper
 	log.debug("Parse dependencies (external name {})", extname);
 
-	auto disable = cfg.getT("disable", false);
-	if (!disable || *disable) {
+	auto reader = make_props_reader(cfg);
+	auto enable = reader.getT("enable", true);
+	enable = !reader.getT("disable", !enable);
+	if (!reader)
+		return log.fail(std::nullopt, "Invalid disable parameters: {}", reader.error());
+	if (!enable) {
 		log.debug("Object is disabled");
 		PreObject obj;
 		obj.disabled = true;
