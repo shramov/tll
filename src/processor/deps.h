@@ -47,11 +47,21 @@ struct Object
 	std::list<std::string> depends_names; //< Temporary storage used during initialization
 	std::string stage_name; //< Short name without processor/stage/ prefix for stage object
 
+	std::string control_active; //< Name of extended state that is considered as Active
+	int control_active_msgid = 0; //< Msgid of extended_active message
+	bool control_active_sent = false; //< Active notification sent to processor already
+
 	Object(std::unique_ptr<Channel> && ptr)
 		: channel(std::move(ptr))
 	{
 		reopen.channel = channel.get();
 		channel->callback_add(this, TLL_MESSAGE_MASK_STATE);
+	}
+
+	~Object()
+	{
+		if (control_active.size() && channel)
+			channel->callback_del<Object, &Object::callback_control>(this, TLL_MESSAGE_MASK_CONTROL);
 	}
 
 	int init(const tll::Channel::Url &url);
@@ -70,6 +80,8 @@ struct Object
 	const Channel & operator * () const { return *get(); }
 
 	int callback(const Channel *, const tll_msg_t *);
+	int callback_control(const Channel *, const tll_msg_t *);
+	int callback_common(const tll::Channel *c, tll_state_t s);
 
 	template <typename F1, typename F2>
 	bool mark_subtree_closed(F1 activate, F2 deactivate)
@@ -145,6 +157,8 @@ struct Object
 			break;
 		}
 	}
+
+	void update_control_active();
 };
 
 } // namespace tll::processor

@@ -40,6 +40,8 @@ struct Worker : public tll::channel::Base<Worker>
 	std::optional<tll::stat::Block<StatType>> _stat;
 	auto stat() { return static_cast<stat::BlockT<StatType> *>(internal.stat); }
 
+	constexpr const tll::Logger & logger() const { return _log; }
+
 	std::list<Object *> objects;
 	struct {
 		tll_state_t state = TLL_STATE_CLOSED;

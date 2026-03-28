@@ -581,3 +581,40 @@ processor.objects:
     mock.processor.close()
 
     await mock.wait_many(timeout=0.1, root='Closed')
+
+@asyncloop_run
+async def test_control_active(asyncloop, context):
+    cfg = Config.load('''yamls://
+name: processor
+processor.objects:
+  root:
+    init: null://
+  middle:
+    init:
+      url: direct://
+      dump: frame
+      master: stream-server
+      tll.processor.ignore-master-dependency: yes
+      tll.processor.active-on-control: Online
+    depends: root
+''')
+
+    server = asyncloop.Channel('direct://;name=stream-server;emulate-control=stream-client')
+    server.open()
+
+    mock = Mock(asyncloop, cfg)
+    mock.open()
+
+    await mock.wait('middle', 'Opening')
+    with pytest.raises(TimeoutError): await mock.wait_stage('active', 'Active', timeout=0.05)
+    server.post({}, name='Online', type=server.Type.Control)
+    await mock.wait_stage('active', 'Active')
+
+    context.get('root').close()
+    await mock.wait('middle', 'Opening')
+    with pytest.raises(TimeoutError): await mock.wait_stage('active', 'Active', timeout=0.05)
+    server.post({}, name='Online', type=server.Type.Control)
+    await mock.wait_stage('active', 'Active')
+
+    server.post({}, name='Online', type=server.Type.Control)
+    with pytest.raises(TimeoutError): await mock.control.recv(timeout=0.01)
