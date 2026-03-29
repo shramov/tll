@@ -515,7 +515,7 @@ processor.objects:
 
 @asyncloop_run
 async def test_close_reorder(asyncloop, context):
-    context.config_defaults['processor.timeout-active-min'] = '1ns'
+    context.config_defaults['processor.reopen-active-min'] = '1ns'
 
     cfg = Config.load('''yamls://
 name: processor
