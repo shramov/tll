@@ -652,6 +652,13 @@ void Processor::update(Object *o, tll_state_t s)
 	o->state_prev = o->state;
 	o->state = s;
 
+	if (auto page = _stat_usage.acquire(); page) {
+		page->state.update(1);
+		if (s == tll::state::Error)
+			page->error.update(1);
+		_stat_usage.release(page);
+	}
+
 	if (o->verbose)
 		_log.info("Object {} state {}", o->name(), tll_state_str(s));
 	if (o->reopen.pending())

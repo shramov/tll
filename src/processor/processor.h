@@ -82,6 +82,8 @@ struct Processor : public tll::channel::Base<Processor>
 		tll::stat::IntegerGroup<tll::stat::Unknown, 'c', 'p', 'u'> cpu;
 		tll::stat::Integer<tll::stat::Max, tll::stat::Ns, 'c', 'p', 'u'> cpuns;
 		tll::stat::Integer<tll::stat::Max, tll::stat::Bytes, 'm', 'e', 'm'> mem;
+		tll::stat::Integer<tll::stat::Sum, tll::stat::Unknown, 's', 't', 'a', 't', 'e'> state;
+		tll::stat::Integer<tll::stat::Sum, tll::stat::Unknown, 'e', 'r', 'r', 'o', 'r'> error;
 	};
 
 	tll::stat::Block<StatUsage> _stat_usage = { "processor/rusage" };
