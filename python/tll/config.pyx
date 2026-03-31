@@ -165,6 +165,10 @@ cdef class Config:
             if self.has(key):
                 self.remove(key)
             return
+        elif not isinstance(value, (str, bytes)):
+            if isinstance(value, bool):
+                value = 'true' if value else 'false'
+            value = str(value)
         k = s2b(key)
         v = s2b(value)
         r = tll_config_set(self._ptr, k, len(k), v, len(v))

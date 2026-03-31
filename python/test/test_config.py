@@ -46,6 +46,13 @@ def test_basic():
     cfg['a'] = None
     assert not 'a' in cfg
 
+def test_non_string():
+    cfg = Config()
+    cfg['int'] = 123
+    cfg['float'] = 123.123
+    cfg['bool'] = True
+    assert cfg.as_dict() == {'int': '123', 'float': '123.123', 'bool': 'true'}
+
 def test_copy():
     cfg = Config.load('yamls://{a: 1, b: {x: 2, y: 3}}')
     assert dict(cfg.browse('**')) == {'a':'1', 'b.x':'2', 'b.y':'3'}
