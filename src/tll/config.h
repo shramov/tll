@@ -437,6 +437,7 @@ class Config : public ConfigT<false>
 	int remove(std::string_view path) { return tll_config_remove(_cfg, path.data(), path.size()); }
 
 	int merge(ConfigT & cfg, bool overwrite = true) { return tll_config_merge(_cfg, cfg, overwrite); }
+	int merge(ConfigT && cfg, bool overwrite = true) { return tll_config_merge(_cfg, cfg, overwrite); }
 	int process_imports(std::string_view path) { return tll_config_process_imports(_cfg, path.data(), path.size()); }
 
 	std::optional<Config> sub(std::string_view path, bool create = false)
