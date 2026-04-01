@@ -23,19 +23,23 @@
 using tll::Config;
 
 namespace {
+
+enum class Special { Merge };
 struct state_t
 {
 	Config cfg;
 	tll::Logger _log = {"tll.config.yaml.state"};
 
-	using variant_t = std::variant<bool, size_t, std::string>;
+	using variant_t = std::variant<bool, size_t, std::string, Special>;
 	struct Frame {
 		Config cfg;
 		variant_t key;
 		std::string path;
+		std::optional<Config> merge;
 	};
 	std::list<Frame> stack;
 	variant_t key;
+	std::optional<Config> merge;
 
 	std::map<std::string, Config, std::less<>> anchors;
 	std::map<Config, bool> checked;
@@ -71,6 +75,9 @@ struct state_t
 			char buf[64];
 			snprintf(buf, sizeof(buf), "%04zd", idx++);
 			return std::string(buf);
+		} else if (std::holds_alternative<Special>(key)) {
+			key = false;
+			return "<<";
 		} else
 			return "";
 	}
@@ -107,6 +114,12 @@ int state_t::parse(const yaml_event_t &event)
 			return _log.fail(ENOENT, "Alias {} not found", name);
 		if (std::holds_alternative<bool>(key))
 			return _log.fail(EINVAL, "Got alias event in invalid context");
+		if (auto s = std::get_if<Special>(&key); s && *s == Special::Merge) {
+			_log.trace("Merge alias '{}' into '{}'", name, key_full(""));
+			merge = alias->copy();
+			key = false;
+			return 0;
+		}
 		auto k = key_string();
 		_log.trace("Alias: {} to {}", k, name);
 		cfg.set(k, alias->copy());
@@ -116,7 +129,17 @@ int state_t::parse(const yaml_event_t &event)
 	case YAML_MAPPING_END_EVENT:
 	case YAML_SEQUENCE_END_EVENT:
 		if (stack.empty()) return 0; // Last mapping
+		if (merge) {
+			_log.trace("Merge into {}", key_full(""));
+			cfg.merge(*merge, false);
+		}
 		key = stack.back().key;
+		if (std::holds_alternative<Special>(key)) {
+			_log.trace("Store merge config for {}", key_full(""));
+			key = false;
+			merge = cfg;
+		} else
+			merge = stack.back().merge;
 		cfg = stack.back().cfg;
 		stack.pop_back();
 		break;
@@ -125,14 +148,18 @@ int state_t::parse(const yaml_event_t &event)
 	case YAML_SEQUENCE_START_EVENT: {
 		auto c = cfg;
 		std::string k;
-		if (!std::holds_alternative<bool>(key)) {
+		if (auto s = std::get_if<Special>(&key); s && *s == Special::Merge) {
+			_log.trace("Create new config for merge node");
+			c = tll::Config();
+			k = "<<";
+		} else if (!std::holds_alternative<bool>(key)) {
 			k = key_string();
 			auto sub = cfg.sub(k, true);
 			if (!sub)
 				return _log.fail(EINVAL, "Failed to build path {}", k);
 			c = *sub;
 		}
-		stack.emplace_back(Frame {cfg, std::move(key), k});
+		stack.emplace_back(Frame {cfg, std::move(key), k, merge});
 		cfg = c;
 		if (event.type == YAML_SEQUENCE_START_EVENT) {
 			anchor(event.data.mapping_start.anchor, cfg, "sequence");
@@ -198,8 +225,14 @@ int state_t::parse(const yaml_event_t &event)
 			} else if (cfg.set(k, value))
 				return _log.fail(EINVAL, "Failed to set value {}: {}", k, value);
 			anchor(event.data.scalar.anchor, *cfg.sub(k), "scalar");
-		} else
-			key = std::string(value);
+		} else {
+			if (event.data.scalar.tag && std::string_view((const char *) event.data.scalar.tag) == "tag:yaml.org,2002:merge")
+				key = Special::Merge;
+			else if (value == "<<")
+				key = Special::Merge;
+			else
+				key = std::string(value);
+		}
 		break;
 	}
 	}

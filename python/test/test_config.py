@@ -324,3 +324,12 @@ def test_detach():
 
 def test_null_string_view():
     cfg = Config.load('yamls+gz://')
+
+def test_extend():
+    cfg = Config.load_data('yamls', '{a: {!!merge : {b: c}, d: e}}')
+
+    assert cfg.as_dict() == {'a': {'b': 'c', 'd': 'e'}}
+
+    cfg = Config.load_data('yamls', '{body: &body {b: c, d: e}, a: {!!merge : *body, b: a}, b: {b: b, <<: *body}}')
+
+    assert cfg.as_dict() == {'body': {'b': 'c', 'd': 'e'}, 'a': {'b': 'a', 'd': 'e'}, 'b': {'b': 'b', 'd': 'e'}}
