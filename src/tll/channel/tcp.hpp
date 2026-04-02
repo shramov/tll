@@ -104,8 +104,6 @@ inline int select_protocol(tll::Logger &log, const tcp_settings_t &settings, int
 template <typename T>
 int TcpSocket<T>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
-	_rbuf.resize(_size);
-	_wbuf.resize(_size);
 	return 0;
 }
 
@@ -391,14 +389,15 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	auto reader = this->channel_props_reader(url);
 	auto af = reader.getT("af", network::AddressFamily::UNSPEC);
 	_peer = reader.getT("tll.host", std::optional<tll::network::hostport> {});
-	this->_size = reader.template getT<util::Size>("size", 128 * 1024);
+	auto size = reader.getT("max-size", util::Size { 64 * 1024 });
+	size = reader.template getT<util::Size>("size", 2 * size);
 	_settings.timestamping = reader.getT("timestamping", false);
 	_settings.keepalive = reader.getT("keepalive", true);
 	_settings.nodelay = reader.getT("nodelay", true);
 	_settings.sndbuf = reader.getT("sndbuf", util::Size { 0 });
 	_settings.rcvbuf = reader.getT("rcvbuf", util::Size { 0 });
 	{
-		auto size = reader.getT("buffer-size", util::Size { 64 * 1024 });
+		size = reader.getT("buffer-size", size);
 		_settings.snd_buffer_size = reader.getT("send-buffer-size", size);
 		_settings.rcv_buffer_size = reader.getT("recv-buffer-size", size);
 	}
@@ -620,7 +619,8 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_settings.sndbuf = reader.getT("sndbuf", util::Size { 0 });
 	_settings.rcvbuf = reader.getT("rcvbuf", util::Size { 0 });
 	{
-		auto size = reader.getT("buffer-size", util::Size { 64 * 1024 });
+		auto size = reader.getT("max-size", util::Size { 64 * 1024 });
+		size = reader.getT("buffer-size", 2 * size);
 		_settings.snd_buffer_size = reader.getT("send-buffer-size", size);
 		_settings.rcv_buffer_size = reader.getT("recv-buffer-size", size);
 	}

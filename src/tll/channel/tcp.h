@@ -124,7 +124,6 @@ template <typename T>
 class TcpSocket : public Base<T>
 {
  protected:
-	size_t _size = 1024;
 	PartialBuffer _rbuf;
 	PartialBuffer _wbuf;
 	std::vector<char> _cbuf;

@@ -120,7 +120,6 @@ int ChPubServer::_post(const tll_msg_t *msg, int flags)
 
 int ChPubSocket::_init(const Channel::Url &url, tll::Channel *master)
 {
-	_size = 0;
 	auto r = tcp_socket_t::_init(url, master);
 	if (r)
 		return _log.fail(r, "Tcp socket init failed");

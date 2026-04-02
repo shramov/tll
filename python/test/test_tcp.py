@@ -622,3 +622,31 @@ async def test_large_shift(asyncloop):
 
     m = await c.recv()
     assert (m.seq, len(m.data)) == (3, 63 * 1024)
+
+@asyncloop_run
+async def test_max_size(asyncloop):
+    s = asyncloop.Channel(f'tcp://::1:{ports.TCP6};mode=server;dump=frame;max-size=128kb', name='server', dump='frame')
+    c = asyncloop.Channel(f'tcp://::1:{ports.TCP6};mode=client;dump=frame;max-size=128kb', name='client', dump='frame')
+
+    s.open()
+    c.open()
+
+    assert c.State.Active == await c.recv_state()
+
+
+    m = await s.recv()
+    assert m.type == m.Type.Control
+
+    addr = m.addr
+    s.post(b'x' * 128 * 1024, addr=addr)
+
+    m = await c.recv()
+    assert s.state == s.State.Active
+
+    assert len(m.data) == 128 * 1024
+
+    c.post(b'y' * 128 * 1024)
+
+    m = await s.recv()
+    assert m.type == m.Type.Data
+    assert len(m.data) == 128 * 1024
