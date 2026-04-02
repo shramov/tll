@@ -15,8 +15,6 @@ import socket
 import sys
 import time
 
-ctx = C.Context()
-
 @pytest.fixture
 def context():
     return C.Context()
@@ -46,14 +44,16 @@ class _test_tcp_base:
     TIMESTAMP = False
 
     def setup_method(self):
-        self.s = Accum(self.PROTO, mode='server', name='server', dump='yes', context=ctx, sndbuf='16kb')
-        self.c = Accum(self.PROTO, mode='client', name='client', dump='yes', context=ctx, sndbuf='16kb')
+        self.context = C.Context()
+        self.s = Accum(self.PROTO, mode='server', name='server', dump='yes', context=self.context, sndbuf='16kb')
+        self.c = Accum(self.PROTO, mode='client', name='client', dump='yes', context=self.context, sndbuf='16kb')
 
     def teardown_method(self):
         if self.c: self.c.close()
         if self.s: self.s.close()
         self.c = None
         self.s = None
+        self.context = None
         for f in self.CLEANUP:
             if os.path.exists(f):
                 os.unlink(f)
