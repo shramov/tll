@@ -25,7 +25,8 @@ int ChPubClient::_init(const Channel::Url &url, tll::Channel *master)
 	auto reader = channel_props_reader(url);
 	_hello = reader.getT("hello", true);
 	_peer = reader.getT<std::string>("peer", "");
-	_size = reader.getT<util::Size>("size", 128 * 1024);
+	auto size = reader.getT<util::Size>("max-size", 64 * 1024);
+	_size = reader.getT<util::Size>("size", 4 * size); // At least 4 messages
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());

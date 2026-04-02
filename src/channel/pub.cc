@@ -14,6 +14,8 @@
 
 #include "tll/util/conv-fmt.h"
 
+#include <algorithm>
+
 namespace tll::conv {
 template <typename T, bool Const>
 struct dump<tll::util::circular_iterator<T, Const>> : public to_string_buf_from_string<tll::util::circular_iterator<T, Const>>
@@ -56,7 +58,8 @@ int ChPubServer::_init(const Channel::Url &url, tll::Channel *master)
 
 	auto reader = channel_props_reader(url);
 	_hello = reader.getT("hello", true);
-	_size = reader.getT<util::Size>("size", 1024 * 1024);
+	auto size = reader.getT<util::Size>("size", 64 * 1024);
+	_size = reader.getT<util::Size>("size", std::max(1024lu * 1024, 16 * size)); // Preserve default of 1mb
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
