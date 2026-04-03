@@ -1,3 +1,31 @@
+tll (0.4.8) unstable; urgency=medium
+
+  * bench: Measure time of CPU clock functions
+  * channel: Duplicate name is hard error now
+  * config:
+    Support yaml merge nodes
+    Add move variant of Config::merge
+  * loader: Add disable parameter for module
+  * processor:
+    Use control message as Active state change
+    Add enable parameter for object
+    Export cpu/memory and state changes metrics from processor
+    Report termination signal in logs
+  * pub: Add max-size parameter
+  * python:
+    By default create new Context in async loop
+    Allow non-string values in Config.set
+  * rusage: Logic that exports resource usage stats
+  * scheme: Add reserved space to descriptors
+  * stat: Do not send fields without values
+  * tagged: Configurable stat recording
+  * tcp: Add max-size parameter for tcp and pub client
+  * tests:
+    Fix incorrect timeout name
+    Use temporary context for TCP tests
+
+ -- Pavel Shramov <shramov@mexmat.net>  Fri, 03 Apr 2026 09:40:06 +0300
+
 tll (0.4.7) unstable; urgency=medium
 
   * channel: Fix static_assert in process API check
