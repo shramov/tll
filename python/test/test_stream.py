@@ -1205,6 +1205,23 @@ async def test_open_initial_seq(asyncloop, tmp_path, params):
     assert c.config.sub('info.reopen').as_dict() == {'mode': 'seq', 'seq': '10'}
 
 @asyncloop_run
+async def test_open_initial_seq_large(asyncloop, tmp_path):
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+
+    s.open()
+    s.post(b'aaa', seq=2**32)
+    c.open(mode='initial')
+
+    m = await c.recv()
+    assert (m.type, m.seq, m.data.tobytes()) == (m.Type.Data, 2**32, b'aaa')
+
+    m = await c.recv()
+    assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control['Online'].msgid, 2**32)
+    assert c.config.sub('info.reopen').as_dict() == {'mode': 'seq', 'seq': f'{2**32}'}
+
+@asyncloop_run
 async def test_open_initial_block(asyncloop, tmp_path):
     common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame'
     s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;blocks=blocks://{tmp_path}/block.yaml;name=server;mode=server')

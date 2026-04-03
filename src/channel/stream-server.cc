@@ -547,11 +547,11 @@ tll::result_t<int> StreamServer::Client::init(const StreamServer::Request &req)
 			block = parent->_initial_reply_block;
 			block_index = parent->_initial_reply_block_index;
 			_log.info("Translated initial request to block '{}', index {}", block, block_index);
-		} else if (auto start = parent->_storage->config().getT("info.seq-begin", -1); start) {
+		} else if (auto start = parent->_storage->config().getT("info.seq-begin", -1ll); start) {
 			seq = *start;
 			_log.info("Translated initial request to seq {}", seq);
 		} else
-			return error("Failed to request start seq from storage");
+			return error(fmt::format("Failed to request start seq from storage: {}", start.error()));
 	} else {
 		seq = std::get<uint64_t>(req.data);
 		_log.info("Request from client '{}' (addr {}) for seq {}", name, req.addr, seq);
