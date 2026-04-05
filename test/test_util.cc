@@ -14,6 +14,7 @@
 #include "tll/util/browse.h"
 #include "tll/util/cppring.h"
 #include "tll/util/fixed_point.h"
+#include "tll/util/markerqueue.h"
 #include "tll/util/memoryview.h"
 #include "tll/util/mmstruct.h"
 #include "tll/util/sockaddr.h"
@@ -859,4 +860,52 @@ TEST(Util, MMStruct)
 
 	ASSERT_EQ(*w, 100);
 	ASSERT_EQ(*r, 100);
+}
+
+TEST(Util, MQDeleter)
+{
+	std::vector<uint16_t> data;
+	data.resize(8);
+	struct Deleter {
+		void operator () (uint16_t *ptr) { *ptr |= 0x8000; }
+	};
+
+	{
+		MarkerQueue<uint16_t *, nullptr, Deleter> mq { 8 };
+
+		for (auto i = 0; i < 2; i++)
+			mq.push(data.data() + i);
+
+		mq.clear();
+
+		ASSERT_EQ(data[0], 0x8000);
+		ASSERT_EQ(data[1], 0x8000);
+		ASSERT_EQ(data[2], 0);
+		data[0] = data[1] = 0;
+
+		for (auto i = 0; i < 4; i++)
+			mq.push(data.data() + i);
+		for (auto i = 0; i < 2; i++)
+			ASSERT_NE(mq.pop(), nullptr);
+
+		mq.resize(16);
+
+		ASSERT_EQ(data[0], 0);
+		ASSERT_EQ(data[1], 0);
+		ASSERT_EQ(data[2], 0x8000);
+		ASSERT_EQ(data[3], 0x8000);
+		ASSERT_EQ(data[4], 0);
+
+		data[2] = data[3] = 0;
+		for (auto i = 0; i < 4; i++)
+			mq.push(data.data() + i);
+		for (auto i = 0; i < 2; i++)
+			ASSERT_NE(mq.pop(), nullptr);
+	}
+
+	ASSERT_EQ(data[0], 0);
+	ASSERT_EQ(data[1], 0);
+	ASSERT_EQ(data[2], 0x8000);
+	ASSERT_EQ(data[3], 0x8000);
+	ASSERT_EQ(data[4], 0);
 }

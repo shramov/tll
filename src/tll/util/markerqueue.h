@@ -15,6 +15,11 @@
 
 #include <tll/compat/align.h>
 
+namespace tll::util {
+template <typename T>
+struct NoopDeleter { void operator() (T &&rhs) {} };
+}
+
 /**
  * Multiple Input - Single Output queue for simple types.
  * Type must have one designated Zero value (by default 0)
@@ -22,7 +27,7 @@
  *
  * Useless if std::is_atomic_type<std::atomic<T>> == false
  */
-template <typename T = intptr_t, T Zero = 0>
+template <typename T = intptr_t, T Zero = 0, typename Deleter = tll::util::NoopDeleter<T>>
 class MarkerQueue {
 	typedef std::vector<std::atomic<T> > vector_t;
 	vector_t _ring;
@@ -45,7 +50,15 @@ public:
 		: _ring(size)
 		, _head(&_ring.front())
 		, _tail(&_ring.front())
-	{}
+	{
+		for (auto &i: _ring)
+			i = Zero;
+	}
+
+	~MarkerQueue()
+	{
+		clear();
+	}
 
 	/** Store new value
 	 * Value must not be Zero (0 by default)
@@ -96,7 +109,7 @@ public:
 
 	T pop()
 	{
-		if (_tail == _head) return 0;
+		if (_tail == _head) return Zero;
 		T r = _head->exchange(Zero, std::memory_order_acq_rel);
 		_head = _next(_head);
 		return r;
@@ -104,17 +117,25 @@ public:
 
 	void clear()
 	{
+		auto deleter = Deleter {};
+		while (_head != _tail) {
+			deleter(*_head);
+			*_head = Zero;
+			_head = _next(_head);
+		}
 		_head = &_ring.front();
 		_tail = &_ring.front();
-		for (auto & i : _ring)
-			i = Zero;
 	}
 
 	void resize(size_t size)
 	{
-		vector_t tmp(size);
-		_ring.swap(tmp);
 		clear();
+		vector_t tmp(size);
+		for (auto & i : tmp)
+			i = Zero;
+		_ring.swap(tmp);
+		_head = &_ring.front();
+		_tail = &_ring.front();
 	}
 };
 
