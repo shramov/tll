@@ -727,6 +727,23 @@ def test_ipc_destroy():
     s.free()
     c.close()
 
+def test_ipc_cleanup(context):
+    s = Accum('ipc://', mode='server', name='server', dump='yes', broadcast='yes', context=context)
+    c = Accum('ipc://', mode='client', name='client', dump='yes', master=s, context=context)
+
+    s.open()
+    c.open()
+
+    s.process()
+    assert [(m.type, m.seq) for m in s.result] == [(s.Type.Control, 0)]
+
+    for i in range(10):
+        c.post(b'client', seq=i)
+        s.post(b'server', seq=i, addr=s.result[0].addr)
+
+    c.close()
+    s.close()
+
 @pytest.mark.parametrize("flt", ['!Exclude', '!Exclude,Exclude,Include,Pass', 'Include,Pass'])
 def test_filter(flt):
     SCHEME = '''yamls://

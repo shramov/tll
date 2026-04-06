@@ -37,15 +37,9 @@ class ChIpc : public tll::channel::Event<ChIpc>
  public:
 	template <typename T> using refptr_t = tll::util::refptr_t<T>;
 
-	struct marker_queue_t : public MarkerQueue<QueuePair *, nullptr>
-	{
-		using MarkerQueue::MarkerQueue;
-		~marker_queue_t()
-		{
-			while (auto q = pop())
-				q->unref();
-		}
-	};
+	template <typename T>
+	struct Unref { void operator () (T * ptr) { ptr->unref(); } };
+	using marker_queue_t = MarkerQueue<QueuePair *, nullptr, Unref<QueuePair>>;
 
  private:
 	tll_addr_t _addr = {};
