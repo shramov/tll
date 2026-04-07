@@ -1,3 +1,10 @@
+tll (0.4.9) unstable; urgency=medium
+
+  * stream: Fix parsing of seq when opening with mode=initial
+  * convert: Added manpage
+
+ -- Pavel Shramov <shramov@mexmat.net>  Tue, 07 Apr 2026 04:15:05 +0300
+
 tll (0.4.8) unstable; urgency=medium
 
   * bench: Measure time of CPU clock functions
