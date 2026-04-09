@@ -27,6 +27,7 @@
 
 #include "channel/channels.h"
 
+#include "channel/async.h"
 #include "channel/blocks.h"
 #include "channel/convert.h"
 #include "channel/direct.h"
@@ -68,6 +69,7 @@ TLL_DEFINE_IMPL(tll::channel::Filter);
 TLL_DEFINE_IMPL(tll::channel::Random);
 TLL_DEFINE_IMPL(tll::channel::SeqCheck);
 
+TLL_DECLARE_IMPL(tll::channel::Async);
 TLL_DECLARE_IMPL(tll::channel::Blocks);
 TLL_DECLARE_IMPL(ChDirect);
 TLL_DECLARE_IMPL(ChIpc);
@@ -117,6 +119,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 
 	tll_channel_context_t(Config defaults) : config_defaults(defaults)
 	{
+		reg(&tll::channel::Async::impl);
 		reg(&tll::channel::Blocks::impl);
 		reg(&tll::channel::Convert::impl);
 		reg(&ChDirect::impl);

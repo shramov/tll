@@ -1,6 +1,7 @@
 channel_deps = [meson.get_compiler('c').find_library('dl'), lz4, rapidjson]
 channel_sources = files(
 	[ 'impl.c'
+	, 'async.cc'
 	, 'blocks.cc'
 	, 'context.cc'
 	, 'direct.cc'
