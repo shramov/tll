@@ -115,6 +115,12 @@ public:
 		return r;
 	}
 
+	T peek()
+	{
+		if (_tail == _head) return Zero;
+		return _head->load(std::memory_order_acquire);
+	}
+
 	void clear()
 	{
 		auto deleter = Deleter {};
