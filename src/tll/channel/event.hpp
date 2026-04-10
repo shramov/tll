@@ -31,7 +31,8 @@ int Event<T, Base>::_init(const tll::Channel::Url &url, tll::Channel *master)
 template <typename T, typename Base>
 int Event<T, Base>::_open(const ConstConfig &url)
 {
-	if (!this->_with_fd) return 0;
+	if (!this->_with_fd)
+		return Base::_open(url);
 #ifdef __linux__
 	auto fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
 	if (fd == -1)
