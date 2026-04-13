@@ -215,14 +215,17 @@ class List : public Base<Buf>
 	void resize(size_t size)
 	{
 		auto ptr = optr();
-		if (size <= ptr->size) {
-			ptr->size = size;
-			return;
-		}
 		constexpr size_t entity = entity_size_static();
 		constexpr bool entity_header = std::is_same_v<Ptr, tll_scheme_offset_ptr_t> && entity >= 0xff;
 		const auto data_end = ptr->offset + entity * ptr->size + (entity_header ? sizeof(uint32_t) : 0);
 		const auto buf_end = this->_buf.size();
+
+		if (size <= ptr->size) {
+			ptr->size = size;
+			if (buf_end == data_end)
+				this->_buf.view(ptr->data_offset()).resize(entity * size);
+			return;
+		}
 
 		if (ptr->size && buf_end == data_end) {
 			auto dview = this->_buf.view(ptr->data_offset());

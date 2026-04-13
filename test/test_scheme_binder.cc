@@ -259,6 +259,38 @@ TEST(Scheme, BinderList)
 	verify_list<const std::vector<char> &>(buf);
 	verify_list<tll::memory>({buf.data(), buf.size()});
 	verify_list<tll::const_memory>({buf.data(), buf.size()});
+
+	constexpr auto item_size = sizeof(http_scheme::disconnect);
+
+	binder = http_binder::List::bind_reset(buf);
+	ASSERT_EQ(buf.size(), binder.meta_size());
+
+	binder.get_std().resize(2);
+	binder.get_std()[0].set_code(1);
+	ASSERT_EQ(buf.size(), binder.meta_size() + 2 * item_size);
+
+	binder.get_std().resize(1);
+	ASSERT_EQ(binder.get_std()[0].get_code(), 1);
+	ASSERT_EQ(buf.size(), binder.meta_size() + 1 * item_size);
+
+	binder.get_llong().resize(2);
+	binder.get_llong()[0].set_code(10);
+	ASSERT_EQ(buf.size(), binder.meta_size() + 3 * item_size);
+
+	binder.get_llong().resize(1);
+	ASSERT_EQ(binder.get_std()[0].get_code(), 1);
+	ASSERT_EQ(binder.get_llong()[0].get_code(), 10);
+	ASSERT_EQ(buf.size(), binder.meta_size() + 2 * item_size);
+
+	binder.get_lshort().resize(2);
+	binder.get_lshort()[0].set_code(100);
+	ASSERT_EQ(buf.size(), binder.meta_size() + 4 * item_size);
+
+	binder.get_lshort().resize(1);
+	ASSERT_EQ(binder.get_std()[0].get_code(), 1);
+	ASSERT_EQ(binder.get_llong()[0].get_code(), 10);
+	ASSERT_EQ(binder.get_lshort()[0].get_code(), 100);
+	ASSERT_EQ(buf.size(), binder.meta_size() + 3 * item_size);
 }
 
 TEST(Scheme, BinderCopy)
