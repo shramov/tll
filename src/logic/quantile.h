@@ -51,9 +51,12 @@ class Quantile : public tll::channel::Tagged<Quantile, Input, Timer>
 
 	size_t _skip = 1000;
 	std::vector<unsigned> _quantiles;
+	std::string _node;
+	std::vector<char> _buf;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "quantile"; }
+	static constexpr auto scheme_policy() { return SchemePolicy::Manual; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::ConstConfig &props);

@@ -1,5 +1,6 @@
 #include "logic/quantile.h"
 #include "tll/scheme/logic/quantile.h"
+#include "tll/scheme/logic/stat.h"
 
 #include <algorithm>
 
@@ -8,6 +9,7 @@ int Quantile::_init(const tll::Channel::Url &url, tll::Channel *master)
 	auto reader = channel_props_reader(url);
 	_skip = reader.getT("skip", 0u);
 	_quantiles = reader.getT("quantile", std::vector<unsigned> {95});
+	_node = reader.getT<std::string>("node", "");
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
@@ -21,6 +23,9 @@ int Quantile::_init(const tll::Channel::Url &url, tll::Channel *master)
 		return EINVAL;
 	if (check_channels_size<Timer>(1, 1))
 		return EINVAL;
+
+	if (auto r = _scheme_load(stat_scheme::scheme_string, TLL_MESSAGE_DATA); r)
+		return _log.fail(r, "Failed to load data scheme");
 
 	return Base::_init(url, master);
 }
@@ -88,7 +93,14 @@ int Quantile::_report(std::string_view name, Quantile::Bucket &bucket, bool glob
 	if (bucket.count <= 0)
 		return 0;
 
-	std::string_view suffix = global ? "global " : "";
+	const std::string_view suffix = global ? "global " : "";
+
+	auto data = stat_scheme::Page::bind_reset(_buf);
+	data.set_time(tll::time::now());
+	data.set_node(_node);
+	data.set_name(fmt::format("{}/{}/{}", this->name, global ? "global" : "local", name));
+	auto fields = data.get_fields();
+	fields.resize(_quantiles.size());
 
 	auto it = bucket.data.rbegin();
 	while (*it == 0)
@@ -96,6 +108,7 @@ int Quantile::_report(std::string_view name, Quantile::Bucket &bucket, bool glob
 
 	unsigned skip = 0;
 
+	auto field = fields.begin();
 	for (auto q : _quantiles) {
 		unsigned qskip = bucket.count * (100 - q) / 100;
 		//_log.debug("Quantile {}, skip: {}", q, qskip);
@@ -105,8 +118,22 @@ int Quantile::_report(std::string_view name, Quantile::Bucket &bucket, bool glob
 			it++;
 		}
 		unsigned idx = bucket.data.size() - (it - bucket.data.rbegin()) - 1;
-		_log.info("Quantile {}'{}' {:02}%: {}", suffix, name, q, round(exp(idx / 1000.) - 1));
+		auto r = round(exp(idx / 1000.) - 1);
+		_log.info("Quantile {}'{}' {:02}%: {}", suffix, name, q, r);
+		field->set_name(std::to_string(q));
+		auto v = field->get_value().set_ivalue();
+		v.set_method(stat_scheme::Method::Max);
+		v.set_value(r);
+		field++;
 	}
+
+	tll_msg_t msg = {
+		.type = TLL_MESSAGE_DATA,
+		.msgid = data.meta_id(),
+		.data = data.view().data(),
+		.size = data.view().size(),
+	};
+	_callback_data(&msg);
 
 	if (!global)
 		bucket.reset();

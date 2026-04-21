@@ -25,6 +25,8 @@ mock:
 channel:
   url: 'quantile://;tll.channel.timer=timer;tll.channel.input=input'
   skip: 1
+  name: test
+  node: quantile
   quantile: '95,50,75'
 '''
 
@@ -36,7 +38,33 @@ channel:
     ci.post({'value': 4}, name='Data')
     mock.io('timer').post(b'')
 
+    m = await mock.channel.recv(0.001)
+    assert m.type == m.Type.Data
+    m = mock.channel.unpack(m)
+    assert m.node == "quantile"
+    assert m.name == "test/local/"
+    assert [f.name for f in m.fields] == ['95','75','50']
+    assert [f.value.ivalue.value for f in m.fields] == [4, 4, 4]
+
+    with pytest.raises(TimeoutError): await mock.channel.recv(0.001)
+
     for i in range(4, 0, -1):
         ci.post({'value': i}, name='Data')
 
     mock.io('timer').post(b'')
+
+    m = await mock.channel.recv(0.001)
+    assert m.type == m.Type.Data
+    m = mock.channel.unpack(m)
+    assert m.node == "quantile"
+    assert m.name == "test/local/"
+    assert [f.name for f in m.fields] == ['95','75','50']
+    assert [f.value.ivalue.value for f in m.fields] == [4, 3, 2]
+
+    m = await mock.channel.recv(0.001)
+    assert m.type == m.Type.Data
+    m = mock.channel.unpack(m)
+    assert m.node == "quantile"
+    assert m.name == "test/global/"
+    assert [f.name for f in m.fields] == ['95','75','50']
+    assert [f.value.ivalue.value for f in m.fields] == [4, 3, 2]
