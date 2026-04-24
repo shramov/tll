@@ -28,6 +28,8 @@ class Rate : public tll::channel::Prefix<Rate>
 	tll::util::PointerList<Rate> _notify;
 	size_t _notify_last = 0;
 
+	bool _child_full = false;
+
  public:
 	using Base = tll::channel::Prefix<Rate>;
 	static constexpr std::string_view channel_protocol() { return "rate+"; }
@@ -51,6 +53,7 @@ class Rate : public tll::channel::Prefix<Rate>
 
 	int _open(const tll::ConstConfig &cfg)
 	{
+		_child_full = false;
 		for (auto & b: _buckets)
 			b.reset();
 		if (_timer)
@@ -83,6 +86,7 @@ class Rate : public tll::channel::Prefix<Rate>
 	}
 
 	int _on_data(const tll_msg_t *);
+	int _on_other(const tll_msg_t *);
 
 	int _post(const tll_msg_t *msg, int flags);
 
