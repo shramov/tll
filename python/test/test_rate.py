@@ -324,3 +324,37 @@ watermark: 100b
     c.children[1].process()
     assert [(m.type, m.msgid) for m in c.result] == [(c.Type.Control, c.scheme_control['WriteReady'].msgid)]
     c.post(b'x' * 128)
+
+def test_child_full(context):
+    cfg = Config.load(
+f'''yamls://
+tll.proto: rate+direct
+name: rate
+dump: frame
+direct.dump: frame
+speed: 1kb
+max-window: 1kb
+initial: 1kb
+emulate-control: tcp-client
+''')
+    c = Accum(cfg, context=context)
+    s = Accum('direct://', master=c, context=context)
+
+    c.open()
+    s.open()
+    c.post(b'x' * 1024)
+    assert [(m.type, m.msgid) for m in c.result] == [(c.Type.Control, c.scheme_control['WriteFull'].msgid)]
+    c.result.clear()
+    s.post(b'', name='WriteFull', type=s.Type.Control)
+    assert [(m.type, m.msgid) for m in c.result] == []
+    s.post(b'', name='WriteReady', type=s.Type.Control)
+    assert [(m.type, m.msgid) for m in c.result] == []
+    s.post(b'', name='WriteFull', type=s.Type.Control)
+    assert [(m.type, m.msgid) for m in c.result] == []
+
+    time.sleep(0.01)
+    c.children[1].process()
+    assert [(m.type, m.msgid) for m in c.result] == []
+
+    s.post(b'', name='WriteReady', type=s.Type.Control)
+    assert [(m.type, m.msgid) for m in c.result] == [(c.Type.Control, c.scheme_control['WriteReady'].msgid)]
