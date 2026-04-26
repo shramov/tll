@@ -189,10 +189,9 @@ int Processor::init_one(PreObject &obj)
 	auto log = _log.prefix("{} {}:", "object", std::string_view(name)); // TODO: name is moved and left empty without std::string_view wrapper
 	log.debug("Init");
 
-	auto wname = std::string(obj.config.get("worker").value_or("default"));
-	auto w = init_worker(wname);
+	auto w = init_worker(obj.worker);
 	if (!w)
-		return log.fail(EINVAL, "Failed to init worker {}", wname);
+		return log.fail(EINVAL, "Failed to init worker {}", obj.worker);
 
 	if (!obj.url.has("fd") && !w->loop.poll_enable())
 		obj.url.set("fd", "no");
@@ -258,6 +257,7 @@ std::optional<Processor::PreObject> Processor::init_pre(std::string_view extname
 		.url = *url,
 		.config = cfg,
 		.name = name,
+		.worker = std::string(cfg.get("worker").value_or("default")),
 	};
 
 	auto deps = cfg.get("depends");
@@ -279,6 +279,7 @@ std::optional<Processor::PreObject> Processor::init_pre(std::string_view extname
 			if (n.size() == 0)
 				return log.fail(std::nullopt, "Empty channel in {}: '{}'", k, *deps);
 			obj.depends_init.list.emplace(n);
+			obj.channels.emplace(n);
 		}
 	}
 
@@ -355,6 +356,17 @@ int Processor::init_depends()
 		if (obj->disabled)
 			continue;
 		objects.emplace(obj->name, std::move(*obj));
+	}
+
+	for (auto & [_, o] : objects) {
+		for (auto c : o.channels) {
+			if (auto it = objects.find(c); it == objects.end()) {
+				return _log.fail(EINVAL, "Unknown channel '{}' (dependency of '{}')", c, o.name);
+			} else if (it->second.worker != o.worker) {
+				return _log.fail(EINVAL, "Worker mismatch: '{}' in '{}' depends on channel '{}' in '{}'",
+						o.name, o.worker, it->second.name, it->second.worker);
+			}
+		}
 	}
 
 	int max_depth = 0;

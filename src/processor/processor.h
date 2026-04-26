@@ -39,6 +39,8 @@ struct Processor : public tll::channel::Base<Processor>
 		tll::Channel::Url url;
 		tll::ConstConfig config;
 		std::string name;
+		std::string worker;
+		std::set<std::string> channels;
 
 		bool disabled = false;
 
