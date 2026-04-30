@@ -250,33 +250,32 @@ struct dump<std::pair<T, std::string_view>> : public to_string_from_string_buf<s
 
 namespace {
 template <typename T>
-std::pair<T, std::string_view> shorten_bytes(T v)
+std::pair<double, std::string_view> shorten_bytes(T v)
 {
 	if (v > 1024ll * 1024 * 1024 * 1000)
-		return {v / (1024 * 1024 * 1000), "gb"};
-	else if (v > 1024 * 1024 * 1000)
-		return {v / (1024 * 1024), "mb"};
-	else if (v > 1024 * 1000)
-		return {v / (1024), "kb"};
+		return {v / (1024. * 1024), "gb"};
+	else if (v > 1024 * 1024)
+		return {v / (1024. * 1024), "mb"};
+	else if (v > 1024)
+		return {v / (1024.), "kb"};
 	return {v, "b"};
 }
 
 template <typename T>
-std::pair<T, std::string_view> shorten_time(T v)
+std::pair<double, std::string_view> shorten_time(T v)
 {
-	if (v > 1000ll * 1000 * 1000 * 100)
-		return {v / (1000ll * 1000 * 1000) , "s"};
-	else if (v > 1000 * 1000 * 1000)
-		return {v / (1000 * 1000), "ms"};
+	if (v > 1000ll * 1000 * 1000)
+		return {v / (1000. * 1000 * 1000) , "s"};
 	else if (v > 1000 * 1000)
-		return {v / (1000), "us"};
+		return {v / (1000. * 1000), "ms"};
+	else if (v > 1000)
+		return {v / (1000.), "us"};
 	return {v, "ns"};
 }
 
-template <typename T>
-std::string format_field(std::string_view name, std::string_view suffix, std::pair<T, std::string_view> v)
+std::string format_field(std::string_view name, std::string_view suffix, std::pair<double, std::string_view> v)
 {
-	return fmt::format("{}/{}: {}{}", name, suffix, v.first, v.second);
+	return fmt::format("{}/{}: {:.3f}{}", name, suffix, v.first, v.second);
 }
 }
 
