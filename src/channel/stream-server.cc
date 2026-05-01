@@ -15,7 +15,7 @@
 #include "tll/scheme/merge.h"
 #include "tll/util/size.h"
 
-#include <sys/fcntl.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 using namespace tll;

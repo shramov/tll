@@ -10,7 +10,7 @@
 
 #include "tll/util/scoped_fd.h"
 
-#include <sys/fcntl.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 using namespace tll::channel;
