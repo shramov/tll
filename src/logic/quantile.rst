@@ -131,4 +131,3 @@ See also
 
 ..
     vim: sts=4 sw=4 et tw=100
-
