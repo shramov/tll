@@ -33,8 +33,13 @@ include = include_directories('src')
 
 rst2man = find_program('rst2man', disabler: true, required: false)
 
+python = import('python').find_installation('python3')
+
 subdir('src')
-subdir('python')
+
+if python.dependency(required: get_option('with_cython_build')).found()
+  subdir('python')
+endif
 
 gtest = dependency('gtest', required: get_option('with_gtest'), disabler: true)
 if not get_option('with_gtest').disabled() and gtest.found()

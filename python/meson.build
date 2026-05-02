@@ -1,5 +1,4 @@
 cython = find_program('cython3', 'cython') # On FreeBSD it's cython, not cython3
-python = import('python').find_installation('python3')
 pydep = python.dependency()
 
 cython_gen = generator(cython, output: '@BASENAME@.c', arguments: ['@INPUT@', '@EXTRA_ARGS@', '-o', '@OUTPUT@']) #, '-I', meson.current_source_dir()])

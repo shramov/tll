@@ -1,5 +1,3 @@
-python = import('python').find_installation('python3')
-
 generated128 = custom_target('generated.h',
     output : 'test_generated128.h',
     input : '../python/test/decimal128.yaml',
