@@ -98,7 +98,6 @@ public:
 
 		tll::Channel::Url curl = url.copy();
 		curl.proto(proto.substr(sep + 1));
-		curl.host(url.host());
 		this->child_url_fill(curl, pproto);
 
 		for (auto &k : std::vector<std::string_view> { "dump", "stat" }) {
