@@ -21,7 +21,7 @@ def server(asyncloop, tmp_path):
 
 @pytest.fixture
 def client(asyncloop, tmp_path):
-    c = asyncloop.Channel(f'pub+tcp:///{tmp_path}/pub.sock', mode='client', name='client', dump='frame')
+    c = asyncloop.Channel(f'pub+tcp:///{tmp_path}/pub.sock', mode='client', name='client', dump='frame', **{'recv-buffer-size': '64kb'})
     yield c
     c.free()
 

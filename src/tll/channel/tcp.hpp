@@ -397,7 +397,7 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_settings.sndbuf = reader.getT("sndbuf", util::Size { 0 });
 	_settings.rcvbuf = reader.getT("rcvbuf", util::Size { 0 });
 	{
-		size = reader.getT("buffer-size", size);
+		size = reader.getT("buffer-size", util::Size { 2 * size });
 		_settings.snd_buffer_size = reader.getT("send-buffer-size", size);
 		_settings.rcv_buffer_size = reader.getT("recv-buffer-size", size);
 	}
@@ -620,7 +620,7 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	_settings.rcvbuf = reader.getT("rcvbuf", util::Size { 0 });
 	{
 		auto size = reader.getT("max-size", util::Size { 64 * 1024 });
-		size = reader.getT("buffer-size", 2 * size);
+		size = reader.getT("buffer-size", util::Size { 2 * size });
 		_settings.snd_buffer_size = reader.getT("send-buffer-size", size);
 		_settings.rcv_buffer_size = reader.getT("recv-buffer-size", size);
 	}
