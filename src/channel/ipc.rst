@@ -29,7 +29,7 @@ Init parameters
 
 Client and server modes are distinguished by ``master`` parameter: without master server is created,
 otherwise client for specified master. Client has no configurable parameters (other then common like
-``dump`` or ``scheme``).
+``dump`` or ``scheme``). If client has no ``scheme`` parameter then it is inherited from master.
 
 ``broadcast=<bool>``, default ``false``: treat zero address as broadcast and send message to all
 connected clients
