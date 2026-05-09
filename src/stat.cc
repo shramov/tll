@@ -137,7 +137,10 @@ tll_stat_block_t * tll_stat_iter_block(tll_stat_iter_t *i)
 
 const char * tll_stat_iter_name(tll_stat_iter_t *i)
 {
-	if (!i || !i->block) return nullptr;
+	if (!i) return nullptr;
+
+	std::lock_guard<std::mutex> l(i->lock);
+	if (!i->block) return nullptr;
 	if (i->cached != i->block)
 		i->update();
 

@@ -8,9 +8,12 @@
 #include "gtest/gtest.h"
 #include "fmt/format.h"
 
+#include "tll/compat/jthread.h"
 #include "tll/stat.h"
 
 #include "test_compat.h"
+
+#include <list>
 
 template <typename T>
 class StatT : public ::testing::Test {};
@@ -171,4 +174,54 @@ TEST(Stat, List)
 	ASSERT_EQ(page->size, b.inactive->size);
 
 	ASSERT_EQ(*++it, nullptr);
+}
+
+void stat_thread(std::stop_token stop, tll::stat::List list, unsigned idx, size_t count, std::atomic<int> *active)
+{
+	std::unique_ptr<tll::stat::Block<Data>> block;
+	std::string name = fmt::format("stat-{}", idx);
+	while (count--) {
+		if (stop.stop_requested()) break;
+		block.reset(new tll::stat::Block<Data>(name));
+		list.add(block.get());
+		for (auto i = 0u; i < 1000 + 100 * idx; i++) {
+			if (auto p = block->acquire(); p) {
+				p->rsum = 1;
+				p->rmax = idx;
+				block->release(p);
+			}
+		}
+		list.remove(block.get());
+	}
+	*active -= 1;
+}
+
+TEST(Stat, ListRace)
+{
+	tll::stat::OwnedList list;
+	std::list<std::jthread> threads;
+	size_t count = 10000;
+	std::atomic<int> active = 0;
+	for (auto i = 0u; i < 8; i++) {
+		active++;
+		threads.emplace_back(stat_thread, tll::stat::List { list }, i, count, &active);
+	}
+
+	while (active.load(std::memory_order_relaxed)) {
+		for (auto it : list) {
+			auto name = tll_stat_iter_name(it);
+			if (name == nullptr)
+				continue;
+			auto page = tll_stat_iter_swap(it);
+			if (!page)
+				continue;
+			auto data = (Data *) page->fields;
+			auto idx = data->rmax.value();
+			if (idx == tll::stat::default_value<tll_stat_int_t>(tll::stat::Max))
+				continue;
+			ASSERT_EQ(std::string_view(name), fmt::format("stat-{}", idx));
+		}
+	}
+
+	threads.clear();
 }
