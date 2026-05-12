@@ -100,8 +100,9 @@ int Event<T, Base>::_event_clear_nocheck()
 #ifdef __linux__
 	int64_t w = 1;
 	if (read(this->fd(), &w, sizeof(w)) != sizeof(w)) {
-		//if (errno == EAGAIN) // Data landed before event notification received?
-		//	return 0;
+		// Data landed before event notification received?
+		if (this->channelT()->event_clear_policy() == EventClearPolicy::Relaxed && errno == EAGAIN)
+			return 0;
 		return this->_log.fail(EINVAL, "Failed to read from eventfd: {}", strerror(errno));
 	}
 #endif

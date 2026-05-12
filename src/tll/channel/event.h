@@ -31,6 +31,8 @@ class Event : public Base
 
  public:
 	static constexpr auto process_policy() { return Base::ProcessPolicy::Normal; }
+	enum class EventClearPolicy { Strict, Relaxed };
+	static constexpr auto event_clear_policy() { return EventClearPolicy::Strict; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::ConstConfig &);
