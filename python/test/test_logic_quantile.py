@@ -43,8 +43,8 @@ channel:
     m = mock.channel.unpack(m)
     assert m.node == "quantile"
     assert m.name == "test/local/"
-    assert [f.name for f in m.fields] == ['95','75','50']
-    assert [f.value.ivalue.value for f in m.fields] == [4, 4, 4]
+    assert [f.name for f in m.fields] == ['95','75','50', 'qcount', 'qsum']
+    assert [f.value.ivalue.value for f in m.fields] == [4, 4, 4, 1, 4]
 
     with pytest.raises(TimeoutError): await mock.channel.recv(0.001)
 
@@ -58,13 +58,13 @@ channel:
     m = mock.channel.unpack(m)
     assert m.node == "quantile"
     assert m.name == "test/local/"
-    assert [f.name for f in m.fields] == ['95','75','50']
-    assert [f.value.ivalue.value for f in m.fields] == [4, 3, 2]
+    assert [f.name for f in m.fields] == ['95','75','50', 'qcount', 'qsum']
+    assert [f.value.ivalue.value for f in m.fields] == [4, 3, 2, 4, 10]
 
     m = await mock.channel.recv(0.001)
     assert m.type == m.Type.Data
     m = mock.channel.unpack(m)
     assert m.node == "quantile"
     assert m.name == "test/global/"
-    assert [f.name for f in m.fields] == ['95','75','50']
-    assert [f.value.ivalue.value for f in m.fields] == [4, 3, 2]
+    assert [f.name for f in m.fields] == ['95','75','50', 'qcount', 'qsum']
+    assert [f.value.ivalue.value for f in m.fields] == [4, 3, 2, 4, 10]

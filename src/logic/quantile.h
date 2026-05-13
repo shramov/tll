@@ -22,17 +22,20 @@ class Quantile : public tll::channel::Tagged<Quantile, Input, Timer>
 	struct Bucket
 	{
 		long count = 0;
+		long long sum = 0;
 		std::vector<unsigned> data;
 
 		void reset()
 		{
 			count = 0;
+			sum = 0;
 			data.resize(0);
 		}
 
-		void push(size_t idx)
+		void push(size_t idx, long value)
 		{
 			count++;
+			sum += value;
 			if (data.size() < idx + 1)
 				data.resize(idx + 1);
 			data[idx]++;

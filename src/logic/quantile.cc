@@ -68,10 +68,10 @@ int Quantile::callback_tag(TaggedChannel<Input> * c, const tll_msg_t *msg)
 	auto & bucket = it->second;
 	unsigned idx = 1000 * log(value + 1);
 	if (bucket.global.count >= 0)
-		bucket.global.push(idx);
+		bucket.global.push(idx, value);
 	else
 		bucket.global.count++;
-	bucket.local.push(idx);
+	bucket.local.push(idx, value);
 	return 0;
 }
 
@@ -100,7 +100,7 @@ int Quantile::_report(std::string_view name, Quantile::Bucket &bucket, bool glob
 	data.set_node(_node);
 	data.set_name(fmt::format("{}/{}/{}", this->name, global ? "global" : "local", name));
 	auto fields = data.get_fields();
-	fields.resize(_quantiles.size());
+	fields.resize(_quantiles.size() + 2);
 
 	auto it = bucket.data.rbegin();
 	while (*it == 0)
@@ -125,6 +125,19 @@ int Quantile::_report(std::string_view name, Quantile::Bucket &bucket, bool glob
 		v.set_method(stat_scheme::Method::Max);
 		v.set_value(r);
 		field++;
+	}
+	{
+		field->set_name("qcount");
+		auto v = field->get_value().set_ivalue();
+		v.set_method(stat_scheme::Method::Sum);
+		v.set_value(bucket.count);
+		field++;
+	}
+	{
+		field->set_name("qsum");
+		auto v = field->get_value().set_ivalue();
+		v.set_method(stat_scheme::Method::Sum);
+		v.set_value(bucket.sum);
 	}
 
 	tll_msg_t msg = {
