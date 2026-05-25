@@ -166,9 +166,12 @@ int Control::_init(const tll::Channel::Url &url, tll::Channel * master)
 	if (auto l = _channels.get<Uplink>(); l.size() > 0)
 		_uplink = l.front().first;
 
+	if (auto r = url.getT("service-tags", std::vector<std::string>()); r)
+		_service_tags = *r;
+	else
+		return _log.fail(EINVAL, "Invalid parameter service-tags: {}", r.error());
 	auto reader = channel_props_reader(url);
 	_service = reader.getT<std::string>("service", "");
-	_service_tags = reader.getT("service-tags", std::vector<std::string>());
 	_async_config_dump = reader.getT("async-config-dump", true);
 	_hostname = reader.getT<std::string>("hostname", "");
 	if (resolve && _service.empty())

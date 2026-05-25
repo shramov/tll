@@ -68,7 +68,9 @@ async def test_uplink(asyncloop, path_srcdir):
 mock:
   processor: direct://;scheme=yaml://{scheme}
   uplink: direct://;scheme=yaml://{scheme}
-channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;name=logic;service=service-name;hostname=host-name;service-tags=t0,t1
+channel:
+  url: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;name=logic;service=service-name;hostname=host-name
+  service-tags: [t0, t1]
 ''')
 
     mock.open(skip=['uplink'])
