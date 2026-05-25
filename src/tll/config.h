@@ -592,6 +592,31 @@ struct ConfigGet<ConfigUrl>
 	}
 };
 
+template <>
+struct ConfigGet<std::vector<std::string>>
+{
+	static result_t<std::optional<std::vector<std::string>>> getT(const ConstConfig& cfg, std::string_view key)
+	{
+		auto sub = cfg.sub(key);
+		if (!sub)
+			return std::nullopt;
+		if (auto v = sub->get(); v) {
+			if (v->empty())
+				return std::nullopt;
+			if (auto r = tll::conv::to_any<std::vector<std::string>>(*v); r)
+				return *r;
+			else
+				return error(fmt::format("Invalid list '{}': {}", *v, r.error()));
+		}
+		std::vector<std::string> r;
+		for (auto [_, c]: sub->browse("*")) {
+			if (auto v = c.get(); v)
+				r.emplace_back(*v);
+		}
+		return r;
+	}
+};
+
 template <bool Const>
 template <typename T>
 result_t<T> ConfigT<Const>::getT(std::string_view key) const
