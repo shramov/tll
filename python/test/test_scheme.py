@@ -603,7 +603,7 @@ def _test_bits(scheme):
 
     assert i8.name == 'i8'
     assert i8.type == msg['i8'].Type.Int8
-    assert [(x.name, x.offset, x.size) for x in i8.values()] == [('a', 0, 1), ('b', 2, 1), ('c', 3, 1)]
+    assert [(x.name, x.offset, x.size) for x in i8.values()] == [('a', 0, 1), ('b', 2, 2), ('c', 4, 1)]
     assert u32.name == 'u32'
     assert u32.type == msg['u32'].Type.UInt32
     assert [(x.name, x.offset, x.size) for x in u32.values()] == [('c', 0, 1), ('d', 1, 1), ('e', 2, 1)]
@@ -612,25 +612,28 @@ def _test_bits(scheme):
     assert str(m.i8) == '{}'
     m.i8.a = 1
     assert str(m.i8) == '{a}'
-    m.i8.b = 0
+    m.i8.b = 0b10
     m.i8.c = 1
-    assert str(m.i8) == '{a, c}'
+    assert str(m.i8) == '{a, b, c}'
     m.i8 = 'b'
+    assert m.i8.b == 0b11
     assert str(m.i8) == '{b}'
-    m.i8 = ' { c , c  , a } '
-    assert str(m.i8) == '{a, c}'
+    m.i8 = ' { b , b  , a } '
+    assert str(m.i8) == '{a, b}'
+    assert m.i8._value == 0b1101
+
+    m.i8.b = 0b10
+
     m.u32.d = 1
 
-    assert m.i8._value == 9
-
     assert m.i8.a == True
-    assert m.i8.b == False
-    assert m.i8.c == True
+    assert m.i8.b == 0b10
+    assert m.i8.c == False
     assert m.u32.c == False
     assert m.u32.d == True
     assert m.u32.e == False
 
-    assert m.as_dict() == {'i8': {'a': True, 'b': False, 'c': True}, 'u32': {'c': False, 'd': True, 'e': False}}
+    assert m.as_dict() == {'i8': {'a': True, 'b': 0b10, 'c': False}, 'u32': {'c': False, 'd': True, 'e': False}}
 
     u = msg.unpack(memoryview(m.pack()))
     assert u.as_dict() == m.as_dict()
@@ -640,8 +643,8 @@ def _test_bits(scheme):
     assert m1.pack() == m.pack()
 
     assert u.i8.a == True
-    assert u.i8.b == False
-    assert u.i8.c == True
+    assert u.i8.b == 0b10
+    assert u.i8.c == False
     assert u.u32.c == False
     assert u.u32.d == True
     assert u.u32.e == False
@@ -663,7 +666,7 @@ def test_bits_inline():
     """yamls://
 - name: msg
   fields:
-    - {name: i8, type: int8, options.type: bits, bits: [a, {name: b, offset: 2, size: 1}, c]}
+    - {name: i8, type: int8, options.type: bits, bits: [a, {name: b, offset: 2, size: 2}, c]}
     - {name: u32, type: uint32, options.type: bits, bits: [c, d, e]}
 """)
 
@@ -672,7 +675,7 @@ def test_bits():
     """yamls://
 - name:
   bits:
-    i8: {type: int8, options.type: bits, bits: [a, {name: b, offset: 2, size: 1}, c]}
+    i8: {type: int8, options.type: bits, bits: [a, {name: b, offset: 2, size: 2}, c]}
 - name: msg
   bits:
     u32: {type: uint32, options.type: bits, bits: [c, d, e]}

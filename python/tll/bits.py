@@ -4,16 +4,22 @@
 from operator import attrgetter
 
 class BitField:
-    __slots__ = ['name', 'size', 'offset']
+    __slots__ = ['name', 'size', 'offset', 'mask']
     def __init__(self, name, size, offset):
         self.name, self.size, self.offset = name, size, offset
+        self.mask = (1 << size) - 1
 
     def get(self, obj):
-        return bool(obj._value & (1 << self.offset))
+        if self.mask == 1:
+            return bool(obj._value & (1 << self.offset))
+        return (obj._value >> self.offset) & self.mask
 
     def set(self, obj, v):
-        v = 1 if v else 0
-        old = (obj._value & (1 << self.offset))
+        if self.mask == 1:
+            v = 1 if v else 0
+        else:
+            v = v & self.mask
+        old = (obj._value & (self.mask << self.offset))
         obj._value ^= old ^ (v << self.offset)
 
 class Bits(object):
@@ -28,8 +34,7 @@ class Bits(object):
         elif isinstance(value, dict):
             self._value = 0
             for k,v in value.items():
-                if v:
-                    self.BITS[k].set(self, 1)
+                self.BITS[k].set(self, v)
         elif isinstance(value, Bits):
             self._value = value._value
         else:
@@ -60,7 +65,7 @@ def from_str(obj, s):
         b = obj.BITS.get(n)
         if b is None:
             raise ValueError(f"Unknown bit name {n}")
-        b.set(r, 1)
+        b.set(r, b.mask)
     return r
 
 def fill_properties(cls):
