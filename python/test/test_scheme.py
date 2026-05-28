@@ -608,6 +608,10 @@ def _test_bits(scheme):
     assert u32.type == msg['u32'].Type.UInt32
     assert [(x.name, x.offset, x.size) for x in u32.values()] == [('c', 0, 1), ('d', 1, 1), ('e', 2, 1)]
 
+    m = msg.object(i8 = 0)
+    assert m.i8.a == False
+    assert m.u32.c == False
+
     m = msg.object(i8 = 0, u32 = 0)
     assert str(m.i8) == '{}'
     m.i8.a = 1

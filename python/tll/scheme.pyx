@@ -1095,13 +1095,10 @@ class Data(object):
             for k,v in kw.items():
                 setattr(self, k, v)
                 keys.add(k)
-        for f in self.SCHEME.fields_init:
+        for f,v in self.SCHEME.fields_init:
             if f.name in keys:
                 continue
-            if f.type == Type.Message:
-                setattr(self, f.name, {})
-            elif f.type in (Type.Array, Type.Pointer):
-                setattr(self, f.name, [])
+            setattr(self, f.name, v)
 
     def pack(self):
         tail = bytearray()
@@ -1272,10 +1269,13 @@ cdef object message_wrap(Scheme s, tll_scheme_message_t * ptr):
         if tmp.optional:
             pass
         elif tmp.type == Type.Message:
-            r.fields_init.append(tmp)
+            r.fields_init.append((tmp, {}))
         elif tmp.type in (Type.Array, Type.Pointer):
             if tmp.sub_type != SubType.ByteString:
-                r.fields_init.append(tmp)
+                r.fields_init.append((tmp, []))
+        elif tmp.sub_type == SubType.Bits:
+            r.fields_init.append((tmp, 0))
+
     r.fields = list(r.values())
 
     class D(Data):
