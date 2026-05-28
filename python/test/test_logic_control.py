@@ -196,7 +196,7 @@ channel:
   url: control://;tll.channel.processor=processor;tll.channel.resolve=resolve;name=logic
   service: test
   hostname: ::1
-  service-tags: 'a,b'
+  control.service-tags: 'a,b'
 ''')
 
     mock.open(skip=['resolve'])
