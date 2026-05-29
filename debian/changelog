@@ -1,3 +1,35 @@
+tll (0.4.10) unstable; urgency=medium
+
+  * async: Channel with thread-safe post
+  * binder: Reclaim unused space if possible
+  * channel:
+    Check that logger field is filled in internal structure
+    Use portable fcntl.h include path
+  * config: GetT specialization for vector<string>
+  * control: Support lists for service-tags
+  * event:
+    Call base open when fd is disabled
+    Do not complain on EAGAIN in relaxed mode
+  * ipc: Clarify in docs that scheme is inherited from master
+  * prefix: Do not overwrite host
+  * processor: Check that logic and channels are in the same worker
+  * python:
+    Initialize bit fields in empty message
+    Support wide bit fields
+  * quantile:
+    Generate stat-like messages
+    Include count/max in stat message
+  * rate: Handle full/ready states from child channel
+  * stat:
+    Fix race on block deletion
+    Make logs more human-friendly
+  * tcp:
+    Buffer messages before sending with More post flag
+    Fix incorrect buffer-size parameter parsing
+  * util: Delete data that is not read from MarkerQueue
+
+ -- Pavel Shramov <shramov@mexmat.net>  Fri, 29 May 2026 16:53:45 +0300
+
 tll (0.4.9) unstable; urgency=medium
 
   * stream: Fix parsing of seq when opening with mode=initial
