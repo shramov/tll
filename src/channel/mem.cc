@@ -83,13 +83,14 @@ class Mem : public tll::channel::Event<Mem<F>>
 
  public:
 	static constexpr std::string_view channel_protocol() { return "mem"; }
+	static constexpr auto process_api_version() { return Base::ProcessAPI::Void; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::ConstConfig &);
 	int _close();
 	void _free();
 
-	int _process(long timeout, int flags);
+	int _process();
 	int _post(const tll_msg_t *msg, int flags);
 };
 
@@ -220,7 +221,7 @@ int Mem<F>::_post(const tll_msg_t *msg, int flags)
 }
 
 template <typename F>
-int Mem<F>::_process(long timeout, int flags)
+int Mem<F>::_process()
 {
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	Frame * frame;

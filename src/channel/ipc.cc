@@ -85,7 +85,7 @@ int ChIpc::_post_nocheck(const tll_msg_t *msg, int flags)
 	return 0;
 }
 
-int ChIpc::_process(long timeout, int flags)
+int ChIpc::_process()
 {
 	auto ref = _queue;
 	auto msg = _queue->server.pop();
@@ -153,7 +153,7 @@ int ChIpcServer::_post(const tll_msg_t *msg, int flags)
 	return 0;
 }
 
-int ChIpcServer::_process(long timeout, int flags)
+int ChIpcServer::_process()
 {
 	auto markers = _markers;
 	auto q = markers->pop();

@@ -145,7 +145,7 @@ int ChPubClient::_process_data()
 	return _process_pending();
 }
 
-int ChPubClient::_process(long timeout, int flags)
+int ChPubClient::_process()
 {
 	if (state() == state::Opening) {
 		if (_state == Closed) {

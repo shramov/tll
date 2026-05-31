@@ -50,13 +50,14 @@ class ChIpc : public tll::channel::Event<ChIpc>
 
  public:
 	static constexpr std::string_view channel_protocol() { return "ipc"; }
+	static constexpr auto process_api_version() { return Base::ProcessAPI::Void; }
 
 	std::optional<const tll_channel_impl_t *> _init_replace(const tll::Channel::Url &url, tll::Channel *master);
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::ConstConfig &);
 	int _close();
 
-	int _process(long timeout, int flags);
+	int _process();
 	int _post(const tll_msg_t *msg, int flags)
 	{
 		if (msg->type != TLL_MESSAGE_DATA)
@@ -87,13 +88,14 @@ class ChIpcServer : public tll::channel::Event<ChIpcServer>
  public:
 	static constexpr std::string_view channel_protocol() { return "ipc"; }
 	static constexpr std::string_view scheme_control_string();
+	static constexpr auto process_api_version() { return Base::ProcessAPI::Void; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 
 	int _open(const tll::ConstConfig &);
 	int _close();
 
-	int _process(long timeout, int flags);
+	int _process();
 	int _post(const tll_msg_t *msg, int flags);
 
 	tll_addr_t addr() { return tll_addr_t { ++_addr }; }

@@ -26,6 +26,7 @@ class ChPubClient : public tll::channel::LastSeqRx<ChPubClient, tll::channel::Tc
 	static constexpr std::string_view channel_protocol() { return "pub"; }
 
 	static constexpr auto readwrite_policy() { return ReadWritePolicy::ReadOnly; }
+	static constexpr auto process_api_version() { return Base::ProcessAPI::Void; }
 
 	int _init(const tll::Channel::Url &url, tll::Channel *master);
 
@@ -37,7 +38,7 @@ class ChPubClient : public tll::channel::LastSeqRx<ChPubClient, tll::channel::Tc
 	}
 
 	int _post(const tll_msg_t *msg, int flags) { return ENOTSUP; }
-	int _process(long timeout, int flags);
+	int _process();
 
 	int _on_connect()
 	{
