@@ -34,7 +34,7 @@ read mode.
 
 ``filename-key={first|last}`` (default ``first``) - use first or last file seq number in the name.
 
-``convert=<bool>`` (default ``false``) - reader only, convert messages to common data scheme,
+``convert=<bool>`` (default ``true``) - reader only, convert messages to common data scheme,
 obtained from the last file or from init parameters.
 
 ``autoseq=<bool>`` (default ``false``) - writer only, enable automatic message sequence numbers
