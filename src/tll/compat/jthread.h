@@ -4,21 +4,22 @@
 #ifndef _TLL_COMPAT_JTHREAD_H
 #define _TLL_COMPAT_JTHREAD_H
 
+#include <atomic>
 #include <thread>
 
 namespace tll::compat {
 
 struct stop_token
 {
-	bool * _source = nullptr;
+	std::atomic_bool * _source = nullptr;
 
-	constexpr bool stop_requested() const { return !_source || *_source; }
+	constexpr bool stop_requested() const { return !_source || _source->load(std::memory_order_consume); }
 };
 
 struct jthread
 {
+	std::atomic_bool _stop { false };
 	std::thread _thread;
-	bool _stop = false;
 
 	jthread() = delete;
 	jthread(const jthread &) = delete;
@@ -32,7 +33,7 @@ struct jthread
 
 	~jthread()
 	{
-		_stop = true;
+		_stop.store(true, std::memory_order_release);
 		_thread.join();
 	}
 };
