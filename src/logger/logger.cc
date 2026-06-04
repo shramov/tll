@@ -55,6 +55,7 @@ struct logger_context_t
 
 	std::unique_ptr<Thread> _thread;
 
+	std::mutex _loggers_lock;
 	std::map<std::string_view, Logger *, std::less<>> _loggers;
 	std::map<std::string, tll_logger_level_t, std::less<>> _levels_prefix;
 	std::map<std::string, tll_logger_level_t, std::less<>> _levels;
@@ -90,7 +91,7 @@ struct logger_context_t
 	Logger * init(std::string_view name)
 	{
 		{
-			rlock_t lck(lock);
+			std::lock_guard<std::mutex> lock(_loggers_lock);
 			auto it = _loggers.find(name);
 			if (it != _loggers.end())
 				return it->second->ref();
@@ -124,11 +125,13 @@ struct logger_context_t
 		}
 
 		{
-			wlock_t lck(lock);
+			std::unique_lock<std::mutex> lock(_loggers_lock);
 			auto r = _loggers.emplace(l->name, l);
 			if (!r.second) {
-				delete l;
-				return r.first->second->ref();
+				auto ref = r.first->second->ref();
+				lock.unlock();
+				delete l; // Delete without lock
+				return ref;
 			}
 		}
 
@@ -137,15 +140,13 @@ struct logger_context_t
 
 	void free(Logger * log)
 	{
-		//printf("Del logger %s %p\n", log->name.c_str(), log);
-
 		{
-			wlock_t l(lock);
-			if (log->refcnt() != 0) return;
+			std::lock_guard<std::mutex> lock(_loggers_lock);
+			log->unref();
+			if (log->refcnt() != 0)
+				return;
 
-			auto it = _loggers.find(log->name);
-			if (it != _loggers.end())
-				_loggers.erase(it);
+			_loggers.erase(log->name);
 		}
 
 		log->impl.reset(nullptr);
@@ -294,11 +295,6 @@ struct logger_context_t
 
 tll_logger_impl_t logger_context_t::stdio = { logger_context_t::stdio_log };
 
-void Logger::destroy()
-{
-	context.free(this);
-}
-
 } // namespace tll::logger
 
 tll_logger_t * tll_logger_new(const char * name, int len)
@@ -315,7 +311,7 @@ tll_logger_t * tll_logger_copy(const tll_logger_t * log)
 void tll_logger_free(tll_logger_t * log)
 {
 	if (!log) return;
-	static_cast<tll::logger::Logger *>(log)->unref();
+	tll::logger::context.free(static_cast<tll::logger::Logger *>(log));
 }
 
 int tll_logger_config(const struct tll_config_t * _cfg)

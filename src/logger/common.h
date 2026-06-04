@@ -30,7 +30,7 @@ struct tll_logger_obj_t : tll::util::refbase_t<tll_logger_obj_t, 0>
 
 struct Logger : public tll_logger_t, public tll::util::refbase_t<Logger>
 {
-	void destroy();
+	void destroy() {}
 
 	std::mutex lock;
 	std::string name;

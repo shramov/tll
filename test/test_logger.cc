@@ -7,6 +7,7 @@
 
 #include "gtest/gtest.h"
 
+#include "tll/compat/jthread.h"
 #include "tll/config.h"
 #include "tll/logger.h"
 #include "tll/logger/impl.h"
@@ -324,4 +325,32 @@ TEST(Logger, Thread)
 
 	tlog = tll::Logger("l0"); // Drop thread logger, check for leaks
 	ASSERT_EQ(impl.map.size(), 1);
+}
+
+void logger_race_thread(std::stop_token stop, std::string_view name, size_t count, std::atomic<int> &active)
+{
+	while (count-- && !stop.stop_requested()) {
+		tll::Logger log(name);
+		log.trace("Message");
+	}
+	active--;
+}
+
+TEST(Logger, DestroyRace)
+{
+	std::list<std::jthread> threads;
+	size_t count = 1000;
+	std::string_view name = "test.logger.race";
+	std::atomic<int> active = 0;
+	for (auto i = 0u; i < 8; i++) {
+		active++;
+		threads.emplace_back(logger_race_thread, name, count, std::ref(active));
+	}
+
+	while (active) {
+		tll::Logger log(name);
+		log.trace("Message");
+	}
+
+	threads.clear();
 }
