@@ -128,3 +128,59 @@ channel: stat://;tll.channel.timer=timer;node=test-node
     assert msg.time.datetime - now < datetime.timedelta(milliseconds=100)
     assert [f.name for f in msg.fields] == ['float']
     assert msg.fields[0].as_dict() == {'name': 'float', 'unit': Unit.Unknown, 'value': {'fgroup': {'count': 1, 'min': 1.5, 'max': 1.5, 'avg': 1.5}}}
+
+@asyncloop_run
+async def test_blocked(asyncloop, context):
+    class Stat(S.Base):
+        FIELDS = [S.Integer('field', S.Method.Sum)]
+
+    normal = Stat('normal')
+    busy = Stat('busy')
+    context.stat_list.add(busy)
+    context.stat_list.add(normal)
+
+    mock = Mock(asyncloop, f'''yamls://
+mock:
+  timer: direct://
+channel: stat://;tll.channel.timer=timer;node=test-node
+''')
+
+    mock.open()
+
+    timer = mock.io('timer')
+    stat = mock.channel
+
+    normal.update(field=10)
+    busy.update(field=20)
+
+    now = datetime.datetime.now()
+    with busy._block:
+        timer.post(b'')
+
+    Unit = stat.scheme.enums['Unit'].klass
+    Method = stat.scheme.enums['Method'].klass
+
+    msg = stat.unpack(await stat.recv())
+    assert msg.name == 'normal'
+    assert msg.time.datetime - now < datetime.timedelta(milliseconds=100)
+    assert msg.fields.as_dict() == [{'name': 'field', 'unit': Unit.Unknown, 'value': {'ivalue': {'method': Method.Sum, 'value': 10}}}]
+
+    with pytest.raises(TimeoutError): await stat.recv(0.001)
+
+    normal.update(field=11)
+    busy.update(field=21)
+
+    now = datetime.datetime.now()
+    timer.post(b'')
+
+    msg = stat.unpack(await stat.recv())
+    assert msg.name == 'normal'
+    assert msg.time.datetime - now < datetime.timedelta(milliseconds=100)
+    assert msg.fields.as_dict() == [{'name': 'field', 'unit': Unit.Unknown, 'value': {'ivalue': {'method': Method.Sum, 'value': 11}}}]
+
+    msg = stat.unpack(await stat.recv())
+    assert msg.name == 'busy'
+    assert msg.time.datetime - now < datetime.timedelta(milliseconds=100)
+    assert msg.fields.as_dict() == [{'name': 'field', 'unit': Unit.Unknown, 'value': {'ivalue': {'method': Method.Sum, 'value': 41}}}]
+
+    with pytest.raises(TimeoutError): await stat.recv(0.001)

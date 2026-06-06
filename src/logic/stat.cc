@@ -17,6 +17,7 @@
 #include "logic/quantile.h"
 
 #include <regex>
+#include <thread>
 
 class Stat : public tll::LogicBase<Stat>
 {
@@ -125,6 +126,7 @@ int Stat::logic(const tll::Channel * c, const tll_msg_t *msg)
 
 int Stat::_dump(tll_stat_iter_t * iter)
 {
+	using namespace std::chrono_literals;
 	if (tll_stat_iter_empty(iter)) return 0;
 	std::string name(tll_stat_iter_name(iter));
 
@@ -148,10 +150,19 @@ int Stat::_dump(tll_stat_iter_t * iter)
 		log = &_log;
 	}
 
+	auto now = tll::time::now();
 	auto page = tll_stat_iter_swap(iter);
+	uint8_t swap_count = 0u;
 	while (page == nullptr) {
 		if (tll_stat_iter_empty(iter)) return 0;
 		page = tll_stat_iter_swap(iter);
+		if (++swap_count != 0)
+			continue;
+		if (tll::time::now() - now > 1ms) {
+			_log.warning("Can not swap page '{}', skip", name);
+			return 0;
+		}
+		std::this_thread::yield();
 	}
 
 	auto data = stat_scheme::Page::bind(_buf);
@@ -160,7 +171,7 @@ int Stat::_dump(tll_stat_iter_t * iter)
 	if (_node.size())
 		data.set_node(_node);
 	data.set_name(name);
-	data.set_time(tll::time::now());
+	data.set_time(now);
 	auto fields = data.get_fields();
 	fields.resize(page->size);
 	auto size = 0;

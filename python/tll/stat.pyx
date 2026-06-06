@@ -136,16 +136,13 @@ cdef class Block:
         return b
 
     def __enter__(self):
-        return self.acquire()
+        cdef tll_stat_page_t * page = tll_stat_page_acquire(self.ptr)
+        if page == NULL:
+            raise RuntimeError("Failed to acquire busy page")
+        return Page.wrap(page)
 
-    def __exit__(self):
-        return self.release()
-
-    def acquire(self):
-        return Page.wrap(tll_stat_page_acquire(self.ptr))
-
-    def release(self):
-        tll_stat_page_release(self.ptr, NULL)
+    def __exit__(self, exc_type, exc_value, traceback):
+        tll_stat_page_release(self.ptr, self.ptr.active)
 
 def Integer(name, method=Method.Sum, unit=Unit.Unknown, alias=None):
     return {'name':name, 'method':method, 'unit':unit, 'type':int, 'alias': alias or name}
@@ -206,6 +203,11 @@ cdef class Base:
             self.offsets[f.get('alias', f['name'])] = i
             if f['name'] == '_tllgrp':
                 self.groups[self.normalized[i+1]['name']] = i
+
+    @property
+    def _block(self):
+        ''' For testing purposes only '''
+        return Block.wrap(&self.block)
 
     @cython.boundscheck(False)
     def update(self, **kw):
