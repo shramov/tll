@@ -92,6 +92,10 @@ Worker settings
 Workers are declared implicitly with ``worker`` keyword in object definition, without keyword
 ``default`` worker is assumed. Worker parameters are defined in ``processor.worker.{name}`` subtree:
 
+  - ``cpu: <list>``, default empty: bind worker thread to the specified list of CPU cores using
+    ``sched_setaffinity(2)`` call (list of core indices is converted internally into bitmask).
+    Initialization (therefore resource allocation) and processing of all objects in this worker will
+    be performed only on this cpuset.
   - ``poll: <bool>``, default ``yes``: if enabled - worker use ``epoll`` (or ``kqueue`` for BSD
     platforms) to wait for objects to become ready for processing. Otherwise spin mode is used, where
     all active objects (with ``Process`` dcap enabled) are processed continuously in the loop.
