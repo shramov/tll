@@ -61,6 +61,8 @@ cdef extern from "tll/stat.h" nogil:
     cdef int tll_stat_list_remove(tll_stat_list_t *, tll_stat_block_t *)
 
     cdef tll_stat_iter_t * tll_stat_list_begin(tll_stat_list_t *)
+    cdef tll_stat_iter_t * tll_stat_iter_ref(tll_stat_iter_t *)
+    cdef void tll_stat_iter_free(tll_stat_iter_t *)
 
     cdef int tll_stat_iter_empty(const tll_stat_iter_t *)
     cdef const char * tll_stat_iter_name(const tll_stat_iter_t *)

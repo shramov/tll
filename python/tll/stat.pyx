@@ -265,6 +265,9 @@ cdef class Iter:
     def __cinit__(self):
         self.ptr = NULL
 
+    def __dealloc__(self):
+        tll_stat_iter_free(self.ptr)
+
     @staticmethod
     cdef wrap(tll_stat_iter_t * ptr):
         i = Iter()
@@ -295,7 +298,7 @@ cdef class Iter:
     def __next__(self):
         if self.ptr == NULL:
             raise StopIteration()
-        tmp = Iter.wrap(self.ptr)
+        tmp = Iter.wrap(tll_stat_iter_ref(self.ptr))
         self.ptr = tll_stat_iter_next(self.ptr)
         return tmp
 
