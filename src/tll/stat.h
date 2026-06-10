@@ -96,6 +96,12 @@ int tll_stat_list_remove(tll_stat_list_t *, tll_stat_block_t *);
 /// Get first element of stat list
 tll_stat_iter_t * tll_stat_list_begin(tll_stat_list_t *);
 
+/// Increase refcount for current iterator, argument can be null
+tll_stat_iter_t * tll_stat_iter_ref(tll_stat_iter_t *);
+
+/// Free stat list iterator, argument can be null
+void tll_stat_iter_free(tll_stat_iter_t *);
+
 /// Shift stat list iterator
 tll_stat_iter_t * tll_stat_iter_next(tll_stat_iter_t *);
 
@@ -145,6 +151,7 @@ tll_stat_page_t * tll_stat_iter_swap(tll_stat_iter_t *);
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 
 constexpr auto format_as(tll_stat_method_t v) noexcept { return static_cast<int>(v); }
 constexpr auto format_as(tll_stat_type_t v) noexcept { return static_cast<int>(v); }
@@ -423,9 +430,21 @@ class ListT
 	tll_stat_list_t * _ptr = nullptr;
  public:
 	class iterator {
-		tll_stat_iter_t * _ptr;
+		tll_stat_iter_t * _ptr = nullptr;
 	 public:
-		iterator(tll_stat_iter_t *ptr) : _ptr(ptr) {}
+		iterator(tll_stat_iter_t *ptr) noexcept : _ptr(ptr) {}
+		iterator(const iterator &rhs) noexcept : _ptr(tll_stat_iter_ref(rhs._ptr)) {}
+		iterator(iterator &&rhs) noexcept : _ptr(std::exchange(rhs._ptr, nullptr)) {}
+
+		~iterator() { tll_stat_iter_free(_ptr); }
+
+		iterator & operator = (const iterator &rhs)
+		{
+			auto old = std::exchange(_ptr, tll_stat_iter_ref(rhs._ptr));
+			tll_stat_iter_free(old);
+			return *this;
+		}
+		iterator & operator = (iterator &&rhs) noexcept { std::swap(_ptr, rhs._ptr); return *this; }
 
 		bool operator == (const iterator &rhs) const { return _ptr == rhs._ptr; }
 		bool operator != (const iterator &rhs) const { return _ptr != rhs._ptr; }

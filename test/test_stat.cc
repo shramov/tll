@@ -173,7 +173,11 @@ TEST(Stat, List)
 	ASSERT_NE(page, nullptr);
 	ASSERT_EQ(page->size, b.inactive->size);
 
+	auto copy = it;
+
 	ASSERT_EQ(*++it, nullptr);
+
+	ASSERT_STREQ(tll_stat_iter_name(copy), "test");
 }
 
 void stat_thread(std::stop_token stop, tll::stat::List list, unsigned idx, size_t count, std::atomic<int> *active)

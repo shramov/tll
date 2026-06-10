@@ -181,3 +181,9 @@ TLL_0.4.0 {
 		tll_config_value_dup;
 		tll_logger_stat;
 } TLL_0.3.0;
+
+TLL_0.5.0 {
+	global:
+		tll_stat_iter_free;
+		tll_stat_iter_ref;
+} TLL_0.4.0;

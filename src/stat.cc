@@ -9,9 +9,7 @@
 #include "tll/util/refptr.h"
 
 #include <cerrno>
-#include <list>
 #include <mutex>
-#include <shared_mutex>
 #include <vector>
 
 tll_stat_int_t tll_stat_default_int(tll_stat_method_t t)
@@ -57,7 +55,7 @@ tll_stat_page_t * tll_stat_page_swap(tll_stat_block_t *b)
 	return tll::stat::swap(b);
 }
 
-struct tll_stat_iter_t : public tll::util::refbase_t<tll_stat_iter_t>
+struct tll_stat_iter_t : public tll::util::refbase_t<tll_stat_iter_t, 0>
 {
 	tll_stat_block_t * block = nullptr;
 	tll::util::refptr_t<struct tll_stat_iter_t> next = nullptr;
@@ -117,6 +115,19 @@ tll_stat_iter_t * tll_stat_list_begin(tll_stat_list_t *l)
 	if (!l->head)
 		return nullptr;
 	return l->head->ref();
+}
+
+tll_stat_iter_t * tll_stat_iter_ref(tll_stat_iter_t *i)
+{
+	if (i)
+		i->ref();
+	return i;
+}
+
+void tll_stat_iter_free(tll_stat_iter_t *i)
+{
+	if (i)
+		i->unref();
 }
 
 int tll_stat_iter_empty(const tll_stat_iter_t *i)
