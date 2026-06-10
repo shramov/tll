@@ -31,8 +31,8 @@ class Groups(S.Base):
 async def test(asyncloop, context):
     fields = Fields('fields')
     groups = Groups('groups')
-    context.stat_list.add(fields)
     context.stat_list.add(groups)
+    context.stat_list.add(fields)
 
     mock = Mock(asyncloop, f'''yamls://
 mock:

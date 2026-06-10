@@ -6,6 +6,7 @@
  */
 
 #include "tll/stat.h"
+#include "tll/util/refptr.h"
 
 #include <cerrno>
 #include <list>
@@ -56,16 +57,17 @@ tll_stat_page_t * tll_stat_page_swap(tll_stat_block_t *b)
 	return tll::stat::swap(b);
 }
 
-struct tll_stat_iter_t
+struct tll_stat_iter_t : public tll::util::refbase_t<tll_stat_iter_t>
 {
 	tll_stat_block_t * block = nullptr;
-	tll_stat_block_t * cached = nullptr;
-	struct tll_stat_iter_t * next = nullptr;
+	tll::util::refptr_t<struct tll_stat_iter_t> next = nullptr;
 
 	std::mutex lock;
 	std::vector<tll_stat_field_t> buf;
 	tll_stat_page_t page;
 	std::string name;
+
+	tll_stat_iter_t(tll_stat_block_t * b) { reset(b); }
 
 	tll_stat_page_t * swap()
 	{
@@ -75,9 +77,6 @@ struct tll_stat_iter_t
 		auto p = tll::stat::swap(block);
 		if (!p) return nullptr;
 
-		if (cached != block)
-			update();
-
 		for (auto i = 0u; i < p->size; i++) {
 			page.fields[i].value = p->fields[i].value;
 			tll_stat_field_reset(&p->fields[i]);
@@ -86,13 +85,11 @@ struct tll_stat_iter_t
 	}
 
 	/**
-	 * Update local copy of page and name.
-	 *
-	 * It has to be done in swap() call so add/remove of block can not invalidate
-	 * name or page buffer.
+	 * Update local copy of page and name, called with lock
 	 */
-	void update()
+	void reset(tll_stat_block_t * b)
 	{
+		block = b;
 		name = block->name;
 		buf.resize(block->inactive->size);
 		page.fields = &buf.front();
@@ -104,24 +101,22 @@ struct tll_stat_iter_t
 
 struct tll_stat_list_t
 {
-	tll_stat_iter_t * head = nullptr;
+	tll::util::refptr_t<tll_stat_iter_t> head = nullptr;
 	std::mutex lock;
 
 	~tll_stat_list_t()
 	{
-		auto i = head;
-		while (i) {
-			auto tmp = i->next;
-			delete i;
-			i = tmp;
-		}
+		head.reset();
 	}
 };
 
 tll_stat_iter_t * tll_stat_list_begin(tll_stat_list_t *l)
 {
 	if (!l) return nullptr;
-	return l->head;
+	std::lock_guard<std::mutex> lock(l->lock);
+	if (!l->head)
+		return nullptr;
+	return l->head->ref();
 }
 
 int tll_stat_iter_empty(const tll_stat_iter_t *i)
@@ -138,19 +133,21 @@ tll_stat_block_t * tll_stat_iter_block(tll_stat_iter_t *i)
 const char * tll_stat_iter_name(tll_stat_iter_t *i)
 {
 	if (!i) return nullptr;
-
-	std::lock_guard<std::mutex> l(i->lock);
-	if (!i->block) return nullptr;
-	if (i->cached != i->block)
-		i->update();
-
 	return i->name.c_str();
 }
 
 tll_stat_iter_t * tll_stat_iter_next(tll_stat_iter_t *i)
 {
 	if (!i) return nullptr;
-	return i->next;
+
+	tll::util::refptr_t<tll_stat_iter_t> ptr;
+	{
+		std::lock_guard<std::mutex> l(i->lock);
+		ptr = i->next;
+	}
+	i->unref();
+
+	return ptr.release();
 }
 
 tll_stat_page_t * tll_stat_iter_swap(tll_stat_iter_t *i)
@@ -173,23 +170,16 @@ void tll_stat_list_free(tll_stat_list_t *l)
 int tll_stat_list_add(tll_stat_list_t * list, tll_stat_block_t * b)
 {
 	if (!list) return EINVAL;
-	std::lock_guard<std::mutex> l(list->lock);
 
+	std::lock_guard<std::mutex> lock(list->lock);
 	for (auto i = list->head; i; i = i->next) {
 		if (i->block == b) return EEXIST;
 	}
 
-	auto i = &list->head;
-	for (; *i; i = &(*i)->next) {
-		if ((*i)->block) continue;
+	tll::util::refptr_t<tll_stat_iter_t> ptr = new tll_stat_iter_t { b };
+	ptr->next = list->head;
+	list->head = std::move(ptr);
 
-		std::lock_guard<std::mutex> li((*i)->lock);
-		if ((*i)->block) continue;
-		(*i)->block = b;
-		(*i)->cached = nullptr;
-		return 0;
-	}
-	*i = new tll_stat_iter_t { b };
 	return 0;
 }
 
@@ -197,11 +187,17 @@ int tll_stat_list_remove(tll_stat_list_t * list, tll_stat_block_t * b)
 {
 	if (!list) return EINVAL;
 
-	for (auto i = list->head; i; i = i->next) {
+	tll::util::refptr_t<tll_stat_iter_t> prev;
+	std::lock_guard<std::mutex> lock(list->lock);
+	for (auto i = list->head; i; prev = i, i = i->next) {
 		if (i->block != b) continue;
 
+		if (prev) {
+			std::lock_guard<std::mutex> li(prev->lock);
+			prev->next = i->next;
+		} else
+			list->head = i->next;
 		std::lock_guard<std::mutex> li(i->lock);
-		if (i->block != b) continue;
 		i->block = nullptr;
 		return 0;
 	}

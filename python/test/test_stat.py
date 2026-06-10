@@ -24,6 +24,9 @@ def test_swap():
     l.remove(s)
     assert i.empty() == True
     l.add(s)
+    assert i.empty() == True
+
+    i = iter(l)
     assert i.empty() == False
 
     s.update(sum=10, last=40, min=20.5, max=30)
@@ -50,12 +53,12 @@ def test_list_iter():
     l.add(s1)
     assert len(list(l)) == 2
 
-    assert [x.name for x in l] == ['s0' , 's1']
+    assert sorted([x.name for x in l]) == ['s0' , 's1']
 
     s0.update(sum=10)
     s1.update(sum=11)
 
-    assert [x.swap()[0].value for x in l] == [10, 11]
+    assert sorted([(x.name, x.swap()[0].value) for x in l]) == [('s0', 10), ('s1', 11)]
 
 class Group(S.Base):
     FIELDS = [S.Group('int', unit=S.Unit.NS)

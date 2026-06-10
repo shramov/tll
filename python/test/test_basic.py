@@ -119,7 +119,6 @@ def test_stat():
 
     del null
 
-    assert null_stat.name == None
     assert null_stat.swap() == None
 
     zero = ctx.Channel('zero://;stat=yes;name=zero;size=1kb')
@@ -127,6 +126,7 @@ def test_stat():
 
     assert [x.name for x in ctx.stat_list] == ['zero']
 
+    null_stat = list(ctx.stat_list)[0]
     assert null_stat.name == "zero"
 
     assert [(f.name, f.value) for f in null_stat.swap()] == [('rx', 0), ('rx', 0), ('tx', 0), ('tx', 0)]
