@@ -339,7 +339,11 @@ int StreamClient::_on_request_data(const tll::Channel *, const tll_msg_t *msg)
 		}
 
 		_seq = msg->seq;
+
+		auto guard = state_guard();
 		_callback_data(msg);
+		if (guard) return EINTR;
+
 		if (_seq == _server_seq && _ring.empty()) {
 			_log.info("Reached reported server seq {}, no online data", _server_seq);
 			_post_done(msg->seq);

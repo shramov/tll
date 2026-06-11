@@ -1323,3 +1323,25 @@ async def test_activate_feed(asyncloop, tmp_path):
         assert (await c.recv(0.01)).seq == i
     m = await c.recv(0.01)
     assert m.type == m.Type.Control
+
+@asyncloop_run
+async def test_close_on_last(asyncloop, tmp_path):
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request=tcp://{tmp_path}/request.sock;dump=frame'
+    s = asyncloop.Channel(f'{common};storage=file://{tmp_path}/storage.dat;name=server;mode=server')
+    c = asyncloop.Channel(f'{common};name=client;mode=client;peer=test')
+
+    s.open()
+
+    for i in range(0, 10):
+        s.post(b'xxx', seq=i)
+
+    def close(c, m):
+        if m.type == m.Type.Data and m.seq == 9:
+            c.close()
+
+    c.callback_add(close)
+    c.open(mode='initial')
+
+    for i in range(0, 10):
+        m = await c.recv()
+    assert c.state == c.State.Closed
