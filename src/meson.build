@@ -15,6 +15,10 @@ sources += version_sources
 sources += channel_sources
 sources += processor_sources
 
+sources += configure_file(input: 'version.c.in', output : 'version.c',
+  configuration : configuration_data({'STRING': meson.project_version()})
+)
+
 sources += configure_file(output : 'scheme-config.h', configuration : configuration_data({
 	'DATADIR': '"@0@"'.format(get_option('prefix') / get_option('datadir')),
 	'WITH_RHASH': rhash.found(),

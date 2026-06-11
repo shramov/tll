@@ -1,0 +1,11 @@
+#include "tll/version.h"
+
+unsigned tll_version_number()
+{
+	return TLL_VERSION_HEX;
+}
+
+const char * tll_version_string()
+{
+	return "@STRING@";
+}

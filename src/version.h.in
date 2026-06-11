@@ -7,7 +7,18 @@
 
 #define TLL_VERSION_HEX ((TLL_VERSION_MAJOR << 16) | (TLL_VERSION_MINOR << 8) | (TLL_VERSION_PATCH))
 
-//TODO: Move into library on next ABI bump
-static inline const char * tll_version_string() { return "@STRING@"; }
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/// Same as TLL_VERSION_HEX macro, but reports library version
+unsigned tll_version_number();
+
+/// Library version string
+const char * tll_version_string();
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif//_TLL_VERSION_H
