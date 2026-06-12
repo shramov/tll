@@ -182,14 +182,19 @@ int tll_stat_list_add(tll_stat_list_t * list, tll_stat_block_t * b)
 {
 	if (!list) return EINVAL;
 
+	tll::util::refptr_t<tll_stat_iter_t> last;
 	std::lock_guard<std::mutex> lock(list->lock);
 	for (auto i = list->head; i; i = i->next) {
 		if (i->block == b) return EEXIST;
+		last = i;
 	}
 
 	tll::util::refptr_t<tll_stat_iter_t> ptr = new tll_stat_iter_t { b };
-	ptr->next = list->head;
-	list->head = std::move(ptr);
+	if (last != nullptr) {
+		std::lock_guard<std::mutex> ll(last->lock);
+		last->next = std::move(ptr);
+	} else
+		list->head = std::move(ptr);
 
 	return 0;
 }
