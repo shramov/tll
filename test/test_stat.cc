@@ -180,7 +180,7 @@ TEST(Stat, List)
 	ASSERT_STREQ(tll_stat_iter_name(copy), "test");
 }
 
-void stat_thread(std::stop_token stop, tll::stat::List list, unsigned idx, size_t count, std::atomic<int> *active)
+void stat_thread(std::stop_token stop, tll::stat::List list, unsigned idx, size_t count, std::atomic<int> &active)
 {
 	std::unique_ptr<tll::stat::Block<Data>> block;
 	std::string name = fmt::format("stat-{}", idx);
@@ -197,21 +197,23 @@ void stat_thread(std::stop_token stop, tll::stat::List list, unsigned idx, size_
 		}
 		list.remove(block.get());
 	}
-	*active -= 1;
+	active -= 1;
 }
 
 TEST(Stat, ListRace)
 {
+	using namespace std::chrono;
 	tll::stat::OwnedList list;
 	std::list<std::jthread> threads;
 	size_t count = 10000;
 	std::atomic<int> active = 0;
 	for (auto i = 0u; i < 8; i++) {
 		active++;
-		threads.emplace_back(stat_thread, tll::stat::List { list }, i, count, &active);
+		threads.emplace_back(stat_thread, tll::stat::List { list }, i, count, std::ref(active));
 	}
 
-	while (active.load(std::memory_order_relaxed)) {
+	auto end = steady_clock::now() + 100ms;
+	while (active.load(std::memory_order_relaxed) && steady_clock::now() < end) {
 		for (auto it : list) {
 			auto name = tll_stat_iter_name(it);
 			if (name == nullptr)
@@ -228,4 +230,5 @@ TEST(Stat, ListRace)
 	}
 
 	threads.clear();
+	ASSERT_EQ(active.load(), 0);
 }

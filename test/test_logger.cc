@@ -338,6 +338,7 @@ void logger_race_thread(std::stop_token stop, std::string_view name, size_t coun
 
 TEST(Logger, DestroyRace)
 {
+	using namespace std::chrono;
 	std::list<std::jthread> threads;
 	size_t count = 1000;
 	std::string_view name = "test.logger.race";
@@ -347,10 +348,12 @@ TEST(Logger, DestroyRace)
 		threads.emplace_back(logger_race_thread, name, count, std::ref(active));
 	}
 
-	while (active) {
+	auto end = steady_clock::now() + 100ms;
+	while (active && steady_clock::now() < end) {
 		tll::Logger log(name);
 		log.trace("Message");
 	}
 
 	threads.clear();
+	ASSERT_EQ(active.load(), 0);
 }
