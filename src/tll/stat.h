@@ -71,6 +71,8 @@ typedef struct tll_stat_block_t
 	tll_stat_page_t * active;
 	tll_stat_page_t * inactive;
 	const char * name;
+	/// Reserved data
+	void * reserved[2];
 } tll_stat_block_t;
 
 tll_stat_int_t tll_stat_default_int(tll_stat_method_t);
