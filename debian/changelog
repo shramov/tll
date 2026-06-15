@@ -1,3 +1,19 @@
+tll (0.5.0) unstable; urgency=medium
+
+  * logger: Fix race in tll_logger_free
+  * processor: Describe cpu keyword in processor doc
+  * python: Use tll_version_number function for version tuple
+  * rotate: Enable data conversion by default
+  * stat:
+    Refcount based stat list, ref/free function for iterator
+    Do not loop forever in logic
+  * stream: Check that channel is not closed on last message
+  * tests: Limit time of long running tests
+  * tll: Version string is non-inline now
+  * util: Fix incorrect initialization order for jthread
+
+ -- Pavel Shramov <shramov@mexmat.net>  Mon, 15 Jun 2026 16:28:59 +0300
+
 tll (0.4.10) unstable; urgency=medium
 
   * async: Channel with thread-safe post
