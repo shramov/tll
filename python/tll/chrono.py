@@ -117,10 +117,15 @@ class _Base:
         return self
 
     def __sub__(self, other):
-        if not isinstance(other, Duration): return NotImplemented
-        r = self.__copy__()
-        r -= other
-        return r
+        if isinstance(other, Duration):
+            r = self.__copy__()
+            r -= other
+            return r
+        elif isinstance(other, self.__class__):
+            o = other.convert(self.resolution, type(self.value))
+            r = Duration(self.value - o.value, self.resolution, type(self.value))
+            return r
+        raise NotImplemented
 
 class Duration(_Base):
     def __init__(self, value = 0, resolution = Resolution.second.value, type=float, raw=False):

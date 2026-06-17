@@ -23,6 +23,12 @@ def test_math():
     assert str(D(2, 'ms', float) + D('1', 'us', int)) == '2.001ms'
     assert str(D(2, 'ms', float) - D('1', 'us', int)) == '1.999ms'
 
+    with pytest.raises(TypeError): D(2, 'ms', float) - T('1', 'us', int)
+    with pytest.raises(TypeError): T(2, 'ms', float) + T('1', 'us', int)
+
+    assert str(T(2, 'ms', float) - T('1', 'us', int)) == '1.999ms'
+    assert str(T(2, 'ms', float) + D('1', 'us', int)) == '1970-01-01T00:00:00.002001Z'
+
 def test_str():
     assert str(Duration(100, Resolution.ns, type=float)) == '100.0ns'
     assert str(Duration(100, 'ns', type=int)) == '100ns'
