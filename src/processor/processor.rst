@@ -33,6 +33,8 @@ Config file have following parts:
   - default values for channel parameters
   - worker settings: polling mode, affinity and others
   - list of objects to create and process
+  - definitions of stage objects
+  - additional scheme search paths
 
 Logger configuration
 ~~~~~~~~~~~~~~~~~~~~
@@ -126,6 +128,24 @@ object with that name with following values in subtree:
   - ``channels: <subtree>``: ``channels.{name}: {value}`` is added to init parameters as
     ``tll.channel.{name}: {value}`` and later is used by logic channels.
   - ``disable: <bool>`` - disable this object and do not parse any parameters.
+
+Stages
+~~~~~~
+
+Stage is a state of processor graph that becomes active when subset of objects are active.
+Proccessor have at least one stage with name ``active`` that is either defined by user or created
+implicitly in which case it depends on all leaf nodes. It can be used to determine graph is fully
+open. Additional stages can be added in ``stages.**`` subtree, for example ``middle`` that depends
+on 3 objects, ``a``, ``b`` and ``c``::
+
+ stages:
+   middle: [a, b, c]
+
+Scheme search paths
+~~~~~~~~~~~~~~~~~~~
+
+List of values read from the subtree ``processor.scheme-path`` (as a yaml list or mapping) is added
+into scheme search path.
 
 Examples
 --------
