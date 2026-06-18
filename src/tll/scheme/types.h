@@ -125,7 +125,7 @@ struct ByteString : public std::array<char, Size>
 {
 	static_assert(Size > 0, "Empty Chars are not allowed");
 	operator std::string_view () const { return {this->data(), strnlen(this->data(), Size)}; }
-	ByteString operator = (std::string_view s) { memcpy(this->data(), s.data(), std::min(Size, s.size())); return *this; }
+	ByteString & operator = (std::string_view s) { memcpy(this->data(), s.data(), std::min(Size, s.size())); return *this; }
 };
 
 template <typename T, size_t Size, typename CountT>
