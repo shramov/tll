@@ -5,7 +5,7 @@
 
 namespace control_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJydVVFv2jAQfu+vyJulCSTCaAq8TdBuk7q10rZOVbUHN7mAVWNntsPGKv77zo5DHCCl6gu6+D7dnb/vO9OPBF3BNCLkLIpAlCs9xSCKyB0ozaQg0+jZbApElEyYOOk5EB6SWakUCIOAeLs969d1ZlLkbPERjC3IMswOMMgZ8MyX7kfPHltQsyS9qKpPtFFMLMhBrTvKS6irDburPcHmSLE2Zu1qnWx5KbK64ftBk7x5qk9HwemlUlLVifPu+cDhXuj9Dcy1XFzDGnhdLhmEsnSwqCBnf09enbu6O5SVc4yfsjAos7aK2gyxg2I/sg2UVsywlHLMnfciMofHcmFl79V3Rz4w/ixyieEQw++KprbUAOOfVAk7D1K53Z9JQVqizdbwprm+St/iHvS+DW9tS0/iRSDWrWzOx8H5J+Bc1olJt4hrvxateePkgG0Nas3SY1Zr45ZSGxueBBq60A3o3RH3GGpgXq6KxqOTZC/9o8jwdweI4+He1jtUe+fHDeEfUmO1qjSecakh8wrYDy+ycwiOJzfeL6FHbgrwZoidGR6ZqVtfcXvDg+fGIaKHHa/IgyVL5rkG45pr9g9svV5DfqmxTxbA4gb2a9spbrqkQoRL0qGFdiztUBVp+6CctxSrrndMr+CxGcXDcYP4Alrb255+AtyG7FpVjnzdakuBSnG/zXNqqBX0YE9f5VANv1szJKMDCM0y1V6dI6DMTvHCM+lpuZLqD1UBdRdJJz8ZGvLk/O2+Nfnhf0NlD2f8pu1k+AY//Qc/nDDp)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJydVdFu2jAUfe9X5M3SBBKhkAJvFbTbpG6ttK7TVO3BTW7AarAz22FjFf++a8chTiCl6gty7KN77j3n2PQDTtcwCwg5CwLgxVrNcBEE5AGkYoKTWfCitzkiCsZ1GPUsCDfJvJASuEZAuNud9as6c8FTtvwI2hRkCZ4OcJEyyBJXuh+8OGxO9Yr0grI+UVoyviQHtR5oVkBVbdhd7Rm2R4o1MRtb6yTlFU8qwvNB+/BbPdv5uLMby6Rqqg/+MB7h7XNVbOQxXUkpZHUw7p4ZLO6VebDZG7G8gQ1kVblo4Fvd4YyElP09KWdm6+5RJiIT/BS5xugokxJzQkyjyEd2Xnok0yymGZ6NewFZwFOxNFHqVbOjHrj+zFOByyEu7yWNTakBrn9QyU0/6MCu3ZOEuMDobuBdfX0VjuInmteK9p2hdCJeeGbdiXp/4u1/giwT1cG028SNu2qNfsPoQG0FcsPiY/Ft4lZCabM8CdR06Sf0SHo01bAo1nmd0WnUOv6eJ/i7B4ThsPWSWFTzHZnUgl/G2nhVejzPhILEOWA+nMk2Idie2Lq8+Bm5zcGFIbRheGK6or7OzIQHT5hFBI97XVEHI5ZIUwXakiv2D0y9Xi1+oZAn8WBhDfu16zQ3XlHO/UvS4YWyKu1RpWhtUJo1HCvHO+aX94CNwuGkRnwBpcy0p58Ae0P2VGUi33a1BUenMnebF1RTY+jBPX1TQhX8bvQQjQ4gNElk8+ocASWmi1eeSSfLtZB/qPSku4g69UkwkCf7b/JW4vv/N2U8bPBr2unwHXn6D0FYSbo=)";
 
 enum class Version: uint16_t
 {
@@ -105,6 +105,42 @@ struct ConfigEnd
 		void copy(const binder_type<RBuf> &rhs)
 		{
 		}
+	};
+
+	template <typename Buf>
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
+};
+
+struct ConfigSet
+{
+	static constexpr size_t meta_size() { return 8; }
+	static constexpr std::string_view meta_name() { return "ConfigSet"; }
+	static constexpr int meta_id() { return 35; }
+	static constexpr size_t offset_values = 0;
+
+	template <typename Buf>
+	struct binder_type : public tll::scheme::Binder<Buf>
+	{
+		using tll::scheme::Binder<Buf>::Binder;
+
+		static constexpr auto meta_size() { return ConfigSet::meta_size(); }
+		static constexpr auto meta_name() { return ConfigSet::meta_name(); }
+		static constexpr auto meta_id() { return ConfigSet::meta_id(); }
+		void view_resize() { this->_view_resize(meta_size()); }
+
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+			get_values().copy(rhs.get_values());
+		}
+
+		using type_values = tll::scheme::binder::List<Buf, ConfigValue::binder_type<Buf>, tll_scheme_offset_ptr_t>;
+		using const_type_values = tll::scheme::binder::List<const Buf, ConfigValue::binder_type<const Buf>, tll_scheme_offset_ptr_t>;
+		const_type_values get_values() const { return this->template _get_binder<const_type_values>(offset_values); }
+		type_values get_values() { return this->template _get_binder<type_values>(offset_values); }
 	};
 
 	template <typename Buf>

@@ -15,6 +15,11 @@
 - name: ConfigEnd
   id: 30
 
+- name: ConfigSet
+  id: 35
+  fields:
+    - {name: values, type: '*ConfigValue'}
+
 - name: Ok
   id: 40
 

@@ -36,6 +36,7 @@ class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
 	std::string _service;
 	std::string _hostname;
 	std::vector<std::string> _service_tags;
+	tll::Config _config_mut;
 
 	struct ChannelExport {
 		std::string name;
@@ -211,6 +212,10 @@ int Control::_init(const tll::Channel::Url &url, tll::Channel * master)
 
 int Control::_open(const tll::ConstConfig &)
 {
+	// TODO: Load from the file
+	_config_mut = tll::Config();
+	config_info().set("config", _config_mut);
+
 	if (auto & list = _channels.get<Resolve>(); list.size()) {
 		auto c = list.front().first;
 		if (c->state() == tll::state::Active)
@@ -346,6 +351,31 @@ int Control::_on_external(tll::Channel * channel, const tll_msg_t * msg)
 		m.size = 0;
 		channel->post(&m);
 		break;
+	}
+	case control_scheme::ConfigSet::meta_id(): {
+		auto req = control_scheme::ConfigSet::bind(*msg);
+		if (msg->size < req.meta_size())
+			return _log.fail(EMSGSIZE, "Message size too small: {} < min {}",
+				msg->size, req.meta_size());
+
+		// Check that there are no conflicts in values
+		auto copy = _config_mut.copy();
+		for (auto kv: req.get_values()) {
+			if (auto r = copy.set(kv.get_key(), kv.get_value()); r)
+				return _result_wrap(fmt::format("set key '{}' value '{}'", kv.get_key(), kv.get_value()), channel, msg, r);
+		}
+		// TODO: Save to the file
+		for (auto kv: req.get_values())
+			_config_mut.set(kv.get_key(), kv.get_value());
+
+		tll_msg_t reply = {
+			.type = TLL_MESSAGE_DATA,
+			.msgid = control_scheme::Ok::meta_id(),
+			.seq = msg->seq,
+			.addr = msg->addr,
+		};
+		channel->post(&reply);
+		return 0;
 	}
 	case control_scheme::MessageForward::meta_id():
 		return _result_wrap("forward message", channel, msg, _message_forward(msg));
