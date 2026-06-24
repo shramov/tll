@@ -358,6 +358,60 @@ inline tll_stat_page_t * swap(tll_stat_block_t * b)
 	return b->inactive;
 }
 
+/**
+ * Helper structure that releases page when leaving scope
+ */
+struct PageGuard
+{
+	tll_stat_block_t * block = nullptr;
+	tll_stat_page_t * page = nullptr;
+
+	PageGuard(tll_stat_block_t * b, tll_stat_page_t * p) noexcept : block(b), page(p) {}
+	PageGuard(const PageGuard &) = delete;
+	PageGuard(PageGuard && rhs) noexcept :
+		block(std::exchange(rhs.block, nullptr)),
+		page(std::exchange(rhs.page, nullptr))
+	{}
+
+	~PageGuard() noexcept
+	{
+		reset();
+	}
+
+	PageGuard & operator = (const PageGuard &) = delete;
+	PageGuard & operator = (PageGuard && rhs) noexcept
+	{
+		std::swap(block, rhs.block);
+		std::swap(page, rhs.page);
+		return *this;
+	}
+
+	void reset() noexcept
+	{
+		if (block && page)
+			tll::stat::release(block, page);
+		block = nullptr;
+		page = nullptr;
+	}
+
+	constexpr operator bool () const { return page; }
+
+	tll_stat_page_t * get() { return page; }
+};
+
+/**
+ * Acquire scoped lock of active stat page
+ *
+ * @param b pointer to the stat block, can be null
+ * @return Scoped lock with page pointer with value from tll::stat::acquire call
+ */
+inline PageGuard acquire_guard(tll_stat_block_t * b)
+{
+	if (!b)
+		return PageGuard { nullptr, nullptr };
+	return PageGuard { b, acquire(b) };
+}
+
 template <typename T>
 class BlockT : public tll_stat_block_t
 {
@@ -367,6 +421,14 @@ class BlockT : public tll_stat_block_t
 
 	std::string _name;
  public:
+	struct PageGuard : public tll::stat::PageGuard
+	{
+		PageGuard(tll::stat::PageGuard && rhs) : tll::stat::PageGuard(std::move(rhs)) {}
+
+		T * get() { return BlockT<T>::derive((page_t *) page); }
+		T * operator -> () { return get(); }
+	};
+
 	BlockT(const BlockT &) = delete;
 
 	BlockT(std::string_view name) : _name(name)
@@ -383,7 +445,7 @@ class BlockT : public tll_stat_block_t
 		std::swap(_name, name);
 	}
 
-	T * derive(page_t * p)
+	static constexpr T * derive(page_t * p)
 	{
 		if constexpr (derived)
 			return p;
@@ -410,6 +472,11 @@ class BlockT : public tll_stat_block_t
 			tll::stat::release(this, p);
 		else
 			tll::stat::release(this, page_t::page_cast(p));
+	}
+
+	PageGuard acquire_guard()
+	{
+		return tll::stat::acquire_guard(this);
 	}
 };
 

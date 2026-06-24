@@ -149,6 +149,15 @@ TEST(Stat, Block)
 	b.release(p);
 	ASSERT_EQ(b.lock, tll::stat::PageT<Data>().page_cast(p));
 
+	if (auto g = b.acquire_guard(); g) {
+		g->rsum.update(1);
+		ASSERT_EQ(tll::stat::PageT<Data>().page_cast(g.get()), active);
+		ASSERT_EQ(b.lock, nullptr);
+		ASSERT_EQ(tll::stat::swap(&b), nullptr);
+	}
+	ASSERT_EQ(b.lock, tll::stat::PageT<Data>().page_cast(p));
+	ASSERT_FALSE(tll::stat::acquire_guard(nullptr));
+
 	auto p1 = tll::stat::swap(&b);
 	ASSERT_EQ(p1, active);
 	ASSERT_EQ(b.lock, inactive);
