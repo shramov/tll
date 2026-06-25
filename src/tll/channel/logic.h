@@ -123,14 +123,12 @@ class Logic : public Base<T>
 		auto start = tll::time::now();
 		auto r = this->channelT()->logic(c, msg);
 		auto dt = tll::time::now() - start;
-		auto page = this->channelT()->stat()->acquire();
-		if (page) {
+		if (auto page = tll::channel::stat_acquire(this); page) {
 			page->time = dt.count();
 			if (msg->type == TLL_MESSAGE_DATA) {
 				page->rx = 1;
 				page->rxb = msg->size;
 			}
-			this->channelT()->stat()->release(page);
 		}
 		if (r)
 			return _fail_on(r, c, msg);

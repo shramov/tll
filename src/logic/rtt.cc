@@ -41,8 +41,6 @@ class RTT : public Tagged<RTT, Timer, Input, Output, Result>
 		tll::stat::IntegerGroup<tll::stat::Ns, 'r', 't', 't'> rtt;
 	};
 
-	tll::stat::BlockT<StatType> * stat() { return static_cast<tll::stat::BlockT<StatType> *>(this->internal.stat); }
-
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::ConstConfig &cfg)
 	{
@@ -100,14 +98,10 @@ int RTT::callback_tag(TaggedChannel<Input> * c, const tll_msg_t *msg)
 		return _log.fail(EMSGSIZE, "Message from '{}' too small: {} < minimal {}", c->name(), msg->size, sizeof(tll::time_point));
 	auto dt = tll::time::now() - *static_cast<const tll::time_point *>(msg->data);
 
-	if (this->channelT()->stat()) {
-		auto page = this->channelT()->stat()->acquire();
-		if (page) {
-			page->rtt = dt.count();
-//			page->rx = 1;
-//			page->rxb = msg->size;
-			this->channelT()->stat()->release(page);
-		}
+	if (auto page = tll::channel::stat_acquire(this); page) {
+		page->rtt = dt.count();
+//		page->rx = 1;
+//		page->rxb = msg->size;
 	}
 
 	if (_chained) {

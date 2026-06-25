@@ -33,8 +33,6 @@ class RUsage : public tll::channel::Tagged<RUsage, Timer>
 		tll::stat::Integer<tll::stat::Max, tll::stat::Bytes, 'm', 'e', 'm'> mem;
 	};
 
-	stat::BlockT<StatType> * stat() { return static_cast<stat::BlockT<StatType> *>(this->internal.stat); }
-
 	int _init(const tll::Channel::Url &url, tll::Channel *master)
 	{
 		auto reader = channel_props_reader(url);
@@ -55,16 +53,14 @@ class RUsage : public tll::channel::Tagged<RUsage, Timer>
 
 	int callback_tag(TaggedChannel<Timer> * c, const tll_msg_t *msg)
 	{
-		auto stat = this->channelT()->stat();
-		if (!stat)
+		if (!_stat_enable)
 			return 0;
 		_rusage.update();
 
-		if (auto page = stat->acquire(); page) {
+		if (auto page = tll::channel::stat_acquire(this); page) {
 			page->mem = _rusage.memory;
 			page->cpu = 100 * _rusage.cpu_ratio;
 			page->cpuns = _rusage.cpu.count();
-			stat->release(page);
 		}
 		return 0;
 	}

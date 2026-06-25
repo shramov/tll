@@ -69,13 +69,10 @@ int Object::callback_common(const tll::Channel *c, tll_state_t s)
 	data.state = s;
 	worker->post(data);
 
-	if (auto block = worker->stat(); block) {
-		if (auto page = block->acquire(); page) {
-			page->state.update(1);
-			if (s == tll::state::Error)
-				page->error.update(1);
-			block->release(page);
-		}
+	if (auto page = tll::channel::stat_acquire(worker); page) {
+		page->state.update(1);
+		if (s == tll::state::Error)
+			page->error.update(1);
 	}
 
 	return 0;

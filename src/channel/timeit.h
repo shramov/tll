@@ -22,7 +22,6 @@ class ChTimeIt : public tll::channel::Prefix<ChTimeIt>
 		tll::stat::IntegerGroup<tll::stat::Ns, 'r', 'x', 't'> rx;
 		tll::stat::IntegerGroup<tll::stat::Ns, 't', 'x', 't'> tx;
 	};
-	tll::stat::BlockT<StatType> * stat() { return static_cast<tll::stat::BlockT<StatType> *>(this->internal.stat); }
 
 	int _post(const tll_msg_t *msg, int flags);
 	int _on_data(const tll_msg_t *msg);

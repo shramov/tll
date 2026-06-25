@@ -599,6 +599,15 @@ class Base
 	}
 };
 
+template <typename T>
+typename tll::stat::BlockT<typename T::StatType>::PageGuard stat_acquire(tll::channel::Base<T> * self)
+{
+	auto stat = static_cast<typename tll::stat::BlockT<typename T::StatType> *>(self->internal.stat);
+	if (!stat)
+		return tll::stat::PageGuard {nullptr, nullptr};
+	return stat->acquire_guard();
+}
+
 } // namespace channel
 
 } // namespace tll

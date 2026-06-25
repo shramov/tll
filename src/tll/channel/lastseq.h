@@ -64,8 +64,6 @@ public:
 
 	using StatType = typename lastseq::Stat<Mode, typename Base::StatType>;
 
-	stat::BlockT<StatType> * stat() { return static_cast<stat::BlockT<StatType> *>(this->internal.stat); }
-
 	void _last_seq_rx(long long seq) { _last_seq_mode<LastSeqMode::Rx>(seq); }
 	void _last_seq_tx(long long seq) { _last_seq_mode<LastSeqMode::Tx>(seq); }
 
@@ -90,15 +88,11 @@ public:
 	template <LastSeqMode M>
 	void _last_seq_mode(long long seq)
 	{
-		if (this->_stat_enable) {
-			auto page = this->channelT()->stat()->acquire();
-			if (page) {
-				if constexpr (M == LastSeqMode::Rx)
-					page->rxseq = seq;
-				else
-					page->txseq = seq;
-				this->channelT()->stat()->release(page);
-			}
+		if (auto page = tll::channel::stat_acquire(this); page) {
+			if constexpr (M == LastSeqMode::Rx)
+				page->rxseq = seq;
+			else
+				page->txseq = seq;
 		}
 	}
 

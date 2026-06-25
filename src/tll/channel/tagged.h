@@ -285,14 +285,12 @@ class Tagged : public tll::channel::Base<T>
 		auto r = this->channelT()->callback_tag(c, msg);
 		if constexpr (Base::ChannelT::tagged_stat_policy() == TaggedStatPolicy::Enable) {
 			auto dt = tll::time::now() - start;
-			auto page = this->channelT()->stat()->acquire();
-			if (page) {
+			if (auto page = tll::channel::stat_acquire(this); page) {
 				page->time = dt.count();
 				if (msg->type == TLL_MESSAGE_DATA) {
 					page->rx = 1;
 					page->rxb = msg->size;
 				}
-				this->channelT()->stat()->release(page);
 			}
 		} else {
 			(void) start; // Workaround for gcc 9 "set but not used" warning

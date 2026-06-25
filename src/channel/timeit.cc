@@ -21,11 +21,8 @@ int ChTimeIt::_post(const tll_msg_t *msg, int flags)
 	auto r = Base::_post(msg, flags);
 	auto dt = tll::time::now() - start;
 
-	auto page = stat()->acquire();
-	if (page) {
+	if (auto page = tll::channel::stat_acquire(this); page)
 		page->tx = dt.count();
-		stat()->release(page);
-	}
 	return r;
 }
 
@@ -37,10 +34,7 @@ int ChTimeIt::_on_data(const tll_msg_t *msg)
 	auto r = Base::_on_data(msg);
 	auto dt = tll::time::now() - start;
 
-	auto page = stat()->acquire();
-	if (page) {
+	if (auto page = tll::channel::stat_acquire(this); page)
 		page->rx = dt.count();
-		stat()->release(page);
-	}
 	return r;
 }
