@@ -8,6 +8,7 @@ jobs:
       matrix:
         os: [ubuntu-22.04, ubuntu-24.04, macos-latest]
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.os == 'macos-latest' }} # Build fails due to gtest and fmtlib errors
     steps:
     - uses: actions/checkout@v6
       with:
