@@ -439,3 +439,47 @@ channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;na
     assert ci.unpack(await ci.recv()).SCHEME.name == 'Ok'
 
     assert mock.channel.config.sub('info').as_dict() == {'config': {'a': '0', 'b': {'c': '1'}}}
+
+    mock.channel.close()
+    mock.channel.open()
+
+    assert mock.channel.config.sub('info').as_dict() == {'config': {}}
+
+@asyncloop_run
+async def test_config_set_persistent(asyncloop, path_srcdir, tmp_path):
+    scheme = path_srcdir / "src/logic/control.yaml"
+
+    mock = Mock(asyncloop, f'''yamls://
+mock:
+  uplink: direct://;scheme=channel://logic:input;emulate-control=tcp-client;dump=frame
+  processor: null://
+channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;name=logic;service=mock;hostname=host;config={tmp_path}/config.yaml
+''')
+
+    mock.open(skip=['uplink'])
+    mock.inner('uplink').open()
+
+    config = tmp_path / "config.yaml"
+    assert not config.exists()
+
+    ci = mock.io('uplink')
+
+    m = await ci.recv()
+
+    assert ci.unpack(m).as_dict() == {'service': 'mock', 'hostname': 'host', 'version': 1, 'tags': []}
+
+    assert mock.channel.config.sub('info').as_dict() == {'config': {}}
+
+    ci.post({'values': [{'key': 'a', 'value': '0'}, {'key': 'b.c', 'value': '1'}]}, name='ConfigSet', seq=100)
+
+    assert ci.unpack(await ci.recv()).SCHEME.name == 'Ok'
+
+    assert mock.channel.config.sub('info').as_dict() == {'config': {'a': '0', 'b': {'c': '1'}}}
+
+    assert config.exists()
+    assert Config.load(f'yaml://{config}').as_dict() == {'a': '0', 'b': {'c': '1'}}
+
+    mock.channel.close()
+    mock.channel.open()
+
+    assert mock.channel.config.sub('info').as_dict() == {'config': {'a': '0', 'b': {'c': '1'}}}

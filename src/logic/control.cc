@@ -1,13 +1,12 @@
-/*
- * Copyright (c) 2021 Pavel Shramov <shramov@mexmat.net>
- *
- * tll is free software; you can redistribute it and/or modify
- * it under the terms of the MIT license. See LICENSE for details.
- */
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: Pavel Shramov <shramov@mexmat.net>
 
 #include "tll/channel/module.h"
 #include "tll/channel/tagged.h"
 #include "tll/util/json.h"
+#include "tll/util/tempfile.h"
+
+#include "tll/compat/fmt/std.h"
 
 #include "tll/processor/scheme.h"
 #include "tll/scheme/logic/control.h"
@@ -15,6 +14,8 @@
 
 #include <sys/param.h>
 #include <unistd.h>
+
+#include <filesystem>
 
 namespace tll::channel {
 
@@ -37,6 +38,7 @@ class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
 	std::string _hostname;
 	std::vector<std::string> _service_tags;
 	tll::Config _config_mut;
+	std::filesystem::path _config_filename;
 
 	struct ChannelExport {
 		std::string name;
@@ -149,6 +151,8 @@ class Control : public Tagged<Control, Input, Processor, Uplink, Resolve>
 	int _result_wrap(std::string_view, tll::Channel *, const tll_msg_t *, tll::result_t<int>);
 
 	int _post_export(ChannelExport &channel, std::string_view name, const tll::ConstConfig &);
+
+	tll::result_t<int> _config_set(const tll_msg_t * msg);
 };
 
 int Control::_init(const tll::Channel::Url &url, tll::Channel * master)
@@ -180,6 +184,7 @@ int Control::_init(const tll::Channel::Url &url, tll::Channel * master)
 	_service = reader.getT<std::string>("service", "");
 	_async_config_dump = reader.getT("async-config-dump", true);
 	_hostname = reader.getT<std::string>("hostname", "");
+	_config_filename = reader.getT<std::string>("config", "");
 	if (resolve && _service.empty())
 		return _log.fail(EINVAL, "Empty service name, mandatory when resolve is enabled");
 	if (!reader)
@@ -212,8 +217,13 @@ int Control::_init(const tll::Channel::Url &url, tll::Channel * master)
 
 int Control::_open(const tll::ConstConfig &)
 {
-	// TODO: Load from the file
-	_config_mut = tll::Config();
+	if (!_config_filename.empty() && std::filesystem::exists(_config_filename)) {
+		auto r = Config::load("yaml://" + _config_filename.string());
+		if (!r)
+			return _log.fail(EINVAL, "Invalid config file '{}'", _config_filename);
+		_config_mut = *r;
+	} else
+		_config_mut = tll::Config();
 	config_info().set("config", _config_mut);
 
 	if (auto & list = _channels.get<Resolve>(); list.size()) {
@@ -352,31 +362,8 @@ int Control::_on_external(tll::Channel * channel, const tll_msg_t * msg)
 		channel->post(&m);
 		break;
 	}
-	case control_scheme::ConfigSet::meta_id(): {
-		auto req = control_scheme::ConfigSet::bind(*msg);
-		if (msg->size < req.meta_size())
-			return _log.fail(EMSGSIZE, "Message size too small: {} < min {}",
-				msg->size, req.meta_size());
-
-		// Check that there are no conflicts in values
-		auto copy = _config_mut.copy();
-		for (auto kv: req.get_values()) {
-			if (auto r = copy.set(kv.get_key(), kv.get_value()); r)
-				return _result_wrap(fmt::format("set key '{}' value '{}'", kv.get_key(), kv.get_value()), channel, msg, r);
-		}
-		// TODO: Save to the file
-		for (auto kv: req.get_values())
-			_config_mut.set(kv.get_key(), kv.get_value());
-
-		tll_msg_t reply = {
-			.type = TLL_MESSAGE_DATA,
-			.msgid = control_scheme::Ok::meta_id(),
-			.seq = msg->seq,
-			.addr = msg->addr,
-		};
-		channel->post(&reply);
-		return 0;
-	}
+	case control_scheme::ConfigSet::meta_id():
+		return _result_wrap("config set", channel, msg, _config_set(msg));
 	case control_scheme::MessageForward::meta_id():
 		return _result_wrap("forward message", channel, msg, _message_forward(msg));
 	case control_scheme::SetLogLevel::meta_id():
@@ -392,6 +379,48 @@ int Control::_on_external(tll::Channel * channel, const tll_msg_t * msg)
 	default:
 		break;
 	}
+	return 0;
+}
+
+tll::result_t<int> Control::_config_set(const tll_msg_t *msg)
+{
+	auto req = control_scheme::ConfigSet::bind(*msg);
+	if (msg->size < req.meta_size())
+		return tll::error(fmt::format("Message size too small: {} < min {}", msg->size, req.meta_size()));
+
+	// Check that there are no conflicts in values
+	auto copy = _config_mut.copy();
+	for (auto kv: req.get_values()) {
+		if (auto r = copy.set(kv.get_key(), kv.get_value()); r)
+			return tll::error(fmt::format("failed to set key '{}' value '{}': {}", kv.get_key(), kv.get_value(), strerror(errno)));
+	}
+
+	if (!_config_filename.empty()) {
+		tll::util::TempFile tmp(_config_filename);
+		if (!tmp)
+			return tll::error(fmt::format("Failed to create temporary file {}: {}", tmp.filename(), tmp.strerror()));
+
+		// TODO: Correctly escape values
+		for (auto &[k, cfg] : copy.browse("**")) {
+			auto v = cfg.get();
+			if (!v)
+				continue;
+			auto s = fmt::format("{}: {}\n", k, *v);
+			if (auto r = write(tmp.fd(), s.c_str(), s.size()); r < 0)
+				return tll::error(fmt::format("Failed to write config file {}: {}", _config_filename, strerror(errno)));
+			else if ((size_t) r < s.size())
+				return tll::error(fmt::format("Failed to write config file {}: truncated write", _config_filename));
+		}
+
+		_log.debug("Rename temporary config file {} to {}", tmp.filename(), _config_filename);
+		if (rename(tmp.filename().c_str(), _config_filename.c_str()))
+			return tll::error(fmt::format("Failed to rename {} to {}: {}", tmp.filename(), _config_filename, strerror(errno)));
+		tmp.release();
+	}
+
+	for (auto kv: req.get_values())
+		_config_mut.set(kv.get_key(), kv.get_value());
+
 	return 0;
 }
 
