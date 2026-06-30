@@ -2,7 +2,7 @@
 # vim: sts=4 sw=4 et
 
 from tll.asynctll import asyncloop_run
-from tll.channel import Context
+from tll.channel import Context, Message
 from tll.channel.base import Base
 from tll.channel.logic import Logic
 from tll.config import Config
@@ -618,3 +618,52 @@ processor.objects:
 
     server.post({}, name='Online', type=server.Type.Control)
     with pytest.raises(TimeoutError): await mock.control.recv(timeout=0.01)
+
+class OpenConfig(Logic):
+    PROTO = "open-config"
+
+    def _open(self, cfg):
+        self._cfg = cfg.sub("flags")
+
+    def _logic(self, channel, msg):
+        if msg.type != msg.Type.Data:
+            return
+        channel.post(Message(msgid=10, data=str(self._cfg.as_dict()).encode('utf-8')))
+
+@asyncloop_run
+async def test_open_update(asyncloop, context):
+    cfg = Config.load('''yamls://
+mut.flags.a:
+name: processor
+processor.objects:
+  logic:
+    init: open-config://
+    open: !link /mut
+    channels.input: input
+  input:
+    init:
+      url: direct://;dump=text
+    depends: logic
+''')
+
+    flag = 'yes'
+    cfg.set("mut.flags.a", lambda: flag)
+
+    context.register(OpenConfig)
+
+    mock = Mock(asyncloop, cfg)
+    mock.open()
+    await mock.wait('input', 'Active', timeout=0.1)
+
+    c = asyncloop.Channel('direct://;name=input-client;master=input')
+    c.open()
+
+    c.post(b'')
+    m = await c.recv()
+    assert m.data.tobytes() == b"{'a': 'yes'}"
+
+    flag = 'no'
+
+    c.post(b'')
+    m = await c.recv()
+    assert m.data.tobytes() == b"{'a': 'no'}"

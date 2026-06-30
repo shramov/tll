@@ -6,7 +6,7 @@ import tll.channel as C
 from tll.channel.base import Base
 from tll.channel.prefix import Prefix
 from tll.channel.logic import Logic
-from tll.config import Url
+from tll.config import Config, Url
 from tll.error import TLLError
 from tll.test_util import Accum
 
@@ -457,3 +457,28 @@ def test_derived(context):
     v11 = context.Channel("echo://;name=echo-v1-1")
     v11.open()
     assert v11.config['info.echo'] == 'yes'
+
+class OpenConfig(Base):
+    PROTO = "open-config"
+
+    def _open(self, cfg):
+        self._cfg = cfg.sub("flags")
+
+    def _post(self, msg, flags):
+        self._callback(C.Message(msgid=10, data=str(self._cfg.as_dict()).encode('utf-8')))
+
+def test_open_update(context):
+    context.register(OpenConfig)
+    c = Accum('open-config://;name=open-config', context=context)
+    cfg = Config()
+    cfg.set("flags.a", "yes")
+    c.open(cfg)
+
+    c.post(b'')
+    assert [m.data.tobytes() for m in c.result] == [b"{'a': 'yes'}"]
+
+    cfg.set("flags.a", "no")
+
+    c.result.clear()
+    c.post(b'')
+    assert [m.data.tobytes() for m in c.result] == [b"{'a': 'no'}"]
