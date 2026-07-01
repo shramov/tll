@@ -136,11 +136,12 @@ def test_to_string(context, t, v, outer):
   fields:
     - {{ name: f0, type: {outer} }}
 '''
-    s = Accum('convert+direct://;name=server', dump='yes', scheme=SOuter, context=context, **{'direct.scheme': SInner, 'direct.dump': 'yes'})
+    s = Accum('convert+direct://;name=server', dump='yes', scheme=SOuter, dir='r', context=context, **{'direct.scheme': SInner, 'direct.dump': 'yes'})
     c = Accum('direct://;name=client', context=context, master=s)
 
     s.open()
     c.open()
+    assert s.state == s.State.Active
 
     if isinstance(v, tuple):
         v, sv = v
