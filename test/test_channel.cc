@@ -72,6 +72,20 @@ class Prefix : public tll::channel::Prefix<Prefix>
 
 TLL_DEFINE_IMPL(Prefix);
 
+class PrefixFail : public tll::channel::Prefix<PrefixFail>
+{
+ public:
+	static constexpr std::string_view channel_protocol() { return "fail+"; }
+
+	int _post(const tll_msg_t * msg, int flags)
+	{
+		state(tll::state::Error);
+		return 0;
+	}
+};
+
+TLL_DEFINE_IMPL(PrefixFail);
+
 class Reopen : public tll::channel::Reopen<Reopen>
 {
 	std::unique_ptr<tll::Channel> _child;
@@ -333,9 +347,11 @@ public:
 	using data_t = std::vector<tll::util::OwnedMessage>;
 	data_t result;
 
-	Accum(std::unique_ptr<tll::Channel> && ptr) : _ptr(std::move(ptr))
+	Accum(std::unique_ptr<tll::Channel> && ptr, unsigned mask = TLL_MESSAGE_MASK_ALL) : _ptr(std::move(ptr))
 	{
-		_ptr->callback_add([](const tll_channel_t *, const tll_msg_t *m, void * user) -> int { static_cast<data_t *>(user)->emplace_back(m); return 0; }, &result);
+		if (!_ptr)
+			return;
+		_ptr->callback_add([](const tll_channel_t *, const tll_msg_t *m, void * user) -> int { static_cast<data_t *>(user)->emplace_back(m); return 0; }, &result, mask);
 	}
 
 	~Accum() { reset(); }
@@ -350,6 +366,45 @@ public:
 
 	operator bool () const { return _ptr.get() != nullptr; }
 };
+
+TEST(Channel, PrefixFail)
+{
+	using namespace std::chrono_literals;
+
+	auto ctx = tll::channel::Context(tll::Config());
+
+	ASSERT_EQ(ctx.reg(&PrefixFail::impl), 0);
+
+	Accum c = { ctx.channel("fail+zero://;name=fail;dump=frame;zero.dump=frame"), TLL_MESSAGE_MASK_DATA };
+	ASSERT_TRUE(c);
+	ASSERT_NE(c->children(), nullptr);
+
+	auto loop = tll::processor::Loop();
+	ASSERT_EQ(loop.init(tll::Config()), 0);
+	loop.add(c.get());
+
+	c->open();
+	ASSERT_EQ(c->state(), tll::state::Active);
+
+	ASSERT_EQ(c.result.size(), 0);
+	loop.step(1ms);
+	ASSERT_EQ(c.result.size(), 1);
+
+	{
+		tll_msg_t m = {};
+		c->post(&m);
+	}
+
+	ASSERT_EQ(c->state(), tll::state::Error);
+
+	loop.step(1ms);
+	EXPECT_EQ(c.result.size(), 1);
+
+	c->close();
+
+	ASSERT_EQ(c->state(), tll::state::Closed);
+	ASSERT_EQ(tll_channel_state(c->children()->channel), tll::state::Closed);
+}
 
 TEST(Channel, Tcp)
 {

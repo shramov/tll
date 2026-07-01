@@ -145,6 +145,8 @@ int tll_channel_internal_set_state(tll_channel_internal_t * in, tll_state_t stat
 
 static inline int tll_channel_callback_data(const tll_channel_internal_t * in, const tll_msg_t * msg)
 {
+	if (in->state == TLL_STATE_ERROR)
+		return 0;
 	if (in->dump)
 		tll_channel_log_msg(in->self, NULL, TLL_LOGGER_INFO, in->dump, msg, "Recv", 4);
 	if (in->stat) {
@@ -177,6 +179,9 @@ static inline int tll_channel_callback(const tll_channel_internal_t * in, const 
 {
 	if (msg->type == TLL_MESSAGE_DATA)
 		return tll_channel_callback_data(in, msg);
+	// Only state and channel messages are allowed from failed object
+	if (in->state == TLL_STATE_ERROR && (msg->type != TLL_MESSAGE_STATE && msg->type != TLL_MESSAGE_CHANNEL))
+		return 0;
 	if (in->dump)
 		tll_channel_log_msg(in->self, NULL, TLL_LOGGER_INFO, in->dump, msg, "Recv", 4);
 	{
