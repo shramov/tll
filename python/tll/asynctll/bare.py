@@ -8,9 +8,9 @@ import tll.channel as C
 from . import common
 from .common import asyncloop_run
 
+import bisect
 import collections
 import decorator
-import heapq
 import queue
 import time
 import types
@@ -120,11 +120,10 @@ class AsyncTimer:
 
     def arm(self, timeout : float, cb):
         ts = self.Item(time.time() + timeout, cb)
-        if self._timer_queue == [] or self._timer_queue[0] > ts:
+        idx = bisect.bisect_right(self._timer_queue, ts)
+        self._timer_queue.insert(idx, ts)
+        if idx == 0:
             self._timer.post({'ts':timeout}, name='relative')
-            self._timer_queue.insert(0, ts)
-        else:
-            heapq.heappush(self._timer_queue, ts)
         return ts
 
     def done(self, ts):
