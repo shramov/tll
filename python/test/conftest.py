@@ -15,6 +15,9 @@ tll.logger.configure({'levels': {'tll.python.asynctll*':'info', 'tll.channel.asy
 from tll import asynctll
 from tll import scheme as S
 
+from tll.channel.mock import Mock
+from tll.processor.mock import Mock as ProcessorMock
+
 version = tuple([int(x) for x in pytest.__version__.split('.')[:2]])
 
 if version < (3, 9):
@@ -49,3 +52,15 @@ def with_scheme_hash():
         S.Scheme('yamls://{}').dump('sha256')
     except:
         pytest.skip("Scheme SHA256 hashes not supported")
+
+@pytest.fixture
+def mock(asyncloop):
+    m = Mock(None, None)
+    yield m
+    m.destroy()
+
+@pytest.fixture
+def proc_mock(asyncloop):
+    m = ProcessorMock(None, None)
+    yield m
+    m.destroy()

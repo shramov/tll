@@ -11,14 +11,19 @@ class Mock:
     State = Processor.State
 
     def __init__(self, loop, config, context=None):
-        if not isinstance(config, Config):
-            config = Config.load(config)
-        self._config = config
-        self._context = context or loop.context
+        self._context = None
         self._channels = {}
         self._control = None
         self._processor = None
+        if loop is not None:
+            self.init(loop, config, context)
 
+    def init(self, loop, config, context=None):
+        if not isinstance(config, Config):
+            config = Config.load(config)
+
+        self._context = context or loop.context
+        self._config = config
         self._mock(loop)
 
         Processor.load_modules(self._context, self._config)
@@ -28,6 +33,8 @@ class Mock:
 
         name = self._config['name']
         self._control = loop.Channel(f'ipc://;mode=client;dump=yes;name=processor-ipc-client;scheme=channel://{name}', master=self._processor, context=self._context)
+
+        return self
 
     def _mock(self, loop):
         if 'name' not in self._config:

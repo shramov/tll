@@ -7,7 +7,6 @@ import pytest
 from tll.asynctll import asyncloop_run
 import tll.stat as S
 from tll.channel import Context
-from tll.channel.mock import Mock
 
 @pytest.fixture
 def context(path_builddir):
@@ -28,13 +27,13 @@ class Groups(S.Base):
              ]
 
 @asyncloop_run
-async def test(asyncloop, context):
+async def test(asyncloop, mock, context):
     fields = Fields('fields')
     groups = Groups('groups')
     context.stat_list.add(fields)
     context.stat_list.add(groups)
 
-    mock = Mock(asyncloop, f'''yamls://
+    mock.init(asyncloop, f'''yamls://
 mock:
   timer: direct://
 channel: stat://;tll.channel.timer=timer;node=test-node
@@ -130,7 +129,7 @@ channel: stat://;tll.channel.timer=timer;node=test-node
     assert msg.fields[0].as_dict() == {'name': 'float', 'unit': Unit.Unknown, 'value': {'fgroup': {'count': 1, 'min': 1.5, 'max': 1.5, 'avg': 1.5}}}
 
 @asyncloop_run
-async def test_blocked(asyncloop, context):
+async def test_blocked(asyncloop, mock, context):
     class Stat(S.Base):
         FIELDS = [S.Integer('field', S.Method.Sum)]
 
@@ -139,7 +138,7 @@ async def test_blocked(asyncloop, context):
     context.stat_list.add(normal)
     context.stat_list.add(busy)
 
-    mock = Mock(asyncloop, f'''yamls://
+    mock.init(asyncloop, f'''yamls://
 mock:
   timer: direct://
 channel: stat://;tll.channel.timer=timer;node=test-node

@@ -7,10 +7,8 @@ import tll
 from tll.asynctll import asyncloop_run
 from tll.logger import Logger
 from tll.channel import Context
-from tll.channel.mock import Mock
 from tll.channel.prefix import Prefix
 from tll.config import Config
-from tll.processor.mock import Mock as ProcessorMock
 from tll.scheme import Scheme
 from tll.test_util import ports
 
@@ -21,10 +19,10 @@ def context(path_builddir):
     return ctx
 
 @asyncloop_run
-async def test(asyncloop, path_srcdir):
+async def test(asyncloop, mock, path_srcdir):
     scheme = path_srcdir / "src/logic/control.yaml"
 
-    mock = Mock(asyncloop, f'''yamls://
+    mock.init(asyncloop, f'''yamls://
 mock:
   processor: null://
   input: direct://;scheme=channel://logic:input
@@ -61,10 +59,10 @@ channel: control://;tll.channel.processor=processor;tll.channel.input=input;name
     assert ci.unpack(await ci.recv()).SCHEME.name == 'Pong'
 
 @asyncloop_run
-async def test_uplink(asyncloop, path_srcdir):
+async def test_uplink(asyncloop, mock, path_srcdir):
     scheme = path_srcdir / "src/logic/control.yaml"
 
-    mock = Mock(asyncloop, f'''yamls://
+    mock.init(asyncloop, f'''yamls://
 mock:
   processor: direct://;scheme=yaml://{scheme}
   uplink: direct://;scheme=yaml://{scheme}
@@ -106,8 +104,8 @@ channel:
     assert sorted(result) == [(f'{x}.state', 'Active') for x in sorted(['_mock_master_uplink', 'uplink', 'logic', '_mock_master_processor', 'processor'])]
 
 @asyncloop_run
-async def test_message(asyncloop):
-    mock = Mock(asyncloop, f'''yamls://
+async def test_message(asyncloop, mock):
+    mock.init(asyncloop, f'''yamls://
 mock:
   processor: direct://;scheme=channel://logic:processor
   input: direct://;scheme=channel://logic:input
@@ -143,8 +141,8 @@ channel: control://;tll.channel.processor=processor;tll.channel.input=input;name
     assert m.SCHEME.name == 'Error'
 
 @asyncloop_run
-async def test_log_level(asyncloop):
-    mock = Mock(asyncloop, f'''yamls://
+async def test_log_level(asyncloop, mock):
+    mock.init(asyncloop, f'''yamls://
 mock:
   processor: null://
   input: direct://;scheme=channel://logic:input
@@ -185,10 +183,10 @@ class ChildExport(Prefix):
         self.config['client'] = cfg
 
 @asyncloop_run
-async def test_resolve(asyncloop):
+async def test_resolve(asyncloop, mock):
     asyncloop.context.register(ChildExport)
 
-    mock = Mock(asyncloop, f'''yamls://
+    mock.init(asyncloop, f'''yamls://
 mock:
   processor: direct://;scheme=channel://logic:processor
   resolve: direct://;scheme=channel://logic:resolve
@@ -239,9 +237,9 @@ class Echo(Prefix):
         self._child.post(msg)
 
 @asyncloop_run
-async def test_resolve_processor(asyncloop):
+async def test_resolve_processor(asyncloop, proc_mock):
     asyncloop.context.register(Echo)
-    mock = ProcessorMock(asyncloop, f'''yamls://
+    mock = proc_mock.init(asyncloop, f'''yamls://
 name: processor
 processor.objects:
   resolve:
@@ -279,8 +277,8 @@ processor.objects:
     assert (await client.recv()).data.tobytes() == b'xxx'
 
 @asyncloop_run
-async def test_resolve_dup(asyncloop):
-    mock = Mock(asyncloop, f'''yamls://
+async def test_resolve_dup(asyncloop, mock):
+    mock.init(asyncloop, f'''yamls://
 mock:
   processor: direct://;scheme=channel://logic:processor
   resolve: direct://;scheme=channel://logic:resolve
@@ -331,10 +329,10 @@ channel:
     await check(tinput)
 
 @asyncloop_run
-async def test_queue(asyncloop, path_srcdir):
+async def test_queue(asyncloop, mock, path_srcdir):
     scheme = path_srcdir / "src/logic/control.yaml"
 
-    mock = Mock(asyncloop, f'''yamls://
+    mock.init(asyncloop, f'''yamls://
 mock:
   uplink: direct://;scheme=channel://logic:input;emulate-control=tcp-client;dump=frame
   processor: null://
@@ -413,10 +411,10 @@ channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;na
     assert ci.unpack(await ci.recv()).SCHEME.name == 'Pong'
 
 @asyncloop_run
-async def test_config_set(asyncloop, path_srcdir):
+async def test_config_set(asyncloop, mock, path_srcdir):
     scheme = path_srcdir / "src/logic/control.yaml"
 
-    mock = Mock(asyncloop, f'''yamls://
+    mock.init(asyncloop, f'''yamls://
 mock:
   uplink: direct://;scheme=channel://logic:input;emulate-control=tcp-client;dump=frame
   processor: null://
@@ -446,10 +444,10 @@ channel: control://;tll.channel.processor=processor;tll.channel.uplink=uplink;na
     assert mock.channel.config.sub('info').as_dict() == {'config': {}}
 
 @asyncloop_run
-async def test_config_set_persistent(asyncloop, path_srcdir, tmp_path):
+async def test_config_set_persistent(asyncloop, mock, path_srcdir, tmp_path):
     scheme = path_srcdir / "src/logic/control.yaml"
 
-    mock = Mock(asyncloop, f'''yamls://
+    mock.init(asyncloop, f'''yamls://
 mock:
   uplink: direct://;scheme=channel://logic:input;emulate-control=tcp-client;dump=frame
   processor: null://

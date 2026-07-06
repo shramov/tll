@@ -6,7 +6,6 @@ import pytest
 import tll
 from tll.asynctll import asyncloop_run
 from tll.channel import Context
-from tll.channel.mock import Mock
 
 @pytest.fixture
 def context():
@@ -14,10 +13,10 @@ def context():
     return ctx
 
 @pytest.fixture
-def resolve(asyncloop, path_srcdir):
+def resolve(asyncloop, mock, path_srcdir):
     scheme = path_srcdir / "src/logic/resolve.yaml"
 
-    mock = Mock(asyncloop, f'''yamls://
+    mock.init(asyncloop, f'''yamls://
 mock:
   input: direct://;scheme=yaml://{scheme};emulate-control=tcp-server
   uplink: direct://;scheme=yaml://{scheme}

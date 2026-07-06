@@ -8,12 +8,17 @@ from tll import asynctll
 
 class Mock:
     def __init__(self, loop, config):
-        if not isinstance(config, Config):
-            config = Config.load(config)
         self._channel = None
-        self._config = config
+        self._config = None
         self._inner = {}
         self._channels = {}
+        if loop is not None:
+            self.init(loop, config)
+
+    def init(self, loop, config):
+        if not isinstance(config, Config):
+            config = Config.load(config)
+        self._config = config
 
         for path,_ in self._config.browse("mock.*", subpath=True):
             name = path[len('mock.'):]
@@ -43,6 +48,8 @@ class Mock:
         if 'name' not in url:
             url['name'] = 'mock'
         self._channel = loop.Channel(url)
+
+        return self
 
     def open(self, inner : bool = True, skip = []):
         for c in self._channels.values():

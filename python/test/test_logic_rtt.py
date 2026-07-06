@@ -7,7 +7,6 @@ import pytest
 from tll.asynctll import asyncloop_run
 import tll.stat as S
 from tll.channel import Context
-from tll.channel.mock import Mock
 
 @pytest.fixture
 def context(path_builddir):
@@ -16,8 +15,8 @@ def context(path_builddir):
     return ctx
 
 @asyncloop_run
-async def test(asyncloop, context):
-    mock = Mock(asyncloop, '''yamls://
+async def test(asyncloop, mock):
+    mock.init(asyncloop, '''yamls://
 mock:
   timer: direct://
   result: direct://

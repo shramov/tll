@@ -6,7 +6,6 @@ import pytest
 import tll
 from tll.asynctll import asyncloop_run
 from tll.channel import Context
-from tll.channel.mock import Mock
 
 @pytest.fixture
 def context(path_builddir):
@@ -15,7 +14,7 @@ def context(path_builddir):
     return ctx
 
 @asyncloop_run
-async def test(asyncloop, context, path_srcdir):
+async def test(asyncloop, mock, path_srcdir):
     scheme = path_srcdir / "src/logic/quantile.yaml"
 
     config = f'''yamls://
@@ -30,7 +29,7 @@ channel:
   quantile: '95,50,75'
 '''
 
-    mock = Mock(asyncloop, config)
+    mock.init(asyncloop, config)
     mock.open()
 
     ci = mock.io('input')
