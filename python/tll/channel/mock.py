@@ -71,6 +71,7 @@ class Mock:
 
         if self._channel:
             self._channel.free()
+        self._channel = None
 
         for c in self._inner.values():
             c.free()
