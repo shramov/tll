@@ -18,11 +18,16 @@ from tll.test_util import Accum
 def context():
     return C.Context(Config.from_dict({'resolve.request': 'direct://;master=resolve-server;dump=frame'}))
 
+@pytest.fixture
+def rserver(context, path_srcdir):
+    scheme = path_srcdir / "src/logic/resolve.yaml"
+    rserver = Accum('direct://', name='resolve-server', dump='yes', scheme=f'yaml://{scheme}', context=context)
+    yield rserver
+    rserver.close()
+
 @pytest.mark.parametrize("url", ['resolve://;resolve.service=service;resolve.channel=channel', 'resolve://service/channel'])
 @pytest.mark.parametrize("mode", ['once', 'always'])
-def test_resolve(context, url, mode):
-    scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/resolve.yaml"
-    rserver = Accum('direct://', name='resolve-server', dump='yes', scheme=f'yaml://{scheme}', context=context)
+def test_resolve(context, url, mode, rserver):
     server = Accum('direct://', name='server', dump='yes', context=context)
     url += f';resolve.mode={mode}'
     c = Accum(url, name='resolve', context=context)
@@ -80,9 +85,7 @@ def test_resolve(context, url, mode):
     c.post(b'xxx', msgid=300)
     assert [(m.msgid, m.data.tobytes()) for m in server.result] == [(100, b'xxx'), (200, b'xxx'), (300, b'xxx')]
 
-def test_scheme_hash(context, with_scheme_hash):
-    scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/resolve.yaml"
-    rserver = Accum('direct://', name='resolve-server', dump='yes', scheme=f'yaml://{scheme}', context=context)
+def test_scheme_hash(context, with_scheme_hash, rserver):
     server = Accum('direct://', name='server', dump='yes', context=context)
     c = Accum('resolve://;resolve.service=service;resolve.channel=channel;resolve.mode=once;name=resolve', context=context)
 
@@ -118,7 +121,7 @@ def test_scheme_hash(context, with_scheme_hash):
     assert c.scheme != None
     assert [m.name for m in c.scheme.messages] == ['Message']
 
-def test_scheme_override(context):
+def test_scheme_override(context, rserver):
     scheme_outer = '''yamls://
 - name: Data
   id: 16
@@ -132,8 +135,6 @@ def test_scheme_override(context):
   fields:
     - {name: f0, type: int16}
 '''
-    scheme = pathlib.Path(os.environ.get("SOURCE_DIR", pathlib.Path(tll.__file__).parent.parent.parent)) / "src/logic/resolve.yaml"
-    rserver = Accum('direct://', name='resolve-server', dump='yes', scheme=f'yaml://{scheme}', context=context)
     c = Accum('resolve://;resolve.service=service;resolve.channel=channel;name=resolve', scheme=scheme_outer, context=context, dump='yes')
 
     rserver.open()
@@ -164,9 +165,7 @@ def test_scheme_override(context):
     assert [(m.msgid, m.seq) for m in client.result] == [(16, 20)]
     assert client.unpack(client.result[-1]).as_dict() == {'f0': 200}
 
-def test_early_close(context, path_srcdir):
-    scheme = path_srcdir / "src/logic/resolve.yaml"
-    rserver = Accum('direct://', name='resolve-server', dump='yes', scheme=f'yaml://{scheme}', context=context)
+def test_early_close(context, rserver):
     server = Accum('direct://', name='server', dump='yes', context=context)
     c = Accum('resolve://service/channel', name='resolve', context=context)
 
@@ -181,3 +180,23 @@ def test_early_close(context, path_srcdir):
     c.close()
 
     assert c.state == c.State.Closed
+
+def test_null(context, rserver):
+    c = Accum('resolve://service/channel;resolve.mode=null', name='resolve', context=context)
+
+    rserver.open()
+
+    c.open()
+    assert c.state == c.State.Opening
+    assert rserver.result != []
+    assert rserver.unpack(rserver.result[0]).as_dict() == {'service': 'service', 'channel': 'channel'}
+
+    scheme = 'yamls://[{name: Data}]'
+    rserver.post({'config': [{'key': 'init.tll.proto', 'value': 'zero'}, {'key': 'init.scheme', 'value': scheme}]}, name='ExportChannel')
+
+    assert c.state == c.State.Active
+
+    assert c.scheme is not None
+    assert [m.name for m in c.scheme.messages] == ['Data']
+    assert [i.name for i in c.children] == ['resolve/request', 'resolve/resolve']
+    assert c.children[-1].config.sub('init').as_dict() == {'tll': {'proto': 'null', 'internal': 'yes'}, 'scheme': scheme, 'name': 'resolve/resolve'}
