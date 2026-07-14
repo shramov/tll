@@ -146,6 +146,8 @@ int Resolve::_on_active()
 	auto caps = _child->caps() & tll::caps::InOut;
 	if (caps == 0)
 		caps = tll::caps::InOut;
+	if (auto c = internal.caps & tll::caps::InOut; c != 0)
+		caps &= c;
 	if (auto cscheme = _child->scheme(); cscheme && _scheme_url) {
 		if (caps & tll::caps::Input) {
 			if (auto r = _convert_from.init(_log, cscheme, _scheme.get()); r)
