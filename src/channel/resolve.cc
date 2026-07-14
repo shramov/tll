@@ -28,6 +28,8 @@ int Resolve::_init(const Channel::Url &url, tll::Channel *master)
 	auto service = reader.getT<std::string>("resolve.service", "");
 	auto channel = reader.getT<std::string>("resolve.channel", "");
 	_request_mode = reader.getT("resolve.mode", Once, {{"once", Once}, {"always", Always}, {"null", Null}});
+	_convert_from.settings.init(reader);
+	_convert_into.settings.init(reader);
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
