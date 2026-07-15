@@ -19,6 +19,10 @@ struct ConvertBuf : public tll::scheme::Convert
 
 	std::optional<const tll_msg_t *> convert(const tll_msg_t * m)
 	{
+		if (skip > 0) {
+			--skip;
+			return m;
+		}
 		auto it = map_from.find(m->msgid);
 		if (it == map_from.end())
 			return fail(std::nullopt, "Message {} not found", m->msgid);

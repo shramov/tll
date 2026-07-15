@@ -10,6 +10,7 @@ import tll.channel as C
 from tll.channel.base import Base
 from tll.config import Url
 from tll.error import TLLError
+from tll.scheme import Scheme
 from tll.test_util import Accum, ports
 
 @pytest.fixture
@@ -1345,3 +1346,62 @@ async def test_close_on_last(asyncloop, tmp_path):
     for i in range(0, 10):
         m = await c.recv()
     assert c.state == c.State.Closed
+
+@asyncloop_run
+async def test_goat_resolve(asyncloop, context, path_srcdir):
+    rserver = asyncloop.Channel('ipc://', name='_tll_resolve_master', scheme=f'yaml://{path_srcdir}/src/logic/resolve.yaml', mode='server', async_mask=C.MsgMask.Data)
+    scheme = lambda t: f'yamls://[{{name: Data, id: 10, fields: [{{name: f, type: {t}}}, {{name: e, type: uint8}}]}}]'
+    stream_scheme = Scheme(f'yaml://{path_srcdir}/src/channel/stream-scheme.yaml')
+    online = asyncloop.Channel('direct://', name='online', scheme=scheme('int8'))
+    request = asyncloop.Channel('direct://', name='request', scheme=scheme('int16'), dump='frame')
+    client = asyncloop.Channel(f'stream+resolve://service/online;request.url=resolve://service/request;request.scheme={scheme("int32")};request.dir=r;request.convert-skip=1', scheme=scheme('int32'), name='client')
+
+    rserver.open()
+    online.open()
+    request.open()
+
+    assert (await rserver.recv_state()) == rserver.State.Active
+
+    client.open(mode='initial')
+
+    m = await rserver.recv()
+    assert m.type == m.Type.Data
+
+    dict2export = lambda **kw: [{'key': f'init.{k}', 'value': v} for k,v in kw.items()]
+
+    assert rserver.unpack(m).channel == 'online'
+    rserver.post({'config': dict2export(master='online', scheme=scheme('int8'), **{'tll.proto': 'direct'})}, name='ExportChannel', addr=m.addr)
+
+    m = await rserver.recv()
+    assert m.type == m.Type.Data
+
+    assert rserver.unpack(m).channel == 'request'
+    rserver.post({'config': dict2export(master='request', scheme=scheme('int16'), **{'tll.proto': 'direct'})}, name='ExportChannel', addr=m.addr)
+
+    m = await request.recv()
+    assert m.type == m.Type.Data
+    data = stream_scheme.unpack(m)
+    assert data.as_dict(only={'data'}) == {'data': {'initial': 0}}
+    data = stream_scheme['Reply'](last_seq=9, requested_seq=5, block_seq=-1)
+    request.post(data.pack(), msgid=data.SCHEME.msgid)
+
+    assert (await client.recv_state()) == client.State.Active
+
+    for i in range(5, 10):
+        request.post({'f': i, 'e': 0xff}, seq=i, name='Data')
+
+    for i in range(5, 10):
+        m = await client.recv()
+        assert (m.type, m.seq) == (m.Type.Data, i)
+        assert client.unpack(m).as_dict() == {'f': i, 'e': 0xff}
+
+    m = await client.recv()
+    assert (m.type, m.seq) == (m.Type.Control, 9)
+
+    for i in range(10, 15):
+        online.post({'f': i, 'e': 0xff}, seq=i, name='Data')
+
+    for i in range(10, 15):
+        m = await client.recv()
+        assert (m.type, m.seq) == (m.Type.Data, i)
+        assert client.unpack(m).as_dict() == {'f': i, 'e': 0xff}

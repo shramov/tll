@@ -19,12 +19,16 @@ struct Convert : public ErrorStack
 	std::map<int, const Message *> map_from;
 	SchemePtr scheme_from;
 	SchemePtr scheme_into;
+	unsigned skip = 0;
+
 	struct Settings {
 		bool fail_early = true;
+		unsigned skip = 0;
 
 		template <typename R>
 		void init(R &reader) {
 			fail_early = reader.getT("convert-fail-on", true, {{"init", true}, {"data", false}});
+			skip = reader.getT("convert-skip", 0u);
 		}
 	} settings;
 
@@ -91,6 +95,7 @@ struct Convert : public ErrorStack
 		this->log = log;
 		scheme_from.reset(from->copy());
 		scheme_into.reset(into->copy());
+		skip = settings.skip;
 		for (auto m = scheme_from->messages; m; m = m->next) {
 			if (m->msgid)
 				map_from[m->msgid] = m;
