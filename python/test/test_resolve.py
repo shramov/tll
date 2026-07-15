@@ -181,8 +181,8 @@ def test_early_close(context, rserver):
 
     assert c.state == c.State.Closed
 
-def test_null(context, rserver):
-    c = Accum('resolve://service/channel;resolve.mode=null', name='resolve', context=context)
+def test_rewrite(context, rserver):
+    c = Accum('resolve://service/channel;resolve.rewrite-proto=null', name='resolve', context=context)
 
     rserver.open()
 

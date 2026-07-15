@@ -38,6 +38,9 @@ are empty.
 activation, or on each open. If parameters received from the server differs from previous then child
 object is destroyed and recreated.
 
+``resolve.rewrite-proto=<string>`` (default empty) - replace resolved channel protocol with this
+option value, can be used when only scheme is needed from the server.
+
 ``resolve.request=<url>`` (default ``ipc://;mode=client;master=_tll_resolve_master``) - client
 channel parameters used to connect to resolve server and perform lookup. By default tries to reach
 resolve node that is running in same processor instance. If processor is configured without it then

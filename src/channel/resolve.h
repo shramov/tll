@@ -26,8 +26,9 @@ class Resolve : public tll::channel::Prefix<Resolve>
 	ConvertBuf _convert_into;
 	ConvertBuf _convert_from;
 
-	enum RequestMode { Once, Always, Null } _request_mode = Once;
+	enum RequestMode { Once, Always } _request_mode = Once;
 	enum class State { Closed, Opening, Active, Closing } _state = State::Closed;
+	std::string _rewrite_proto;
  public:
 	static constexpr std::string_view channel_protocol() { return "resolve"; }
 	static constexpr auto child_policy() { return ChildPolicy::Proxy; }

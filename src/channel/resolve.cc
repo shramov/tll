@@ -27,7 +27,8 @@ int Resolve::_init(const Channel::Url &url, tll::Channel *master)
 	auto reader = channel_props_reader(url);
 	auto service = reader.getT<std::string>("resolve.service", "");
 	auto channel = reader.getT<std::string>("resolve.channel", "");
-	_request_mode = reader.getT("resolve.mode", Once, {{"once", Once}, {"always", Always}, {"null", Null}});
+	_request_mode = reader.getT("resolve.mode", Once, {{"once", Once}, {"always", Always}});
+	_rewrite_proto = reader.getT("resolve.rewrite-proto", std::string {});
 	_convert_from.settings.init(reader);
 	_convert_into.settings.init(reader);
 	if (!reader)
@@ -104,8 +105,8 @@ int Resolve::_on_request_data(const tll_msg_t *msg)
 	else
 		return _log.fail(EINVAL, "No 'init' subtree in resolved config");
 
-	if (_request_mode == Null)
-		url.set("tll.proto", "null");
+	if (_rewrite_proto.size())
+		url.set("tll.proto", _rewrite_proto);
 
 	if (_child && !equals(_resolve_init_cfg, url)) {
 		_log.info("New init parameters, reset child");
