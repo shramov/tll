@@ -34,9 +34,10 @@ are empty.
 
 ``resolve.channel=<string>`` - channel export name that is used as a second part of lookup key.
 
-``resolve.mode={once|always}`` (default ``once``) - perform lookup only once, on first successfull
-activation, or on each open. If parameters received from the server differs from previous then child
-object is destroyed and recreated.
+``resolve.mode={once|always|monitor}`` (default ``once``) - perform lookup only once, on first successful
+activation, or on each open. If parameters received from the server differ from previous then child
+object is destroyed and recreated. Monitor mode keeps request channel open and listens for
+``ExportChannel`` updates. If init parameters differ then channel is closed and reinitialized on next reopen.
 
 ``resolve.rewrite-proto=<string>`` (default empty) - replace resolved channel protocol with this
 option value, can be used when only scheme is needed from the server.

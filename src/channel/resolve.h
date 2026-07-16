@@ -26,7 +26,7 @@ class Resolve : public tll::channel::Prefix<Resolve>
 	ConvertBuf _convert_into;
 	ConvertBuf _convert_from;
 
-	enum RequestMode { Once, Always } _request_mode = Once;
+	enum RequestMode { Once, Always, Monitor } _request_mode = Once;
 	enum class State { Closed, Opening, Active, Closing } _state = State::Closed;
 	std::string _rewrite_proto;
  public:
@@ -117,7 +117,7 @@ class Resolve : public tll::channel::Prefix<Resolve>
 
 	int _on_request_state(const tll_msg_t *msg)
 	{
-		if (_state != State::Opening)
+		if (_state != State::Opening && !(_state == State::Active && _request_mode == Monitor))
 			return 0;
 		switch ((tll_state_t) msg->msgid) {
 		case tll::state::Active:

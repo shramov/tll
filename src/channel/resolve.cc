@@ -27,7 +27,7 @@ int Resolve::_init(const Channel::Url &url, tll::Channel *master)
 	auto reader = channel_props_reader(url);
 	auto service = reader.getT<std::string>("resolve.service", "");
 	auto channel = reader.getT<std::string>("resolve.channel", "");
-	_request_mode = reader.getT("resolve.mode", Once, {{"once", Once}, {"always", Always}});
+	_request_mode = reader.getT("resolve.mode", Once, {{"once", Once}, {"always", Always}, {"monitor", Monitor}});
 	_rewrite_proto = reader.getT("resolve.rewrite-proto", std::string {});
 	_convert_from.settings.init(reader);
 	_convert_into.settings.init(reader);
@@ -89,7 +89,7 @@ int Resolve::_on_request_active()
 
 int Resolve::_on_request_data(const tll_msg_t *msg)
 {
-	if (_state != State::Opening)
+	if (_state != State::Opening && !(_state == State::Active && _request_mode == Monitor))
 		return 0;
 	if (msg->msgid != resolve_scheme::ExportChannel::meta_id())
 		return state_fail(0, "Invalid message id: {}", msg->msgid);
@@ -109,10 +109,19 @@ int Resolve::_on_request_data(const tll_msg_t *msg)
 		url.set("tll.proto", _rewrite_proto);
 
 	if (_child && !equals(_resolve_init_cfg, url)) {
+		if (_request_mode == Monitor && _state != State::Opening) {
+			_log.info("New init parameters, reopen");
+			close();
+			return 0;
+		}
+
 		_log.info("New init parameters, reset child");
 		_child.reset();
-	} else
+	} else {
 		_log.debug("Init parameters not changed, reuse child object");
+		if (_request_mode == Monitor && _state != State::Opening)
+			return 0;
+	}
 
 	for (auto &[k, v] : cfg.browse("scheme.**")) {
 		auto body = v.get();
@@ -135,7 +144,8 @@ int Resolve::_on_request_data(const tll_msg_t *msg)
 		_child->callback_add(this);
 	}
 	_state = State::Active;
-	_request->close();
+	if (_request_mode != Monitor)
+		_request->close();
 	_child->open(_open_cfg);
 	return 0;
 }

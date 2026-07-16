@@ -200,3 +200,42 @@ def test_rewrite(context, rserver):
     assert [m.name for m in c.scheme.messages] == ['Data']
     assert [i.name for i in c.children] == ['resolve/request', 'resolve/resolve']
     assert c.children[-1].config.sub('init').as_dict() == {'tll': {'proto': 'null', 'internal': 'yes'}, 'scheme': scheme, 'name': 'resolve/resolve'}
+
+@pytest.mark.parametrize("rewrite", ['', 'null'])
+def test_monitor(context, rserver, rewrite):
+    c = Accum(f'resolve://service/channel;resolve.rewrite-proto={rewrite};resolve.mode=monitor', name='resolve', context=context)
+
+    proto = rewrite or 'zero'
+
+    rserver.open()
+
+    c.open()
+    assert c.state == c.State.Opening
+    assert rserver.result != []
+    assert rserver.unpack(rserver.result[0]).as_dict() == {'service': 'service', 'channel': 'channel'}
+
+    rserver.post({'config': [{'key': 'init.tll.proto', 'value': 'zero'}, {'key': 'init.a', 'value': 'b'}]}, name='ExportChannel')
+
+    assert c.state == c.State.Active
+    assert [i.name for i in c.children] == ['resolve/request', 'resolve/resolve']
+
+    assert c.children[-1].config.sub('init').as_dict() == {'tll': {'proto': proto, 'internal': 'yes'}, 'a': 'b', 'name': 'resolve/resolve'}
+
+    rserver.post({'config': [{'key': 'init.tll.proto', 'value': 'zero'}, {'key': 'init.a', 'value': 'b'}]}, name='ExportChannel')
+    assert c.state == c.State.Active
+    assert c.children[-1].config.sub('init').as_dict() == {'tll': {'proto': proto, 'internal': 'yes'}, 'a': 'b', 'name': 'resolve/resolve'}
+
+    rserver.post({'config': [{'key': 'init.tll.proto', 'value': 'zero'}, {'key': 'init.a', 'value': 'c'}]}, name='ExportChannel')
+    assert c.state == c.State.Closed
+
+    rserver.result.clear()
+
+    c.open()
+    assert c.state == c.State.Opening
+    assert rserver.result != []
+    assert rserver.unpack(rserver.result[0]).as_dict() == {'service': 'service', 'channel': 'channel'}
+
+    rserver.post({'config': [{'key': 'init.tll.proto', 'value': 'zero'}, {'key': 'init.a', 'value': 'c'}]}, name='ExportChannel')
+
+    assert c.state == c.State.Active
+    assert c.children[-1].config.sub('init').as_dict() == {'tll': {'proto': proto, 'internal': 'yes'}, 'a': 'c', 'name': 'resolve/resolve'}
