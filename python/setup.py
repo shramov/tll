@@ -37,7 +37,7 @@ setup( name = 'tll'
          , Extension("tll.stat", ["tll/stat.pyx"], libraries=["tll"])
          , Extension("tll.version", ["tll/version.pyx"], libraries=["tll"])
          ]
-     , package_data = { 'tll': ['templates/*.mako'] }
+     , package_data = { 'tll.templates': ['*.mako'] }
      , classifiers =
         [ 'Intended Audience :: Developers'
         , 'License :: OSI Approved :: MIT License'
