@@ -1,3 +1,23 @@
+tll (0.5.1) unstable; urgency=medium
+
+  * channel: Messages from failed objects are not allowed
+  * control: Mutable config subtree
+  * convert: Add option to skip number of messages after open
+  * python:
+    Drop unused tll.url module
+    Make tll namespace package
+    Late initialization of mock objects, improve cleanup
+    Allow substraction of two time point values
+  * resolve:
+    Mode that creates null child channel and monitor mode
+    Respect own dir parameter and propertly initialize convert
+  * scheme: Fix return type of assignment operator
+  * stat:
+    Add reserved data into block struct
+    Page scope guard structure
+
+ -- Pavel Shramov <shramov@mexmat.net>  Fri, 17 Jul 2026 17:21:00 +0300
+
 tll (0.5.0) unstable; urgency=medium
 
   * logger: Fix race in tll_logger_free
