@@ -876,6 +876,10 @@ int Processor::pending_process(const tll_msg_t * msg)
 		case channel::ReopenData::Action::Close:
 			deactivate(o, "pending ");
 			break;
+		case channel::ReopenData::Action::Rearm:
+			if (o->reopen.pending())
+				pending_add(o->reopen.next, o);
+			break;
 		case channel::ReopenData::Action::None:
 			break;
 		}

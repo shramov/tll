@@ -18,7 +18,7 @@ namespace tll::channel {
 
 struct ReopenData
 {
-	enum class Action { None, Open, Close };
+	enum class Action { None, Open, Close, Rearm };
 
 	Channel * channel = nullptr;
 	tll_state_t state = state::Closed;
@@ -31,6 +31,7 @@ struct ReopenData
 	duration timeout_min = std::chrono::seconds(1);
 	duration timeout_max = std::chrono::seconds(30);
 	duration timeout_tremble = std::chrono::milliseconds(1);
+	duration time_step_suspend = std::chrono::seconds(1);
 
 	bool reopen_wait = false;
 	unsigned count = 0;
@@ -47,6 +48,7 @@ struct ReopenData
 		timeout_max = reader.getT("reopen-timeout-max", timeout_max);
 		timeout_tremble = reader.getT("reopen-active-min", timeout_tremble);
 		timeout_close = reader.getT("close-timeout", timeout_close);
+		time_step_suspend = reader.getT("time-step-suspend", time_step_suspend);
 		return reader ? 0 : 1;
 	}
 
@@ -126,13 +128,17 @@ struct ReopenData
 		state = s;
 	}
 
-	Action on_timer(tll::Logger &log, tll::time_point now) const
+	Action on_timer(tll::Logger &log, tll::time_point now)
 	{
 		if (state == state::Error)
 			return Action::Close;
 		else if (state == state::Closed && now >= next)
 			return Action::Open;
 		else if (state == state::Opening && now >= next) {
+			if (time_step_suspend.count() > 0 && channel && (channel->dcaps() & TLL_DCAPS_SUSPEND)) {
+				next = now + time_step_suspend;
+				return Action::Rearm;
+			}
 			log.warning("Open timeout for channel {}", channel->name());
 			return Action::Close;
 		} else if (state == state::Closing && now >= next) {
@@ -248,6 +254,10 @@ public:
 		case ReopenData::Action::Close:
 			_reopen_data.channel->close(_reopen_data.force_close());
 			break;
+		case ReopenData::Action::Rearm:
+			if (_reopen_data.pending())
+				_reopen_rearm(_reopen_data.next);
+			break;
 		case ReopenData::Action::None:
 			break;
 		}
@@ -280,6 +290,7 @@ typedef enum tll_channel_reopen_action_t {
 	TLL_CHANNEL_REOPEN_NONE,
 	TLL_CHANNEL_REOPEN_OPEN,
 	TLL_CHANNEL_REOPEN_CLOSE,
+	TLL_CHANNEL_REOPEN_REARM,
 } tll_channel_reopen_action_t;
 
 typedef struct tll_channel_reopen_t tll_channel_reopen_t;

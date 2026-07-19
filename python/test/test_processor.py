@@ -667,3 +667,24 @@ processor.objects:
     c.post(b'')
     m = await c.recv()
     assert m.data.tobytes() == b"{'a': 'no'}"
+
+@asyncloop_run
+async def test_open_suspend(asyncloop, context, tmp_path):
+    mock = Mock(asyncloop, f'''yamls://
+processor.objects:
+  server.init: pub+tcp://{tmp_path}/tcp.sock;mode=server
+  client:
+    init: pub+tcp://{tmp_path}/tcp.sock;mode=client;open-timeout=50ms;time-step-suspend=50ms
+    depends: server
+''')
+    mock.open()
+    c = context.get('client')
+    assert c != None
+    c.suspend()
+
+    await mock.wait('server', 'Active', timeout=0.1)
+    await mock.wait('client', 'Opening', timeout=0.1)
+    await asyncloop.sleep(0.07)
+    assert c.state == c.State.Opening
+    c.resume()
+    await mock.wait('client', 'Active', timeout=0.1)
