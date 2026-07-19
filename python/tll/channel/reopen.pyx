@@ -19,6 +19,7 @@ class Action(enum.Enum):
     Close = TLL_CHANNEL_REOPEN_CLOSE
     Open = TLL_CHANNEL_REOPEN_OPEN
     Nothing = TLL_CHANNEL_REOPEN_NONE
+    Rearm = TLL_CHANNEL_REOPEN_REARM
 
 cdef class ReopenData:
     cdef object __weakref__
@@ -111,6 +112,9 @@ class Reopen(ReopenData):
             super().close()
         elif a == Action.Open:
             super().open()
+        elif a == Action.Rearm:
+            if self.next:
+                self.on_timer_update(self.next)
 
     def on_timer_update(self, ts : float):
         if self._timer and self._timer.state == self._timer.State.Active:

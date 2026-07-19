@@ -13,6 +13,7 @@ cdef extern from "tll/channel/reopen.h" nogil:
         TLL_CHANNEL_REOPEN_NONE
         TLL_CHANNEL_REOPEN_CLOSE
         TLL_CHANNEL_REOPEN_OPEN
+        TLL_CHANNEL_REOPEN_REARM
 
     cdef tll_channel_reopen_t * tll_channel_reopen_new(const tll_config_t *)
     cdef void tll_channel_reopen_free(tll_channel_reopen_t *)
