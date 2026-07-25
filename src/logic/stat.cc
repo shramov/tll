@@ -183,8 +183,6 @@ int Stat::_dump(tll_stat_iter_t * iter)
 		if (ptr->name().empty())
 			continue;
 		auto field = fields[size];
-		if (r.size())
-			r += ", ";
 		if (ptr + 3 < end && ptr->name() == "_tllgrp") {
 			auto count = ptr;
 			auto sum = ++ptr;
@@ -212,9 +210,10 @@ int Stat::_dump(tll_stat_iter_t * iter)
 				if (count->value)
 					group.set_avg(double(sum->value) / count->value);
 			}
+			r += ", ";
 			continue;
 		}
-		r += _dump(*ptr);
+		r += _dump(*ptr) + ", ";
 		auto method = ptr->method();
 		if (ptr->type() == TLL_STAT_FLOAT) {
 			if (ptr->fvalue == tll::stat::default_value<tll_stat_float_t>(method))
@@ -235,7 +234,7 @@ int Stat::_dump(tll_stat_iter_t * iter)
 	}
 	fields.resize(size);
 
-	log->info("Page {}: {}", name, r);
+	log->info("Page {}: {}", name, r.substr(0, r.size() - 2));
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	msg.msgid = data.meta_id();
 	msg.data = data.view().data();
