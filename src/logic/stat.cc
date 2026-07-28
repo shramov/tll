@@ -243,49 +243,50 @@ int Stat::_dump(tll_stat_iter_t * iter)
 	return 0;
 }
 
-namespace tll::conv {
-template <typename T>
-struct dump<std::pair<T, std::string_view>> : public to_string_from_string_buf<std::pair<T, std::string_view>>
+struct SuffixPair
 {
-	using value_type = std::pair<T, std::string_view>;
+	double value = {};
+	std::string_view suffix;
 
-	template <typename Buf>
-	static inline std::string_view to_string_buf(const value_type &v, Buf &buf)
-	{
-		auto r = tll::conv::to_string_buf(v.first, buf);
-		return tll::conv::append(buf, r, v.second);
+	template <typename T>
+	constexpr SuffixPair apply(T v) const { return SuffixPair{v/value, suffix}; }
+};
+
+template <>
+struct fmt::formatter<SuffixPair, char>
+{
+	template <typename ParseContext>
+	constexpr auto parse(ParseContext &ctx) { return ctx.begin(); }
+
+	template <typename FormatContext>
+	auto format(const SuffixPair &v, FormatContext &ctx) const {
+		return fmt::format_to(ctx.out(), "{:.3f}{}", v.value, v.suffix);
 	}
 };
-}
 
 namespace {
 template <typename T>
-std::pair<double, std::string_view> shorten_bytes(T v)
+constexpr SuffixPair suffix_bytes(T v)
 {
 	if (v > 1024ll * 1024 * 1024 * 1000)
-		return {v / (1024. * 1024), "gb"};
+		return {1024 * 1024 * 1024, "gb"};
 	else if (v > 1024 * 1024)
-		return {v / (1024. * 1024), "mb"};
+		return {1024 * 1024, "mb"};
 	else if (v > 1024)
-		return {v / (1024.), "kb"};
-	return {v, "b"};
+		return {1024, "kb"};
+	return {1, "b"};
 }
 
 template <typename T>
-std::pair<double, std::string_view> shorten_time(T v)
+constexpr SuffixPair suffix_time(T v)
 {
 	if (v > 1000ll * 1000 * 1000)
-		return {v / (1000. * 1000 * 1000) , "s"};
+		return {1000 * 1000 * 1000 , "s"};
 	else if (v > 1000 * 1000)
-		return {v / (1000. * 1000), "ms"};
+		return {1000. * 1000, "ms"};
 	else if (v > 1000)
-		return {v / (1000.), "us"};
-	return {v, "ns"};
-}
-
-std::string format_field(std::string_view name, std::string_view suffix, std::pair<double, std::string_view> v)
-{
-	return fmt::format("{}/{}: {:.3f}{}", name, suffix, v.first, v.second);
+		return {1000, "us"};
+	return {1, "ns"};
 }
 }
 
@@ -302,9 +303,9 @@ std::string Stat::_dump(const tll::stat::Field & v, T value)
 	std::string_view suffix = "";
 	switch (v.unit()) {
 	case tll::stat::Bytes:
-		return format_field(name, "b", shorten_bytes(value));
+		return fmt::format("{}/{}: {}", name, "b", suffix_bytes(value).apply(value));
 	case tll::stat::Ns:
-		return format_field(name, "ns", shorten_time(value));
+		return fmt::format("{}/{}: {}", name, "ns", suffix_time(value).apply(value));
 	default: break;
 	}
 
@@ -318,11 +319,14 @@ std::string Stat::_group(std::string_view name, tll_stat_unit_t unit, int64_t co
 		return fmt::format("{}: -/-/-", name);
 	double avg = ((double) sum) / count;
 
+	SuffixPair div = {};
 	switch (unit) {
 	case tll::stat::Bytes:
-		return fmt::format("{}: {}/{}/{}", name, shorten_bytes(min), shorten_bytes(avg), shorten_bytes(max));
+		div = suffix_bytes(min);
+		return fmt::format("{}: {}/{}/{}", name, div.apply(min), div.apply(avg), div.apply(max));
 	case tll::stat::Ns:
-		return fmt::format("{}: {:.3f}us/{:.3f}us/{}us", name, min / 1000., avg /1000., max /1000.);
+		div = suffix_time(min);
+		return fmt::format("{}: {}/{}/{}", name, div.apply(min), div.apply(avg), div.apply(max));
 	default:
 		return fmt::format("{}: {}/{:.3f}/{}", name, min, avg, max);
 	}
