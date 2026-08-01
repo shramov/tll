@@ -15,8 +15,12 @@ from tll.error import TLLError
 from tll.test_util import Accum
 
 @pytest.fixture
-def context():
-    return C.Context(Config.from_dict({'resolve.request': 'direct://;master=resolve-server;dump=frame'}))
+def defaults():
+    return Config.from_dict({'resolve.request': 'direct://;master=resolve-server;dump=frame'})
+
+@pytest.fixture
+def context(defaults):
+    return C.Context(defaults)
 
 @pytest.fixture
 def rserver(context, path_srcdir):
@@ -239,3 +243,17 @@ def test_monitor(context, rserver, rewrite):
 
     assert c.state == c.State.Active
     assert c.children[-1].config.sub('init').as_dict() == {'tll': {'proto': proto, 'internal': 'yes'}, 'a': 'c', 'name': 'resolve/resolve'}
+
+def test_request_init(defaults, context, rserver):
+    defaults['resolve.request'] = 'invalid://'
+
+    rserver.open()
+
+    with pytest.raises(TLLError): context.Channel('resolve://service/channel', name='resolve')
+
+    c = context.Channel('resolve://service/channel', name='resolve', **{'resolve.request': 'direct://;master=resolve-server;dump=frame'})
+
+    c.open()
+    assert c.state == c.State.Opening
+    assert rserver.result != []
+    assert rserver.unpack(rserver.result[0]).as_dict() == {'service': 'service', 'channel': 'channel'}

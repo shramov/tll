@@ -48,7 +48,12 @@ int Resolve::_init(const Channel::Url &url, tll::Channel *master)
 	if (channel.empty()) return _log.fail(EINVAL, "Empty channel parameter");
 
 	tll::Channel::Url curl;
-	if (_config_defaults.sub("resolve.request")) {
+	if (url.sub("resolve.request")) {
+		if (auto r = url.getT<tll::Channel::Url>("resolve.request"); !r)
+			return _log.fail(EINVAL, "Failed to get request url: {}", r.error());
+		else
+			curl = *r;
+	} else if (_config_defaults.sub("resolve.request")) {
 		auto r = _config_defaults.getT<tll::Channel::Url>("resolve.request");
 		if (!r)
 			return _log.fail(EINVAL, "Failed to get request url: {}", r.error());
