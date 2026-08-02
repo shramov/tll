@@ -147,6 +147,17 @@ Scheme search paths
 List of values read from the subtree ``processor.scheme-path`` (as a yaml list or mapping) is added
 into scheme search path.
 
+Statistics
+----------
+
+Processor exports following stat variables:
+ - ``cpu``: human readable CPU load of the process, in percent;
+ - ``cpu/ns``: cumulative CPU time (user and system) used by the process, duplicates ``cpu`` metric
+   for monitoring systems that should calculate ``(cpu(ts1) - cpu(ts0)) / (ts1 - ts0)``
+ - ``mem/b``: total memory used in bytes
+ - ``state``: number of state transitions of objects
+ - ``error``: number of ``Error`` state transitions of objects
+
 Examples
 --------
 
