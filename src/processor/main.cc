@@ -31,10 +31,13 @@ int main(int argc, char *argv[])
 	tll::util::ArgumentParser parser("config [-Dkey=value]");
 	std::string curl;
 	std::vector<std::string> defs;
+	std::string log_start, log_stop;
 	bool version = false;
 	parser.add_argument({"CONFIG"}, "configuration file", &curl);
 	parser.add_argument({"--version"}, "print version and exit", &version);
 	parser.add_argument({"-D"}, "extra configuration variables", &defs);
+	parser.add_argument({"--log-start"}, "log message before initialization", &log_start);
+	parser.add_argument({"--log-stop"}, "log message after processor is destroyed", &log_stop);
 	auto pr = parser.parse(argc, argv);
 	if (!pr) {
 		printf("Invalid arguments: %s\nRun '%s --help' for more information\n", pr.error().c_str(), argv[0]);
@@ -78,10 +81,13 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	tll::channel::Context context(cfg->sub("processor.defaults").value_or(tll::Config()));
+	if (log_start.size())
+		tll::Logger("tll.processor").info(log_start);
+
+	auto context = std::make_unique<tll::channel::Context>(cfg->sub("processor.defaults").value_or(tll::Config()));
 
 	if (auto stat = tll_logger_stat(); stat)
-		tll_stat_list_add(context.stat_list(), stat);
+		tll_stat_list_add(context->stat_list(), stat);
 
 	std::unique_ptr<tll::Channel> loader;
 	{
@@ -93,7 +99,7 @@ int main(int argc, char *argv[])
 			lurl.set("module", mcfg->copy());
 		if (auto acfg = cfg->sub("processor.alias"))
 			lurl.set("alias", acfg->copy());
-		loader = context.channel(lurl);
+		loader = context->channel(lurl);
 		if (!loader) {
 			printf("Failed to load channel modules\n");
 			return 1;
@@ -106,7 +112,7 @@ int main(int argc, char *argv[])
 	else
 		cfg->set("tll.proto", "processor");
 
-	auto proc = tll::Processor::init(*cfg, context);
+	auto proc = tll::Processor::init(*cfg, *context);
 	if (!proc) {
 		printf("Failed to init processor\n");
 		return 1;
@@ -155,7 +161,14 @@ int main(int argc, char *argv[])
 	for (auto & t : threads)
 		t.join();
 
-	loader.reset();
+	auto r = proc->config().getT("info.exit-code", 0).value_or(0);
 
-	return proc->config().getT("info.exit-code", 0).value_or(0);
+	loader.reset();
+	proc.reset();
+	context.reset();
+
+	if (log_stop.size())
+		tll::Logger("tll.processor").info(log_stop);
+
+	return r;
 }
