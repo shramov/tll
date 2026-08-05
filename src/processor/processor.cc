@@ -545,7 +545,7 @@ void Processor::_free()
 		auto v = c.get();
 		if (!v)
 			continue;
-		_log.debug("Add scheme search path '{}'", *v);
+		_log.debug("Remove scheme search path '{}'", *v);
 		tll_scheme_path_remove(v->data(), v->size(), TLL_SCHEME_PATH_USER);
 	}
 
