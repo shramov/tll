@@ -94,6 +94,7 @@ int main(int argc, char *argv[])
 		tll::Channel::Url lurl;
 		lurl.set("tll.proto", "loader");
 		lurl.set("tll.internal", "yes");
+		lurl.set("tll.init-log", "proto");
 		lurl.set("name", fmt::format("{}/loader", "processor"));
 		if (auto mcfg = cfg->sub("processor.module"))
 			lurl.set("module", mcfg->copy());
@@ -111,6 +112,7 @@ int main(int argc, char *argv[])
 		cfg->set("tll.proto", fmt::format("{}+{}", *ppp, "processor"));
 	else
 		cfg->set("tll.proto", "processor");
+	cfg->set("tll.init-log", "proto");
 
 	auto proc = tll::Processor::init(*cfg, *context);
 	if (!proc) {

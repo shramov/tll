@@ -659,6 +659,9 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 			url.set("name", fmt::format("noname-{}", _noname_idx++));
 	}
 
+	enum DumpMode { Proto, Full };
+	auto dump = url.getT("tll.init-log", Full, {{"proto", Proto}, {"full", Full}}).value_or(Full);
+
 	auto internal = url.getT("tll.internal", false);
 	if (!internal)
 		return _log.fail(nullptr, "Invalid tll.internal parameter: {}", internal.error());
@@ -677,7 +680,10 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 
 	std::set<const tll_channel_impl_t *> impllog;
 
-	_log.info("Init channel {}", url_short);
+	if (dump == Full)
+		_log.info("Init channel {}", url_short);
+	else
+		_log.info("Init channel {}://...", url.proto());
 	do {
 		if (impl->version > TLL_CHANNEL_IMPL_VERSION_CURRENT)
 			_log.warning("Impl version {} is in the future, last known is {}", impl->version, (int) TLL_CHANNEL_IMPL_VERSION_CURRENT);
