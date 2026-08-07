@@ -14,6 +14,7 @@ namespace tll::util {
  */
 class cstring
 {
+ protected:
 	std::string_view _data; // C++ 24.4.2.1 Default constructor sets data to nullptr
 
 	static std::string_view memdup(const char * data, size_t size)
