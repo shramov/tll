@@ -28,6 +28,7 @@ spdlog = dependency('spdlog', version: '>=1.0', required: false)
 rapidjson = dependency('RapidJSON', required: false)
 rhash = dependency('librhash', required: false)
 threads = dependency('threads')
+keyutils = dependency('libkeyutils', required: false)
 
 include = include_directories('src')
 

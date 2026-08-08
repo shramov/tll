@@ -190,3 +190,11 @@ TLL_0.5.0 {
 		tll_version_number;
 		tll_version_string;
 } TLL_0.4.0;
+
+TLL_0.6.0 {
+	global:
+		tll_keyring_load;
+		tll_keyring_read;
+		tll_keyring_read_ref;
+		tll_keyring_write;
+} TLL_0.5.0;

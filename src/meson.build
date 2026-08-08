@@ -5,6 +5,7 @@ sources += ['stat.cc']
 sources += ['time.cc']
 sources += ['ring.c']
 sources += ['decimal128.cc']
+sources += ['keyring.cc']
 
 subdir('tll')
 subdir('logger')
@@ -22,8 +23,8 @@ sources += configure_file(input: 'version.c.in', output : 'version.c',
 sources += configure_file(output : 'scheme-config.h', configuration : configuration_data({
 	'DATADIR': '"@0@"'.format(get_option('prefix') / get_option('datadir')),
 	'WITH_RHASH': rhash.found(),
+	'WITH_KEYUTILS': keyutils.found(),
 }))
-
 
 if host_machine.system() in ['linux', 'freebsd']
   version_script = ['-Wl,--version-script,@0@/@1@'.format(meson.current_source_dir(), 'ld.script')]
@@ -34,7 +35,7 @@ endif
 tll_lib = shared_library('tll',
                         sources,
                         include_directories : include,
-                        dependencies : [fmt, rhash, threads, yaml, zlib] + channel_deps,
+                        dependencies : [fmt, rhash, threads, yaml, zlib, keyutils] + channel_deps,
 			version: '0', soversion: '0',
 			link_with: tll_logger,
 			link_args: version_script + cxx_fs_link_args,
