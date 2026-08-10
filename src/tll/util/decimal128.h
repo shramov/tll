@@ -25,7 +25,7 @@ extern "C" {
 
 #pragma pack(push, 1)
 
-typedef struct
+typedef struct tll_decimal128_t
 {
 	union {
 		struct {
