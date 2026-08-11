@@ -107,8 +107,11 @@ message is not found
   - time point fields are represented as extended ISO 8601 format: ``%Y-%m-%d[T or space]%H:%M:%S``
     followed by optional subsecond part with up to 9 digits.
   - enumeration fields can be either integer values or enumeration names
-  - bits are represented with the list of integer values or bit names separated by ``|`` (with
-    optional spaces). These values are binary ORed together to provide final value.
+  - bits are represented with one of the following formats:
+     - list of integer values or bit names separated by ``|`` (with optional spaces). These values
+       are binary ORed together to provide final value: ``A | 0x3 | 8``
+     - yaml list of enabled flags: ``[A, C]``
+     - yaml dict of flag names with bool or integer values: ``{A: yes, B: no, C: 0x3}``
   - lists (pointers or arrays) are represented as lists or list-like dicts: ``list: [10, 20, 30]``
     is same as ``list: {'000': 10, '001': 20, '002': 30}``.
   - unions are reprsented as a subtree with one key that has name of the union field: ``union: {

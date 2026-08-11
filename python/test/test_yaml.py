@@ -105,11 +105,13 @@ config.0:
 
 @pytest.mark.parametrize("t,s,v", [
     ('uint8', '0x3', 0x3),
-    ('uint16', 'A', 0x3),
+    ('uint16', 'A', 0x1),
     ('int32', 'A |B', 0x3),
     ('int64', 'A | 0x2', 0x3),
     ('int32', 'A ,B', 0x3),
     ('int32', 'A | C , B', 0x7),
+    ('int32', '[A, C, B]', 0x7),
+    ('int32', '{A: true, C: no}', 0x1),
 ])
 def test_bits(t, s, v):
     scheme = f'''yamls://
@@ -135,7 +137,7 @@ config.0:
     c.process()
     assert [(m.msgid, m.seq) for m in c.result] == [(10, 0)]
     m = c.unpack(c.result[0])
-    m.f0._value == v
+    assert m.f0._value == v
 
 @pytest.mark.parametrize("t,v", [
     ('"int32[4]"', [0, 1]),

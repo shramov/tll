@@ -48,6 +48,9 @@ struct ConfigEncoder : public ErrorStack
 	int _fill_numeric(T * ptr, const tll::scheme::Field * field, std::string_view s);
 
 	template <typename T>
+	int _fill_bits(T * ptr, const tll::scheme::Field * field, const tll::ConstConfig &cfg);
+
+	template <typename T>
 	int _fill_conv(void * ptr, std::string_view s)
 	{
 		auto v = tll::conv::to_any<T>(s);
@@ -127,6 +130,19 @@ int ConfigEncoder::encode(View view, const tll::scheme::Field * field, const tll
 			}
 		}
 		return fail(EINVAL, "Unknown union type: {}", key);
+	} else if (field->sub_type == Field::Bits) {
+		switch (field->type) {
+		case Field::Int8: return _fill_bits(view.template dataT<int8_t>(), field, cfg);
+		case Field::Int16: return _fill_bits(view.template dataT<int16_t>(), field, cfg);
+		case Field::Int32: return _fill_bits(view.template dataT<int32_t>(), field, cfg);
+		case Field::Int64: return _fill_bits(view.template dataT<int64_t>(), field, cfg);
+		case Field::UInt8: return _fill_bits(view.template dataT<uint8_t>(), field, cfg);
+		case Field::UInt16: return _fill_bits(view.template dataT<uint16_t>(), field, cfg);
+		case Field::UInt32: return _fill_bits(view.template dataT<uint32_t>(), field, cfg);
+		case Field::UInt64: return _fill_bits(view.template dataT<uint64_t>(), field, cfg);
+		default:
+			return fail(EINVAL, "Invalid type for bits: {}", (int) field->type);
+		}
 	}
 
 	auto v = cfg.get();
@@ -173,31 +189,6 @@ int ConfigEncoder::encode(View view, const tll::scheme::Field * field, const tll
 template <typename T>
 int ConfigEncoder::_fill_numeric(T * ptr, const tll::scheme::Field * field, std::string_view s)
 {
-	if constexpr (!std::is_same_v<T, double>) {
-		if (field->sub_type == field->Bits) {
-			*ptr = 0;
-			for (auto v : tll::split<'|', ','>(s)) {
-				v = tll::util::strip(v);
-
-				auto b = field->type_bits->values;
-				for (; b; b = b->next) {
-					if (v == b->name)
-						break;
-				}
-
-				if (b) {
-					*ptr |= 1ull << b->offset;
-					continue;
-				}
-
-				auto ri = tll::conv::to_any<T>(v);
-				if (!ri)
-					return fail(EINVAL, "Invalid component value: {}", v);
-				*ptr |= *ri;
-			}
-			return 0;
-		}
-	}
 	if (field->sub_type == field->Enum) {
 		auto num = tll::conv::to_any<T>(s);
 		if (num) {
@@ -258,6 +249,66 @@ int ConfigEncoder::_fill_numeric(T * ptr, const tll::scheme::Field * field, std:
 		return fail(EINVAL, "Unknown resolution: {}", field->time_resolution);
 	}
 	return _fill_conv<T>(ptr, s);
+}
+
+template <typename T>
+int ConfigEncoder::_fill_bits(T * ptr, const tll::scheme::Field * field, const tll::ConstConfig &cfg)
+{
+	auto s = cfg.get();
+	if (s) {
+		*ptr = 0;
+		for (auto v : tll::split<'|', ','>(*s)) {
+			v = tll::util::strip(v);
+
+			if (auto b = tll::scheme::lookup_name(field->type_bits->values, v); b) {
+				*ptr |= ((1ull << b->size) - 1) << b->offset;
+				continue;
+			}
+
+			auto ri = tll::conv::to_any<T>(v);
+			if (!ri)
+				return fail(EINVAL, "Invalid component value: {}", v);
+			*ptr |= *ri;
+		}
+	} else {
+		enum Mode { List, Dict, Undefined } mode = Undefined;
+		for (auto [k, c] : cfg.browse("**")) {
+			if (mode == Undefined) {
+				*ptr = 0;
+				if (k == "0000") // First element of the list
+					mode = List;
+				else
+					mode = Dict;
+			}
+			s = c.get();
+			if (!s)
+				continue;
+			if (mode == Dict) {
+				auto b = tll::scheme::lookup_name(field->type_bits->values, k);
+				if (!b)
+					return fail(ENOENT, "Invalid component name: {}", k);
+
+				T ri = 0;
+				if (auto vb = tll::conv::to_any<bool>(*s); vb) {
+					if (*vb)
+						ri = 1;
+				} else if (auto vi = tll::conv::to_any<T>(*s); vi) {
+					const T mask = (1ull << b->size) - 1;
+					if ((*vi & mask) != *vi)
+						return fail(EINVAL, "Invalid integer value {}: larger then bit size {}", *vi, b->size);
+					ri = *vi;
+				} else
+					return fail(EINVAL, "Invalid component value '{}': need bool or integer", *s);
+				*ptr |= ri << b->offset;
+			} else if (mode == List) {
+				auto b = tll::scheme::lookup_name(field->type_bits->values, *s);
+				if (!b)
+					return fail(ENOENT, "Invalid component name: {}", *s);
+				*ptr |= ((1ull << b->size) - 1) << b->offset;
+			}
+		}
+	}
+	return 0;
 }
 
 } // namespace tll::scheme
