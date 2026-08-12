@@ -4,45 +4,67 @@
 #include "tll/conv/base.h"
 #include "tll/keyring.h"
 
-namespace tll::keyring {
+namespace tll::util {
 
 struct KeyRef
 {
-	std::string uri;
+	enum Type {
+		Undefined = 0,
+		Key,
+		Data,
+	} type = Undefined;
+	Secret payload;
 
-	static expected<Secret, Errno> load_view(std::string_view uri)
+	KeyRef() = default;
+	KeyRef(Type t, std::string_view p): type(t), payload(p) {}
+
+	static expected<KeyRef, std::string> parse(std::string_view uri)
 	{
 		auto sep = uri.find(':');
 		if (sep == uri.npos)
-			return unexpected{EINVAL};
+			return unexpected{std::string("Invalid keyref: no : separator")};
 		auto method = uri.substr(0, sep);
 		auto body = uri.substr(sep+1);
+		Type type;
 		if (method == "data")
-			return Secret(body.data(), body.size());
+			type = Data;
 		else if (method == "key")
-			return read(std::string(body));
+			type = Key;
+		else
+			return unexpected{std::string("Invalid method: ") + std::string(method)};
+		return KeyRef { type, body };
+	}
+
+	expected<Secret, Errno> read() const
+	{
+		if (type == Undefined)
+			return unexpected{-EINVAL};
+		if (type == Key) {
+			char * buf = nullptr;
+			auto r = tll_keyring_read(payload.data(), &buf, 0);
+			if (r < 0)
+				return unexpected(Errno(-r));
+			return Secret::consume(buf, r);
+		} else if (type == Data)
+			return Secret(payload);
 		else
 			return unexpected{ENOSYS};
 	}
-
-	auto load() const { return load_view(uri); }
-
-	operator std::string_view () const { return uri; }
 };
 
-} // namespace tll::keyring
+} // namespace tll::util
 
 namespace tll::conv {
 
 template <>
-struct parse<tll::keyring::KeyRef>
+struct parse<tll::util::KeyRef>
 {
-	static result_t<tll::keyring::KeyRef> to_any(std::string_view s)
+	static result_t<tll::util::KeyRef> to_any(std::string_view s)
 	{
 		auto sep = s.find(':');
 		if (sep == s.npos)
 			return error("Invalid keyref: no ':' separator");
-		return tll::keyring::KeyRef { std::string(s) };
+		return tll::util::KeyRef::parse(s);
 	}
 };
 

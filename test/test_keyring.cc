@@ -32,9 +32,12 @@ TEST(Keyring, Test)
 
 TEST(Keyring, KeyRef)
 {
-	const auto data = KeyRef { "data:body" };
+	using tll::util::KeyRef;
 
-	auto r = data.load();
+	const auto data = KeyRef::parse("data:body");
+	ASSERT_TRUE(data);
+
+	auto r = data->read();
 	ASSERT_TRUE(r);
 	ASSERT_EQ(r->str(), "body");
 
@@ -49,18 +52,19 @@ TEST(Keyring, KeyRef)
 #endif
 
 	auto name = _random_name();
-	const auto ref = KeyRef { "key:" + name };
+	const auto ref = KeyRef { KeyRef::Key, name };
 
-	ASSERT_FALSE(ref.load());
+	ASSERT_FALSE(ref.read());
 
 	ASSERT_EQ(write(Process, name, "test-body"), 0);
 
-	r = ref.load();
+	r = ref.read();
 	ASSERT_TRUE(r);
 	ASSERT_EQ(r->str(), "test-body");
 
 	char * buf = nullptr;
-	ASSERT_EQ(tll_keyring_read_ref(ref.uri.data(), -1, &buf), 9);
+	auto refstr = fmt::format("key:{}", name);
+	ASSERT_EQ(tll_keyring_read_ref(refstr.data(), -1, &buf), 9);
 	ASSERT_STREQ(buf, "test-body");
 	free(buf);
 }

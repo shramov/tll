@@ -15,6 +15,7 @@ class Secret : public cstring
 	Secret(char * data, size_t size, consume_tag tag) : cstring(data, size, tag) {}
 	Secret(const char * data) : cstring(data) {}
 	Secret(const char * data, size_t size) : cstring(data, size) {}
+	Secret(std::string_view data) : cstring(data.data(), data.size()) {}
 
 	Secret() {}
 	Secret(Secret &&rhs) : cstring(std::move(rhs)) {}
