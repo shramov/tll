@@ -1,5 +1,6 @@
 #include "tll/channel/base.h"
 #include "tll/config.h"
+#include "tll/keyring.h"
 #include "tll/processor.h"
 
 #include <gtest/gtest.h>
@@ -224,4 +225,33 @@ processor.objects:
 
 TEST_F(ProcessorOrder, Test)
 {
+}
+
+class ProcessorKeyring : public Processor
+{
+public:
+	virtual std::string_view config_data()
+	{
+		return R"(yamls://
+processor.keyring:
+ - test/keyring.props
+processor.objects:
+  null:
+    url: null://
+)";
+	}
+
+};
+
+TEST_F(ProcessorKeyring, Test)
+{
+
+	auto null = context->get("null");
+	ASSERT_TRUE(null);
+	ASSERT_EQ(null->state(), Closed);
+
+	ASSERT_FALSE(tll::keyring::read("key.unknown"));
+	auto r = tll::keyring::read("key.a");
+	ASSERT_TRUE(r);
+	ASSERT_EQ(r->str(), "body-a");
 }

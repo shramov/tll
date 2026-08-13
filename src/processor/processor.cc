@@ -16,6 +16,7 @@
 #include <fmt/chrono.h>
 #include <set>
 
+#include "tll/keyring.h"
 #include "tll/scheme/channel/timer.h"
 #include "tll/version.h"
 
@@ -116,6 +117,20 @@ int Processor::_init(const tll::Channel::Url &url, Channel * master)
 	_scheme.reset(context().scheme_load(processor_scheme::scheme_string));
 	if (!_scheme.get())
 		return _log.fail(EINVAL, "Failed to load processor scheme");
+
+	if (auto v = _root.get("processor.keyring"); v && v->size()) {
+		_log.debug("Load keyring {}", *v);
+		if (auto r = tll_keyring_load(tll_channel_context_keyring(context()), v->data()); r)
+			return _log.fail(EINVAL, "Failed to load keyring '{}': {}", *v, strerror(-r));
+	}
+	for (auto &[_, c] : _root.browse("processor.keyring.**")) {
+		auto v = c.get();
+		if (!v || !v->size())
+			continue;
+		_log.debug("Load keyring {}", *v);
+		if (auto r = tll_keyring_load(tll_channel_context_keyring(context()), v->data()); r)
+			return _log.fail(EINVAL, "Failed to load keyring '{}': {}", *v, strerror(-r));
+	}
 
 	if (init_depends())
 		return _log.fail(EINVAL, "Failed to init objects");

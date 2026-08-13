@@ -37,5 +37,6 @@ test('test-processor', executable('test-processor',
 	sources: ['test_main.cc', 'test_processor.cc'],
 	dependencies: [gtest, fmt, tll],
 	link_args: cxx_fs_link_args,
-	)
+	),
+        workdir: meson.current_source_dir() / '..', # For keyring tests
 )
