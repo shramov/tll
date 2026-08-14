@@ -2,7 +2,7 @@
 #include "tll/keyring.h"
 #include "tll/util/keyref.h"
 
-#include "scheme-config.h"
+#include "build-config.h"
 
 #ifdef WITH_KEYUTILS
 // Old versions lack extern "C" guard

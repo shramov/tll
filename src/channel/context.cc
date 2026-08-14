@@ -5,6 +5,8 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
+#include "build-config.h"
+
 #include <map>
 #include <memory>
 #include <set>
@@ -20,6 +22,7 @@
 #include "tll/config.h"
 #include "tll/logger.h"
 #include "tll/logger/prefix.h"
+#include "tll/keyring.h"
 #include "tll/stat.h"
 #include "tll/util/listiter.h"
 #include "tll/util/refptr.h"
@@ -101,6 +104,9 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 	Logger _log = {"tll.context"};
 	tll::stat::OwnedList stat_list;
 
+	static constexpr auto parent_keyring = tll::keyring::Process;
+	int keyring = 0;
+
 	using impl_t = std::variant<const tll_channel_impl_t *, tll::Channel::Url>;
 	std::map<std::string, impl_t, std::less<>> registry;
 	std::map<std::string_view, tll_channel_t *> channels;
@@ -155,6 +161,11 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 
 		auto cfg = tll::Channel::Url::parse("udp://;udp.multicast=yes");
 		if (cfg) alias_reg("mudp", *cfg);
+		auto krname = fmt::format("tll:context:{:x}", (intptr_t) this);
+		if (auto r = tll_keyring_new(krname.c_str(), parent_keyring); r > 0)
+			keyring = r;
+		else
+			_log.error("Failed to create context keyring: {}", strerror(-r));
 	}
 
 	~tll_channel_context_t()
@@ -167,6 +178,11 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		}
 		modules.clear();
 		channels.clear();
+		if (keyring) {
+			if (auto r = tll_keyring_unlink(keyring, parent_keyring); r)
+				_log.warning("Failed to unlink context keyring: {}", strerror(-r));
+		}
+		keyring = 0;
 	}
 
 	tll_channel_t * init(std::string_view params, tll_channel_t *master, const tll_channel_impl_t *impl)
@@ -997,4 +1013,9 @@ tll_channel_t * tll_channel_get(const tll_channel_context_t *ctx, const char * n
 {
 	if (!ctx) return nullptr;
 	return ctx->get(std::string_view(name, len));
+}
+
+int tll_channel_context_keyring(const struct tll_channel_context_t *ctx)
+{
+	return ctx->keyring;
 }

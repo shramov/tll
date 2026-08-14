@@ -17,6 +17,9 @@ enum tll_keyring_id_t
 	TLL_KEYRING_USER_SESSION = -5,
 };
 
+struct tll_channel_context_t;
+int tll_channel_context_keyring(const struct tll_channel_context_t *);
+
 /** Read one key from the keyring, wrapper around request_key and keyctl_read_alloc
  * @param name name of the key
  * @param buf output buffer, should be deallocated with `free`

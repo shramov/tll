@@ -19,7 +19,7 @@
 #include "tll/util/url.h"
 #include "tll/util/zlib.h"
 
-#include "scheme-config.h"
+#include "build-config.h"
 
 #include <errno.h>
 #include <stdlib.h>
