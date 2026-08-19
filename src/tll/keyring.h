@@ -69,7 +69,7 @@ static constexpr auto Process = TLL_KEYRING_PROCESS;
 static constexpr auto Session = TLL_KEYRING_SESSION;
 static constexpr auto User = TLL_KEYRING_USER;
 
-inline expected<Secret, Errno> read(const std::string &name, int keyring = Process)
+inline expected<Secret, Errno> read(const std::string &name, int keyring = 0)
 {
 	char * buf = nullptr;
 	auto r = tll_keyring_read(name.c_str(), &buf, keyring);
