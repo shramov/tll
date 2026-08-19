@@ -13,6 +13,8 @@ extern "C" {
 
 int tll_keyring_read(const char * name, char ** buf, int kr)
 {
+	if (!name || !buf)
+		return -EINVAL;
 #ifdef WITH_KEYUTILS
 	auto id = request_key("user", name, nullptr, kr);
 	if (id < 0)
@@ -28,8 +30,34 @@ int tll_keyring_read(const char * name, char ** buf, int kr)
 
 int tll_keyring_write(int kr, const char * name, const char * body, int len)
 {
+	if (!name || !body)
+		return -EINVAL;
 #ifdef WITH_KEYUTILS
-	if (add_key("user", name, body, len < 0 ? strlen(body) : len, kr) < 0)
+	if (auto r = add_key("user", name, body, len < 0 ? strlen(body) : len, kr); r > 0)
+		return r;
+	return -errno;
+#else
+	return -ENOSYS;
+#endif
+}
+
+int tll_keyring_new(const char * name, int parent)
+{
+	if (!name)
+		return -EINVAL;
+#ifdef WITH_KEYUTILS
+	if (auto r = add_key("keyring", name, nullptr, 0, parent); r > 0)
+		return r;
+	return -errno;
+#else
+	return -ENOSYS;
+#endif
+}
+
+int tll_keyring_unlink(int key, int parent)
+{
+#ifdef WITH_KEYUTILS
+	if (keyctl_unlink(key, parent) < 0)
 		return -errno;
 	return 0;
 #else
@@ -47,7 +75,7 @@ int tll_keyring_load(int keyring, const char * filename)
 		auto v = c.get();
 		if (!v)
 			continue;
-		if (auto r = tll_keyring_write(keyring, k.c_str(), v->data(), v->size()); r)
+		if (auto r = tll_keyring_write(keyring, k.c_str(), v->data(), v->size()); r < 0)
 			return r;
 	}
 	return 0;

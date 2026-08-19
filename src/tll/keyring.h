@@ -30,12 +30,28 @@ int tll_keyring_read(const char * name, char ** buf, int keyring);
  * @param name name of the key
  * @param body body of the key
  * @param len length of the body, if -1 then strlen(body) is used
- * @return 0 on success, -errno on error
+ * @return positive key id on success, -errno on error
  */
 int tll_keyring_write(int keyring, const char * name, const char * body, int len);
 
 /// Load keys from the file into keyring
 int tll_keyring_load(int, const char * filename);
+
+/** Create new keyring
+ *
+ * @param name name of the keyring
+ * @param parent parent keyring
+ * @return positive keyring id on success, -errno on error
+ */
+int tll_keyring_new(const char * name, int parent);
+
+/** Unlink keyring from parent
+ *
+ * @param keyring keyring to unlink
+ * @param parent parent keyring id
+ * @return 0 on success, -errno on error
+ */
+int tll_keyring_unlink(int key, int parent);
 
 /** Parse and read key ref
  * @param keyref reference string in format method:data, method may be one of `data` or `key`

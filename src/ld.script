@@ -194,7 +194,9 @@ TLL_0.5.0 {
 TLL_0.6.0 {
 	global:
 		tll_keyring_load;
+		tll_keyring_new;
 		tll_keyring_read;
 		tll_keyring_read_ref;
 		tll_keyring_write;
+		tll_keyring_unlink;
 } TLL_0.5.0;

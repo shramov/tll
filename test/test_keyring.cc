@@ -23,11 +23,17 @@ TEST(Keyring, Test)
 
 	ASSERT_FALSE(read(name));
 
-	ASSERT_EQ(write(Process, name, "test-body"), 0);
+	auto kr = tll_keyring_new("tll:test:keyring", Process);
+	ASSERT_GE(kr, 0);
+
+	ASSERT_GE(write(kr, name, "test-body"), 0);
 
 	auto r = read(name);
 	ASSERT_TRUE(r);
 	ASSERT_EQ(r->str(), "test-body");
+
+	ASSERT_EQ(tll_keyring_unlink(kr, Process), 0);
+	ASSERT_FALSE(read(name));
 }
 
 TEST(Keyring, KeyRef)
@@ -51,12 +57,15 @@ TEST(Keyring, KeyRef)
 	return;
 #endif
 
+	auto kr = tll_keyring_new("tll:test:keyring", Process);
+	ASSERT_GE(kr, 0);
+
 	auto name = _random_name();
 	const auto ref = KeyRef { KeyRef::Key, name };
 
 	ASSERT_FALSE(ref.read());
 
-	ASSERT_EQ(write(Process, name, "test-body"), 0);
+	ASSERT_GE(write(kr, name, "test-body"), 0);
 
 	r = ref.read();
 	ASSERT_TRUE(r);
@@ -67,4 +76,6 @@ TEST(Keyring, KeyRef)
 	ASSERT_EQ(tll_keyring_read_ref(refstr.data(), -1, &buf), 9);
 	ASSERT_STREQ(buf, "test-body");
 	free(buf);
+
+	ASSERT_EQ(tll_keyring_unlink(kr, Process), 0);
 }
