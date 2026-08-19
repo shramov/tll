@@ -60,9 +60,10 @@ int tll_keyring_unlink(int key, int parent);
  * @param keyref reference string in format method:data, method may be one of `data` or `key`
  * @param len keyref length, if -1 then strlen(keyref) is used
  * @param buf output buffer, should be deallocated with `free`
+ * @param compat enable compat mode, when keyref without `:` separator is treated as plain secret
  * @return length of the key on success, -errno on error
  */
-int tll_keyring_read_ref(const char * keyref, int len, char ** buf);
+int tll_keyring_read_ref(const char * keyref, int len, char ** buf, int compat);
 
 #ifdef __cplusplus
 } // extern "C"

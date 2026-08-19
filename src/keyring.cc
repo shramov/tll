@@ -81,9 +81,9 @@ int tll_keyring_load(int keyring, const char * filename)
 	return 0;
 }
 
-int tll_keyring_read_ref(const char * name, int len, char ** buf)
+int tll_keyring_read_ref(const char * name, int len, char ** buf, int compat)
 {
-	auto k = tll::util::KeyRef::parse({ name, (len < 0)?strlen(name):len });
+	auto k = tll::util::KeyRef::parse({ name, (len < 0)?strlen(name):len }, compat);
 	if (!k)
 		return -EINVAL;
 	auto r = k->read();

@@ -48,8 +48,17 @@ TEST(Keyring, KeyRef)
 	ASSERT_EQ(r->str(), "body");
 
 	tll::Config cfg;
-	cfg.set("ref", "invalid");
+	cfg.set("ref", "invalid:body");
 	ASSERT_FALSE(cfg.getT("ref", KeyRef {}));
+	cfg.set("ref", "compat");
+	{
+		ASSERT_FALSE(cfg.getT("ref", KeyRef {}));
+		auto r = cfg.getT("ref", tll::util::KeyRefCompat {});
+		ASSERT_TRUE(r);
+		ASSERT_EQ(r->type, KeyRef::Data);
+		KeyRef kr = std::move(*r);
+		ASSERT_EQ(kr.payload.str(), "compat");
+	}
 	cfg.set("ref", "data:body");
 	ASSERT_TRUE(cfg.getT("ref", KeyRef {}));
 
@@ -73,7 +82,7 @@ TEST(Keyring, KeyRef)
 
 	char * buf = nullptr;
 	auto refstr = fmt::format("key:{}", name);
-	ASSERT_EQ(tll_keyring_read_ref(refstr.data(), -1, &buf), 9);
+	ASSERT_EQ(tll_keyring_read_ref(refstr.data(), -1, &buf, 0), 9);
 	ASSERT_STREQ(buf, "test-body");
 	free(buf);
 

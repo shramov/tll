@@ -17,12 +17,16 @@ struct KeyRef
 
 	KeyRef() = default;
 	KeyRef(Type t, std::string_view p): type(t), payload(p) {}
+	KeyRef(Type t, Secret p): type(t), payload(std::move(p)) {}
 
-	static expected<KeyRef, std::string> parse(std::string_view uri)
+	static expected<KeyRef, std::string> parse(std::string_view uri, bool compat = false)
 	{
 		auto sep = uri.find(':');
-		if (sep == uri.npos)
+		if (sep == uri.npos) {
+			if (compat)
+				return KeyRef { Data, uri };
 			return unexpected{std::string("Invalid keyref: no : separator")};
+		}
 		auto method = uri.substr(0, sep);
 		auto body = uri.substr(sep+1);
 		Type type;
@@ -52,6 +56,11 @@ struct KeyRef
 	}
 };
 
+struct KeyRefCompat : public KeyRef
+{
+	using KeyRef::KeyRef;
+};
+
 } // namespace tll::util
 
 namespace tll::conv {
@@ -61,10 +70,19 @@ struct parse<tll::util::KeyRef>
 {
 	static result_t<tll::util::KeyRef> to_any(std::string_view s)
 	{
-		auto sep = s.find(':');
-		if (sep == s.npos)
-			return error("Invalid keyref: no ':' separator");
-		return tll::util::KeyRef::parse(s);
+		return tll::util::KeyRef::parse(s, false);
+	}
+};
+
+template <>
+struct parse<tll::util::KeyRefCompat>
+{
+	static result_t<tll::util::KeyRefCompat> to_any(std::string_view s)
+	{
+		if (auto r = tll::util::KeyRef::parse(s, true); r)
+			return tll::util::KeyRefCompat{r->type, std::move(r->payload)};
+		else
+			return unexpected(std::move(r.error()));
 	}
 };
 
