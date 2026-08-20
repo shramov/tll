@@ -8,6 +8,7 @@ setup( name = 'tll'
      , packages = [
         'tll.asynctll',
         'tll.channel',
+        'tll.keyring',
         'tll.processor',
         'tll.templates',
         ]
@@ -30,6 +31,7 @@ setup( name = 'tll'
          , Extension("tll.channel.base", ["tll/channel/base.pyx"], libraries=["tll"])
          , Extension("tll.channel.reopen", ["tll/channel/reopen.pyx"], libraries=["tll"])
          , Extension("tll.config", ["tll/config.pyx"], libraries=["tll"])
+         , Extension("tll.keyring._keyring", ["tll/keyring/_keyring.pyx"], libraries=["tll"])
          , Extension("tll.logger", ["tll/logger.pyx"], libraries=["tll"])
          , Extension("tll.processor.loop", ["tll/processor/loop.pyx"], libraries=["tll"])
          , Extension("tll.processor.processor", ["tll/processor/processor.pyx"], libraries=["tll"])

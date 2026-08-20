@@ -21,6 +21,7 @@ shared_library('tll-python'
 if get_option('with_cython_build')
 	subdir('tll')
 	subdir('tll/channel')
+	subdir('tll/keyring')
 	subdir('tll/processor')
 
 	'''
