@@ -8,6 +8,7 @@ from ..error import TLLError
 from libc.stdlib cimport free
 from libc.string cimport strerror
 
+from pathlib import Path
 import enum
 
 class KeyringId(enum.IntEnum):
@@ -45,6 +46,12 @@ def read_ref(ref: str, compat: bool = False) -> bytes:
         return buf[:r]
     finally:
         free(buf)
+
+def load_file(filename: str | Path, keyring: int | KeyringId) -> None:
+    n = s2b(filename)
+    cdef int r = tll_keyring_load(int(keyring), n)
+    if r < 0:
+        raise TLLError(f"Failed to load keyring file '{filename}': {strerror(-r)}")
 
 def keyring_new(name: str, parent: int | KeyringId) -> int:
     n = s2b(name)

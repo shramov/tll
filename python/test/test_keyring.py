@@ -8,10 +8,13 @@ import sys
 from tll.error import TLLError
 import tll.keyring as K
 
+def random_name() -> str:
+    return f'tll:test:{random.randint(0, 0xffffffff):08x}'
+
 @pytest.mark.skipif(sys.platform != 'linux', reason='Keyring support is linux only')
 def test():
-    kname = f'tll:test:{random.randint(0, 0xffffffff):08x}'
-    rname = f'tll:test:{random.randint(0, 0xffffffff):08x}'
+    kname = random_name()
+    rname = random_name()
     ref = K.KeyRef(f'key:{kname}')
 
     assert K.KeyRef('data:body').read() == b'body'
@@ -31,3 +34,17 @@ def test():
     kr.unlink()
     with pytest.raises(TLLError): K.read(kname)
     with pytest.raises(TLLError): ref.read()
+
+@pytest.mark.skipif(sys.platform != 'linux', reason='Keyring support is linux only')
+def test_load(tmp_path):
+    kname = random_name()
+    rname = random_name()
+
+    with pytest.raises(TLLError): K.read(kname)
+
+    kr = K.Keyring(rname)
+    with open(tmp_path / 'keyring.keys', 'w') as fp:
+        fp.write(f'{kname}: secret-body')
+    kr.load(tmp_path / 'keyring.keys')
+
+    assert K.read(kname) == b'secret-body'
