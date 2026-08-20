@@ -1,0 +1,12 @@
+logger.levels:
+  tll: warning
+
+processor.keyring:
+  - keyring.keys
+processor.objects:
+  key:
+    init: python://;python=./keyring:KeyDump;secret=key:example
+  data:
+    init: python://;python=./keyring:KeyDump;secret=data:inline-password
+  compat:
+    init: python://;python=./keyring:KeyDump;secret=compat-password;compat=yes
