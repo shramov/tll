@@ -105,7 +105,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 	tll::stat::OwnedList stat_list;
 
 	static constexpr auto parent_keyring = tll::keyring::Process;
-	int keyring = 0;
+	std::atomic<int> _keyring = {0};
 
 	using impl_t = std::variant<const tll_channel_impl_t *, tll::Channel::Url>;
 	std::map<std::string, impl_t, std::less<>> registry;
@@ -116,7 +116,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 	mutable std::shared_mutex channel_lock;
 
 	auto rlock() const { return std::shared_lock<std::shared_mutex>(channel_lock); }
-	auto wlock() { return std::unique_lock<std::shared_mutex>(channel_lock); }
+	auto wlock() const { return std::unique_lock<std::shared_mutex>(channel_lock); }
 
 	std::atomic<unsigned> _noname_idx = 0;
 
@@ -161,11 +161,6 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 
 		auto cfg = tll::Channel::Url::parse("udp://;udp.multicast=yes");
 		if (cfg) alias_reg("mudp", *cfg);
-		auto krname = fmt::format("tll:context:{:x}", (intptr_t) this);
-		if (auto r = tll_keyring_new(krname.c_str(), parent_keyring); r > 0)
-			keyring = r;
-		else
-			_log.error("Failed to create context keyring: {}", strerror(-r));
 	}
 
 	~tll_channel_context_t()
@@ -178,11 +173,11 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		}
 		modules.clear();
 		channels.clear();
-		if (keyring) {
-			if (auto r = tll_keyring_unlink(keyring, parent_keyring); r)
+		if (_keyring) {
+			if (auto r = tll_keyring_unlink(_keyring, parent_keyring); r)
 				_log.warning("Failed to unlink context keyring: {}", strerror(-r));
 		}
-		keyring = 0;
+		_keyring = 0;
 	}
 
 	tll_channel_t * init(std::string_view params, tll_channel_t *master, const tll_channel_impl_t *impl)
@@ -457,6 +452,24 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 			}
 		}
 		return result;
+	}
+
+	int keyring() const
+	{
+		if (auto r = _keyring.load(std::memory_order_acquire); r)
+			return r;
+
+		auto lock = wlock(); // Single use of the lock, not important which one
+		if (_keyring)
+			return _keyring;
+
+		auto krname = fmt::format("tll:context:{:x}", (intptr_t) this);
+		if (auto r = tll_keyring_new(krname.c_str(), parent_keyring); r > 0)
+			const_cast<tll_channel_context_t *>(this)->_keyring = r;
+		else
+			_log.error("Failed to create context keyring: {}", strerror(-r));
+
+		return _keyring;
 	}
 };
 
@@ -1017,5 +1030,7 @@ tll_channel_t * tll_channel_get(const tll_channel_context_t *ctx, const char * n
 
 int tll_channel_context_keyring(const struct tll_channel_context_t *ctx)
 {
-	return ctx->keyring;
+	if (!ctx)
+		return 0;
+	return ctx->keyring();
 }
