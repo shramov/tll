@@ -4,10 +4,58 @@
 
 #include "build-config.h"
 
+#undef WITH_KEYUTILS
 #ifdef WITH_KEYUTILS
 // Old versions lack extern "C" guard
 extern "C" {
 #include <keyutils.h>
+}
+#else
+#include <atomic>
+#include <map>
+#include <memory>
+
+using tll::util::Secret;
+struct Keyring
+{
+	std::map<std::string, Secret, std::less<>> keys;
+	std::map<int, Keyring> keyrings;
+
+	const Secret * lookup(std::string_view name) const
+	{
+		if (auto it = keys.find(name); it != keys.end())
+			return &it->second;
+		for (auto &[_, kr]: keyrings) {
+			if (auto r = kr.lookup(name); r)
+				return r;
+		}
+		return nullptr;
+	}
+
+	Keyring * keyring(int id)
+	{
+		if (auto it = keyrings.find(id); it != keyrings.end())
+			return &it->second;
+		for (auto &[_, kr]: keyrings) {
+			if (auto r = kr.keyring(id); r)
+				return r;
+		}
+		return nullptr;
+	}
+};
+
+std::atomic<int> _tll_keyring_id = 0;
+static Keyring * _tll_keyrings()
+{
+	static std::unique_ptr<Keyring> _keyrings;
+	if (!_keyrings) {
+		_keyrings = std::make_unique<Keyring>();
+		_keyrings->keyrings.emplace(tll::keyring::User, Keyring{});
+		_keyrings->keyrings.emplace(tll::keyring::Session, Keyring{});
+		_keyrings->keyrings.emplace(tll::keyring::Process, Keyring{});
+		_keyrings->keyrings.emplace(tll::keyring::Thread, Keyring{});
+	}
+	return _keyrings.get();
 }
 #endif
 
@@ -24,7 +72,11 @@ int tll_keyring_read(const char * name, char ** buf, int kr)
 	else
 		return r;
 #else
-	return -ENOSYS;
+	if (auto r = _tll_keyrings()->lookup(name); r) {
+		*buf = (char *) Secret(*r).release();
+		return r->size();
+	}
+	return -ENOENT;
 #endif
 }
 
@@ -37,7 +89,11 @@ int tll_keyring_write(int kr, const char * name, const char * body, int len)
 		return r;
 	return -errno;
 #else
-	return -ENOSYS;
+	if (auto r = _tll_keyrings()->keyring(kr); r) {
+		r->keys.emplace(name, Secret(body, len));
+		return ++_tll_keyring_id;
+	}
+	return -ENOENT;
 #endif
 }
 
@@ -50,7 +106,12 @@ int tll_keyring_new(const char * name, int parent)
 		return r;
 	return -errno;
 #else
-	return -ENOSYS;
+	if (auto r = _tll_keyrings()->keyring(parent); r) {
+		auto id = ++_tll_keyring_id;
+		r->keyrings.emplace(id, Keyring{});
+		return id;
+	}
+	return -ENOENT;
 #endif
 }
 
@@ -61,7 +122,14 @@ int tll_keyring_unlink(int key, int parent)
 		return -errno;
 	return 0;
 #else
-	return -ENOSYS;
+	if (auto r = _tll_keyrings()->keyring(parent); r) {
+		if (auto it = r->keyrings.find(key); it != r->keyrings.end()) {
+			r->keyrings.erase(it);
+			return 0;
+		}
+		return -ENOENT;
+	}
+	return -ENOENT;
 #endif
 }
 
