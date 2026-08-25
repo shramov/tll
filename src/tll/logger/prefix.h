@@ -30,14 +30,22 @@ public:
 			using Index = std::make_index_sequence<sizeof...(Args)>;
 			return apply(Index());
 		} catch (fmt::format_error &e) {
-			return fmt::format("Invalid format '{}': {};", static_cast<fmt::string_view>(_fmt), e.what());
+			return fmt::format("Invalid format '{}': {};",
+#if FMT_VERSION > 100000
+					_fmt.get(),
+#else
+					static_cast<fmt::string_view>(_fmt),
+#endif
+					e.what());
 		}
 	}
 
 	template <size_t... Idx>
 	std::string apply(std::index_sequence<Idx...>) const
 	{
-#if FMT_VERSION >= 90000
+#if FMT_VERSION >= 100000
+		return fmt::vformat(_fmt.get(), fmt::make_format_args(std::get<Idx>(_args)...));
+#elif FMT_VERSION >= 90000
 		return fmt::vformat(_fmt, fmt::make_format_args(std::get<Idx>(_args)...));
 #else
 		return fmt::format(_fmt, std::get<Idx>(_args)...);
