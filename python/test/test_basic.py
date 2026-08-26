@@ -346,20 +346,22 @@ def test_mem_nofd():
 def test_mem_full():
     test_mem(frame='full')
 
-def test_mem_full_control():
+def test_mem_full_control(context):
     class ControlAccum(Accum):
         MASK = Accum.MsgMask.Control
+    SCHEME_CONTROL = 'yamls://[{name: Test, id: 10, fields: [{name: f0, type: int32}]}]'
 
-    s = Accum('mem://;size=1kb', name='server', context=ctx, frame='full')
-    c = ControlAccum('mem://', name='client', master=s, context=ctx, frame='full')
+    s = Accum('mem://;size=1kb', name='server', context=context, frame='full', **{'scheme-control': SCHEME_CONTROL})
+    c = ControlAccum('mem://', name='client', master=s, context=context, frame='full')
 
     s.open()
     c.open()
 
-    s.post(b'xxx', type=s.Type.Control, msgid=10, seq=100, addr=0xbeef, time=1000)
+    s.post({'f0': 1234}, name='Test', type=s.Type.Control, seq=100, addr=0xbeef, time=1000)
     c.process()
     m = c.result[-1]
-    assert (s.Type.Control, 10, 100, 0xbeef, 1000) == (m.type, m.msgid, m.seq, m.addr, m.time.value)
+    assert (c.Type.Control, 10, 100, 0xbeef, 1000) == (m.type, m.msgid, m.seq, m.addr, m.time.value)
+    assert c.unpack(m).as_dict() == {'f0': 1234}
 
 def test_mem_free():
     s = ctx.Channel('mem://;size=1kb;name=master')

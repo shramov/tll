@@ -123,10 +123,17 @@ int Mem<F>::_init(const tll::Channel::Url &url, tll::Channel *master)
 		this->_with_fd = _sibling->_with_fd;
 		if (!this->_with_fd)
 			this->_log.debug("Event notification disabled by master {}", master->name());
+		this->_scheme_control.reset(tll_scheme_ref(_sibling->_scheme_control.get()));
 		return 0;
 	}
 	auto reader = this->channel_props_reader(url);
 	_size = reader.getT("size", util::Size {64 * 1024});
+	if constexpr (std::is_same_v<F, frame::Full>) {
+		if (auto s = reader.getT("scheme-control", std::string{}); s.size()) {
+			if (auto r = this->_scheme_load(s, TLL_MESSAGE_CONTROL); r)
+				return this->_log.fail(r, "Failed to load control scheme");
+		}
+	}
 	if (!reader)
 		return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
 

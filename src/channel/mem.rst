@@ -35,6 +35,9 @@ disabled in processor, then all channels are automatically created with ``fd=no`
 and all message metainfo in ``full`` mode through the channel.  ``full`` frame mode should be used
 only for testing purposes.
 
+``scheme-control=<scheme>`` - default empty, only in full frame mode: control scheme for the
+channel, format same as for ``scheme`` parameter, loaded in init.
+
 Examples
 --------
 
