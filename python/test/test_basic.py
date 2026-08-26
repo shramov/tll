@@ -352,6 +352,7 @@ def test_mem_full_control(context):
     SCHEME_CONTROL = 'yamls://[{name: Test, id: 10, fields: [{name: f0, type: int32}]}]'
 
     s = Accum('mem://;size=1kb', name='server', context=context, frame='full', **{'scheme-control': SCHEME_CONTROL})
+    with pytest.raises(TLLError): context.Channel('mem://', name='client', master=s)
     c = ControlAccum('mem://', name='client', master=s, context=context, frame='full')
 
     s.open()

@@ -115,8 +115,13 @@ int Mem<F>::_init(const tll::Channel::Url &url, tll::Channel *master)
 {
 	if (master) {
 		_sibling = channel_cast<Mem<F>>(master);
-		if (!_sibling)
+		if (!_sibling) {
+			if (std::is_same_v<F, frame::Full> && channel_cast<Mem<frame::Short>>(master))
+				return this->_log.fail(EINVAL, "Parent {} is mem://;frame=short channel, mismatched frame", master->name());
+			else if (std::is_same_v<F, frame::Short> && channel_cast<Mem<frame::Full>>(master))
+				return this->_log.fail(EINVAL, "Parent {} is mem://;frame=full channel, mismatched frame", master->name());
 			return this->_log.fail(EINVAL, "Parent {} must be mem:// channel", master->name());
+		}
 		this->_log.debug("Init child of master {}", master->name());
 		_child = true;
 		_sibling->_sibling = this;
