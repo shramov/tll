@@ -34,7 +34,6 @@ disabled in processor, then all channels are automatically created with ``fd=no`
 ``frame={normal | full}`` - default ``normal``: pass only ``seq`` and ``msgid`` in ``normal`` mode
 and all message metainfo in ``full`` mode through the channel.  ``full`` frame mode should be used
 only for testing purposes. Frame parameter for master and slave channels should be equal.
-initialization
 
 ``scheme-control=<scheme>`` - default empty, only in full frame mode: control scheme for the
 channel, format same as for ``scheme`` parameter, loaded in init.
