@@ -35,6 +35,7 @@ Config file have following parts:
   - list of objects to create and process
   - definitions of stage objects
   - additional scheme search paths
+  - keyring files
 
 Logger configuration
 ~~~~~~~~~~~~~~~~~~~~
@@ -144,6 +145,26 @@ object with that name with following values in subtree:
     ``tll.channel.{name}: {value}`` and later is used by logic channels.
   - ``disable: <bool>`` - disable this object and do not parse any parameters.
 
+Number of channel init parameters (under ``init`` subtree) are handled by processor:
+ - ``shutdown-on: {none|error|close}``, default ``none``: shutdown processor if channel fails
+   (``error`` or ``close``) or closed (if ``close``).
+ - ``open-timeout: <duration>``, default ``300s``: open timeout, close object if it sits in
+   ``Opening`` state for too long.
+ - ``close-timeout: <duration>``, default ``10s``: close timeout, force close object if it sits in
+   ``Closing`` state for too long.
+ - ``reopen-active-min: <duration>``, default ``1ms``: if channel lives in ``Active`` state (before
+   transitioning to ``Closing`` or ``Error``) for less than specified time then reopen it with
+   delay.
+ - ``reopen-timeout: <duration>``, default ``1s``: starting reopen interval, on each step it is
+   doubled but limited by maximum value (see ``reopen-timeout-max``), reset to starting value when
+   channel successfully opened and stays in ``Active`` for ``reopen-active-min`` time.
+ - ``reopen-timeout-max: <duration>``, default ``30s``: maximum reopen interval
+ - ``tll.processor.active-on-control: <string>``, default empty: wait for control message with
+   specified name to consider that object is active and its dependencies should be activated. For
+   example for ``stream`` clients ``Online`` can be used to wait for receiving old data.
+ - ``tll.processor-verbose: <bool>``, default ``no``: print log message with level info from
+   processor context about state changes of this object.
+
 Stages
 ~~~~~~
 
@@ -161,6 +182,12 @@ Scheme search paths
 
 List of values read from the subtree ``processor.scheme-path`` (as a yaml list or mapping) is added
 into scheme search path.
+
+Keyring files
+~~~~~~~~~~~~~
+
+List of files from the subtree ``processor.keyring`` (as a yaml list or mapping) that are loaded
+into context keyring. File format is very simple: plain ``key: value`` lines without any sublevels.
 
 Statistics
 ----------
@@ -191,6 +218,7 @@ Create TCP server and send back everything received from the client::
 
 ``tcp`` channel declares dependency on ``echo`` forwarding logic and it is opened only after
 ``echo`` becomes active. Without this dependency ``tcp`` can become active before ``echo`` is ready.
+
 See also
 --------
 
