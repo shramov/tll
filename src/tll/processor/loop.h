@@ -440,7 +440,7 @@ struct tll_processor_loop_t
 					static_cast<StatPoll *>(s->fields + _stat_poll_index)->update(dt.count());
 					tll::stat::release(_stat, s);
 				}
-			} else if (time_cache_enable)
+			} else if (time_cache_enable) // else is needed to avoid duplicate now() call when both stat and time_cached are true
 				tll::time::now();
 			if (_poll.is_pending(r)) {
 				_log.trace("Process pending: {} channels", list_pending.size());
