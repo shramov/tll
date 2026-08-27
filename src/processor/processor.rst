@@ -91,6 +91,17 @@ itself) will be created.
 Worker settings
 ~~~~~~~~~~~~~~~
 
+Worker is a separate thread that runs processor loop on objects that belongs to it. Loop implements
+rules of object polling and processing:
+
+ - Object in ``Error`` and ``Closed`` states is not processed.
+ - On suspend channel with all children is marked inactive and is not processed until resumed.
+ - All channels are divided into two lists: objects with polling capabilities (e.g. with file
+   descriptor on Linux) and without. Objects that can not be polled are processed periodically.
+ - If object sets ``Pending`` dcap to indicate pending data it is added to special list and is
+   processed in next immediate step. Number of pending steps is limited so other channels will get
+   some attention too.
+
 Workers are declared implicitly with ``worker`` keyword in object definition, without keyword
 ``default`` worker is assumed. Worker parameters are defined in ``processor.worker.{name}`` subtree:
 
@@ -101,14 +112,18 @@ Workers are declared implicitly with ``worker`` keyword in object definition, wi
   - ``poll: <bool>``, default ``yes``: if enabled - worker use ``epoll`` (or ``kqueue`` for BSD
     platforms) to wait for objects to become ready for processing. Otherwise spin mode is used, where
     all active objects (with ``Process`` dcap enabled) are processed continuously in the loop.
-  - ``poll-interval: <duration>``, default ``100us``: timeout passed to system polling function, not
+  - ``poll-interval: <duration>``, default ``100ms``: timeout passed to system polling function, not
     used in spin mode.
-  - ``nofd-interval: <duration>``, default ``100ms``: interval between processing of objects that do
-    not export a pollable file descriptor. Such objects can not be passed to OS polling functions and
-    are thus processed periodically. Not used in spin mode.
+  - ``nofd-interval: <duration>``, default ``100ms`` on Linux and ``10ms`` on other platforms:
+    interval between processing of objects that do not export a pollable file descriptor. Such
+    objects can not be passed to OS polling functions and are thus processed periodically. Not used
+    in spin mode.
   - ``time-cache: <bool>``, default ``true``: on each iteration call ``tll_time_now`` and store result
     in TLS variable, so subsequent calls to ``tll_time_now_cached`` return correct value. If disabled
     cached variant behaves like normal function.
+  - ``pending-steps: <unsigned>``, default ``8``: after each OS poll function and if list of pending
+    objects (with ``Pending`` dcap set) is not empty then next ``pending-steps`` loop steps do not
+    call OS poll and only pending objects are processed. Not used in spin mode.
 
 List of objects
 ~~~~~~~~~~~~~~~
