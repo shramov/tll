@@ -268,7 +268,7 @@ namespace {
 template <typename T>
 constexpr SuffixPair suffix_bytes(T v)
 {
-	if (v > 1024ll * 1024 * 1024 * 1000)
+	if (v > 1024ll * 1024 * 1024)
 		return {1024 * 1024 * 1024, "gb"};
 	else if (v > 1024 * 1024)
 		return {1024 * 1024, "mb"};
@@ -322,10 +322,10 @@ std::string Stat::_group(std::string_view name, tll_stat_unit_t unit, int64_t co
 	SuffixPair div = {};
 	switch (unit) {
 	case tll::stat::Bytes:
-		div = suffix_bytes(min);
+		div = suffix_bytes(avg);
 		return fmt::format("{}: {}/{}/{}", name, div.apply(min), div.apply(avg), div.apply(max));
 	case tll::stat::Ns:
-		div = suffix_time(min);
+		div = suffix_time(avg);
 		return fmt::format("{}: {}/{}/{}", name, div.apply(min), div.apply(avg), div.apply(max));
 	default:
 		return fmt::format("{}: {}/{:.3f}/{}", name, min, avg, max);
