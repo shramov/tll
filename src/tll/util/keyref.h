@@ -42,7 +42,7 @@ struct KeyRef
 	expected<Secret, Errno> read() const
 	{
 		if (type == Undefined)
-			return unexpected{-EINVAL};
+			return unexpected{EINVAL};
 		if (type == Key) {
 			char * buf = nullptr;
 			auto r = tll_keyring_read(payload.data(), &buf, 0);
