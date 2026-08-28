@@ -1,3 +1,25 @@
+tll (0.6.0) unstable; urgency=medium
+
+  * channel:
+    Create keyring in context
+    Short init message
+  * control: Send state cache on request
+  * doc: Improve processor manpage
+  * keyring: Keyring API
+  * logger: Compatibility with fmtlib 12.2
+  * mem: Load control scheme in full frame mode
+  * processor:
+    Add start and stop log messages
+    Load keyrings on initialization
+  * python: Rewrite asynctll and extract async channel base
+  * reopen: Respect suspend for opening channels
+  * resolve: Request url init parameter
+  * stat: Use shortened values for time groups
+  * util: Helper class to hold secrets
+  * yaml: Support list and dict bits notation
+
+ -- Pavel Shramov <shramov@mexmat.net>  Fri, 28 Aug 2026 14:13:23 +0300
+
 tll (0.5.1) unstable; urgency=medium
 
   * channel: Messages from failed objects are not allowed

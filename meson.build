@@ -1,5 +1,5 @@
 project('tll', 'c', 'cpp'
-	, version: '0.5.1'
+	, version: '0.6.0'
 	, default_options : ['cpp_std=c++17', 'werror=true', 'optimization=2']
 	, meson_version: '>= 0.53'
 	)
