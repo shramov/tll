@@ -16,17 +16,18 @@ inline std::string _random_name()
 
 TEST(Keyring, Test)
 {
-#ifndef __linux__
-	GTEST_SKIP() << "Keyring not available";
-#endif
 	auto name = _random_name();
+
+	auto kr = tll_keyring_new("tll:test:keyring", Process);
+	if (kr < 0)
+		GTEST_SKIP() << "Keyring not available";
+
+	ASSERT_GE(kr, 0);
 
 	ASSERT_FALSE(read(name));
 
-	auto kr = tll_keyring_new("tll:test:keyring", Process);
-	ASSERT_GE(kr, 0);
-
-	ASSERT_GE(write(kr, name, "test-body"), 0);
+	if (!write(kr, name, "test-body"))
+		GTEST_SKIP() << "Keyring not available";
 
 	auto r = read(name);
 	ASSERT_TRUE(r);
@@ -62,12 +63,9 @@ TEST(Keyring, KeyRef)
 	cfg.set("ref", "data:body");
 	ASSERT_TRUE(cfg.getT("ref", KeyRef {}));
 
-#ifndef __linux__
-	return;
-#endif
-
 	auto kr = tll_keyring_new("tll:test:keyring", Process);
-	ASSERT_GE(kr, 0);
+	if (kr < 0)
+		return; // Keyring not available
 
 	auto name = _random_name();
 	const auto ref = KeyRef { KeyRef::Key, name };

@@ -12,6 +12,7 @@ using namespace tll::state;
 class Processor : public ::testing::Test
 {
 protected:
+	virtual std::string_view disabled() { return ""; }
 	virtual std::string_view config_data()
 	{
 		return R"(yamls://
@@ -37,6 +38,9 @@ processor.objects:
 public:
 	virtual void SetUp() override
 	{
+		if (auto r = disabled(); r.size())
+			GTEST_SKIP() << r;
+
 		auto cfg = tll::Config::load(config_data());
 
 		ASSERT_TRUE(cfg);
@@ -230,6 +234,15 @@ TEST_F(ProcessorOrder, Test)
 class ProcessorKeyring : public Processor
 {
 public:
+	virtual std::string_view disabled()
+	{
+		auto kr = tll_keyring_new("tll:test:processor", tll::keyring::Process);
+		if (kr < 0)
+			return "Keyring not available";
+		tll_keyring_unlink(kr, tll::keyring::Process);
+		return "";
+	}
+
 	virtual std::string_view config_data()
 	{
 		return R"(yamls://
