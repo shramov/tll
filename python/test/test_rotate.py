@@ -422,3 +422,11 @@ def test_rotate_reorder(context, tmp_path, count):
         r.children[0].process()
 
     assert [(m.seq) for m in r.result if m.type == m.Type.Data] == list(range(count))
+
+def test_rotate_rename_fail(context, tmp_path):
+    w = context.Channel(f'rotate+file://{tmp_path}/rotate;dump=frame', name='writer', dir='w')
+    w.open()
+    w.post(b'aaa', msgid=100, seq=10)
+    (tmp_path / 'rotate.current.dat').unlink()
+    with pytest.raises(TLLError): w.post(b'', name='Rotate', type=w.Type.Control)
+    assert w.state == w.State.Error

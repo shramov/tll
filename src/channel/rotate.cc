@@ -244,7 +244,11 @@ int Rotate::_rotate()
 
 	auto next = std::filesystem::path(_directory) / fmt::format("{}.{}.dat", _fileprefix, *key);
 	_log.info("Rename current file {} to {}", _current_file->second.filename, next);
-	std::filesystem::rename(_current_file->second.filename, next);
+
+	std::error_code ec;
+	if (std::filesystem::rename(_current_file->second.filename, next, ec); ec)
+		return state_fail(EINVAL, "Failed to rename {} to {}: {}", _current_file->second.filename, next, ec.message());
+
 	{
 		auto lock = _files->lock();
 		for (auto & p : _files->listeners) {
