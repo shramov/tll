@@ -1,5 +1,5 @@
 test_cpp_args = []
-if host_machine.system() == 'macos' and gtest.version().version_compare('< 1.18')
+if host_machine.system() == 'darwin' and gtest.version().version_compare('< 1.18')
   # Workaround gtest implicit conversion bug https://github.com/google/googletest/issues/4762
   test_cpp_args = ['-Wno-character-conversion']
 endif
