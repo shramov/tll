@@ -366,13 +366,13 @@ def test_tail_extra(context, filename, extra):
     assert [(m.seq, len(m.data)) for m in r.result] == [(i, 256) for i in range(5)]
 
 def test_mmap_read(context, filename):
-    writer = context.Channel(f'file://{filename}', name='writer', dump='frame', dir='w', block='4kb', autoseq='yes', **{'extra-space': f'16kb'})
+    writer = context.Channel(f'file://{filename}', name='writer', dump='frame', dir='w', block='16kb', autoseq='yes', **{'extra-space': f'32kb'})
     writer.open()
 
     for i in range(4):
         writer.post(b'a' * 512)
 
-    assert filename.stat().st_size == 20 * 1024
+    assert filename.stat().st_size == (16 + 32) * 1024
 
     r = Accum(f'file://{filename}', name='reader', dump='frame', dir='r', io='mmap', context=context)
     r.open()
