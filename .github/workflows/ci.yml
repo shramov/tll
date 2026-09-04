@@ -76,6 +76,7 @@ jobs:
       run: |
         meson test -C build --no-rebuild --print-errorlogs -v
         cd python
+        export TMPDIR=/tmp # Force short temp directory on macos to limit unix socket absolute path names
         python3 -m pytest --log-level=DEBUG --log-format='%(relativeCreated) 10.3f %(levelname)-7s %(name)s: %(message)s' -v
 
 # vim: sts=2 sw=2 et
