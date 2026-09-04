@@ -11,20 +11,21 @@ import select
 import sys
 import time
 
-ctx = C.Context()
+@pytest.fixture
+def context():
+    return C.Context()
 
 def str2ms(s):
     if s[-2:] != 'ms':
         raise ValueError("Expected 'ms' suffix in '{}'".format(s))
     return float(s[:-2])
 
-def test_properties():
-    c = ctx.Channel('timer://')
+def test_properties(context):
+    c = context.Channel('timer://')
     c.open()
 
     assert c.fd != -1
     assert c.scheme != None
-
 
 @pytest.mark.skipif('linux' not in sys.platform, reason='timerfd not supported')
 @pytest.mark.parametrize("init,open,wait", [
@@ -40,8 +41,8 @@ def test_properties():
     ('initial=5ms', '', ['5ms']),
     ('initial=10ms;interval=10ms', '', ['10ms', '10ms', None]),
 ])
-def test(init, open, wait):
-    c = Accum('timer://;{}'.format(init), name='timer', dump='yes', context=ctx)
+def test(context, init, open, wait):
+    c = Accum('timer://;{}'.format(init), name='timer', dump='yes', context=context)
     MSGID = 2
 
     c.open(open)
@@ -78,8 +79,8 @@ def test(init, open, wait):
     ('monotonic', 'relative', ''),
     ('monotonic', 'absolute', 'fail'),
 ])
-def test_post_clear(clock, msg, fail):
-    c = Accum('timer://', name='timer', clock=clock, dump='yes', context=ctx)
+def test_post_clear(context, clock, msg, fail):
+    c = Accum('timer://', name='timer', clock=clock, dump='yes', context=context)
 
     c.open(interval='10ms')
 
@@ -97,10 +98,10 @@ def test_post_clear(clock, msg, fail):
     ('realtime', 'absolute', '3ms'),
     ('monotonic', 'relative', '3ms'),
 ])
-def test_post(clock, msg, wait):
+def test_post(context, clock, msg, wait):
     ms = str2ms(wait)
 
-    c = Accum('timer://', name='timer', clock=clock, dump='yes', context=ctx)
+    c = Accum('timer://', name='timer', clock=clock, dump='yes', context=context)
 
     c.open()
 
