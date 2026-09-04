@@ -100,6 +100,8 @@ int tll_processor_loop_get_fd(const tll_processor_loop_t *loop)
 {
 #ifdef __linux__
 	return loop->_poll.fd;
+#elif defined(__FreeBSD__) || defined(__APPLE__)
+	return loop->_poll.kq;
 #else
 	return -1;
 #endif
