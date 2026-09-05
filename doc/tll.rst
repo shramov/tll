@@ -31,3 +31,6 @@ around C functions for those reasons:
 
 .. include::
         processor.rst
+
+.. include::
+        keyring.rst

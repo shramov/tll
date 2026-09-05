@@ -1,7 +1,16 @@
 rst2pdf = find_program('rst2pdf', disabler: true, required: false)
 rst2html = find_program('rst2html', disabler: true, required: false)
 
-sources = ['logger.rst', 'stat.rst', 'scheme.rst', 'channel.rst', 'processor.rst', 'channels.rst', 'tll.rst']
+sources = [
+  'channel.rst',
+  'channels.rst',
+  'keyring.rst',
+  'logger.rst',
+  'processor.rst',
+  'scheme.rst',
+  'stat.rst',
+  'tll.rst',
+]
 
 pdf = []
 foreach s : ['tll.rst', 'channels.rst']
