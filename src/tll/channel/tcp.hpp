@@ -437,8 +437,8 @@ int TcpClient<T, S>::_init(const tll::Channel::Url &url, tll::Channel *master)
 template <typename T, typename S>
 int TcpClient<T, S>::_open(const ConstConfig &url)
 {
+	auto reader = this->channelT()->channel_props_reader(url);
 	if (!_peer) {
-		auto reader = this->channelT()->channel_props_reader(url);
 		auto af = reader.getT("af", network::AddressFamily::UNSPEC);
 		_peer_active = reader.template getT<tll::network::hostport>("host");
 		if (!reader)
@@ -458,10 +458,14 @@ int TcpClient<T, S>::_open(const ConstConfig &url)
 		return this->_log.fail(errno, "Failed to create socket: {}", strerror(errno));
 	this->_update_fd(fd);
 
-	if (_bind_host) {
-		addr = _bind_host->resolve(SOCK_STREAM);
+	auto bind_host = reader.getT("bind", _bind_host);
+	if (!reader)
+		return this->_log.fail(EINVAL, "Invalid open parameters: {}", reader.error());
+
+	if (bind_host) {
+		addr = bind_host->resolve(SOCK_STREAM);
 		if (!addr)
-			return this->_log.fail(EINVAL, "Failed to resolve bind host '{}': {}", _bind_host->host, addr.error());
+			return this->_log.fail(EINVAL, "Failed to resolve bind host '{}': {}", bind_host->host, addr.error());
 		if (bind(fd, addr->front(), addr->front().size))
 			return this->_log.fail(EINVAL, "Failed to bind to address {}: {}", *_addr, strerror(errno));
 	}

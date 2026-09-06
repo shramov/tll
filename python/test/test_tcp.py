@@ -577,6 +577,16 @@ async def test_bind(asyncloop):
     assert m.SCHEME.name == 'Connect'
     assert m.port == port
 
+    c.close()
+    m = await s.recv()
+    assert s.unpack(m).SCHEME.name == 'Disconnect'
+
+    port = ports(af=socket.AF_INET6)
+
+    c.open(bind=f'*:{port}')
+    assert c.config['info.local.host'] == '::1'
+    assert c.config['info.local.port'] == str(port)
+
 @asyncloop_run
 async def test_network(asyncloop):
     s = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM, proto=socket.IPPROTO_TCP)

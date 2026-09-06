@@ -104,9 +104,11 @@ then 80% of send buffer size.
 Open parameters
 ~~~~~~~~~~~~~~~
 
-``hostname=ADDRESS`` - ``ADDRESS`` in init parameters was empty it can be passed to open
+``host=ADDRESS`` - ``ADDRESS`` in init parameters was empty it can be passed to open
 
 ``af=AF`` - same as init ``af`` parameter, only if address is specified in open.
+
+``bind=<address>``, default none - override ``bind`` init parameter.
 
 Control messages
 ----------------
