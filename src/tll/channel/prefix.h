@@ -67,6 +67,13 @@ public:
 	};
 	static constexpr auto prefix_export_policy() { return PrefixExportPolicy::Normal; }
 
+	enum class PrefixChildPolicy
+	{
+		Normal, ///< Child is created by prefix init
+		Manual, ///< Child is created by user code
+	};
+	static constexpr auto prefix_child_policy() { return PrefixChildPolicy::Normal; }
+
 	Config config_info() {
 		static_assert(Base<T>::ChannelT::prefix_config_policy() != PrefixConfigPolicy::Export,
 				"Can not access config info with Export config policy");
@@ -108,11 +115,13 @@ public:
 		if (this->channelT()->_on_init(curl, url, master))
 			return this->_log.fail(EINVAL, "Init hook returned error");
 
-		_child = this->context().channel(curl, master);
-		if (!_child)
-			return this->_log.fail(EINVAL, "Failed to create child channel");
-		_child->callback_add(this, TLL_MESSAGE_MASK_ALL);
-		this->_child_add(_child.get(), "child");
+		if (this->channelT()->prefix_child_policy() == PrefixChildPolicy::Normal) {
+			_child = this->context().channel(curl, master);
+			if (!_child)
+				return this->_log.fail(EINVAL, "Failed to create child channel");
+			_child->callback_add(this, TLL_MESSAGE_MASK_ALL);
+			this->_child_add(_child.get(), "child");
+		}
 
 		return Base<T>::_init(url, master);
 	}
@@ -130,6 +139,8 @@ public:
 
 	int _close(bool force)
 	{
+		if (!_child)
+			return Base<T>::_close(force);
 		return _child->close(force);
 	}
 
