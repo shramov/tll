@@ -438,15 +438,22 @@ template <typename T, typename S>
 int TcpClient<T, S>::_open(const ConstConfig &url)
 {
 	auto reader = this->channelT()->channel_props_reader(url);
-	if (!_peer) {
+	auto peer = reader.getT("host", _peer);
+	if (peer && !_peer) {
 		auto af = reader.getT("af", network::AddressFamily::UNSPEC);
-		_peer_active = reader.template getT<tll::network::hostport>("host");
 		if (!reader)
 			return this->_log.fail(EINVAL, "Invalid open parameters: {}", reader.error());
-		if (_peer_active.set_af(af))
+		if (peer->set_af(af))
 			return this->_log.fail(EINVAL, "Mismatched address family: parameter {}, parsed {}", af, _peer_active.af);
-	} else
-		_peer_active = *_peer;
+	} else if (!peer)
+		return this->_log.fail(EINVAL, "Need host parameter either in init or in open");
+
+	_peer_active = *peer;
+
+	auto bind_host = reader.getT("bind", _bind_host);
+	if (!reader)
+		return this->_log.fail(EINVAL, "Invalid open parameters: {}", reader.error());
+
 	auto addr = tll::network::resolve(_peer_active.af, SOCK_STREAM, _peer_active.host, _peer_active.port);
 	if (!addr)
 		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _peer_active.host, addr.error());
@@ -457,10 +464,6 @@ int TcpClient<T, S>::_open(const ConstConfig &url)
 	if (fd == -1)
 		return this->_log.fail(errno, "Failed to create socket: {}", strerror(errno));
 	this->_update_fd(fd);
-
-	auto bind_host = reader.getT("bind", _bind_host);
-	if (!reader)
-		return this->_log.fail(EINVAL, "Invalid open parameters: {}", reader.error());
 
 	if (bind_host) {
 		addr = bind_host->resolve(SOCK_STREAM);

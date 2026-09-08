@@ -31,7 +31,7 @@ for example ``pub+tcp``.
 
 ``ADDRESS`` - TCP address, either ``HOST:PORT`` pair or Unix socket path. Both IP address or hostname
 can be used for HOST. Abstract Unix sockets are supported with common ``@PATH`` notation. If
-``ADDRESS`` is empty then it can be passed in open parameters as ``hostname`` parameter. When
+``ADDRESS`` is empty then it can be passed in open parameters as ``host`` parameter. When
 ``HOST`` is ``*`` then socket is listening on all available addresses. If ``PORT`` is ``0`` then
 ephemeral dynamic port is used.
 
@@ -104,7 +104,7 @@ then 80% of send buffer size.
 Open parameters
 ~~~~~~~~~~~~~~~
 
-``host=ADDRESS`` - ``ADDRESS`` in init parameters was empty it can be passed to open
+``host=<address>`` - override connect address from init parameters.
 
 ``af=AF`` - same as init ``af`` parameter, only if address is specified in open.
 
