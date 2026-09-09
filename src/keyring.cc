@@ -90,7 +90,7 @@ int tll_keyring_write(int kr, const char * name, const char * body, int len)
 	return -errno;
 #else
 	if (auto r = _tll_keyrings()->keyring(kr); r) {
-		r->keys.emplace(name, Secret(body, len));
+		r->keys[name] = Secret(body, len);
 		return ++_tll_keyring_id;
 	}
 	return -ENOENT;

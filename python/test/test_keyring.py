@@ -31,6 +31,10 @@ def test():
     assert K.read(kname) == b'test-body'
     assert ref.read() == b'test-body'
 
+    kr.write(kname, "new-body")
+    assert K.read(kname) == b'new-body'
+    assert ref.read() == b'new-body'
+
     kr.unlink()
     with pytest.raises(TLLError): K.read(kname)
     with pytest.raises(TLLError): ref.read()
