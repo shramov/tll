@@ -28,7 +28,7 @@ def read(name: str, keyring: int | KeyringId = 0) -> bytes:
     finally:
         free(buf)
 
-def write(name: str, body: bytes, keyring: int | KeyringId = KeyringId.Process) -> int:
+def write(name: str, body: str | bytes, keyring: int | KeyringId = KeyringId.Process) -> int:
     n = s2b(name)
     b = s2b(body)
     cdef int r = tll_keyring_write(int(keyring), n, b, len(b))

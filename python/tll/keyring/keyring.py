@@ -54,7 +54,7 @@ class Keyring:
     def __del__(self):
         self.unlink()
 
-    def write(self, name: str, body: bytes) -> int:
+    def write(self, name: str, body: str | bytes) -> int:
         return _keyring.write(name, body, self._id)
 
     def load(self, filename: str | Path) -> None:
