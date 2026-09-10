@@ -4,7 +4,6 @@
 
 #include "build-config.h"
 
-#undef WITH_KEYUTILS
 #ifdef WITH_KEYUTILS
 // Old versions lack extern "C" guard
 extern "C" {
