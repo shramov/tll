@@ -469,8 +469,11 @@ int TcpClient<T, S>::_open(const ConstConfig &url)
 		addr = bind_host->resolve(SOCK_STREAM);
 		if (!addr)
 			return this->_log.fail(EINVAL, "Failed to resolve bind host '{}': {}", bind_host->host, addr.error());
+		if (tll::network::setsockoptT<int>(fd, SOL_SOCKET, SO_REUSEADDR, 1))
+			return this->_log.fail(EINVAL, "Failed to set SO_REUSEPORT: {}", strerror(errno));
+		this->_log.debug("Bind to {}", addr->front());
 		if (bind(fd, addr->front(), addr->front().size))
-			return this->_log.fail(EINVAL, "Failed to bind to address {}: {}", *_addr, strerror(errno));
+			return this->_log.fail(EINVAL, "Failed to bind to address {}: {}", addr->front(), strerror(errno));
 	}
 
 	if (this->setup(_settings, (*_addr)->sa_family))
