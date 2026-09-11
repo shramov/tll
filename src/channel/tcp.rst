@@ -46,7 +46,9 @@ client connections.
 
 ``bind=<address>`` (default is ``*:0``, only in client mode) - bind local side of connection to
 specified address. Can be used for load balancing when several connections to one endpoint are
-placed on different network interfaces.
+placed on different network interfaces. Client sets ``SO_REUSEADDR`` option before binding so same
+port can be used for different connections, ``(saddr, daddr, sport, dport)`` tuple must be unique,
+so connecting to two different servers from one port is possible, but not to one destination.
 
 ``frame={none|std|short|...}`` (default ``std``) - select framing mode:
 
