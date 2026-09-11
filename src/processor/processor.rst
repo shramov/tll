@@ -30,6 +30,7 @@ Config file have following parts:
 
   - logger configuration
   - list of modules with channel implementation
+  - channel aliases
   - default values for channel parameters
   - worker settings: polling mode, affinity and others
   - list of objects to create and process
@@ -82,6 +83,40 @@ But when they are defined in several files it is better to use dict syntax::
   processor.module:
     forward: {module: tll-logic-forward}
     stat: {module: tll-logic-stat}
+
+Aliases
+~~~~~~~
+
+Aliases are used to extend channel init parameters and to create short version of url. They are
+defined in ``processor.alias`` subtree. Under each key either string url or config with special key
+``tll.proto`` is placed. Normal alias replaces channel protocol with one defined in alias, prefix
+replaces only matched part and then creates child channel as usual. Prefix aliases are defined with
+``name+`` names (note trailing ``+`` sign).
+
+For example python echo implementation uses ``python`` parameter with module path and class name but
+users do not need to know about these details::
+
+  processor.alias:
+    echo: python://;python=./echo:Echo
+
+When ``echo://;stat=yes`` channel is created in processor later it translates to
+``python://python=./echo:Echo;stat=yes``. Duplicate parameters are not allowed, attempt to create
+``echo://;python=...`` will lead to errors.
+
+Complex aliases can be defined with subtree url::
+
+  processor.alias:
+    complex+:
+      tll.proto: python+
+      python: path.to.module:Impl
+      param-list:
+       - 10
+       - 20
+       - 30
+
+  processor.objects:
+    complex:
+      init: complex+null://;stat=yes
 
 Default values
 ~~~~~~~~~~~~~~

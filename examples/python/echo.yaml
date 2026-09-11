@@ -8,7 +8,9 @@ processor.include:
 
 processor.alias:
   echo: python://;python=./echo:Echo
-  prefix+: python+://;python=./echo:Prefix
+  prefix+:
+    tll.proto: python+
+    python: ./echo:Prefix
 
 processor.objects:
   tcp:
