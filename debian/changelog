@@ -1,3 +1,17 @@
+tll (0.6.1) unstable; urgency=medium
+
+  * ci: Force short tmp dir for python tests
+  * doc: Add keyring documentation
+  * keyring: Non-linux implementation
+  * prefix: Allow delayed child initialization
+  * processor: Get kqueue fd from Loop
+  * python: Relax type annotations on Keyring.write
+  * rotate: Handle exception in failed rename
+  * tcp: Allow overriding host and bind in open
+  * tests: Improve macos tests
+
+ -- Pavel Shramov <shramov@mexmat.net>  Fri, 11 Sep 2026 13:57:05 +0300
+
 tll (0.6.0) unstable; urgency=medium
 
   * channel:
