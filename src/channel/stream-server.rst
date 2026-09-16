@@ -72,7 +72,10 @@ storage. For example ``rotate-on-block=default`` will create new file each time 
 created for stream server with ``rotate+file://`` storage.
 
 ``max-size=<size>``, default unlimited - check that posted message size does not exceed this
-parameter.
+parameter. If message fits into online pub channel but is larger than receive buffer size then
+client can't read it and can enter infinite reopen loop - tries to read, breaks, reopens.
+``max-size`` fixes this issue by exporting it to client side and setting receive buffers large
+enough to handle such messages.
 
 Open parameters
 ~~~~~~~~~~~~~~~
