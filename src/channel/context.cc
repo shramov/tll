@@ -125,6 +125,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 
 	tll_channel_context_t(Config defaults) : config_defaults(defaults)
 	{
+		_log.debug("Initialize new context");
 		reg(&tll::channel::Async::impl);
 		reg(&tll::channel::Blocks::impl);
 		reg(&tll::channel::Convert::impl);
@@ -160,7 +161,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		reg(&tll::channel::SeqCheck::impl);
 
 		auto cfg = tll::Channel::Url::parse("udp://;udp.multicast=yes");
-		if (cfg) alias_reg("mudp", *cfg);
+		if (cfg) alias_reg("mudp", *cfg, tll::Logger::Trace);
 	}
 
 	~tll_channel_context_t()
@@ -198,11 +199,11 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		return it->second;
 	}
 
-	int reg(const tll_channel_impl_t *impl, std::string_view name = "")
+	int reg(const tll_channel_impl_t *impl, std::string_view name = "", tll::Logger::level_t level = tll::Logger::Trace)
 	{
 		if (name.empty())
 			name = impl->name;
-		_log.debug("Register channel {} as {}", impl->name, name);
+		_log.log(level, "Register channel {} as {}", impl->name, name);
 		auto lock = wlock();
 		if (!registry.emplace(name, impl).second)
 			return _log.fail(EEXIST, "Failed to register '{}': duplicate name", name);
@@ -225,7 +226,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		return 0;
 	}
 
-	int alias_reg(std::string_view name, tll::Channel::Url cfg)
+	int alias_reg(std::string_view name, tll::Channel::Url cfg, tll::Logger::level_t level = tll::Logger::Debug)
 	{
 		if (name.empty())
 			return _log.fail(EINVAL, "Failed to register: Empty alias name");
@@ -241,7 +242,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 		auto lock = wlock();
 		if (auto r = lookup(cfg); !r)
 			return _log.fail(ENOENT, "Failed to register '{}': can not resolve protocol '{}': {}", name, cfg.proto(), r.error());
-		_log.debug("Register alias {} as {}", name, cfg.proto());
+		_log.log(level, "Register alias {} as {}", name, cfg.proto());
 		if (!registry.emplace(name, cfg).second)
 			return _log.fail(EEXIST, "Failed to register '{}': duplicate name", name);
 		return 0;
@@ -344,7 +345,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 
 	const impl_t * lookup(std::string_view proto) const
 	{
-		_log.debug("Lookup proto '{}'", proto);
+		_log.trace("Lookup proto '{}'", proto);
 		auto i = registry.find(proto);
 		if (i != registry.end())
 			return &i->second;
@@ -355,7 +356,7 @@ struct tll_channel_context_t : public tll::util::refbase_t<tll_channel_context_t
 
 		auto prefix = proto.substr(0, sep + 1);
 
-		_log.debug("Lookup prefix '{}'", prefix);
+		_log.trace("Lookup prefix '{}'", prefix);
 		i = registry.find(prefix);
 		if (i == registry.end())
 			return nullptr;
@@ -549,7 +550,7 @@ const tll_scheme_t * tll_channel_context_scheme_load(tll_channel_context_t *c, c
 int tll_channel_impl_register(tll_channel_context_t *ctx, const tll_channel_impl_t *impl, const char *name)
 {
 	if (!ctx) return EINVAL;
-	return ctx->reg(impl, name?name:"");
+	return ctx->reg(impl, name?name:"", tll::Logger::Debug);
 }
 
 int tll_channel_impl_unregister(tll_channel_context_t *ctx, const tll_channel_impl_t *impl, const char *name)
