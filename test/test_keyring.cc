@@ -41,6 +41,9 @@ TEST(Keyring, KeyRef)
 {
 	using tll::util::KeyRef;
 
+	ASSERT_FALSE(KeyRef::parse("invalid:body"));
+	ASSERT_FALSE(KeyRef::parse(std::string_view{"key:with\0null", 13}));
+
 	const auto data = KeyRef::parse("data:body");
 	ASSERT_TRUE(data);
 

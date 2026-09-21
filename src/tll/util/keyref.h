@@ -36,6 +36,8 @@ struct KeyRef
 			type = Key;
 		else
 			return unexpected{std::string("Invalid method: ") + std::string(method)};
+		if (type == Key && body.find('\0') != body.npos)
+			return unexpected{std::string("Invalid keyref: null character in key name")};
 		return KeyRef { type, body };
 	}
 
