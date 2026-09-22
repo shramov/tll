@@ -14,6 +14,7 @@
 #include "tll/channel/prefix.h"
 #include "tll/channel/reopen.h"
 #include "tll/channel/tagged.h"
+#include "tll/compat/jthread.h"
 #include "tll/processor/loop.h"
 #include "tll/util/ownedmsg.h"
 
@@ -743,4 +744,75 @@ TEST(Channel, Logic)
 TEST(Channel, Tagged)
 {
 	_test_logic<Tagged>();
+}
+
+void mem_write_thread(std::stop_token stop, tll::Channel * channel, size_t count, std::atomic<bool> &done)
+{
+	std::array<unsigned char, 256> buf;
+	tll_msg_t msg = {
+		.type = TLL_MESSAGE_DATA,
+		.data = buf.data(),
+		.size = buf.size(),
+	};
+	while (count-- && !stop.stop_requested()) {
+		if (count % 10 == 0)
+			std::this_thread::yield();
+		for (auto & c : buf)
+			c = (unsigned char) msg.seq;
+		msg.size = (msg.seq * 97) % buf.size();
+		while (channel->post(&msg) == EAGAIN && !stop.stop_requested()) {}
+		msg.seq++;
+	}
+	done = true;
+}
+
+TEST(Channel, MemProcessRace)
+{
+	using namespace std::chrono;
+	tll::stat::OwnedList list;
+	size_t count = 10000;
+	std::atomic<bool> done = false;
+
+	auto ctx = tll::channel::Context(tll::Config());
+	auto server = ctx.channel("mem://;size=128kb;dir=r;name=server");
+	auto client = ctx.channel("mem://;name=mem-race-client", server.get());
+
+	struct Checker {
+		std::string error;
+		long long seq = 0;
+
+		int callback(const tll::Channel *, const tll_msg_t * msg)
+		{
+			if (msg->seq != seq)
+				error = fmt::format("Invalid seq: {}, expected {}", msg->seq, seq);
+			seq++;
+			return 0;
+		}
+	} checker;
+	server->callback_add<Checker, &Checker::callback>(&checker, TLL_MESSAGE_MASK_DATA);
+
+	ASSERT_EQ(server->open(), 0);
+	ASSERT_EQ(client->open(), 0);
+
+	ASSERT_EQ(server->state(), tll::state::Active);
+	ASSERT_EQ(client->state(), tll::state::Active);
+
+	// Silence EAGAIN post errors
+	tll::Logger::set("tll.channel.mem-race-client", tll::Logger::Critical);
+
+	std::optional<std::jthread> thread {std::in_place, mem_write_thread, client.get(), count, std::ref(done)};
+
+	auto end = steady_clock::now() + 100ms;
+	while (!done.load(std::memory_order_relaxed) && checker.error.empty() && steady_clock::now() < end) {
+		auto r = server->process();
+		if (r != 0 && r != EAGAIN) {
+			EXPECT_EQ(r, 0) << "Error in process";
+			break;
+		}
+	}
+
+	EXPECT_EQ(checker.error, "");
+
+	thread = std::nullopt;
+	ASSERT_EQ(done.load(), true);
 }

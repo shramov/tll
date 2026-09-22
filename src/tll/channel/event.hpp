@@ -56,9 +56,8 @@ int Event<T, Base>::_close(bool force)
 
 #ifdef __linux__
 namespace {
-int _notify(int fd) {
-	int64_t w = 1;
-	if (write(fd, &w, sizeof(w)) != sizeof(w))
+int _notify(int fd, uint64_t events) {
+	if (write(fd, &events, sizeof(events)) != sizeof(events))
 		return errno ? errno : EMSGSIZE;
 	return 0;
 }
@@ -66,20 +65,20 @@ int _notify(int fd) {
 #endif
 
 template <typename T, typename Base>
-int Event<T, Base>::_event_notify_nocheck()
+int Event<T, Base>::_event_notify_nocheck(uint64_t events)
 {
 #ifdef __linux__
-	if (auto r = _notify(this->fd()))
+	if (auto r = _notify(this->fd(), events))
 		return this->_log.fail(EINVAL, "Failed to write to eventfd: {}", strerror(r));
 #endif
 	return 0;
 }
 
-inline int EventNotify::notify()
+inline int EventNotify::notify(uint64_t events)
 {
 #ifdef __linux__
 	if (fd == -1) return 0;
-	return _notify(fd);
+	return _notify(fd, events);
 #else
 	return 0;
 #endif
@@ -95,18 +94,18 @@ inline void EventNotify::close()
 }
 
 template <typename T, typename Base>
-int Event<T, Base>::_event_clear_nocheck()
+long long Event<T, Base>::_event_clear_nocheck2()
 {
+	uint64_t events = 0;
 #ifdef __linux__
-	int64_t w = 1;
-	if (read(this->fd(), &w, sizeof(w)) != sizeof(w)) {
+	if (read(this->fd(), &events, sizeof(events)) != sizeof(events)) {
 		// Data landed before event notification received?
 		if (this->channelT()->event_clear_policy() == EventClearPolicy::Relaxed && errno == EAGAIN)
 			return 0;
-		return this->_log.fail(EINVAL, "Failed to read from eventfd: {}", strerror(errno));
+		return this->_log.fail(-EINVAL, "Failed to read from eventfd: {}", strerror(errno));
 	}
 #endif
-	return 0;
+	return events;
 }
 
 template <typename T, typename Base>

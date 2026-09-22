@@ -80,17 +80,19 @@ class Mem : public tll::channel::Event<Mem<F>>
 	bool _child = false;
 	Mem<Frame> * _sibling = nullptr;
 	bool _empty() const;
+	size_t _consumed = 0;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "mem"; }
-	static constexpr auto process_api_version() { return Base::ProcessAPI::Void; }
+	static constexpr auto process_api_version() { return Base::ProcessAPI::Flags; }
+	static constexpr auto event_clear_policy() { return Base::EventClearPolicy::Relaxed; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::ConstConfig &);
 	int _close();
 	void _free();
 
-	int _process();
+	int _process(unsigned flags);
 	int _post(const tll_msg_t *msg, int flags);
 };
 
@@ -233,13 +235,20 @@ int Mem<F>::_post(const tll_msg_t *msg, int flags)
 }
 
 template <typename F>
-int Mem<F>::_process()
+int Mem<F>::_process(unsigned flags)
 {
 	tll_msg_t msg = { TLL_MESSAGE_DATA };
 	Frame * frame;
 	size_t size;
-	if (ring_read(&_rin->ring, (const void **) &frame, &size))
+	if (ring_read(&_rin->ring, (const void **) &frame, &size)) {
+		if (flags & TLL_PROCESS_READ) {
+			if (auto r = this->event_clear_count(_consumed); r < 0)
+				return -r;
+			else
+				_consumed = r;
+		}
 		return EAGAIN;
+	}
 	if (size < sizeof(Frame))
 		return this->_log.fail(EMSGSIZE, "Got invalid payload size {} < {}", size, sizeof(Frame));
 	frame->fill(msg);
@@ -250,10 +259,15 @@ int Mem<F>::_process()
 	else
 		this->_callback(&msg);
 	ring_shift(&_rin->ring);
+	_consumed++;
 
 	auto empty = _empty();
 	this->_dcaps_pending(!empty);
-	if (empty)
-		return this->event_clear_race([this]() -> bool { return !this->_empty(); });
+	if (empty) {
+		if (auto r = this->event_clear_count(_consumed); r < 0)
+			return -r;
+		else
+			_consumed = r;
+	}
 	return 0;
 }

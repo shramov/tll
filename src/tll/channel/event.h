@@ -10,6 +10,8 @@
 
 #include "tll/channel/base.h"
 
+#include <cstdint>
+
 namespace tll::channel {
 
 /// Detached notification structure
@@ -17,7 +19,7 @@ struct EventNotify
 {
 	int fd = -1;
 
-	int notify();
+	int notify(uint64_t events = 1);
 	void close();
 	void swap(EventNotify &n) { std::swap(fd, n.fd); }
 };
@@ -26,8 +28,29 @@ template <typename T, typename Base = tll::channel::Base<T>>
 class Event : public Base
 {
  protected:
-	int _event_notify_nocheck();
-	int _event_clear_nocheck();
+	int _event_notify_nocheck(uint64_t events = 1);
+	/// Clear notification and return number of events, negative errno on error
+	long long _event_clear_nocheck2();
+	int _event_clear_nocheck()
+	{
+		if (auto r = _event_clear_nocheck2(); r < 0)
+			return -r;
+		return 0;
+	}
+
+	long long _event_clear_count(uint64_t events)
+	{
+		auto cleared = _event_clear_nocheck2();
+		if (cleared < 0)
+			return cleared;
+		/// Restore unhandled notifications
+		if ((uint64_t) cleared > events) {
+			if (auto r = _event_notify_nocheck(cleared - events); r)
+				return -r;
+			return 0;
+		}
+		return events - cleared;
+	}
 
  public:
 	static constexpr auto process_policy() { return Base::ProcessPolicy::Normal; }
@@ -39,8 +62,9 @@ class Event : public Base
 	int _close(bool force = false);
 
 	EventNotify event_detached();
-	int event_notify() { this->_log.debug("Try notify on {}", this->fd()); if (this->fd() != -1) return _event_notify_nocheck(); return 0; }
+	int event_notify(uint64_t events = 1) { this->_log.debug("Try notify on {}", this->fd()); if (this->fd() != -1) return _event_notify_nocheck(events); return 0; }
 	int event_clear() { if (this->fd() != -1) return _event_clear_nocheck(); return 0; }
+	int event_clear_count(uint64_t events) { if (this->fd() != -1) return _event_clear_count(events); return 0; }
 
 	template <typename F>
 	int event_clear_race(F rearm)
