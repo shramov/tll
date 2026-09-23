@@ -86,6 +86,7 @@ class Mem : public tll::channel::Event<Mem<F>>
 	static constexpr std::string_view channel_protocol() { return "mem"; }
 	static constexpr auto process_api_version() { return Base::ProcessAPI::Flags; }
 	static constexpr auto event_clear_policy() { return Base::EventClearPolicy::Relaxed; }
+	static constexpr auto event_open_policy() { return Base::EventOpenPolicy::Manual; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
 	int _open(const tll::ConstConfig &);
@@ -179,21 +180,22 @@ int Mem<F>::_open(const tll::ConstConfig &url)
 		_rin = _sibling->_rout;
 		_rout = _sibling->_rin;
 		lock.unlock();
-		_rin->notify = this->event_detached();
+		if (auto r = this->event_open(_rin->notify); r)
+			return r;
+		if (!_rin->notify)
+			 _rin->notify = this->event_detached();
 	} else {
+		if (auto r = this->event_open(); r)
+			return r;
 		auto rin = std::make_shared<Ring>(_size);
 		auto rout = std::make_shared<Ring>(_size);
 		if (!rin->ring.header || !rout->ring.header)
 			return this->_log.fail(EINVAL, "Failed to create buffers");
 		rin->notify = this->event_detached();
+		rout->notify = tll::channel::EventNotify::detached();
 		auto lock = _lock();
 		std::swap(_rin, rin);
 		std::swap(_rout, rout);
-	}
-
-	if (!_empty()) {
-		this->_log.debug("Pending data, arm notification");
-		this->event_notify();
 	}
 
 	this->state(state::Active);
@@ -268,6 +270,8 @@ int Mem<F>::_process(unsigned flags)
 			return -r;
 		else
 			_consumed = r;
-	}
+		this->_dcaps_pending(false);
+	} else
+		this->_dcaps_pending(true);
 	return 0;
 }

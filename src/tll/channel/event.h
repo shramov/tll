@@ -19,9 +19,13 @@ struct EventNotify
 {
 	int fd = -1;
 
+	static EventNotify detached();
+
 	int notify(uint64_t events = 1);
 	void close();
 	void swap(EventNotify &n) { std::swap(fd, n.fd); }
+
+	constexpr operator bool () const { return fd != -1; }
 };
 
 template <typename T, typename Base = tll::channel::Base<T>>
@@ -56,10 +60,23 @@ class Event : public Base
 	static constexpr auto process_policy() { return Base::ProcessPolicy::Normal; }
 	enum class EventClearPolicy { Strict, Relaxed };
 	static constexpr auto event_clear_policy() { return EventClearPolicy::Strict; }
+	enum class EventOpenPolicy { Normal, Manual };
+	static constexpr auto event_open_policy() { return EventOpenPolicy::Normal; }
 
 	int _init(const tll::Channel::Url &, tll::Channel *master);
-	int _open(const tll::ConstConfig &);
+	int _open(const tll::ConstConfig &cfg)
+	{
+		if (this->channelT()->event_open_policy() == EventOpenPolicy::Normal) {
+			if (auto r = event_open())
+				return r;
+		}
+		return Base::_open(cfg);
+	}
+
 	int _close(bool force = false);
+
+	int event_open();
+	int event_open(const EventNotify &detached);
 
 	EventNotify event_detached();
 	int event_notify(uint64_t events = 1) { this->_log.debug("Try notify on {}", this->fd()); if (this->fd() != -1) return _event_notify_nocheck(events); return 0; }

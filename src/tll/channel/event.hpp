@@ -29,10 +29,10 @@ int Event<T, Base>::_init(const tll::Channel::Url &url, tll::Channel *master)
 }
 
 template <typename T, typename Base>
-int Event<T, Base>::_open(const ConstConfig &url)
+int Event<T, Base>::event_open()
 {
 	if (!this->_with_fd)
-		return Base::_open(url);
+		return 0;
 #ifdef __linux__
 	auto fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
 	if (fd == -1)
@@ -40,7 +40,24 @@ int Event<T, Base>::_open(const ConstConfig &url)
 	this->_update_fd(fd);
 	this->_dcaps_poll(dcaps::CPOLLIN);
 #endif
-	return Base::_open(url);
+	return 0;
+}
+
+template <typename T, typename Base>
+int Event<T, Base>::event_open(const EventNotify &detached)
+{
+	if (!this->_with_fd)
+		return 0;
+#ifdef __linux__
+	if (detached.fd == -1)
+		return this->event_open();
+	auto fd = dup(detached.fd);
+	if (fd == -1)
+		return this->_log.fail(EINVAL, "Failed to dup eventfd: {}", strerror(errno));
+	this->_update_fd(fd);
+	this->_dcaps_poll(dcaps::CPOLLIN);
+#endif
+	return 0;
 }
 
 template <typename T, typename Base>
@@ -72,6 +89,15 @@ int Event<T, Base>::_event_notify_nocheck(uint64_t events)
 		return this->_log.fail(EINVAL, "Failed to write to eventfd: {}", strerror(r));
 #endif
 	return 0;
+}
+
+inline EventNotify EventNotify::detached()
+{
+#ifdef __linux__
+	return { eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC) };
+#else
+	return {};
+#endif
 }
 
 inline int EventNotify::notify(uint64_t events)
