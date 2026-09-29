@@ -1,20 +1,16 @@
 #!/usr/bin/env python3
 # vim: sts=4 sw=4 et
 
-from tll.logger import Logger
-from tll.processor import Loop as PLoop
 import tll.channel as C
 
 from . import common
 from .common import asyncloop_run
 
 import bisect
-import collections
-import decorator
-import queue
 import time
-import types
 import weakref
+
+__all__ = ['Loop', 'asyncloop_run']
 
 class CancelledError(BaseException):
     ''' Future was cancelled '''

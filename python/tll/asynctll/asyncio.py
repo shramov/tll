@@ -1,21 +1,12 @@
 #!/usr/bin/env python3
 # vim: sts=4 sw=4 et
 
-from tll.logger import Logger
-from tll.processor import Loop as PLoop
-import tll.channel as C
-
 from . import common
 from .common import asyncloop_run
 
 import asyncio
-import collections
-import decorator
-import heapq
-import queue
-import time
-import types
-import weakref
+
+__all__ = ['Loop', 'asyncloop_run']
 
 class Entry(common.Entry):
     async def recv(self, timeout):
