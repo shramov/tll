@@ -132,10 +132,7 @@ struct Thread
 
 		std::string_view body((const char *) (header + 1), size - sizeof(Header) - 1);
 
-		{
-			std::unique_lock<std::mutex> lck(header->logger->lock);
-			header->logger->impl->log(header->timestamp, (tll_logger_level_t) header->level, body);
-		}
+		header->logger->log(header->timestamp, (tll_logger_level_t) header->level, body);
 		header->logger->unref();
 		_ring->shift();
 		if (_ring->empty()) {
@@ -158,7 +155,7 @@ struct Thread
 		void * data;
 		if (_ring->write_begin(&data, sizeof(Header) + body.size() + 1)) {
 			_lock.unlock();
-			return log->impl->log(ts, level, body);
+			return log->log(ts, level, body);
 		}
 		auto header = (Header *) data;
 		header->logger = log->ref();

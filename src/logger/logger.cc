@@ -347,10 +347,6 @@ int tll_logger_log(tll_logger_t * l, tll_logger_level_t level, const char * buf,
 	auto log = static_cast<tll::logger::Logger *>(l);
 	if (log->level > level) return 0;
 
-	std::unique_lock<std::mutex> lck(log->lock);
-	auto impl = log->impl;
-	lck.unlock();
-
 	auto ts = tll::time::now();
 
 	context.stat_apply([](auto p, auto level) {
@@ -366,7 +362,7 @@ int tll_logger_log(tll_logger_t * l, tll_logger_level_t level, const char * buf,
 			context.stat_apply([](auto p) { p->overflow = 1; });
 		return 0;
 	} else
-		return log->impl->log(ts, level, {buf, len});
+		return log->log(ts, level, {buf, len});
 }
 
 tll_logger_buf_t * tll_logger_tls_buf()

@@ -35,6 +35,15 @@ struct Logger : public tll_logger_t, public tll::util::refbase_t<Logger>
 	std::mutex lock;
 	std::string name;
 	tll::util::refptr_t<tll_logger_obj_t> impl;
+
+	auto log(tll::time_point ts, tll_logger_level_t level, std::string_view body)
+	{
+		std::unique_lock<std::mutex> lck(lock);
+		auto ref = impl;
+		lck.unlock();
+
+		return ref->log(ts, level, body);
+	}
 };
 
 } // namespace tll::logger
