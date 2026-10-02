@@ -101,6 +101,7 @@ struct Convert : public ErrorStack
 				map_from[m->msgid] = m;
 			if (m->user)
 				continue;
+
 			auto into = scheme_into->lookup(m->name);
 			if (!into)
 				continue;
@@ -613,9 +614,16 @@ inline bool Convert::convertible(Message * into, Message * from)
 	user->trivial = tll::scheme::compare(into, from);
 
 	for (auto f = into->fields; f; f = f->next) {
-		auto ffrom = tll::scheme::lookup_name(from->fields, f->name);
-		if (!ffrom)
-			continue;
+		std::string_view name = f->name;
+		auto ffrom = tll::scheme::lookup_name(from->fields, name);
+		if (!ffrom) {
+			if (auto r = tll::getter::get(f->options, "renamed-from"); r && r->size()) {
+				ffrom = tll::scheme::lookup_name(from->fields, *r);
+				if (!ffrom)
+					continue;
+			} else
+				continue;
+		}
 		if (!convertible(f, ffrom))
 			return fail_field(false, f);
 	}

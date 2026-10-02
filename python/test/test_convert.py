@@ -606,3 +606,32 @@ def test_union(context, tfrom, tinto, v):
     s.post({'f0': {'u1': v}, 'header': 0xff, 'footer': 0xff}, name='Data')
     assert [m.msgid for m in c.result] == [10]
     assert c.unpack(c.result[0]).as_dict() == {'f0': {'u1': v}}
+
+def test_rename(context):
+    SFrom = '''yamls://
+- name: Data
+  id: 10
+  fields:
+    - {name: f0, type: int32}
+    - {name: f1, type: int64}
+    - {name: f2, type: int32}
+'''
+
+    SInto = '''yamls://
+- name: Data
+  id: 10
+  fields:
+    - {name: f0, type: int32}
+    - {name: f1new, type: int64, options.renamed-from: f1}
+    - {name: f2, type: int32}
+'''
+
+    s = Accum('convert+direct://;name=server', dump='yes', scheme=SInto, context=context, **{'direct.scheme': SFrom, 'direct.dump': 'yes'})
+    c = Accum('direct://;name=client', context=context, master=s)
+
+    s.open()
+    c.open()
+
+    c.post({'f0': 10, 'f1': 20, 'f2': 30}, name='Data', seq=100)
+
+    assert [m.seq for m in s.result] == [100]
