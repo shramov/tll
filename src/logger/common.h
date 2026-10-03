@@ -6,6 +6,7 @@
 #include "tll/util/refptr.h"
 #include "tll/util/time.h"
 
+#include <memory>
 #include <mutex>
 
 namespace tll::logger {
@@ -14,12 +15,12 @@ struct tll_logger_obj_t : tll::util::refbase_t<tll_logger_obj_t, 0>
 {
 	const char * name = "";
 	void * obj = nullptr;
-	tll_logger_impl_t * impl = nullptr;
+	std::shared_ptr<tll_logger_impl_t> impl;
 
 	~tll_logger_obj_t()
 	{
 		if (obj && impl && impl->log_free)
-			impl->log_free(impl, name, obj);
+			impl->log_free(impl.get(), name, obj);
 	}
 
 	auto log(tll::time_point ts, tll_logger_level_t level, std::string_view body)

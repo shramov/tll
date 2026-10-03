@@ -44,6 +44,11 @@ struct Stat
 	tll::stat::Integer<tll::stat::Sum, tll::stat::Unknown, 'o', 'v', 'e', 'r', 'f', 'l', 'w'> overflow;
 };
 
+struct logger_impl_deleter
+{
+	void operator ()(tll_logger_impl_t *ptr) const { if (ptr && ptr->release) ptr->release(ptr); }
+};
+
 struct logger_context_t
 {
 	std::shared_mutex lock;
@@ -62,7 +67,13 @@ struct logger_context_t
 	tll_logger_level_t _default = tll::Logger::Debug;
 
 	static tll_logger_impl_t stdio;
-	tll_logger_impl_t * impl = &stdio;
+	std::shared_ptr<tll_logger_impl_t> _impl { &stdio, logger_impl_deleter{} };
+
+	auto impl()
+	{
+		auto lck = rlock_t(lock);
+		return _impl;
+	}
 
 	~logger_context_t()
 	{
@@ -100,7 +111,7 @@ struct logger_context_t
 		auto l = new Logger;
 		l->name = name;
 		l->level = _default;
-		l->impl.reset(impl_new_obj(l->name, impl));
+		l->impl.reset(impl_new_obj(l->name, impl()));
 
 		{
 			rlock_t lck(lock);
@@ -189,13 +200,13 @@ struct logger_context_t
 		return 0;
 	}
 
-	tll_logger_obj_t * impl_new_obj(std::string_view name, tll_logger_impl_t * impl)
+	tll_logger_obj_t * impl_new_obj(std::string_view name, std::shared_ptr<tll_logger_impl_t> impl)
 	{
 		auto r = new tll_logger_obj_t;
 		r->name = name.data();
 		r->impl = impl;
 		if (impl->log_new)
-			r->obj = (impl->log_new)(impl, name.data());
+			r->obj = (impl->log_new)(impl.get(), name.data());
 		return r;
 	}
 
@@ -204,30 +215,28 @@ struct logger_context_t
 		if (impl == nullptr)
 			impl = &tll::logger::logger_context_t::stdio;
 
-		if (impl == this->impl)
-			return 0;
-
+		std::shared_ptr<tll_logger_impl_t> old, copy;
 		std::list<tll::util::refptr_t<Logger>> loggers;
-
-		tll_logger_impl_t * old = nullptr;
 		{
-			rlock_t lck(lock);
-			old = this->impl;
-			this->impl = impl;
+			wlock_t lck(lock);
+			if (impl == _impl.get())
+				return 0;
+			old.reset(impl, logger_impl_deleter{});
+			std::swap(old, _impl);
+			copy = _impl;
+
+			// Loggers lock is taken under impl lock, reverse order is not possible
+			std::lock_guard<std::mutex> lock(_loggers_lock);
 			for (auto & i : _loggers)
 				loggers.emplace_back(i.second);
 		}
 
 		for (auto & l : loggers) {
-			tll::util::refptr_t<tll_logger_obj_t> ref(impl_new_obj(l->name, impl));
+			tll::util::refptr_t<tll_logger_obj_t> ref(impl_new_obj(l->name, copy));
 
-			{
-				std::lock_guard<std::mutex> lck(l->lock);
-				std::swap(l->impl, ref);
-			}
+			std::lock_guard<std::mutex> lck(l->lock);
+			std::swap(l->impl, ref);
 		}
-		if (old && old->release)
-			(old->release)(old);
 		return 0;
 	}
 
@@ -265,8 +274,8 @@ struct logger_context_t
 #endif
 		}
 
-		if (impl && impl->configure)
-			(impl->configure)(impl, cfg);
+		if (auto ref = impl(); ref && ref->configure)
+			(ref->configure)(ref.get(), cfg);
 		// TODO: Reconfigure all loggers
 
 		auto thread = cfg.getT<bool>("async");
@@ -333,7 +342,7 @@ int tll_logger_register(tll_logger_impl_t *impl)
 
 const tll_logger_impl_t * tll_logger_impl_get()
 {
-	return tll::logger::context.impl;
+	return tll::logger::context._impl.get();
 }
 
 const char * tll_logger_name(const tll_logger_t * log)
