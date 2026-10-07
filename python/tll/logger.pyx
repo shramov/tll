@@ -114,11 +114,15 @@ cdef class PyLog:
         self.impl.release = self.pylog_release
         self.impl.user = <void *>self
 
+    def __dealloc__(self):
+        self.unreg()
+
     def reg(self):
         tll_logger_register(&self.impl)
 
-    def unreg(self):
-        tll_logger_register(NULL)
+    cpdef unreg(self):
+        if tll_logger_impl_get() == &self.impl:
+            tll_logger_register(NULL)
 
     @property
     def registered(self):
