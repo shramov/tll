@@ -112,6 +112,9 @@ Open parameters
 
 ``bind=<address>``, default none - override ``bind`` init parameter.
 
+``overwrite=<bool>``, default ``no``, only for Unix sockets - delete sock if it exists before
+binding.
+
 Control messages
 ----------------
 

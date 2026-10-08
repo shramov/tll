@@ -711,3 +711,37 @@ async def test_post_more(asyncloop):
     finally:
         s.close()
         c.close()
+
+@asyncloop_run
+async def test_unix_unlink(asyncloop, tmp_path):
+    filename = tmp_path / 'tcp.sock'
+    s = asyncloop.Channel(f'tcp://{filename};mode=server;dump=frame', name='server')
+
+    s.open()
+    s.close()
+
+    with open(filename, 'w') as fp:
+        fp.write('xxx')
+
+    assert filename.exists()
+
+    with pytest.raises(TLLError): s.open()
+    s.close()
+
+    assert filename.exists()
+    filename.unlink()
+
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock.bind(str(filename))
+
+    assert filename.exists()
+
+    with pytest.raises(TLLError): s.open()
+    s.close()
+
+    assert filename.exists()
+
+    s.open(overwrite='yes')
+    s.close()
+
+    assert not filename.exists()

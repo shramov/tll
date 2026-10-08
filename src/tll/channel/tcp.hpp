@@ -19,6 +19,7 @@
 #include <limits.h>
 #include <poll.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -674,7 +675,7 @@ int TcpServer<T, C>::_init(const tll::Channel::Url &url, tll::Channel *master)
 }
 
 template <typename T, typename C>
-int TcpServer<T, C>::_open(const ConstConfig &url)
+int TcpServer<T, C>::_open(const ConstConfig &cfg)
 {
 	_cleanup_flag = false;
 	_addr_seq = 0;
@@ -683,7 +684,27 @@ int TcpServer<T, C>::_open(const ConstConfig &url)
 	if (!addr)
 		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _host.host, addr.error());
 
-	for (auto & a : *addr) {
+	if (addr->size() && addr->front()->sa_family == AF_UNIX) {
+		auto reader = tll::make_props_reader(cfg);
+		auto overwrite = reader.getT("overwrite", false);
+		if (!reader)
+			return this->_log.fail(EINVAL, "Invalid params: {}", reader.error());
+
+		if (overwrite) {
+			struct stat st = {};
+			if (lstat(this->_host.host.c_str(), &st) != 0) {
+				if (errno != ENOENT)
+					return this->_log.fail(errno, "Stat failed for {}: {}", this->_host.host, strerror(errno));
+			} else if ((st.st_mode & S_IFMT) == S_IFSOCK) {
+				this->_log.info("Unlink existing unix socket {}", this->_host.host);
+				if (unlink(this->_host.host.c_str()))
+					return this->_log.fail(errno, "Failed to unlink socket {}: {}", this->_host.host, strerror(errno));
+			} else
+				return this->_log.fail(EEXIST, "File exists and is not socket {}", this->_host.host);
+		}
+	}
+
+	for (auto &a : *addr) {
 		if (this->_bind(a))
 			return this->_log.fail(EINVAL, "Failed to listen on {}", a);
 	}
