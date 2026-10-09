@@ -32,6 +32,16 @@ Parmeters have ``pub`` optional prefix.
 
 ``size=<SIZE>``, default ``1mb`` - size of ring buffer, for server only.
 
+``filter.<name>=<LIST>``, default none, only for server - list of message filters, parsed without
+``pub.`` prefix, filter name can not contain ``.``. List of message names is comma separated list or
+a subtree, used to build two sets - excludes, formed from names that starts with ``!``, and
+includes. If include list is empty then whole scheme is used. Excluded messages have priority over
+included ones, ``!A,A`` will drop message ``A``. Without scheme names are numeric message ids and
+excludes are not supported.
+
+``filter=<str>``, default none, only for client - request filter from the server. If server has no
+such filter connection will fail.
+
 Common TCP parameters, like ``sndbuf`` or ``nodelay``, documented in ``tll-channel-tcp(7)`` are also
 supported.
 

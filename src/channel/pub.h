@@ -10,6 +10,7 @@
 
 #include "tll/channel/frame.h"
 #include "tll/channel/lastseq.h"
+#include "tll/channel/message-filter.h"
 #include "tll/channel/tcp.h"
 #include "tll/util/cppring.h"
 
@@ -22,7 +23,8 @@ class ChPubSocket : public tll::channel::TcpSocket<ChPubSocket>
 	long long _seq = -1;
 	const unsigned char * _ptr = nullptr;
 	container_type::const_iterator _iter = {};
-	bool _hello = true;
+	ChPubServer * _parent = nullptr;
+	const tll::channel::MessageFilter * _filter = nullptr;
 	std::string _peer;
 
  public:
@@ -39,6 +41,7 @@ class ChPubSocket : public tll::channel::TcpSocket<ChPubSocket>
 	int _process(long timeout, int flags);
 	int _post(const tll_msg_t *msg, int flags) { return ENOTSUP; }
 
+	int _process_single(bool pollout = false);
 	int _process_data(bool pollout = false);
 
 	void _on_close()
@@ -50,6 +53,12 @@ class ChPubSocket : public tll::channel::TcpSocket<ChPubSocket>
  private:
 	int _process_open();
 	int _on_active();
+
+	// Message is not sended to client
+	bool _skip(const container_type::const_iterator &iter) const
+	{
+		return _filter != nullptr && _filter->skip(iter->frame->msgid);
+	}
 };
 
 class ChPubServer : public tll::channel::LastSeqTx<ChPubServer, tll::channel::TcpServer<ChPubServer, ChPubSocket>>
@@ -59,6 +68,8 @@ class ChPubServer : public tll::channel::LastSeqTx<ChPubServer, tll::channel::Tc
 	size_t _size = 0;
 	tll::util::DataRing<tll_frame_t> _ring;
 	bool _hello = true;
+
+	tll::channel::MessageFilters _filters;
 
  public:
 	static constexpr auto socket_impl_policy() { return SocketImplPolicy::Fixed; }
@@ -79,6 +90,7 @@ class ChPubServer : public tll::channel::LastSeqTx<ChPubServer, tll::channel::Tc
 
 	bool hello() const { return _hello; }
 	const tll::util::DataRing<tll_frame_t> * ring() const { return &_ring; }
+	auto filter(std::string_view name) const { return _filters.find(name); }
 
 	void _on_child_error(ChPubSocket * s) { tll_channel_close(*s, 1); }
 
