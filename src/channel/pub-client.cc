@@ -25,11 +25,15 @@ int ChPubClient::_init(const Channel::Url &url, tll::Channel *master)
 	auto reader = channel_props_reader(url);
 	_hello = reader.getT("hello", true);
 	_peer = reader.getT<std::string>("peer", "");
+	_filter = reader.getT("filter", std::string{});
 	auto size = reader.getT<util::Size>("max-size", 64 * 1024);
 	_size = reader.getT<util::Size>("size", 4 * size); // At least 4 messages
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
+
+	if (_filter.size() && !_hello)
+		return _log.fail(EINVAL, "Filter can not be used with disabled hello");
 
 	return 0;
 }
@@ -55,8 +59,13 @@ int ChPubClient::_post_hello()
 	_log.debug("Sending hello to server");
 	std::vector<char> buf;
 	auto hello = pub_scheme::Hello::bind_reset(buf);
-	hello.set_version((int16_t) pub_scheme::Version::Current);
 	hello.set_name(_peer);
+
+	if (_filter.size()) {
+		hello.set_version((int16_t) pub_scheme::Version::Current);
+		hello.set_filter(_filter);
+	} else
+		hello.set_version((int16_t) pub_scheme::Version::V1);
 
 	tll_frame_t frame = { hello.meta_size(), hello.meta_id(), 0 };
 	if (_sendv(tll::memory {(void *) &frame, sizeof(frame)}, hello.view()))
@@ -92,9 +101,9 @@ int ChPubClient::_process_open()
 	auto hello = pub_scheme::HelloReply::bind(_rbuf, sizeof(*frame));
 	if (hello.view().size() < frame->size)
 		return EAGAIN;
-	if (hello.get_version() != (int) pub_scheme::Version::Current)
+	if (auto v = hello.get_version(); v > (int) pub_scheme::Version::Current)
 		return _log.fail(EINVAL, "Server sent invalid version: {} (expected {})",
-				hello.get_version(), (int) pub_scheme::Version::Current);
+				v, (int) pub_scheme::Version::Current);
 	if (frame->size > pub_scheme::HelloReply::offset_seq) {
 		_seq = hello.get_seq();
 		_log.info("Server reported last seq: {}", _seq);

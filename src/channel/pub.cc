@@ -63,6 +63,28 @@ int ChPubServer::_init(const Channel::Url &url, tll::Channel *master)
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
+	for (auto &[path, _]: url.browse("filter.*", true)) {
+		auto name = path.substr(strlen("filter."));
+		auto r = url.getT<std::vector<std::string>>(path);
+		if (!r)
+			return _log.fail(EINVAL, "Invalid filter list '{}': {}", path, r.error());
+		_log.info("Filter '{}': {}", name, *r);
+		_filters_names.emplace(std::move(name), std::move(*r));
+	}
+
+	if (_filters_names.size() && !_scheme_url) {
+		for (auto &[n, l]: _filters_names) {
+			std::set<int> s;
+			for (auto &i: l) {
+				if (auto r = tll::conv::to_any<int>(i); !r)
+					return _log.fail(EINVAL, "Invalid filter message id '{}': {}", i, r.error());
+				else
+					s.emplace(*r);
+			}
+			_filters.emplace(n, std::move(s));
+		}
+	}
+
 	if (_size < 1024)
 		return _log.fail(EINVAL, "Buffer size too small: {}", _size);
 	_log.debug("Data buffer size: {}, messages {}", _size, _size / 64);
@@ -133,7 +155,7 @@ int ChPubSocket::_init(const Channel::Url &url, tll::Channel *master)
 	if (!pub)
 		return _log.fail(EINVAL, "Master {} is not pub server", master->name());
 
-	_hello = pub->hello();
+	_parent = pub;
 	_ring = pub->ring();
 
 	return 0;
@@ -144,7 +166,7 @@ int ChPubSocket::_open(const ConstConfig &url)
 	_iter = {};
 	_seq = -1;
 
-	if (_hello) {
+	if (_parent->hello()) {
 		_rbuf.resize(1024);
 		_dcaps_poll(dcaps::CPOLLIN);
 		return 0;
@@ -174,7 +196,7 @@ int ChPubSocket::_on_active()
 
 int ChPubSocket::_process_open()
 {
-	if (!_hello) {
+	if (!_parent->hello()) {
 		_log.debug("Handshake disabled, client active");
 		return _on_active();
 	}
@@ -193,7 +215,7 @@ int ChPubSocket::_process_open()
         if (frame->msgid != pub_scheme::Hello::meta_id())
 		return _log.fail(EINVAL, "Invalid client hello id: {} (expected {})",
 				frame->msgid, pub_scheme::Hello::meta_id());
-	if (frame->size < pub_scheme::Hello::meta_size())
+	if (frame->size < pub_scheme::Hello::offset_filter) // Filter was added in v2
 		return _log.fail(EMSGSIZE, "Client hello size too small: {}", frame->size);
 
 	auto full = frame->size + sizeof(*frame);
@@ -202,10 +224,25 @@ int ChPubSocket::_process_open()
 	if (full > _rbuf.size())
 		return EAGAIN;
 	auto hello = pub_scheme::Hello::bind(_rbuf, sizeof(*frame));
-	if (hello.get_version() != (int) pub_scheme::Version::Current)
-		return _log.fail(EINVAL, "Client sent invalid version: {} (expected {})",
-				hello.get_version(), (int) pub_scheme::Version::Current);
+	std::string_view filter;
+	auto version = hello.get_version();
+	switch (version) {
+	case (int) pub_scheme::Version::Current:
+		filter = hello.get_filter();
+	case (int) pub_scheme::Version::V1:
+		break;
+	default:
+		return _log.fail(EINVAL, "Client sent invalid version: {} (supported {})",
+				version, (int) pub_scheme::Version::Current);
+	}
 	_peer = hello.get_name();
+	if (filter.size()) {
+		_filter = _parent->filter(filter);
+		if (!_filter)
+			return _log.fail(EINVAL, "Client requested unknown filter '{}'", filter);
+		_log.info("Client requested filter {}", filter);
+	}
+
 	rdone(rsize());
 	_rbuf.resize(16);
 
@@ -213,7 +250,7 @@ int ChPubSocket::_process_open()
 		_log.debug("Sending hello to client");
 		std::array<char, pub_scheme::HelloReply::meta_size()> data;
 		auto hello = pub_scheme::HelloReply::bind(data);
-		hello.set_version((int) pub_scheme::Version::Current);
+		hello.set_version(version);
 		if (!_ring->empty())
 			_seq = _ring->back().frame->seq;
 		else
@@ -239,8 +276,22 @@ int ChPubSocket::_process_data(bool pollout)
 	if (_ptr != nullptr && !pollout)
 		return EAGAIN;
 
-	if (_iter == _ring->end())
+	if (!_ptr) {
+		if (auto i = _iter; i != _ring->end())
+			_log.error("Check frame {}, msgid {}: {}", i->frame->seq, i->frame->msgid, _skip(i));
+		while (_iter != _ring->end()) {
+			_seq = _iter->frame->seq;
+			if (!_skip(_iter))
+				break;
+			_iter++;
+		}
+	}
+
+	if (_iter == _ring->end()) {
+		if (pollout)
+			_dcaps_poll(dcaps::CPOLLIN);
 		return EAGAIN;
+	}
 
 	if (_ptr == nullptr)
 		_ptr = (const unsigned char *) _iter->frame;
@@ -248,7 +299,9 @@ int ChPubSocket::_process_data(bool pollout)
 	auto i = _iter;
 	do {
 		auto prev = i++;
-		if (i == _ring->end() || (const unsigned char *) i->frame < _ptr) {
+		if (i != _ring->end())
+			_log.error("Check frame {}, msgid {}: {}", i->frame->seq, i->frame->msgid, _skip(i));
+		if (i == _ring->end() || _skip(i) || (const unsigned char *) i->frame < _ptr) {
 			i = prev;
 			break;
 		}

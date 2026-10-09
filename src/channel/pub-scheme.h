@@ -5,20 +5,22 @@
 
 namespace pub_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJyljrEOgjAQQHe+4rZbaAKJYWB1cXZwJ3Jgk9LW9iAhhH/3QJSoo1OvvdeXp8BWHZWAmACQ7btYygCAFwpRO4slTDx6IbTlvEhXRt7w2IdAlmWfz3OiXpoTGeMWl65lk2UyNZpMvWkVTBs4bP4Unnpc/Th/YcuxM5GDtq3cnWf5HJcQ1zSRWHkOang3o6G2uo4q3lxg/Ak8kzfjXpn/Wxnp/oEUB0EeTstn9g==)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJytjzEPgjAQhXd+xW230ASMYWB1cXZwJ3Jgk9pie5AQwn/3QJTAqlNfe1/fu6fAFg/KATECINs+Qi4CAK/kg3YWcxi4b4TQltMsnhl5w1PrPVmW+SEWOhWRjmOkPn5nMsZNprqUSZKIqjSZcvFXMCxgtwTF8M7BOQjHHTYdKxPYa1vL3TUsn8O0kauqQKwa9qr7Lo+G6uLWq3B3nnHcu1baMPl/+G6LX6gx/do+/bV9oOcGyY6CvAASNIc9)";
 
 enum class Version: int16_t
 {
-	Current = 1,
+	V1 = 1,
+	Current = 2,
 };
 
 struct Hello
 {
-	static constexpr size_t meta_size() { return 10; }
+	static constexpr size_t meta_size() { return 18; }
 	static constexpr std::string_view meta_name() { return "Hello"; }
 	static constexpr int meta_id() { return 100; }
 	static constexpr size_t offset_version = 0;
 	static constexpr size_t offset_name = 2;
+	static constexpr size_t offset_filter = 10;
 
 	template <typename Buf>
 	struct binder_type : public tll::scheme::Binder<Buf>
@@ -30,12 +32,23 @@ struct Hello
 		static constexpr auto meta_id() { return Hello::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
 
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+			set_version(rhs.get_version());
+			set_name(rhs.get_name());
+			set_filter(rhs.get_filter());
+		}
+
 		using type_version = int16_t;
 		type_version get_version() const { return this->template _get_scalar<type_version>(offset_version); }
 		void set_version(type_version v) { return this->template _set_scalar<type_version>(offset_version, v); }
 
 		std::string_view get_name() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_name); }
 		void set_name(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_name, v); }
+
+		std::string_view get_filter() const { return this->template _get_string<tll_scheme_offset_ptr_t>(offset_filter); }
+		void set_filter(std::string_view v) { return this->template _set_string<tll_scheme_offset_ptr_t>(offset_filter, v); }
 	};
 
 	template <typename Buf>
@@ -63,6 +76,13 @@ struct HelloReply
 		static constexpr auto meta_id() { return HelloReply::meta_id(); }
 		void view_resize() { this->_view_resize(meta_size()); }
 
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+			set_version(rhs.get_version());
+			set_seq(rhs.get_seq());
+		}
+
 		using type_version = int16_t;
 		type_version get_version() const { return this->template _get_scalar<type_version>(offset_version); }
 		void set_version(type_version v) { return this->template _set_scalar<type_version>(offset_version, v); }
@@ -89,6 +109,7 @@ struct tll::conv::dump<pub_scheme::Version> : public to_string_from_string_buf<p
 	{
 		switch (v) {
 		case pub_scheme::Version::Current: return "Current";
+		case pub_scheme::Version::V1: return "V1";
 		default: break;
 		}
 		return tll::conv::to_string_buf<int16_t, Buf>((int16_t) v, buf);

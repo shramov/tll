@@ -6,6 +6,7 @@ import yaml
 
 from tll.asynctll import asyncloop_run
 import tll.channel as C
+from tll.config import Config
 from tll.error import TLLError
 from tll.test_util import Accum
 
@@ -324,3 +325,42 @@ async def test_large(asyncloop, tmp_path, client):
         s.post(b'x' * 128 * 1024, seq=i)
 
     assert (await c.recv_state()) == c.State.Error
+
+@asyncloop_run
+async def test_filter(asyncloop, tmp_path):
+    cfg = Config.from_dict({
+        'tll.proto': 'pub+tcp',
+        'tll.host': tmp_path / 'pub.sock',
+        'mode': 'server',
+        'name': 'server',
+        'dump': 'frame',
+        'filter.a': '10,20',
+        'filter.b': ['10', '30'],
+        })
+    s = asyncloop.Channel(cfg)
+    clients = [
+            asyncloop.Channel(f'pub+tcp://{tmp_path}/pub.sock', name='c0', dump='frame'),
+            asyncloop.Channel(f'pub+tcp://{tmp_path}/pub.sock', name='c1', dump='frame', filter='a'),
+            asyncloop.Channel(f'pub+tcp://{tmp_path}/pub.sock', name='c2', dump='frame', filter='b'),
+        ]
+
+    s.open()
+    for c in clients:
+        c.open()
+
+    for c in clients:
+        assert (await c.recv_state()) == c.State.Active
+
+    for i in range(6):
+        s.post(b'x' * 128, msgid=[10,20][i % 2], seq=i)
+
+    for i in range(0, 6, 2):
+        m = await clients[2].recv()
+        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'x' * 128)
+
+    for c in clients[:2]:
+        for i in range(0, 6, 2):
+            m = await c.recv()
+            assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'x' * 128)
+            m = await c.recv()
+            assert (m.seq, m.msgid, m.data.tobytes()) == (i + 1, 20, b'x' * 128)

@@ -13,6 +13,8 @@
 #include "tll/channel/tcp.h"
 #include "tll/util/cppring.h"
 
+#include <set>
+
 class ChPubServer;
 
 class ChPubSocket : public tll::channel::TcpSocket<ChPubSocket>
@@ -22,7 +24,8 @@ class ChPubSocket : public tll::channel::TcpSocket<ChPubSocket>
 	long long _seq = -1;
 	const unsigned char * _ptr = nullptr;
 	container_type::const_iterator _iter = {};
-	bool _hello = true;
+	ChPubServer * _parent = nullptr;
+	const std::set<int> * _filter = nullptr;
 	std::string _peer;
 
  public:
@@ -50,6 +53,12 @@ class ChPubSocket : public tll::channel::TcpSocket<ChPubSocket>
  private:
 	int _process_open();
 	int _on_active();
+
+	// Message is not sended to client
+	bool _skip(const container_type::const_iterator &iter) const
+	{
+		return _filter != nullptr && _filter->find(iter->frame->msgid) == _filter->end();
+	}
 };
 
 class ChPubServer : public tll::channel::LastSeqTx<ChPubServer, tll::channel::TcpServer<ChPubServer, ChPubSocket>>
@@ -59,6 +68,8 @@ class ChPubServer : public tll::channel::LastSeqTx<ChPubServer, tll::channel::Tc
 	size_t _size = 0;
 	tll::util::DataRing<tll_frame_t> _ring;
 	bool _hello = true;
+	std::map<std::string, std::set<int>, std::less<>> _filters;
+	std::map<std::string, std::vector<std::string>, std::less<>> _filters_names;
 
  public:
 	static constexpr auto socket_impl_policy() { return SocketImplPolicy::Fixed; }
@@ -79,6 +90,12 @@ class ChPubServer : public tll::channel::LastSeqTx<ChPubServer, tll::channel::Tc
 
 	bool hello() const { return _hello; }
 	const tll::util::DataRing<tll_frame_t> * ring() const { return &_ring; }
+	const std::set<int> * filter(std::string_view name) const
+	{
+		if (auto it = _filters.find(name); it != _filters.end())
+			return &it->second;
+		return nullptr;
+	}
 
 	void _on_child_error(ChPubSocket * s) { tll_channel_close(*s, 1); }
 
