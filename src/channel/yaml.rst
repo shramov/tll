@@ -156,6 +156,39 @@ file ``file.yaml`` contents:
       ts: 2000-01-02T03:04:05.123456
       duration: [10ns, 10us, 10ms]
 
+Templates
+~~~~~~~~~
+
+Yaml merge nodes can be used to create message templates::
+
+  - name: Data
+    data: &body-template # Create yaml anchor
+      f0: 10
+      f1: [1, 2, 3]
+  - name: Data
+    seq: 1
+    data:
+      <<: *body-template # Use merge key syntax with anchor
+      f0: 20
+  - name: Data
+    seq: 2
+    data:
+      <<: *body-template
+      f1: [10, 20, 30, 40]
+
+If only a subset of keys is needed then it can be defined in any unused subtree of the message (for
+example ``template``) and then referenced in ``data``::
+
+  - name: Data
+    template: &body-template
+      f1: [1, 2, 3]
+    data:
+      <<: *body-template
+      f0: 10
+
+Be careful with using lists - it is not possible to decrease it size so merging ``[1, 2, 3]`` with
+``[10, 20]`` will result in ``[10, 20, 3]``.
+
 See also
 --------
 

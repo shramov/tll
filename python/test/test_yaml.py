@@ -468,3 +468,40 @@ config.0:
     assert [(m.type, m.msgid, m.seq) for m in c.result] == [(c.Type.Control, c.scheme_control['Block'].msgid, 20)]
     m = c.unpack(c.result[0])
     assert m.as_dict() == {'type': 'Type'}
+
+def test_template():
+    cfg = Config.load(f'''yamls://
+tll.proto: yaml
+name: yaml
+dump: yes
+autoclose: yes
+config:
+  - name: Data
+    data: &body-template
+      f0: 10
+      f1: [1, 2, 3]
+  - name: Data
+    seq: 1
+    data:
+      <<: *body-template
+      f0: 20
+  - name: Data
+    seq: 2
+    data:
+      <<: *body-template
+      f1: [10, 20, 30, 40]
+''')
+    print(cfg.as_dict())
+    cfg['scheme'] = 'yamls://[{name: Data, id: 10, fields: [{name: f0, type: int32}, {name: f1, type: "*int32"}]}]'
+
+    c = Accum(cfg)
+    c.open()
+    for _ in range(3):
+        c.process()
+    assert c.state == c.State.Active
+    assert [m.seq for m in c.result] == [0, 1, 2]
+    assert c.unpack(c.result[0]).as_dict() == {'f0': 10, 'f1': [1, 2, 3]}
+    assert c.unpack(c.result[1]).as_dict() == {'f0': 20, 'f1': [1, 2, 3]}
+    assert c.unpack(c.result[2]).as_dict() == {'f0': 10, 'f1': [10, 20, 30, 40]}
+    c.process()
+    assert c.state == c.State.Closed
