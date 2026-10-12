@@ -34,15 +34,20 @@ like ``timeit+lua+null://`` to measure time of posts through lua filter.
 Parameter names
 ---------------
 
-Each channel type has parameter prefix that is in most cases is equal to protocol string (``tcp``
-for ``tcp://`` channels). Parameter lookup is performed in the following order:
+Each channel type has parameter prefix that in most cases is equal to protocol string (``tcp``
+for ``tcp://`` normal channel and ``lua`` for ``lua+`` prefix channel). Parameter lookup is
+performed in the following order:
 
-  - ``prefix.name`` and ``name`` from initialization dictionary
+  - ``prefix.name`` and then ``name`` from initialization dictionary
   - ``prefix.name`` from context-wide defaults
 
 Prefixed form can be used to pass common parameter to specific part of channel chain, for example
 for ``lua+file://`` filter channel, where ``lua+`` has ``file`` child, ``file.dump=yes`` enables
 dump only for inner file channel.
+
+When channel is created using alias, for example ``mudp://...`` is an alias for
+``udp://...;udp.multicast=yes``, then parameter prefix is same as in channel implementation and
+differs from protocol seen by user.
 
 Value types
 -----------
