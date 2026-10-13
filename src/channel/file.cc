@@ -435,13 +435,18 @@ int File<TIO>::_open(const ConstConfig &props)
 		if (size != (ssize_t) _io.offset) {
 			if (auto r = _io.read(sizeof(frame_size_t)); r.data) {
 				auto frame = *static_cast<const frame_size_t *>(r.data);
-				if (frame)
-					this->_log.warning("Trailing data in file: {} < {}, last frame: {}", _io.offset, size, frame);
-				_truncate(_io.offset);
+				if (frame) {
+					size_t fill = std::min<size_t>(size, _io.block_end) - _io.offset;
+					this->_log.warning("Trailing data in file: {} < {}, last frame: {}. Zero {} bytes", _io.offset, size, frame, fill);
+					std::vector<char> buf;
+					buf.resize(fill - sizeof(frame));
+					if (auto r = _check_write(fill, _io.writev(0, tll::const_memory{ buf.data(), buf.size() })); r)
+						return r;
+					size = _io.block_end;
+				}
 			}
-			size = _io.offset;
 		}
-		if (_tail_extra_blocks) {
+		if (_tail_extra_blocks && (size_t) size < _io.block_end + _tail_extra_blocks) {
 			this->_log.info("Extend file with {} extra blocks", _tail_extra_blocks);
 			_truncate(_io.block_end + _block_size * _tail_extra_blocks);
 		}

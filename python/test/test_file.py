@@ -11,6 +11,7 @@ import pytest
 from tll.channel import Context
 from tll.config import Config
 from tll.error import TLLError
+from tll.scheme import Scheme
 from tll.test_util import Accum
 
 EXTRA_SIZE = 4 + 12 + 1 # Size + frame + tail marker
@@ -640,3 +641,59 @@ def test_eod(context, filename, writer, eod, autoclose):
         assert [(m.type, m.msgid) for m in reader.result] == [(reader.Type.Control, reader.scheme_control['EndOfData'].msgid)]
     else:
         assert [(m.type, m.msgid) for m in reader.result] == []
+
+@pytest.mark.parametrize("wio", ['posix', 'posix-16kb', 'mmap'])
+def test_open_fix(context, filename, reader, wio, path_srcdir):
+    extra_space = '16kb' if wio == 'mmap' else ''
+    if '-' in wio:
+        wio, extra_space = wio.split('-')
+    Meta = Scheme(f'yaml://{path_srcdir}/src/channel/file.yaml')['Meta']
+    w = Accum(f'file://{filename}', name='writer', dump='frame', context=context, dir='w', block='16kb', io=wio, **{'extra-space': extra_space})
+
+    w.open()
+    mask = 0 if w.config['info.version'] == '0' else 0x80000000
+    w.post(b'x' * 64, msgid=10, seq=100)
+    w.close()
+
+    assert filename.stat().st_size == (32 * 1024 if extra_space else 49 + 81)
+
+    with open(filename, 'r+b') as fp:
+        data = fp.read(16 + Meta.size + 1)
+        f = frame(data)
+        assert (f.size, f.msgid, f.seq) == (16 + Meta.size + 1, Meta.msgid, 0)
+        assert data[-1] == 0x80
+
+        m = Meta.unpack(memoryview(data[16:]))
+        print(m.as_dict())
+        assert m.version == int(w.config['info.version'])
+
+        data = fp.read(16 + 64 + 1)
+        f = frame(data)
+        assert (f.size, f.msgid, f.seq) == ((16 + 64 + 1) | mask, 10, 100)
+        assert data[-1] == 0x80
+        assert data[16:-1] == b'x' * 64
+
+        fp.write(struct.pack('Iiq', (16 + 16 + 1) | mask, 11, 101) + b'y' * 10 + b'\0' * 7)
+
+    assert filename.stat().st_size == (32 * 1024 if extra_space else 49 + 81 + 33)
+
+    reader.open()
+    for _ in range(3):
+        reader.process()
+
+    assert [m.seq for m in reader.result] == [100]
+    reader.close()
+    reader.result.clear()
+
+    w.open()
+
+    assert filename.stat().st_size == (32 * 1024 if extra_space else 49 + 81 + 33)
+
+    with open(filename, 'r+b') as fp:
+        fp.seek(49 + 81)
+
+        data = fp.read(16 + 16 + 1)
+        f = frame(data)
+        assert (f.size, f.msgid, f.seq) == (0, 0, 0)
+        assert data[-1] == 0x00
+        assert data[16:-1] == b'\0' * 16
