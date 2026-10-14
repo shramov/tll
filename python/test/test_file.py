@@ -39,7 +39,7 @@ Frame = collections.namedtuple('Frame', ('size', 'msgid', 'seq'))
 def frame(data):
     return Frame(*struct.unpack('Iiq', data[:16]))
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def Meta(path_srcdir):
     return Scheme(f'yaml://{path_srcdir}/src/channel/file.yaml')['Meta']
 

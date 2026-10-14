@@ -25,6 +25,7 @@ if version < (3, 9):
     def tmp_path():
         with tempfile.TemporaryDirectory() as tmp:
             yield pathlib.Path(tmp)
+
 @pytest.fixture
 def asyncloop_config():
     return {}
@@ -36,17 +37,17 @@ def asyncloop(context, asyncloop_config):
     loop.destroy()
     loop = None
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def path_builddir():
     path = pathlib.Path(tll.logger.__file__).parent.parent.parent / "build/src"
     return pathlib.Path(os.environ.get("BUILD_DIR", path))
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def path_srcdir():
     path = pathlib.Path(tll.__file__).parent.parent.parent
     return pathlib.Path(os.environ.get("SOURCE_DIR", path))
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def with_scheme_hash():
     try:
         S.Scheme('yamls://{}').dump('sha256')
