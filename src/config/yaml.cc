@@ -25,21 +25,21 @@ using tll::Config;
 namespace {
 
 enum class Special { Merge };
-struct state_t
-{
+struct Frame {
+	using variant_t = std::variant<bool, size_t, std::string, Special>;
+
 	Config cfg;
+	variant_t key;
+	std::string path;
+	std::optional<Config> merge;
+};
+
+struct state_t : public Frame
+{
 	tll::Logger _log = {"tll.config.yaml.state"};
 
 	using variant_t = std::variant<bool, size_t, std::string, Special>;
-	struct Frame {
-		Config cfg;
-		variant_t key;
-		std::string path;
-		std::optional<Config> merge;
-	};
 	std::list<Frame> stack;
-	variant_t key;
-	std::optional<Config> merge;
 
 	std::map<std::string, Config, std::less<>> anchors;
 	std::map<Config, bool> checked;
@@ -159,8 +159,9 @@ int state_t::parse(const yaml_event_t &event)
 				return _log.fail(EINVAL, "Failed to build path {}", k);
 			c = *sub;
 		}
-		stack.emplace_back(Frame {cfg, std::move(key), k, merge});
-		cfg = c;
+		stack.emplace_back(*this);
+		*(Frame *)this = Frame { c };
+
 		if (event.type == YAML_SEQUENCE_START_EVENT) {
 			anchor(event.data.mapping_start.anchor, cfg, "sequence");
 			key = (size_t) 0;

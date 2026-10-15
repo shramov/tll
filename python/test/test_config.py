@@ -108,8 +108,8 @@ def test_set_sub():
     assert d == {'a': '1', 'c': '2', 'b.d': '3', 'b.e.f': '4'}
 
 def _test_merge(ow, c0, c1, r):
-    c = Config.load('yamls://' + c0)
-    c.merge(Config.load('yamls://' + c1), overwrite = ow == 'overwrite')
+    c = Config.load_data('yamls', c0)
+    c.merge(Config.load_data('yamls', c1), overwrite = ow == 'overwrite')
     d = dict(c.browse('**'))
     assert d == r
 
@@ -120,6 +120,7 @@ def test_merge():
     _test_merge('import','a: 1', 'a: 2', {'a': '1'})
     _test_merge('import','a: 1', 'b: 2', {'a': '1', 'b': '2'})
     _test_merge('import','{a: 1, b.c: 1}', 'b.d: 2', {'a': '1', 'b.c': '1', 'b.d': '2'})
+    _test_merge('import', 'b: [1, 2, 3]', '{a: 1, b: [10, 20]}', {'a': '1', 'b.0000': '1', 'b.0001': '2', 'b.0002': '3'})
 
 class E(enum.Enum):
     A = 1
@@ -333,3 +334,7 @@ def test_extend():
     cfg = Config.load_data('yamls', '{body: &body {b: c, d: e}, a: {!!merge : *body, b: a}, b: {b: b, <<: *body}}')
 
     assert cfg.as_dict() == {'body': {'b': 'c', 'd': 'e'}, 'a': {'b': 'a', 'd': 'e'}, 'b': {'b': 'b', 'd': 'e'}}
+
+    cfg = Config.load_data('yamls', '{body: &body {a: [1, 2, 3]}, merge: {<<: *body, a: [10, 20, 30]}}')
+
+    assert cfg.as_dict() == {'body': {'a': ['1', '2', '3']}, 'merge': {'a': ['10', '20', '30']}}
