@@ -5,7 +5,7 @@
 
 namespace stream_scheme {
 
-static constexpr std::string_view scheme_string = R"(yamls+gz://eJylk01rg0AQhu/5FXtbKAo1DaF4a5OeCz30UkrY6LRduq5mP0KD+N+7u34brUJv4jzOO+87o484SSBEGK8QSjNFUy5DlOMoy3xbkRmJAJu6VAJIcpDRFySAC0MD14kMzQNC+BWENJ8aMFeXzPSjXAVbzzG23U4LAVyZelAUK78WfVBK0KNWYNU/KLC4auijvEJIg3iobG1HofzTzdAlz4TpMapRe4GTBqmeWWzlaGyGCSZ1z5Wjpl9tcSgr4dRCxvZ2c4VEjFrzcwaOLI2+Z6kmENmiN22Q134fXdtJo8tUKY/h59rnUKsJdm0eNHfXVF7Inihiz8O9DNHbaHy66utNTdez1MEop4oS1hvwvgswItWw+l78f/sLVzu7tD4e27Aa0EXXyzpjlzrp9e2kCev5sOA8RRkqxEtgt5AloARhUvzrf3wSIhW1j7tpH+C4uYjn9XZuV/uUQy26mRYddfgLx7+SWA==)";
+static constexpr std::string_view scheme_string = R"(yamls+gz://eJylk19rgzAUxd/9FHkTRoW268rwbWvHHgd72MsYJdXbLSzGNH/KSvG7L4kata1T2JuYn+fcc26MEMMZxCgMA4RyrkjOZIxOYcJ5ZE8kxwmE5lwqATjbyOQLMggLQwPTmYzNA0LhGwhpPjXgSR250SNMzZYTx1i5lRYCmDLns6IIotr0QSlBtlqBdd8RoGklGKFThWCPTFApbUch7NPN0CYPmOprlHd7hb0GqV5oau1IaoaZ9foeqkRer454bith30Am9nJxgSSU2PBDAbY0T74HKV+IbNCbpsjLvI9OtjfoOFfCUvi5zHnu5YudmwfN3G0qb8gaK2yvh3sZo/er9elKd9I3XSdSCyOMKIJpZ8D7NkCxVOenH8X/tz9ytYNL6+KpLcuDrrpO15we66bn094QNvNmxPUUZamQjoHdQsaAEoRp8a//8UmIXNQ5bvtzgOOGKh72W7ldrXMGtemi3/RqQi/1jHmtcTcNfgE3VJfm)";
 
 enum class Version: int16_t
 {
@@ -349,6 +349,35 @@ struct ClientDone
 		using type_seq = int64_t;
 		type_seq get_seq() const { return this->template _get_scalar<type_seq>(offset_seq); }
 		void set_seq(type_seq v) { return this->template _set_scalar<type_seq>(offset_seq, v); }
+	};
+
+	template <typename Buf>
+	static binder_type<Buf> bind(Buf &buf, size_t offset = 0) { return binder_type<Buf>(tll::make_view(buf).view(offset)); }
+
+	template <typename Buf>
+	static binder_type<Buf> bind_reset(Buf &buf) { return tll::scheme::make_binder_reset<binder_type, Buf>(buf); }
+};
+
+struct Gap
+{
+	static constexpr size_t meta_size() { return 0; }
+	static constexpr std::string_view meta_name() { return "Gap"; }
+	static constexpr int meta_id() { return 50; }
+
+	template <typename Buf>
+	struct binder_type : public tll::scheme::Binder<Buf>
+	{
+		using tll::scheme::Binder<Buf>::Binder;
+
+		static constexpr auto meta_size() { return Gap::meta_size(); }
+		static constexpr auto meta_name() { return Gap::meta_name(); }
+		static constexpr auto meta_id() { return Gap::meta_id(); }
+		void view_resize() { this->_view_resize(meta_size()); }
+
+		template <typename RBuf>
+		void copy(const binder_type<RBuf> &rhs)
+		{
+		}
 	};
 
 	template <typename Buf>

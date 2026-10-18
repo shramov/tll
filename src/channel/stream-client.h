@@ -36,6 +36,7 @@ class StreamClient : public tll::channel::LastSeqRx<StreamClient, tll::channel::
 	long long _block_end = -1;
 	std::optional<long long> _open_seq;
 	std::string _peer;
+	std::string _filter;
 
 	tll::Config _reopen_cfg;
 	bool _report_block_begin = true;

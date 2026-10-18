@@ -8,6 +8,7 @@
 #include "channel/stream-server.h"
 
 #include "channel/stream-client.h"
+#include "channel/stream-common.h"
 #include "channel/stream-scheme.h"
 #include "channel/stream-server.scheme.h"
 
@@ -66,6 +67,11 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
+	if (auto r = tll::channel::MessageFilters::load(url, !!_scheme_url); r)
+		_filters = *r;
+	else
+		return _log.fail(EINVAL, "Failed to load filters: {}", r.error());
+
 	{
 		auto curl = url.getT<tll::Channel::Url>("request");
 		if (!curl)
@@ -73,6 +79,8 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 		child_url_fill(*curl, "request");
 		if (!curl->has("mode"))
 			curl->set("mode", "server");
+
+		curl->set(fmt::format("multiplex.{}", stream_request_message_type), stream_scheme::scheme_string);
 
 		_request = context().channel(*curl, master);
 		if (!_request)
@@ -472,6 +480,10 @@ int StreamServer::_on_request_data(const tll_msg_t *msg)
 		default:
 			return _log.fail(0, "Invalid request from client '{}': unknown union type {}", request.client, data.union_type());
 		}
+		for (auto & i: req.get_attributes()) {
+			if (i.get_attribute() == "filter")
+				request.filter = i.get_value();
+		}
 	} else if (msg->msgid == stream_scheme::RequestOld::meta_id()) {
 		auto req = stream_scheme::RequestOld::bind(*msg);
 		if (msg->size < req.meta_size())
@@ -530,6 +542,13 @@ tll::result_t<int> StreamServer::Client::init(const StreamServer::Request &req)
 
 	std::string_view block;
 	int64_t block_index = 0;
+
+	if (req.filter.size()) {
+		if (auto r = parent->_filters.find(req.filter); !r)
+			return error(fmt::format("Unknown filter '{}'", req.filter));
+		else
+			filter = r;
+	}
 
 	if (auto ptr = std::get_if<Request::Block>(&req.data); ptr) {
 		block = ptr->first;
@@ -613,6 +632,8 @@ tll::result_t<int> StreamServer::Client::init(const StreamServer::Request &req)
 
 	if (storage_next)
 		std::swap(storage_next, storage);
+	else
+		update_msgid_eod();
 
 	std::vector<char> data;
 	auto r = stream_scheme::Reply::bind(data);
@@ -643,11 +664,27 @@ int StreamServer::Client::on_storage(const tll_msg_t * m)
 	if (m->type != TLL_MESSAGE_DATA) {
 		if (m->type == TLL_MESSAGE_STATE)
 			return on_storage_state((tll_state_t) m->msgid);
+		else if (m->type == TLL_MESSAGE_CONTROL && m->msgid == msgid_eod) {
+			if (skipped) {
+				parent->_log.debug("Skipped messages on EndOfData for '{}': {}", name, skipped);
+				send_gap(msg.seq);
+			}
+		}
 		return 0;
 	}
+
+	msg.seq = m->seq;
+	if (skip(m)) {
+		if (++skipped >= 1000) {
+			parent->_log.debug("Skipped 1000 messages, send Gap to client '{}'", name);
+			send_gap(m->seq);
+		}
+		return 0;
+	} else
+		skipped = 0;
+
 	msg.type = m->type;
 	msg.msgid = m->msgid;
-	msg.seq = m->seq;
 	msg.flags = m->flags;
 	msg.data = m->data;
 	msg.size = m->size;
@@ -658,6 +695,32 @@ int StreamServer::Client::on_storage(const tll_msg_t * m)
 		return 0;
 	}
 	return 0;
+}
+
+void StreamServer::Client::send_gap(long long seq)
+{
+	skipped = 0;
+	msg.type = stream_request_message_type;
+	msg.msgid = stream_scheme::Gap::meta_id();
+	msg.seq = seq;
+	msg.flags = 0;
+	msg.data = nullptr;
+	msg.size = 0;
+
+	if (auto r = parent->_request->post(&msg, 0); r) {
+		parent->_log.error("Failed to post data for client '{}': seq {}", name, msg.seq);
+		state = State::Error;
+		storage->close();
+	}
+}
+
+void StreamServer::Client::update_msgid_eod()
+{
+	msgid_eod = -1;
+	if (auto s = storage.get()->scheme(TLL_MESSAGE_CONTROL); s) {
+		if (auto m = s->lookup("EndOfData"); m)
+			msgid_eod = m->msgid;
+	}
 }
 
 int StreamServer::Client::on_storage_state(tll_state_t s)
@@ -680,7 +743,10 @@ int StreamServer::Client::on_storage_state(tll_state_t s)
 		if (storage_next && storage_next->state() == tll::state::Active) {
 			parent->_child_del(storage.get());
 			std::swap(storage, storage_next); // Can not destroy in callback
+			update_msgid_eod();
 			parent->_child_add(storage.get());
+			if (skipped)
+				send_gap(msg.seq);
 			return 0;
 		}
 		state = State::Closed;

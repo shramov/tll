@@ -55,3 +55,6 @@
   id: 40
   fields:
     - {name: seq, type: int64}
+
+- name: Gap
+  id: 50

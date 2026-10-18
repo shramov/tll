@@ -8,8 +8,9 @@
 #ifndef _TLL_IMPL_CHANNEL_STREAM_SERVER_H
 #define _TLL_IMPL_CHANNEL_STREAM_SERVER_H
 
-#include "tll/channel/lastseq.h"
 #include "tll/channel/autoseq.h"
+#include "tll/channel/lastseq.h"
+#include "tll/channel/message-filter.h"
 #include "tll/channel/prefix.h"
 
 #include <list>
@@ -33,6 +34,8 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	bool _block_feed = false;
 	bool _wait_control = false;
 
+	MessageFilters _filters;
+
 	struct Request
 	{
 		std::string_view client;
@@ -41,6 +44,7 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 		struct Initial {};
 		struct Last {};
 		std::variant<uint64_t, Block, Initial, Last> data;
+		std::string_view filter;
 	};
 
 	struct Client
@@ -51,16 +55,23 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 
 		long long seq = -1;
 		long long block_end = -1;
+		long long skipped = 0;
 
 		tll_msg_t msg = {};
 		std::unique_ptr<Channel> storage; ///< Current storage channel
 		std::unique_ptr<Channel> storage_next; ///< Next storage to process
+		const MessageFilter * filter = nullptr;
 		std::string name;
 		StreamServer * parent = nullptr;
 		enum class State { Closed, Opening, Active, Error, Done } state = State::Closed;
+		int msgid_eod = -1;
+
+		bool skip(const tll_msg_t * msg) const { return filter && filter->skip(msg->msgid); }
 
 		int on_storage(const tll_msg_t *);
 		int on_storage_state(tll_state_t);
+		void update_msgid_eod();
+		void send_gap(long long seq);
 
 		static int on_storage(const tll_channel_t *, const tll_msg_t * msg, void * user)
 		{
@@ -131,7 +142,11 @@ class StreamServer : public tll::channel::LastSeqTx<StreamServer, tll::channel::
 	int _process(long timeout, int flags);
 
 	int _on_data(const tll_msg_t *msg) { return 0; }
-	int _on_active() { return _check_state(tll::state::Active); }
+	int _on_active()
+	{
+		_filters.open(_child->scheme());
+		return _check_state(tll::state::Active);
+	}
 	int _on_closed() { return _check_state(tll::state::Closed); }
 
  private:

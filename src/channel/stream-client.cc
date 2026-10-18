@@ -6,6 +6,7 @@
  */
 
 #include "channel/stream-client.h"
+#include "channel/stream-common.h"
 #include "channel/stream-control.h"
 #include "channel/stream-scheme.h"
 
@@ -46,12 +47,18 @@ int StreamClient::_init(const Channel::Url &url, tll::Channel *master)
 	auto reader = channel_props_reader(url);
 	auto size = reader.getT<util::Size>("size", 128 * 1024);
 	_peer = reader.getT<std::string>("peer", "");
+	_filter = reader.getT<std::string>("filter", "");
 	_report_block_begin = reader.getT("report-block-begin", true);
 	_report_block_end = reader.getT("report-block-end", true);
 	_protocol_old = reader.getT("protocol", false, {{"old", true}, {"new", false}});
 
 	if (!reader)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
+
+	if (_protocol_old && _filter.size()) {
+		_log.info("Switch to new protocol, filter is not supported with old");
+		_protocol_old = false;
+	}
 
 	_log.debug("Data buffer size: {}, messages {}", size, size / 64);
 	_ring.resize(size / 64);
@@ -61,12 +68,13 @@ int StreamClient::_init(const Channel::Url &url, tll::Channel *master)
 	if (!curl)
 		return _log.fail(EINVAL, "Failed to get request url: {}", curl.error());
 	child_url_fill(*curl, "request");
+	curl->set(fmt::format("multiplex.{}", stream_request_message_type), stream_scheme::scheme_string);
 
 	_request = context().channel(*curl, master);
 	if (!_request)
 		return _log.fail(EINVAL, "Failed to create request channel");
 	_request->callback_add<StreamClient, &StreamClient::_on_request_state>(this, TLL_MESSAGE_MASK_STATE);
-	_request->callback_add<StreamClient, &StreamClient::_on_request_data>(this, TLL_MESSAGE_MASK_DATA);
+	_request->callback_add<StreamClient, &StreamClient::_on_request_data>(this, TLL_MESSAGE_MASK_DATA | (1u << stream_request_message_type));
 	_child_add(_request.get(), "request");
 
 	return 0;
@@ -97,6 +105,13 @@ int StreamClient::_open(const ConstConfig &url)
 			rold.set_client(_peer);
 		else
 			rnew.set_client(_peer);
+	}
+
+	if (_filter.size() && !_protocol_old) {
+		rnew.get_attributes().resize(1);
+		auto attr = rnew.get_attributes()[0];
+		attr.set_attribute("filter");
+		attr.set_value(_filter);
 	}
 
 	enum Mode { Undefined, Online, Seq, SeqData, Block, Init, Last };
@@ -330,6 +345,10 @@ int StreamClient::_on_data(const tll_msg_t *msg)
 
 int StreamClient::_on_request_data(const tll::Channel *, const tll_msg_t *msg)
 {
+	if (msg->type != TLL_MESSAGE_DATA) {
+		if (msg->type != stream_request_message_type || msg->msgid != stream_scheme::Gap::meta_id())
+			return 0;
+	}
 	_log.debug("Seq {}, state {}, ring {}", msg->seq, (int) _state, _ring.empty());
 	if (_state == State::Connected) {
 		if (_seq < _block_end && msg->seq >= _block_end) {
@@ -340,9 +359,11 @@ int StreamClient::_on_request_data(const tll::Channel *, const tll_msg_t *msg)
 
 		_seq = msg->seq;
 
-		auto guard = state_guard();
-		_callback_data(msg);
-		if (guard) return EINTR;
+		if (msg->type == TLL_MESSAGE_DATA) {
+			auto guard = state_guard();
+			_callback_data(msg);
+			if (guard) return EINTR;
+		}
 
 		if (_seq == _server_seq && _ring.empty()) {
 			_log.info("Reached reported server seq {}, no online data", _server_seq);
@@ -428,7 +449,8 @@ int StreamClient::_on_request_data(const tll::Channel *, const tll_msg_t *msg)
 	if (msg->seq <= _seq) // Message already forwarded to client
 		return 0;
 	_seq = msg->seq;
-	_callback_data(msg);
+	if (msg->type == TLL_MESSAGE_DATA)
+		_callback_data(msg);
 	return 0;
 }
 
