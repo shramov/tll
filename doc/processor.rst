@@ -40,7 +40,7 @@ configuration would look like
     processor.chain:
       root:
         - name: logic
-          obects:
+          objects:
             logic:
               init: 'forward://'
               channels: {input: tcp, output: tcp}
