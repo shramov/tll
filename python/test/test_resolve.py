@@ -257,3 +257,20 @@ def test_request_init(defaults, context, rserver):
     assert c.state == c.State.Opening
     assert rserver.result != []
     assert rserver.unpack(rserver.result[0]).as_dict() == {'service': 'service', 'channel': 'channel'}
+
+@pytest.mark.parametrize("mode", ['', 'merge', 'none', 'overwrite'])
+def test_override(context, rserver, mode):
+    c = context.Channel(f'resolve://service/channel;resolve.init-param={mode};a=c;b=d', name='resolve')
+    rserver.open()
+
+    c.open()
+    assert c.state == c.State.Opening
+    assert [rserver.unpack(m).as_dict() for m in rserver.result] == [{'service': 'service', 'channel': 'channel'}]
+
+    rserver.post({'config': [{'key': 'init.tll.proto', 'value': 'null'}, {'key': 'init.a', 'value': 'b'}]}, name='ExportChannel')
+    assert c.state == c.State.Active
+
+    cfg = {'tll': {'proto': 'null', 'internal': 'yes'}, 'name': 'resolve/resolve', 'a': 'b' if mode != 'overwrite' else 'c'}
+    if mode != 'none':
+        cfg['b'] = 'd'
+    assert c.config.sub('resolve.init').as_dict() == cfg

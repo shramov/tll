@@ -20,6 +20,7 @@ class Resolve : public tll::channel::Prefix<Resolve>
 	std::unique_ptr<Channel> _request;
 
 	std::vector<char> _request_buf;
+	tll::ConstConfig _init_cfg;
 	tll::ConstConfig _open_cfg;
 	tll::ConstConfig _resolve_init_cfg;
 
@@ -28,6 +29,7 @@ class Resolve : public tll::channel::Prefix<Resolve>
 
 	enum RequestMode { Once, Always, Monitor } _request_mode = Once;
 	enum class State { Closed, Opening, Active, Closing } _state = State::Closed;
+	enum ParamMode { None, Overwrite, Merge } _param_mode = Merge;
 	std::string _rewrite_proto;
  public:
 	static constexpr std::string_view channel_protocol() { return "resolve"; }

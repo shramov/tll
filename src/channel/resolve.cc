@@ -28,6 +28,7 @@ int Resolve::_init(const Channel::Url &url, tll::Channel *master)
 	auto service = reader.getT<std::string>("resolve.service", "");
 	auto channel = reader.getT<std::string>("resolve.channel", "");
 	_request_mode = reader.getT("resolve.mode", Once, {{"once", Once}, {"always", Always}, {"monitor", Monitor}});
+	_param_mode = reader.getT("resolve.init-param", Merge, {{"merge", Merge}, {"none", None}, {"overwrite", Overwrite}});
 	_rewrite_proto = reader.getT("resolve.rewrite-proto", std::string {});
 	_convert_from.settings.init(reader);
 	_convert_into.settings.init(reader);
@@ -65,6 +66,11 @@ int Resolve::_init(const Channel::Url &url, tll::Channel *master)
 		curl = *r;
 	}
 	child_url_fill(curl, "request");
+
+	auto override = url.copy();
+	for (auto &k : std::vector<std::string_view> { "dump", "stat", "scheme", "resolve", "tll" })
+		override.unlink(k);
+	_init_cfg = override;
 
 	_request = context().channel(curl, master);
 	if (!_request)
@@ -109,6 +115,14 @@ int Resolve::_on_request_data(const tll_msg_t *msg)
 		url = *sub;
 	else
 		return _log.fail(EINVAL, "No 'init' subtree in resolved config");
+
+	switch (_param_mode) {
+	case None:
+		break;
+	case Merge:
+	case Overwrite:
+		url.merge(_init_cfg.copy(), _param_mode == Overwrite);
+	}
 
 	if (_rewrite_proto.size())
 		url.set("tll.proto", _rewrite_proto);
