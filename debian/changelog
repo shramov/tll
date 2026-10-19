@@ -1,3 +1,20 @@
+tll (0.6.2) unstable; urgency=medium
+
+  * config: Fix duplication with merge nodes
+  * context: Silence initial channel registration logs
+  * convert: Rename fields
+  * doc: Improve prefix parameters and stream.max-size documentation
+  * file: Do not truncate file when opening
+  * keyring: Add explicit check for \0 in key name
+  * logger: Release logger impl only when last reference vanishes
+  * mem: Keep in sync eventfd and messages in the ring
+  * python: Unregister logger in destructor
+  * tcp: Option to unlink Unix socket on open
+  * tests: Change scope of static fixtures to session
+  * yaml: Document and test usage of merge key
+
+ -- Pavel Shramov <shramov@mexmat.net>  Mon, 19 Oct 2026 09:47:42 +0300
+
 tll (0.6.1) unstable; urgency=medium
 
   * ci: Force short tmp dir for python tests
