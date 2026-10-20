@@ -286,6 +286,23 @@ def test_direct_emulate(context, name, messages, state, external):
         assert c.scheme_control != None
         assert sorted([m.name for m in c.scheme_control.messages]) == sorted(messages)
 
+def test_direct_msgid(context):
+    class A(Accum):
+        MASK = Accum.MASK | (1 << 16) | (1 << 17)
+    s = A('direct://', name='server', dump='frame', context=context)
+    c = context.Channel('direct://', name='client', master=s, dump='frame')
+
+    s.open()
+    c.open()
+
+    c.post(b'xxx', msgid=10)
+    c.post(b'yyy', msgid=10, type=16)
+    c.post(b'zzz', msgid=10, type=17)
+
+    assert c.scheme_load(16) == None
+
+    assert [(m.msgid, m.type) for m in s.result] == [(10, s.Type.Data), (10, 16), (10, 17)]
+
 def test_mem(fd=True, **kw):
     s = Accum('mem://;size=1kb', name='server', context=ctx, fd='yes' if fd else 'no', **kw)
 

@@ -403,6 +403,8 @@ cdef class Channel:
 
     cdef object _scheme_load(self, int t):
         cdef const tll_scheme_t * ptr = tll_channel_scheme(self._ptr, t)
+        if t >= len(self._scheme_cache):
+            self._scheme_cache += [None] * (t + 1 - len(self._scheme_cache))
         if ptr == NULL:
             self._scheme_cache[t] = None
             return None
@@ -412,12 +414,10 @@ cdef class Channel:
         return scheme
 
     def _scheme(self, t):
-        if t in (Type.Data, Type.Control):
-            return self._scheme_load(int(t))
-        elif t is None:
+        if t is None:
             return self._scheme_load(Type.Data)
         else:
-            raise ValueError("No scheme defined for message type {}".format(t))
+            return self._scheme_load(int(t))
 
     def unpack(self, msg):
         s = self._scheme(msg.type)
@@ -493,7 +493,12 @@ cdef class CMessage:
     def msgid(self): return self._ptr.msgid if self._ptr else None
 
     @property
-    def type(self): return Type(self._ptr.type) if self._ptr else None
+    def type(self):
+        if not self._ptr:
+            return None
+        if self._ptr.type > TLL_MESSAGE_CHANNEL:
+            return self._ptr.type
+        return Type(self._ptr.type)
 
     @property
     def addr(self): return self._ptr.addr.i64 if self._ptr else None
@@ -506,6 +511,6 @@ cdef class CMessage:
 
     def copy(self):
         if not self._ptr: raise RuntimeError("Message is uninitialized")
-        return Message(type = Type(self._ptr.type), msgid = self._ptr.msgid, seq = self._ptr.seq, addr = self.addr, time = self.time, data = memoryview(memoryview(self).tobytes()))
+        return Message(type = self.type, msgid = self._ptr.msgid, seq = self._ptr.seq, addr = self.addr, time = self.time, data = memoryview(memoryview(self).tobytes()))
 
     def clone(self): return self.copy()

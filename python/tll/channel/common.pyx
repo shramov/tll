@@ -14,7 +14,7 @@ class State(enum.Enum):
     Destroy = TLL_STATE_DESTROY
     def __int__(self): return self.value
 
-class Type(enum.Enum):
+class Type(enum.IntEnum):
     Data = TLL_MESSAGE_DATA
     State = TLL_MESSAGE_STATE
     Channel = TLL_MESSAGE_CHANNEL
