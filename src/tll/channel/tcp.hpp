@@ -922,12 +922,6 @@ void TcpServer<T, C>::_on_child_closing(tcp_socket_t *socket)
 }
 
 template <typename T, typename C>
-int TcpServer<T, C>::_cb_data(const tll_channel_t *c, const tll_msg_t *msg)
-{
-	return this->_callback_data(msg);
-}
-
-template <typename T, typename C>
 int TcpServer<T, C>::_cb_socket(const tll_channel_t *c, const tll_msg_t *msg)
 {
 	_process_cleanup();

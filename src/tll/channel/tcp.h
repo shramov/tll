@@ -326,6 +326,12 @@ class TcpServer : public Base<T>
 	// Hooks
 	int _on_accept(tll_channel_t * c) { return 0; }
 
+	/// Data received from socket channel
+	int _on_socket_data(const tll_channel_t *, const tll_msg_t * msg)
+	{
+		return this->_callback_data(msg);
+	}
+
 	static int _cb_other(const tll_channel_t *c, const tll_msg_t *msg, void * user)
 	{
 		return static_cast<TcpServer<T, C> *>(user)->_cb_other(c, msg);
@@ -335,10 +341,8 @@ class TcpServer : public Base<T>
 
 	static int _cb_data(const tll_channel_t *c, const tll_msg_t *msg, void * user)
 	{
-		return static_cast<TcpServer<T, C> *>(user)->_cb_data(c, msg);
+		return static_cast<T *>(user)->_on_socket_data(c, msg);
 	}
-
-	int _cb_data(const tll_channel_t *c, const tll_msg_t *msg);
 
 	static int _cb_socket(const tll_channel_t *c, const tll_msg_t *msg, void * user)
 	{
