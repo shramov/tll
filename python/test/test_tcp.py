@@ -745,3 +745,50 @@ async def test_unix_unlink(asyncloop, tmp_path):
     s.close()
 
     assert not filename.exists()
+
+@asyncloop_run
+async def test_multiplex(asyncloop, tmp_path):
+    s0 = 'yamls://[{name: Data, id: 10, fields: [{name: f0, type: double}]}]'
+    s1 = 'yamls://[{name: Data, id: 10, fields: [{name: f0, type: int64}]}]'
+    s2 = 'yamls://[{name: Data, id: 10, fields: [{name: f0, type: string}]}]'
+    extra = {'scheme': s0, 'multiplex.16': s1, 'multiplex.17': s2}
+    s = asyncloop.Channel(f'tcp://{tmp_path}/tcp.sock;mode=server;dump=yes', name='server', **extra)
+    c = asyncloop.Channel(f'tcp://{tmp_path}/tcp.sock;dump=yes', name='c', **extra)
+
+    s.open()
+    c.open()
+
+    m = await s.recv()
+    assert m.type == m.Type.Control
+
+    c.post({'f0': 12.34}, name='Data', seq=0)
+    c.post({'f0': 100}, name='Data', type=16, seq=1)
+    c.post({'f0': "string"}, name='Data', type=17, seq=2)
+
+    s.post({'f0': 12.34}, name='Data', seq=10, addr=m.addr)
+    s.post({'f0': 100}, name='Data', type=16, seq=11, addr=m.addr)
+    s.post({'f0': "string"}, name='Data', type=17, seq=12, addr=m.addr)
+
+    m = await s.recv()
+    assert (m.seq, m.type, m.msgid) == (0, m.Type.Data, 10)
+    assert s.unpack(m).as_dict() == {'f0': 12.34}
+
+    m = await s.recv()
+    assert (m.seq, m.type, m.msgid) == (1, 16, 10)
+    assert s.unpack(m).as_dict() == {'f0': 100}
+
+    m = await s.recv()
+    assert (m.seq, m.type, m.msgid) == (2, 17, 10)
+    assert s.unpack(m).as_dict() == {'f0': 'string'}
+
+    m = await c.recv()
+    assert (m.seq, m.type, m.msgid) == (10, m.Type.Data, 10)
+    assert c.unpack(m).as_dict() == {'f0': 12.34}
+
+    m = await c.recv()
+    assert (m.seq, m.type, m.msgid) == (11, 16, 10)
+    assert c.unpack(m).as_dict() == {'f0': 100}
+
+    m = await c.recv()
+    assert (m.seq, m.type, m.msgid) == (12, 17, 10)
+    assert c.unpack(m).as_dict() == {'f0': 'string'}

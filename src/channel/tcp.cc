@@ -8,6 +8,7 @@
 #include "channel/tcp.h"
 
 #include "tll/channel/frame.h"
+#include "tll/channel/multiplex.h"
 #include "tll/channel/tcp.h"
 #include "tll/channel/tcp.hpp"
 
@@ -71,10 +72,10 @@ class FramedSocket<T, void> : public tll::channel::TcpSocket<T>
 };
 
 template <typename Frame>
-class ChTcpClient : public tll::channel::TcpClient<ChTcpClient<Frame>, FramedSocket<ChTcpClient<Frame>, Frame>>
+class ChTcpClient : public tll::channel::Multiplex<ChTcpClient<Frame>, tll::channel::TcpClient<ChTcpClient<Frame>, FramedSocket<ChTcpClient<Frame>, Frame>>>
 {
  public:
-	using Base = tll::channel::TcpClient<ChTcpClient<Frame>, FramedSocket<ChTcpClient<Frame>, Frame>>;
+	using Base = tll::channel::Multiplex<ChTcpClient<Frame>, tll::channel::TcpClient<ChTcpClient<Frame>, FramedSocket<ChTcpClient<Frame>, Frame>>>;
 
 	static constexpr std::string_view param_prefix() { return "tcp"; }
 	static constexpr std::string_view channel_protocol() { return "tcp-client"; } // Only visible in logs
@@ -95,6 +96,11 @@ class ChTcpClient : public tll::channel::TcpClient<ChTcpClient<Frame>, FramedSoc
 		this->_send_hwm = hwm;
 		return 0;
 	}
+
+	int _callback_data(const tll_msg_t *msg)
+	{
+		return Base::_callback(this->_multiplex.decode(msg));
+	}
 };
 
 template <typename Frame>
@@ -106,11 +112,11 @@ class ChFramedSocket : public FramedSocket<ChFramedSocket<Frame>, Frame>
 };
 
 template <typename Frame>
-class ChTcpServer : public tll::channel::TcpServer<ChTcpServer<Frame>, ChFramedSocket<Frame>>
+class ChTcpServer : public tll::channel::Multiplex<ChTcpServer<Frame>, tll::channel::TcpServer<ChTcpServer<Frame>, ChFramedSocket<Frame>>>
 {
 	size_t _send_hwm = 0;
  public:
-	using Base = tll::channel::TcpServer<ChTcpServer<Frame>, ChFramedSocket<Frame>>;
+	using Base = tll::channel::Multiplex<ChTcpServer<Frame>, tll::channel::TcpServer<ChTcpServer<Frame>, ChFramedSocket<Frame>>>;
 	using Socket = ChFramedSocket<Frame>;
 
 	static constexpr std::string_view channel_protocol() { return "tcp"; }
@@ -143,6 +149,11 @@ class ChTcpServer : public tll::channel::TcpServer<ChTcpServer<Frame>, ChFramedS
 			return this->_log.fail(EINVAL, "Can not cast {} to socket channel", c->name());
 		socket->send_hwm(this->_send_hwm);
 		return 0;
+	}
+
+	int _on_socket_data(const tll_channel_t *, const tll_msg_t * msg)
+	{
+		return this->_callback(this->_multiplex.decode(msg));
 	}
 };
 
@@ -277,7 +288,7 @@ int FramedSocket<T, F>::_pending()
 	msg.time = this->_timestamp.count();
 	this->rdone(full_size);
 	this->_dcaps_pending(this->template rdataT<Frame>());
-	this->_callback_data(&msg);
+	this->channelT()->_callback_data(&msg);
 	return 0;
 }
 
