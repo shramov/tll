@@ -73,10 +73,6 @@ int tll_channel_log_msg(const tll_channel_t * c, const char * _log, tll_logger_l
 		log.log(level, "{} message: type: {}, msgid: {}, seq: {}, size: {}{}",
 				text, "Channel", msg->msgid, msg->seq, msg->size, addr);
 		return 0;
-	} else if (msg->type != TLL_MESSAGE_DATA && msg->type != TLL_MESSAGE_CONTROL) {
-		log.log(level, "{} message: type: {}, msgid: {}, seq: {}, size: {}{}",
-				text, msg->type, msg->msgid, msg->seq, msg->size, addr);
-		return 0;
 	}
 
 	auto scheme = tll_channel_scheme(c, msg->type);
@@ -100,8 +96,23 @@ int tll_channel_log_msg(const tll_channel_t * c, const char * _log, tll_logger_l
 	if (!scheme && format == log_msg_format::Frame)
 		name = "";
 
+	std::string type_buf;
+	std::string_view type;
+	switch (msg->type) {
+	case TLL_MESSAGE_DATA:
+		type = "Data";
+		break;
+	case TLL_MESSAGE_CONTROL:
+		type = "Control";
+		break;
+	default:
+		type_buf = tll::conv::to_string(msg->type);
+		type = type_buf;
+		break;
+	}
+
 	std::string header = fmt::format("{} message: type: {}, msgid: {}{}, seq: {}, size: {}{}",
-			text, msg->type == TLL_MESSAGE_DATA ? "Data" : "Control", msg->msgid, name, msg->seq, msg->size, addr);
+			text, type, msg->msgid, name, msg->seq, msg->size, addr);
 
 	if (format == log_msg_format::Frame) {
 		log.log(level, "{}", header);
