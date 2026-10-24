@@ -65,6 +65,13 @@ struct MessageFilter
 
 struct MessageFilters
 {
+	MessageFilters() = default;
+	MessageFilters(MessageFilters &&) = default;
+	MessageFilters(const MessageFilters &) = delete;
+
+	MessageFilters & operator = (MessageFilters &&) = default;
+	MessageFilters & operator = (const MessageFilters &) = delete;
+
 	std::map<std::string, MessageFilter, std::less<>> filters;
 
 	const tll::channel::MessageFilter * find(std::string_view name) const

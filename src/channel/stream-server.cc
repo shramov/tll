@@ -68,7 +68,7 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 		return _log.fail(EINVAL, "Invalid url: {}", reader.error());
 
 	if (auto r = tll::channel::MessageFilters::load(url, !!_scheme_url); r)
-		_filters = *r;
+		_filters = std::move(*r);
 	else
 		return _log.fail(EINVAL, "Failed to load filters: {}", r.error());
 
