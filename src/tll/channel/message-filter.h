@@ -73,6 +73,7 @@ struct MessageFilters
 	MessageFilters & operator = (const MessageFilters &) = delete;
 
 	std::map<std::string, MessageFilter, std::less<>> filters;
+	const MessageFilter * default_filter = nullptr;
 
 	const tll::channel::MessageFilter * find(std::string_view name) const
 	{
@@ -96,6 +97,12 @@ struct MessageFilters
 					return error(fmt::format("Failed to init filter '{}': {}", name, r.error()));
 			}
 			mf.filters.emplace(name, std::move(f));
+		}
+		if (auto r = cfg.get("filter-default"); r && r->size()) {
+			if (auto f = mf.find(*r); f)
+				mf.default_filter = f;
+			else
+				return error(fmt::format("Default filter '{}' not found", *r));
 		}
 		return mf;
 	}

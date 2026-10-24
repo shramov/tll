@@ -398,3 +398,42 @@ async def test_filter(asyncloop, tmp_path, fstring):
             continue
         m = await c.recv()
         assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10 * (i % 3 + 1), b'\x08' * 4)
+
+@asyncloop_run
+async def test_filter_default(asyncloop, tmp_path):
+    cfg = Config.from_dict({
+        'tll.proto': 'pub+tcp',
+        'tll.host': tmp_path / 'pub.sock',
+        'mode': 'server',
+        'name': 'server',
+        'dump': 'frame',
+        'filter.default': '!B',
+        'filter.all': 'A,B,C',
+        'filter-default': 'default',
+        })
+    cfg['scheme'] = '''yamls://
+- {name: A, id: 10, fields: [{name: f0, type: uint32}]}
+- {name: B, id: 20, fields: [{name: f0, type: uint32}]}
+- {name: C, id: 30, fields: [{name: f0, type: uint32}]}
+'''
+    s = asyncloop.Channel(cfg)
+    c0 = asyncloop.Channel(f'pub+tcp://{tmp_path}/pub.sock', name='c0', peer='c0', dump='frame')
+    c1 = asyncloop.Channel(f'pub+tcp://{tmp_path}/pub.sock', name='c1', peer='c1', dump='frame', filter='all')
+
+    s.open()
+    c0.open()
+    c1.open()
+
+    assert (await c0.recv_state()) == c0.State.Active
+    assert (await c1.recv_state()) == c1.State.Active
+
+    for i in range(6):
+        s.post(b'\x08' * 4, msgid=10 * (i % 3 + 1), seq=i)
+
+    for i in range(0, 6):
+        m = await c1.recv()
+        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10 * (i % 3 + 1), b'\x08' * 4)
+        if i % 3 == 1:
+            continue
+        m = await c0.recv()
+        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10 * (i % 3 + 1), b'\x08' * 4)

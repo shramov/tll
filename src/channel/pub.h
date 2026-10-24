@@ -91,6 +91,7 @@ class ChPubServer : public tll::channel::LastSeqTx<ChPubServer, tll::channel::Tc
 	bool hello() const { return _hello; }
 	const tll::util::DataRing<tll_frame_t> * ring() const { return &_ring; }
 	auto filter(std::string_view name) const { return _filters.find(name); }
+	auto filter_default() const { return _filters.default_filter; }
 
 	void _on_child_error(ChPubSocket * s) { tll_channel_close(*s, 1); }
 

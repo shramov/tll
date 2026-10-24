@@ -229,7 +229,8 @@ int ChPubSocket::_process_open()
 		if (!_filter)
 			return _log.fail(EINVAL, "Client requested unknown filter '{}'", filter);
 		_log.info("Client requested filter {}", filter);
-	}
+	} else
+		_filter = _parent->filter_default();
 
 	rdone(rsize());
 	_rbuf.resize(16);

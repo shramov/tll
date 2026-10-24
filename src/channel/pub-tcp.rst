@@ -39,6 +39,9 @@ includes. If include list is empty then whole scheme is used. Excluded messages 
 included ones, ``!A,A`` will drop message ``A``. Without scheme names are numeric message ids and
 excludes are not supported.
 
+``filter-default=<str>``, default none, server only - if client does not request filter explicitly
+then use default filter.
+
 ``filter=<str>``, default none, only for client - request filter from the server. If server has no
 such filter connection will fail.
 
