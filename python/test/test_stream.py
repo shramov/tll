@@ -1448,3 +1448,39 @@ async def test_filter(asyncloop, tmp_path):
 
         m = await clients['b' if i % 3 == 1 else 'a'].recv()
         assert (m.seq, m.msgid) == (2 * i, msgid)
+
+@asyncloop_run
+async def test_filter_default(asyncloop, tmp_path):
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request.url=tcp://{tmp_path}/request.sock;dump=frame;request.dump=frame'
+    s = asyncloop.Channel(f'{common};storage.url=file://{tmp_path}/storage.dat;storage.dump=frame;name=server;mode=server;filter.a=10,30;filter.b=20;filter-default=a')
+    clients = {
+        'a': asyncloop.Channel(f'{common};mode=client;name=ca;peer=ca'),
+        'b': asyncloop.Channel(f'{common};mode=client;name=cb;peer=cb;filter=b'),
+    }
+
+    s.open()
+
+    for i in range(6):
+        s.post(b'xxx', seq=2 * i, msgid=10 * (i % 3 + 1))
+
+    for c in clients.values():
+        c.open(mode='initial')
+
+    for i in range(6):
+        msgid = 10 * (i % 3 + 1)
+
+        m = await clients['b' if i % 3 == 1 else 'a'].recv()
+        assert (m.seq, m.msgid) == (2 * i, msgid)
+
+    for c in clients.values():
+        print(f"Wait online on {c.name}")
+        assert (await c.recv()).type == c.Type.Control
+
+    for i in range(6, 12):
+        s.post(b'xxx', seq=2 * i, msgid=10 * (i % 3 + 1))
+
+    for i in range(6, 12):
+        msgid = 10 * (i % 3 + 1)
+
+        m = await clients['b' if i % 3 == 1 else 'a'].recv()
+        assert (m.seq, m.msgid) == (2 * i, msgid)

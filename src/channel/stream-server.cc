@@ -548,7 +548,8 @@ tll::result_t<int> StreamServer::Client::init(const StreamServer::Request &req)
 			return error(fmt::format("Unknown filter '{}'", req.filter));
 		else
 			filter = r;
-	}
+	} else
+		filter = parent->_filters.default_filter;
 
 	if (auto ptr = std::get_if<Request::Block>(&req.data); ptr) {
 		block = ptr->first;
