@@ -36,8 +36,9 @@ Parmeters have ``pub`` optional prefix.
 ``pub.`` prefix, filter name can not contain ``.``. List of message names is comma separated list or
 a subtree, used to build two sets - excludes, formed from names that starts with ``!``, and
 includes. If include list is empty then whole scheme is used. Excluded messages have priority over
-included ones, ``!A,A`` will drop message ``A``. Without scheme names are numeric message ids and
-excludes are not supported.
+included ones, ``!A,A`` will drop message ``A``. ``*`` means all messages and can be used to
+specify noop filter in cases with default filter and client that need full message set. Without
+scheme names are numeric message ids and excludes are not supported.
 
 ``filter-default=<str>``, default none, server only - if client does not request filter explicitly
 then use default filter.

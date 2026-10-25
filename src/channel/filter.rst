@@ -23,7 +23,7 @@ Init parameters
 ``messages=<LIST>`` - list of message names separated by comma, which is used to build two sets -
 excludes, formed from names that starts with ``!``, and includes. If include list is empty then
 whole scheme is used. Excluded messages have priority over included ones, ``!A,A`` will drop message
-``A``.
+``A``. ``*`` means all messages, however ``*,!A`` and ``!A`` is same set.
 
 Examples
 --------

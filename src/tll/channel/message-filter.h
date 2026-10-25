@@ -20,46 +20,73 @@ struct MessageFilter
 {
 	std::set<std::string> include;
 	std::set<std::string> exclude;
-	std::set<int> messages;
+	bool wildcard = false;
+	std::variant<bool, std::set<int>> messages;
 
 	void init(const std::vector<std::string> &filter)
 	{
 		for (auto &s: filter) {
-			if (s.size() && s[0] == '!')
+			if (s == "*")
+				wildcard = true;
+			else if (s.size() && s[0] == '!')
 				exclude.emplace(s.substr(1));
 			else
 				include.emplace(s);
 		}
+		if (include.empty())
+			wildcard = true;
 	}
 
-	bool skip(int msgid) const { return messages.find(msgid) == messages.end(); }
+	bool skip(int msgid) const
+	{
+		auto visit = [msgid](const auto & f) {
+			using T = std::decay_t<decltype(f)>;
+			if constexpr (std::is_same_v<T, bool>)
+				return false;
+			else
+				return f.find(msgid) == f.end();
+		};
+		return std::visit(visit, messages);
+	}
 	bool match(int msgid) const { return !skip(msgid); }
 
 	tll::result_t<void, std::string> numeric()
 	{
 		if (exclude.size())
 			return error("Excludes not supported without scheme");
+		if (wildcard) {
+			messages = true;
+			return {};
+		}
+		std::set<int> f;
 		for (auto &i: include) {
 			if (auto r = tll::conv::to_any<int>(i); !r)
 				return error(std::string("Invalid message id '") + i + "': " + r.error());
 			else
-				messages.emplace(*r);
+				f.emplace(*r);
 		}
+		messages = f;
 		return {};
 	}
 
 	void fill(const tll::Scheme * s)
 	{
-		messages.clear();
+		if (wildcard && exclude.empty()) {
+			messages = true;
+			return;
+		}
+
+		std::set<int> f;
 		for (auto m = s->messages; m; m = m->next) {
 			if (!m->msgid)
 				continue;
 			if (exclude.find(m->name) != exclude.end())
 				continue;
-			if (include.size() && include.find(m->name) == include.end())
+			if (!wildcard && include.find(m->name) == include.end())
 				continue;
-			messages.emplace(m->msgid);
+			f.emplace(m->msgid);
 		}
+		messages = f;
 	}
 };
 

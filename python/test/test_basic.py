@@ -764,7 +764,7 @@ def test_ipc_cleanup(context):
     c.close()
     s.close()
 
-@pytest.mark.parametrize("flt", ['!Exclude', '!Exclude,Exclude,Include,Pass', 'Include,Pass'])
+@pytest.mark.parametrize("flt", ['!Exclude', '!Exclude,Exclude,Include,Pass', 'Include,Pass', '*,!Exclude'])
 def test_filter(flt):
     SCHEME = '''yamls://
 - {name: Include, id: 10}

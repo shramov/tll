@@ -32,7 +32,6 @@ class Filter : public tll::channel::Prefix<Filter>
 
 	int _on_active()
 	{
-		_filter.messages.clear();
 		auto s = _child->scheme();
 		if (!s)
 			return _log.fail(EINVAL, "Child without scheme, can not filter");

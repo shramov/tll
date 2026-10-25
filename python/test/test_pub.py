@@ -408,7 +408,7 @@ async def test_filter_default(asyncloop, tmp_path):
         'name': 'server',
         'dump': 'frame',
         'filter.default': '!B',
-        'filter.all': 'A,B,C',
+        'filter.all': '*',
         'filter-default': 'default',
         })
     cfg['scheme'] = '''yamls://
