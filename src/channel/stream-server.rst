@@ -77,6 +77,15 @@ client can't read it and can enter infinite reopen loop - tries to read, breaks,
 ``max-size`` fixes this issue by exporting it to client side and setting receive buffers large
 enough to handle such messages.
 
+``filter.<name>=<LIST>``, default none, only for server - list of message filters, parsed without
+``pub.`` prefix, filter name can not contain ``.``. List of message names is comma separated list or
+a subtree, used to build two sets - excludes, formed from names that starts with ``!``, and
+includes. If include list is empty then whole scheme is used. Excluded messages have priority over
+included ones, ``!A,A`` will drop message ``A``. ``*`` means all messages and can be used to
+specify noop filter in cases with default filter and client that need full message set. Without
+scheme names are numeric message ids and excludes are not supported. This parameter is used by
+``pub+tcp`` online channel too.
+
 Open parameters
 ~~~~~~~~~~~~~~~
 

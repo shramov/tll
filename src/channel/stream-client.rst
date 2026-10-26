@@ -45,6 +45,10 @@ can be disabled for backward compatibility.
 ``protocol`` parameter too use ``stream.protocol`` in configuration (or, better, use processor
 defaults).
 
+``filter=<str>``, default none - request filter from the server. If server has no such filter
+connection will fail. This parameter should be used without ``stream.`` prefix so it is passed to
+``pub+tcp`` online channel.
+
 Open parameters
 ---------------
 
