@@ -182,12 +182,13 @@ static inline int tll_channel_callback(const tll_channel_internal_t * in, const 
 	// Only state and channel messages are allowed from failed object
 	if (in->state == TLL_STATE_ERROR && (msg->type != TLL_MESSAGE_STATE && msg->type != TLL_MESSAGE_CHANNEL))
 		return 0;
+	const unsigned mask = 1u << (msg->type >= 8 * sizeof(unsigned) ? 8 * sizeof(unsigned) - 1 : msg->type);
 	if (in->dump)
 		tll_channel_log_msg(in->self, NULL, TLL_LOGGER_INFO, in->dump, msg, "Recv", 4);
 	{
 		tll_channel_callback_pair_t * cb = in->cb;
 		for (unsigned i = 0; i < in->cb_size; i++) {
-			if (cb[i].mask & (1u << msg->type))
+			if (cb[i].mask & mask)
 				(*cb[i].cb)(in->self, msg, cb[i].user);
 		}
 	}

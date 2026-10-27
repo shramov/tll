@@ -65,7 +65,7 @@ typedef union {
 
 /// Message object
 typedef struct {
-	short type;		///< tll_msg_type_t
+	unsigned short type;	///< tll_msg_type_t
 	short flags;		///< User defined message flags
 	int msgid;		///< Message id
 	long long seq;		///< Sequence number
@@ -165,6 +165,7 @@ typedef enum {
 	TLL_MESSAGE_MASK_CONTROL = 1u << TLL_MESSAGE_CONTROL, ///< Control messages
 	TLL_MESSAGE_MASK_STATE   = 1u << TLL_MESSAGE_STATE, ///< State messages
 	TLL_MESSAGE_MASK_CHANNEL = 1u << TLL_MESSAGE_CHANNEL, ///< Child channel updates
+	TLL_MESSAGE_MASK_LARGE_TYPE = 1u << (8 * sizeof(unsigned) - 1), ///< Message types larger then sizeof(mask)
 	TLL_MESSAGE_MASK_ALL     = 0xffffffffu ^ TLL_MESSAGE_MASK_CHANNEL, ///< Mask for all messages excluding Channel updates
 } tll_message_mask_t;
 
