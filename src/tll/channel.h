@@ -47,6 +47,13 @@ typedef enum {
 	TLL_MESSAGE_STATE = 2,
 	/// Channel internal state updates, like dynamic caps or child list changes.
 	TLL_MESSAGE_CHANNEL = 3,
+	/// Reserved message types
+	TLL_MESSAGE_RESERVED0 = 4,
+	TLL_MESSAGE_RESERVED1 = 5,
+	TLL_MESSAGE_RESERVED2 = 6,
+	TLL_MESSAGE_RESERVED3 = 7,
+	/// Start of user defined message types
+	TLL_MESSAGE_USER_RANGE = 8,
 } tll_msg_type_t;
 
 /// Message ids for @ref TLL_MESSAGE_CHANNEL messages.

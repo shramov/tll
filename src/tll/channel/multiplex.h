@@ -19,7 +19,7 @@ struct MultiplexData {
 	tll_msg_t msg_encode = {};
 	tll_msg_t msg_decode = {};
 
-	static constexpr unsigned short type_min = TLL_MESSAGE_CHANNEL + 1;
+	static constexpr unsigned short type_min = TLL_MESSAGE_USER_RANGE;
 
 	static constexpr int encode_msgid(unsigned short type, int msgid)
 	{
@@ -43,7 +43,7 @@ struct MultiplexData {
 
 	const tll_msg_t * encode(const tll_msg_t * msg)
 	{
-		if (msg->type <= TLL_MESSAGE_CHANNEL) // Well known types
+		if (msg->type < type_min) // Well known types
 			return msg;
 		msg_encode = *msg;
 		msg_encode.type = TLL_MESSAGE_DATA;
@@ -75,7 +75,7 @@ class Multiplex : public S
  public:
 	const Scheme * scheme(int type) const
 	{
-		if (type <= TLL_MESSAGE_CHANNEL)
+		if (type < MultiplexData::type_min)
 			return Base::scheme(type);
 		if (auto it = _multiplex.scheme.find(type); it != _multiplex.scheme.end())
 			return it->second.ptr.get();
