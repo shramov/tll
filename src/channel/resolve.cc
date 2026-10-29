@@ -28,7 +28,7 @@ int Resolve::_init(const Channel::Url &url, tll::Channel *master)
 	auto service = reader.getT<std::string>("resolve.service", "");
 	auto channel = reader.getT<std::string>("resolve.channel", "");
 	_request_mode = reader.getT("resolve.mode", Once, {{"once", Once}, {"always", Always}, {"monitor", Monitor}});
-	_param_mode = reader.getT("resolve.init-param", Merge, {{"merge", Merge}, {"none", None}, {"overwrite", Overwrite}});
+	_param_mode = reader.getT("resolve.client-params", Merge, {{"merge", Merge}, {"none", None}, {"overwrite", Overwrite}});
 	_rewrite_proto = reader.getT("resolve.rewrite-proto", std::string {});
 	_convert_from.settings.init(reader);
 	_convert_into.settings.init(reader);

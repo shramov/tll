@@ -260,7 +260,7 @@ def test_request_init(defaults, context, rserver):
 
 @pytest.mark.parametrize("mode", ['', 'merge', 'none', 'overwrite'])
 def test_override(context, rserver, mode):
-    c = context.Channel(f'resolve://service/channel;resolve.init-param={mode};a=c;b=d', name='resolve')
+    c = context.Channel(f'resolve://service/channel;resolve.client-params={mode};a=c;b=d', name='resolve')
     rserver.open()
 
     c.open()

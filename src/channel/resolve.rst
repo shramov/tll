@@ -42,6 +42,13 @@ object is destroyed and recreated. Monitor mode keeps request channel open and l
 ``resolve.rewrite-proto=<string>`` (default empty) - replace resolved channel protocol with this
 option value, can be used when only scheme is needed from the server.
 
+``resolve.client-params={none|merge|overwrite}`` (default ``merge``) - define how client init
+parameters obtained from the server are merged with local ones:
+
+  - ``merge`` - local parameters are added to client but do not overwrite existing keys;
+  - ``none`` - client init parameters are not altered;
+  - ``overwrite`` - local parameters are added and have priority over keys received from the server.
+
 ``resolve.request=<url>`` (default ``ipc://;mode=client;master=_tll_resolve_master``) - client
 channel parameters used to connect to resolve server and perform lookup. By default tries to reach
 resolve node that is running in same processor instance. If processor is configured without it then
