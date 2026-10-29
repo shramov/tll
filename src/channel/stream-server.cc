@@ -106,6 +106,8 @@ int StreamServer::_init(const Channel::Url &url, tll::Channel *master)
 		_storage_url.set("name", fmt::format("{}/storage/client", name));
 		if (!_storage_url.has("autoclose"))
 			_storage_url.set("autoclose", "no");
+		if (_filters.filters.size() && !_storage_url.has("end-of-data"))
+			_storage_url.set("end-of-data", "many");
 	}
 
 	if (url.sub("blocks")) {
