@@ -1,3 +1,16 @@
+tll (0.6.3) unstable; urgency=medium
+
+  * channel: Non-standard message types
+  * filter: Move filter handling into common code and wildcard filter
+  * multiplex: Different data streams in one channel
+  * pub: Server side filtering
+  * python: Support non standard message ids
+  * resolve: Override init parameters
+  * stream: Server side filtering
+  * tcp: Prepare data path hooks
+
+ -- Pavel Shramov <shramov@mexmat.net>  Thu, 29 Oct 2026 10:19:01 +0300
+
 tll (0.6.2) unstable; urgency=medium
 
   * config: Fix duplication with merge nodes
