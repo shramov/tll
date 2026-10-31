@@ -357,3 +357,63 @@ TEST(Logger, DestroyRace)
 	threads.clear();
 	ASSERT_EQ(active.load(), 0);
 }
+
+struct LogStd : public tll_logger_impl_t
+{
+	tll::Logger::level_t level = tll::Logger::Info;
+	LogStd()
+	{
+		*(tll_logger_impl_t *) this = {};
+		log = _log;
+	}
+
+	static int _log(long long ts, const char * category, tll_logger_level_t level, const char * data, size_t size, void * obj)
+	{
+		std::this_thread::sleep_for(1us);
+		if (level >= tll::Logger::Info)
+			fmt::print(stderr, "{:<5}: {}: {}\n", tll_logger_level_name(level), category, std::string_view(data, size));
+		return 0;
+	}
+};
+
+void logger_push_thread(std::stop_token stop, std::string_view name, size_t size, size_t count, std::atomic<int> &active)
+{
+	std::string body(size, 'x');
+	tll::Logger log(name);
+	log.level() = tll::Logger::Trace;
+	while (count-- && !stop.stop_requested())
+		log.log_buf(tll::Logger::Trace, body);
+	active--;
+}
+
+TEST(Logger, PushUnlockRace)
+{
+	using namespace std::chrono;
+	std::list<std::jthread> threads;
+	size_t count = 100000;
+	std::atomic<int> active = 0;
+
+	LogStd impl;
+	tll_logger_register(&impl);
+	tll::Config cfg;
+	cfg.set("async", "yes");
+	tll_logger_config(cfg);
+
+	for (auto i = 0u; i < 8; i++) {
+		auto name = fmt::format("test.logger.push.{:02x}", i);
+		active++;
+		threads.emplace_back(logger_push_thread, name, 100 + 30 * i, count, std::ref(active));
+	}
+
+	auto end = steady_clock::now() + 100ms;
+	while (active && steady_clock::now() < end)
+		std::this_thread::sleep_for(1us);
+
+	threads.clear();
+
+	cfg.set("async", "no");
+	tll_logger_config(cfg);
+	tll_logger_register(nullptr);
+
+	ASSERT_EQ(active.load(), 0);
+}

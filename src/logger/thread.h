@@ -154,7 +154,7 @@ struct Thread
 		std::unique_lock<std::mutex> lock(_lock);
 		void * data;
 		if (_ring->write_begin(&data, sizeof(Header) + body.size() + 1)) {
-			_lock.unlock();
+			lock.unlock();
 			return log->log(ts, level, body);
 		}
 		auto header = (Header *) data;
