@@ -365,7 +365,7 @@ int StreamClient::_on_request_data(const tll::Channel *, const tll_msg_t *msg)
 			if (guard) return EINTR;
 		}
 
-		if (_seq == _server_seq && _ring.empty()) {
+		if (_seq >= _server_seq && _ring.empty()) {
 			_log.info("Reached reported server seq {}, no online data", _server_seq);
 			_post_done(msg->seq);
 			if (_report_block())

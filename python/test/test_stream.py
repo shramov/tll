@@ -1484,3 +1484,70 @@ async def test_filter_default(asyncloop, tmp_path):
 
         m = await clients['b' if i % 3 == 1 else 'a'].recv()
         assert (m.seq, m.msgid) == (2 * i, msgid)
+
+@asyncloop_run
+async def test_filter_overlap(asyncloop, tmp_path):
+    common = f'stream+pub+tcp://{tmp_path}/stream.sock;request.url=tcp://{tmp_path}/request.sock;dump=frame;request.dump=frame'
+    s = asyncloop.Channel(f'{common};blocks=blocks://{tmp_path}/blocks.yaml;storage.url=rotate+file://{tmp_path}/storage;storage.dump=frame;name=server;mode=server;filter.a=10')
+    c = asyncloop.Channel(f'{common};mode=client;name=client;filter=a')
+
+    s.open()
+
+    s.post(b'xxx', seq=0, msgid=20)
+    s.post({}, name='Block', type=s.Type.Control)
+    for i in range(1, 20):
+        s.post(b'xxx', seq=i, msgid=20)
+    s.post({}, name='Rotate', type=s.Type.Control)
+
+    c.open(mode='block', block='0')
+
+    assert (await c.recv_state()) == c.State.Active
+
+    for i in range(20, 30):
+        s.post(b'xxx', seq=i, msgid=20)
+
+    for name, seq in [('BeginOfBlock', 0), ('EndOfBlock', 0), ('Online', 29)]:
+        m = await c.recv()
+        assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control[name].msgid, seq)
+
+@asyncloop_run
+async def test_goat_filter(asyncloop, tmp_path):
+    online = asyncloop.Channel(f'pub+tcp://{tmp_path}/stream.sock;dump=frame;name=online;mode=server;filter.a=10')
+    server = asyncloop.Channel(f'stream+null://;request.url=tcp://{tmp_path}/request.sock;dump=frame;request.dump=frame;storage=file://{tmp_path}/storage.dat;name=server;mode=server;filter.a=10')
+    c = asyncloop.Channel(f'stream+pub+tcp://{tmp_path}/stream.sock;request.url=tcp://{tmp_path}/request.sock;dump=frame;request.dump=frame;name=client;filter=a;pub.dump=frame')
+
+    online.open()
+    server.open()
+
+    def msgid(i):
+        return 10 * (i % 2 + 1)
+
+    for i in range(1, 10):
+        for s in [online, server]:
+            s.post(b'xxx', seq=i, msgid=20)
+
+    for i in range(10, 15):
+        server.post(b'xxx', seq=i, msgid=10)
+    for i in range(15, 20):
+        server.post(b'xxx', seq=i, msgid=20)
+
+    c.open(mode='initial')
+    assert (await c.recv_state()) == c.State.Active
+
+    for i in range(10, 15):
+        m = await c.recv()
+        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, b'xxx')
+
+    m = await c.recv()
+    assert (m.type, m.msgid, m.seq) == (m.Type.Control, c.scheme_control['Online'].msgid, 19)
+
+    for i in range(10, 15):
+        online.post(b'xxx', seq=i, msgid=10)
+    for i in range(15, 20):
+        online.post(b'xxx', seq=i, msgid=20)
+
+    for s in [online, server]:
+        s.post(b'xxx', seq=20, msgid=10)
+
+    m = await c.recv()
+    assert (m.seq, m.msgid, m.data.tobytes()) == (20, 10, b'xxx')
