@@ -49,3 +49,10 @@ test('test-processor', executable('test-processor',
 	),
         workdir: meson.current_source_dir() / '..', # For keyring tests
 )
+
+test('test-noexception', executable('test-noexception',
+  sources: ['noexception.cc'],
+  dependencies: [fmt, tll],
+  cpp_args: ['-fno-exceptions'],
+  link_args: ['-fno-exceptions'])
+)
