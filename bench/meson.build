@@ -7,6 +7,7 @@ executable('bench-ring', sources: ['ring.cc', '../src/ring.c'], dependencies: [f
 executable('bench-refcount', sources: ['refcount.cc'], dependencies: [fmt, threads], include_directories: include)
 executable('bench-stat', sources: ['stat.cc'], dependencies: [fmt, threads], include_directories: include)
 executable('bench-config', sources: ['config.cc'], dependencies: [fmt, tll], include_directories: include)
+executable('bench-find', sources: ['find.cc'], dependencies: [fmt], include_directories: include)
 
 custom_target('tll-bench-channel.1'
 	, output : 'tll-bench-channel.1'
