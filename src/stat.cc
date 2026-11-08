@@ -62,7 +62,8 @@ struct tll_stat_iter_t : public tll::util::refbase_t<tll_stat_iter_t, 0>
 
 	std::mutex lock;
 	std::vector<tll_stat_field_t> buf;
-	tll_stat_page_t page;
+	tll_stat_page_t page = {};
+	tll_stat_page_t pers = {}; // Persistent page
 	std::string name;
 
 	tll_stat_iter_t(tll_stat_block_t * b) { reset(b); }
@@ -82,6 +83,19 @@ struct tll_stat_iter_t : public tll::util::refbase_t<tll_stat_iter_t, 0>
 		return &page;
 	}
 
+	tll_stat_page_t * persistent()
+	{
+		std::lock_guard<std::mutex> l(lock);
+		if (!block) return nullptr;
+
+		auto p = block->persistent;
+		if (!p) return nullptr;
+
+		for (auto i = 0u; i < p->size; i++)
+			pers.fields[i].value = ((std::atomic<tll_stat_int_t> *) &p->fields[i].value)->load(std::memory_order_acquire);
+		return &pers;
+	}
+
 	/**
 	 * Update local copy of page and name, called with lock
 	 */
@@ -89,11 +103,20 @@ struct tll_stat_iter_t : public tll::util::refbase_t<tll_stat_iter_t, 0>
 	{
 		block = b;
 		name = block->name;
-		buf.resize(block->inactive->size);
+		auto psize = block->persistent ? block->persistent->size : 0;
+		buf.resize(block->inactive->size + psize);
+		page.size = block->inactive->size;
 		page.fields = &buf.front();
-		page.size = buf.size();
 		for (auto i = 0u; i < block->inactive->size; i++)
 			page.fields[i] = block->inactive->fields[i];
+
+		pers = {};
+		if (!block->persistent || !block->persistent->size)
+			return;
+		pers.size = block->persistent->size;
+		pers.fields = &buf[block->inactive->size];
+		for (auto i = 0u; i < block->persistent->size; i++)
+			pers.fields[i] = block->persistent->fields[i];
 	}
 };
 
@@ -165,6 +188,12 @@ tll_stat_page_t * tll_stat_iter_swap(tll_stat_iter_t *i)
 {
 	if (!i) return nullptr;
 	return i->swap();
+}
+
+tll_stat_page_t * tll_stat_iter_persistent(tll_stat_iter_t *i)
+{
+	if (!i) return nullptr;
+	return i->persistent();
 }
 
 tll_stat_list_t * tll_stat_list_new()

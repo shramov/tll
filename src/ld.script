@@ -202,3 +202,8 @@ TLL_0.6.0 {
 		tll_keyring_write;
 		tll_keyring_unlink;
 } TLL_0.5.0;
+
+TLL_0.7.0 {
+	global:
+		tll_stat_iter_persistent;
+} TLL_0.6.0;

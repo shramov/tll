@@ -71,7 +71,8 @@ typedef struct tll_stat_block_t
 	tll_stat_page_t * active;
 	tll_stat_page_t * inactive;
 	const char * name;
-	/// Reserved data
+	tll_stat_page_t * persistent;
+	/// Reserved data, should be zeroed on initialization
 	void * reserved[2];
 } tll_stat_block_t;
 
@@ -139,6 +140,14 @@ int tll_stat_iter_empty(const tll_stat_iter_t *);
  * would not invalidate page or name pointers
  */
 tll_stat_page_t * tll_stat_iter_swap(tll_stat_iter_t *);
+
+/**
+ * Get persistent stat page of underlying block.
+ *
+ * @return `NULL` if there is no block or not persistent page
+ * @return pointer to persistent page
+ */
+tll_stat_page_t * tll_stat_iter_persistent(tll_stat_iter_t *);
 
 #ifdef __cplusplus
 } // extern "C"
@@ -225,6 +234,16 @@ struct FieldT : public Field
 			return tll_stat_field_t::value;
 		else
 			return tll_stat_field_t::fvalue;
+	}
+
+	std::atomic<T> &avalue()
+	{
+		return * (std::atomic<T> *) &value();
+	}
+
+	void store(T v, std::memory_order memory_order = std::memory_order_release)
+	{
+		avalue().store(v, memory_order);
 	}
 
 	void reset()
@@ -413,11 +432,26 @@ inline PageGuard acquire_guard(tll_stat_block_t * b)
 }
 
 template <typename T>
+static constexpr T * page_derive(tll_stat_page_t * p)
+{
+	if constexpr (std::is_same_v<T, void> || std::is_base_of_v<tll_stat_page_t, T>) {
+		return (T *) p;
+	} else {
+		if (p == nullptr)
+			return nullptr;
+		return (T *) p->fields;
+	}
+}
+
+template <typename T, typename P = void>
 class BlockT : public tll_stat_block_t
 {
  protected:
 	static constexpr bool derived = std::is_base_of_v<tll_stat_page_t, T>;
 	using page_t = std::conditional_t<derived, T, PageT<T>>;
+
+	static constexpr bool derived_p = std::is_base_of_v<tll_stat_page_t, P>;
+	using PageP = std::conditional_t<derived_p || std::is_same_v<P, void>, P, PageT<P>>;
 
 	std::string _name;
  public:
@@ -425,7 +459,7 @@ class BlockT : public tll_stat_block_t
 	{
 		PageGuard(tll::stat::PageGuard && rhs) : tll::stat::PageGuard(std::move(rhs)) {}
 
-		T * get() { return BlockT<T>::derive((page_t *) page); }
+		T * get() { return page_derive<T>(page); }
 		T * operator -> () { return get(); }
 	};
 
@@ -445,25 +479,16 @@ class BlockT : public tll_stat_block_t
 		std::swap(_name, name);
 	}
 
-	static constexpr T * derive(page_t * p)
-	{
-		if constexpr (derived)
-			return p;
-		else {
-			if (p == nullptr)
-				return nullptr;
-			return &p->data;
-		}
-	}
+	static constexpr T * derive(page_t * p) { return page_derive<T>(p); }
 
 	T * acquire()
 	{
-		return derive((page_t *) tll::stat::acquire(this));
+		return page_derive<T>(tll::stat::acquire(this));
 	}
 
 	T * acquire_wait(unsigned iterations = 0)
 	{
-		return derive((page_t *) tll::stat::acquire_wait(this));
+		return page_derive<T>(tll::stat::acquire_wait(this));
 	}
 
 	void release(T * p)
@@ -478,17 +503,26 @@ class BlockT : public tll_stat_block_t
 	{
 		return tll::stat::acquire_guard(this);
 	}
+
+	P * persistent() { return page_derive<P>(tll_stat_block_t::persistent); }
 };
 
-template <typename T>
-class Block : public BlockT<T>
+template <typename T, typename P = void>
+class Block : public BlockT<T, P>
 {
-	typename BlockT<T>::page_t _pages[2];
+	typename BlockT<T, P>::page_t _pages[2];
+
+	static constexpr auto _with_persistent = !std::is_same_v<P, void>;
+	typename std::conditional_t<_with_persistent, typename BlockT<T, P>::PageP, char> _persistent;
  public:
-	Block(std::string_view name) : BlockT<T>(name)
+	Block(std::string_view name) : BlockT<T, P>(name)
 	{
 		this->lock = this->active = &_pages[0];
 		this->inactive = &_pages[1];
+		if constexpr (_with_persistent)
+			tll_stat_block_t::persistent = &_persistent;
+		else
+			tll_stat_block_t::persistent = nullptr;
 	}
 };
 
