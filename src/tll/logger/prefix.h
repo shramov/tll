@@ -26,9 +26,12 @@ public:
 
 	std::string operator () () const
 	{
+#ifdef __cpp_exceptions
 		try {
+#endif
 			using Index = std::make_index_sequence<sizeof...(Args)>;
 			return apply(Index());
+#ifdef __cpp_exceptions
 		} catch (fmt::format_error &e) {
 			return fmt::format("Invalid format '{}': {};",
 #if FMT_VERSION > 100000
@@ -38,6 +41,7 @@ public:
 #endif
 					e.what());
 		}
+#endif
 	}
 
 	template <size_t... Idx>
@@ -65,11 +69,15 @@ class Prefix : public logger::Methods<Prefix<Log, Func>>
 		if (_prefix.index() == 0)
 			return std::get<0>(_prefix);
 		auto & f = std::get<1>(_prefix);
+#ifdef __cpp_exceptions
 		try {
+#endif
 			return _prefix.template emplace<0>(std::string(f()));
+#ifdef __cpp_exceptions
 		} catch (fmt::format_error &e) {
 			return _prefix.template emplace<0>(fmt::format("Invalid format: {};", e.what()));
 		}
+#endif
 	}
 
  public:
@@ -83,11 +91,15 @@ class Prefix : public logger::Methods<Prefix<Log, Func>>
 		auto buf = Logger::tls_buf();
 		buf->resize(0);
 		auto l = fill_prefix(*buf);
+#ifdef __cpp_exceptions
 		try {
+#endif
 			fmt::format_to(std::back_inserter(*buf), format, std::forward<A>(args)...);
+#ifdef __cpp_exceptions
 		} catch (fmt::format_error &e) {
 			fmt::format_to(std::back_inserter(*buf), "Invalid format {}: {}", static_cast<fmt::string_view>(format), e.what());
 		}
+#endif
 		buf->push_back('\0');
 		l->log_buf(level, std::string_view(buf->data(), buf->size() - 1));
 #else
@@ -102,11 +114,15 @@ class Prefix : public logger::Methods<Prefix<Log, Func>>
 		auto buf = Logger::tls_buf();
 		buf->resize(0);
 		auto l = fill_prefix(*buf);
+#ifdef __cpp_exceptions
 		try {
+#endif
 			fmt::vformat_to(std::back_inserter(*buf), format, args);
+#ifdef __cpp_exceptions
 		} catch (fmt::format_error &e) {
 			fmt::format_to(std::back_inserter(*buf), "Invalid format {}: {}", format, e.what());
 		}
+#endif
 		buf->push_back('\0');
 		l->log_buf(level, std::string_view(buf->data(), buf->size() - 1));
 	}

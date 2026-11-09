@@ -1,4 +1,5 @@
 #include <tll/channel/base.h>
+#include <tll/logger/prefix.h>
 
 class Echo : public tll::channel::Base<Echo>
 {
@@ -13,6 +14,13 @@ TLL_DEFINE_IMPL(Echo);
 
 int main()
 {
+	{
+		tll::Logger l { "l0" };
+		auto p0 = l.prefix("f0");
+		l.info("Prefix");
+		p0.info("Prefix");
+	}
+
 	auto ctx = tll::channel::Context(tll::Config());
 	ctx.reg(&Echo::impl);
 
