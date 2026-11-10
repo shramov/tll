@@ -138,7 +138,7 @@ private:
 	int _read_seq(frame_size_t frame, tll_msg_t *msg);
 	int _read_seq(tll_msg_t *msg);
 	int _read_meta();
-	int _write_meta();
+	int _write_meta(const std::map<std::string, std::string> & attributes = {});
 
 	void _shift(size_t size);
 	void _shift(const tll_msg_t * msg) { _shift(sizeof(frame_size_t) + sizeof(frame_t) + msg->size + 1); }

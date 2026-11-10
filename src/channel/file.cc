@@ -292,6 +292,18 @@ int File<TIO>::_init(const tll::Channel::Url &url, tll::Channel *master)
 	return Base::_init(url, master);
 }
 
+namespace {
+void fill_attributes(std::map<std::string, std::string> &map, std::optional<tll::ConstConfig> cfg)
+{
+	if (!cfg)
+		return;
+	for (auto &[k, c]: cfg->browse("**")) {
+		if (auto v = c.get(); v && v->size())
+			map[k] = *v;
+	}
+}
+}
+
 template <typename TIO>
 int File<TIO>::_open(const ConstConfig &props)
 {
@@ -307,6 +319,12 @@ int File<TIO>::_open(const ConstConfig &props)
 			return this->_log.fail(EINVAL, "No filename in init and no 'filename' parameter in open");
 		filename = *fn;
 	}
+
+	std::map<std::string, std::string> attrs;
+	fill_attributes(attrs, this->_config.sub("init.attribute"));
+	fill_attributes(attrs, this->_config.sub("init.file.attribute"));
+	fill_attributes(attrs, props.sub("attribute"));
+	fill_attributes(attrs, props.sub("file.attribute"));
 
 	this->_log.debug("Open file {}", filename);
 
@@ -387,7 +405,7 @@ int File<TIO>::_open(const ConstConfig &props)
 			if (fchmod(_io.fd, _access_mode))
 				return this->_log.fail(EINVAL, "Failed to set file mode of {} to 0{:o}: {}", tmp.filename(), _access_mode, strerror(errno));
 
-			if (_write_meta())
+			if (_write_meta(attrs))
 				return this->_log.fail(EINVAL, "Failed to write metadata");
 
 			if (flock(_io.fd, LOCK_EX | LOCK_NB))
@@ -561,11 +579,20 @@ int File<TIO>::_read_meta()
 		this->_scheme.reset(s);
 	}
 
+	this->config_info().unlink("attribute");
+	for (auto &a: meta.get_attributes()) {
+		auto key = a.get_attribute();
+		this->_log.debug("Attribute {}: {}", key, a.get_value());
+
+		if (key.size())
+			this->config_info().set(fmt::format("attribute.{}", key), a.get_value());
+	}
+
 	return 0;
 }
 
 template <typename TIO>
-int File<TIO>::_write_meta()
+int File<TIO>::_write_meta(const std::map<std::string, std::string> & attributes)
 {
 	_io.offset = 0;
 
@@ -579,6 +606,19 @@ int File<TIO>::_write_meta()
 	meta.set_block(_block_size);
 	meta.set_version((uint8_t) _version);
 	meta.set_compression((file_scheme::Meta::Compression)_compression);
+
+	this->config_info().unlink("attribute");
+	if (attributes.size()) {
+		auto attr = meta.get_attributes();
+		attr.resize(attributes.size());
+		auto i = 0u;
+		for (auto &[k, v]: attributes) {
+			this->config_info().set(fmt::format("attribute.{}", k), v);
+			attr[i].set_attribute(k);
+			attr[i].set_value(v);
+			i++;
+		}
+	}
 
 	if (this->_scheme) {
 		auto s = this->_scheme->dump("yamls+gz");
@@ -595,6 +635,9 @@ int File<TIO>::_write_meta()
 	*view.dataT<frame_size_t>() = buf.size();
 	view = view.view(sizeof(frame_size_t));
 	*view.dataT<frame_t>() = frame_t { meta.meta_id(), 0 };
+
+	if (buf.size() > _block_size)
+		return this->_log.fail(EMSGSIZE, "Meta too large: {} > block size {}", buf.size(), _block_size);
 
 	if (auto r = _check_write(buf.size(), pwrite(_io.fd, buf.data(), buf.size(), 0)); r)
 		return r;

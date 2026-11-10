@@ -71,6 +71,15 @@ file. Without this non-zero option file can not be read in ``mmap`` mode. Used o
 introduces marker bit in the frame so files can be used for IPC, when one process writes data and
 others are reading, version 0 does not support multiprocess communication due to race conditions.
 
+``attribute.**`` and ``file.attribute.**`` - when file is created fill attribute list in meta. Since
+meta is written only when file is created schema and attributes are ignored when appending. For
+attribute with name ``a`` lookup priority is following:
+
+ - open parameter ``file.attribute.a``
+ - open parameter ``attribute.a``
+ - init parameter ``file.attribute.a``
+ - init parameter ``attribute.a``
+
 Read init parameters
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -102,6 +111,8 @@ mode.
 
 ``seq=<UNSIGNED>`` - start reading from specified ``SEQ``, if missing - read from file start. Only
 in read mode. Ignored in modes other then ``seq``.
+
+``attribute.**`` and ``file.attribute.**`` - see same init parameter description.
 
 Control messages
 ----------------

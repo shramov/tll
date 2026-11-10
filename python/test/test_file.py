@@ -700,3 +700,18 @@ def test_open_fix(context, filename, reader, wio, Meta):
         assert (f.size, f.msgid, f.seq) == (0, 0, 0)
         assert data[-1] == 0x00
         assert data[16:-1] == b'\0' * 16
+
+
+def test_attr(context, filename):
+    attrs = {f'attribute.{i}': i for i in 'abc'}
+    attrs['attribute.a'] = 'aa'
+    attrs['file.attribute.b'] = 'bb'
+    w = context.Channel(f'file://{filename}', name='writer', dir='w', **attrs)
+    w.open('attribute.c=cc;attribute.d=d;file.attribute.d=dd')
+
+    assert w.config.sub('info.attribute').as_dict() == {i: i * 2 for i in 'abcd'}
+
+    r = context.Channel(f'file://{filename}', name='reader')
+    r.open()
+
+    assert r.config.sub('info.attribute').as_dict() == {i: i * 2 for i in 'abcd'}
