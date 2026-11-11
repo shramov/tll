@@ -437,3 +437,38 @@ async def test_filter_default(asyncloop, tmp_path):
             continue
         m = await c0.recv()
         assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10 * (i % 3 + 1), b'\x08' * 4)
+
+@asyncloop_run
+async def test_mem_client(asyncloop, tmp_path):
+    server = asyncloop.Channel(f'pub+mem:///{tmp_path}/memory', mode='server', name='server', dump='frame', size='16kb')
+
+    server.open()
+
+    url = server.config.get_url('client.init')
+    assert url.proto == 'pub+mem'
+
+    c = asyncloop.Channel(url, name='client', dump='frame')
+    c.open()
+    assert await c.recv_state() == c.State.Active
+
+    server.post(b'xxx', seq=100)
+
+    assert (await c.recv()).seq == 100
+
+@asyncloop_run
+async def test_mem_pub_client(asyncloop, tmp_path):
+    server = asyncloop.Channel(f'pub+mem:///{tmp_path}/memory', mode='sub-server', name='server', dump='frame', size='16kb')
+
+    server.open()
+
+    url = server.config.get_url('client.init')
+    assert url.proto == 'pub+mem'
+
+    c = asyncloop.Channel(url, name='client', dump='frame')
+    c.open()
+    assert await c.recv_state() == c.State.Active
+
+    c.post(b'xxx', seq=100)
+
+    assert (await server.recv()).type == server.Type.Control
+    assert (await server.recv()).seq == 100

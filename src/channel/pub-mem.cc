@@ -86,6 +86,17 @@ struct MemCommon : public tll::channel::Base<T>
 	tll::PubRing * _file_create();
 	tll::PubRing * _file_open(bool readwrite);
 
+	int _open(const tll::ConstConfig &cfg)
+	{
+		if (auto r = Base::_open(cfg); r)
+			return r;
+		if (_create)
+			return _client_export();
+		return 0;
+	}
+
+	int _client_export();
+
 	int _close()
 	{
 		if (auto fd = std::exchange(_fd, -1); fd != -1)
@@ -214,6 +225,29 @@ tll::PubRing * MemCommon<T>::_file_open(bool rw)
 		return this->_log.fail(nullptr, "Failed to mmap memory from {}: {}", _filename, strerror(errno));
 
 	return static_cast<tll::PubRing *>(buf);
+}
+
+template <typename T>
+int MemCommon<T>::_client_export()
+{
+	tll::Config client;
+
+	if (this->_scheme) {
+		auto full = this->_scheme->dump("yamls+gz");
+		if (auto s = this->_scheme->dump("sha256"); s) {
+			client.set("init.scheme", *s);
+			client.sub("scheme", true)->set(*s, *full);
+		} else if (full)
+			client.set("init.scheme", *full);
+	}
+
+	client.set("init.tll.proto", "pub+mem");
+	client.set("init.tll.host", std::filesystem::weakly_canonical(_filename).string());
+	if (std::is_same_v<T, MemSub>)
+		client.set("init.mode", "pub-client");
+	this->_config.set("client", client);
+
+	return 0;
 }
 
 int MemPub::_open(const tll::ConstConfig &cfg)
