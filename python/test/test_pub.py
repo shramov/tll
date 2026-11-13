@@ -15,6 +15,10 @@ def context():
     return C.Context()
 
 @pytest.fixture
+def asyncloop_config():
+    return {'nofd-interval': '1ms'}
+
+@pytest.fixture
 def server(asyncloop, tmp_path):
     c = asyncloop.Channel(f'pub+tcp:///{tmp_path}/pub.sock', mode='server', name='server', dump='frame', size='1kb')
     yield c
@@ -249,11 +253,24 @@ async def test_mem(asyncloop, tmp_path):
     c.open()
     assert await c.recv_state() == c.State.Active
 
+    assert c.state == c.State.Active
+    assert c.dcaps == c.DCaps.Process
+
+    data = lambda i: b'z' * 16 + b'x' * (i % 100)
+    s.post(data=data(0), seq=0, msgid=10)
+
     for i in range(0, 1000):
-        data = b'z' * 16 + b'x' * (i % 100)
-        s.post(data, seq=i, msgid=10)
+        s.post(data(i + 1), seq=i + 1, msgid=10)
+
         m = await c.recv(0.001)
-        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, data)
+        assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, data(i))
+
+        assert c.dcaps == c.DCaps.Process | c.DCaps.Pending
+
+    m = await c.recv(0.001)
+    assert (m.seq, m.msgid, m.data.tobytes()) == (1000, 10, data(1000))
+
+    assert c.dcaps == c.DCaps.Process
 
 @asyncloop_run
 async def test_mem_close(asyncloop, tmp_path):

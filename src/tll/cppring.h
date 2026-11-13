@@ -199,6 +199,14 @@ struct RingT
 			return ring->head.generation_pre.load(std::memory_order_acquire) <= generation;
 		}
 
+		bool last() const
+		{
+			if constexpr (TailGen)
+				return ring->tail.generation_post.load(std::memory_order_acquire) == generation;
+			else
+				return ring->tail.ptr.load(std::memory_order_acquire) == offset;
+		}
+
 		int read(const void **data, size_t *size)
 		{
 			if (!valid())

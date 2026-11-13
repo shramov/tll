@@ -344,10 +344,10 @@ int MemSub::_open(const tll::ConstConfig &cfg)
 	_iter = ring->end();
 	if (!_iter.valid())
 		return _log.fail(EINVAL, "Failed to init iterator: writer is too fast");
+	if (_with_fd)
+		_dcaps_pending(!_iter.last());
 
 	_buf.resize(ring->size() / 4);
-
-	_dcaps_pending(true);
 
 	return Base::_open(cfg);
 }
@@ -367,7 +367,11 @@ int MemSub::_process(long timeout, int flags)
 	size_t size;
 
 	if (auto r = _iter.read((const void **) &frame, &size); r) {
-		if (r == EAGAIN) return r;
+		if (r == EAGAIN) {
+			if (_with_fd)
+				_dcaps_pending(!_iter.last());
+			return r;
+		}
 		return _log.fail(EINVAL, "Ring iterator invalidated");
 	}
 
@@ -377,6 +381,8 @@ int MemSub::_process(long timeout, int flags)
 	memcpy(_buf.data(), frame, size);
 	if (_iter.shift())
 		return _log.fail(EINVAL, "Ring iterator invalidated");
+	if (_with_fd)
+		_dcaps_pending(!_iter.last());
 
 	frame = (const Frame *) _buf.data();
 
