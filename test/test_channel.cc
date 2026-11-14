@@ -816,3 +816,86 @@ TEST(Channel, MemProcessRace)
 	thread = std::nullopt;
 	ASSERT_EQ(done.load(), true);
 }
+
+class Edge : public tll::channel::Base<Edge>
+{
+ public:
+	static constexpr std::string_view channel_protocol() { return "edge"; }
+	static constexpr auto process_api_version() { return ProcessAPI::Void; }
+
+	int _init(const tll::Channel::Url &, tll::Channel *master) { return 0; }
+	int _open(const tll::ConstConfig &)
+	{
+#ifdef __linux__
+		if (auto fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC); fd == -1)
+			return _log.fail(EINVAL, "Failed to create eventfd: {}", strerror(errno));
+		else
+			_update_fd(fd);
+		_dcaps_poll(tll::dcaps::CPOLLIN | tll::dcaps::CPOLLET);
+#else
+		return _log.fail(ENOSYS, "Eventfd not supported");
+#endif
+		return 0;
+	}
+
+	int _close()
+	{
+		if (auto fd = _update_fd(-1); fd != -1)
+			::close(fd);
+		return 0;
+	}
+
+	int _post(const tll_msg_t *msg, int flags)
+	{
+#ifdef __linux__
+		eventfd_write(fd(), 1);
+#endif
+		return 0;
+	}
+
+	int _process()
+	{
+		tll_msg_t m = { .type = TLL_MESSAGE_DATA };
+		_callback_data(&m);
+		return 0;
+	}
+};
+
+TLL_DEFINE_IMPL(Edge);
+
+TEST(Channel, Edge)
+{
+	using namespace std::chrono_literals;
+
+	auto ctx = tll::channel::Context(tll::Config());
+	ctx.reg(&Edge::impl);
+	auto c = ctx.channel("edge://;name=edge;dump=frame");
+
+	size_t count = 0;
+	c->callback_add([](auto, auto, void * user) -> int { ++*(size_t *)user; return 0; }, &count, TLL_MESSAGE_MASK_DATA);
+
+	auto loop = tll::processor::Loop();
+	ASSERT_EQ(loop.init(tll::Config()), 0);
+	loop.add(c.get());
+
+	if (c->open())
+		GTEST_SKIP() << "Unsupported system";
+	ASSERT_EQ(c->state(), tll::state::Active);
+	ASSERT_EQ(c->dcaps() & tll::dcaps::CPOLLMASK, tll::dcaps::CPOLLIN | tll::dcaps::CPOLLET);
+
+	tll_msg_t m = { .type = TLL_MESSAGE_DATA };
+	ASSERT_EQ(c->post(&m), 0);
+
+	for (auto i = 0; i < 3; i++) {
+		loop.step(10us);
+		ASSERT_EQ(count, 1);
+	}
+
+	ASSERT_EQ(c->post(&m), 0);
+	ASSERT_EQ(c->post(&m), 0);
+
+	for (auto i = 0; i < 3; i++) {
+		loop.step(10us);
+		ASSERT_EQ(count, 2);
+	}
+}
