@@ -137,6 +137,7 @@ struct EPoll
 		if (!(caps & tll::dcaps::Suspend)) {
 			if (caps & tll::dcaps::CPOLLIN) r |= EPOLLIN;
 			if (caps & tll::dcaps::CPOLLOUT) r |= EPOLLOUT;
+			if (caps & tll::dcaps::CPOLLET) r |= EPOLLET;
 		}
 		return r;
 	}

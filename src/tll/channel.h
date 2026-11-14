@@ -116,7 +116,8 @@ typedef enum {
 	TLL_DCAPS_ZERO     = 0x0, ///< Zero value
 	TLL_DCAPS_POLLIN   = 0x1, ///< Channel fd needs poll for incoming data
 	TLL_DCAPS_POLLOUT  = 0x2, ///< Channel fd needs poll for outgoing data
-	TLL_DCAPS_POLLMASK = 0x3, ///< Mask for POLLIN/POLLOUT bits
+	TLL_DCAPS_POLLET   = 0x4, ///< Channel fd is edge triggered
+	TLL_DCAPS_POLLMASK = 0x7, ///< Mask for POLLIN/POLLOUT/POLLET bits
 
 	TLL_DCAPS_PROCESS  = 0x10, ///< Call process for this object, don't call if cap is not set.
 	TLL_DCAPS_PENDING  = 0x20, ///< Pending data, process without polling
@@ -447,6 +448,7 @@ namespace dcaps {
 	constexpr auto CPOLLIN = TLL_DCAPS_POLLIN;
 	constexpr auto CPOLLOUT = TLL_DCAPS_POLLOUT;
 	constexpr auto CPOLLMASK = TLL_DCAPS_POLLMASK;
+	constexpr auto CPOLLET = TLL_DCAPS_POLLET;
 
 	constexpr auto Process = TLL_DCAPS_PROCESS;
 	constexpr auto Pending = TLL_DCAPS_PENDING;
