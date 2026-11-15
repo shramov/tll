@@ -57,9 +57,13 @@ struct RingT
 
 	/// Head marker, only updated by reader
 	alignas(64) Pointer<HeadGen> head;
+	/// Extra space at head cacheline, can be used by reader
+	alignas(32) char _head_extra[32] = {};
 
 	/// Tail marker, only updated by writer
 	alignas(64) Pointer<TailGen> tail;
+	/// Extra space at tail cacheline, can be used by writer
+	alignas(32) char _tail_extra[32] = {};
 
 	alignas(64) char data[];
 
@@ -77,6 +81,12 @@ struct RingT
 
 	auto magic() const { return _magic; }
 	auto size() const { return _size; }
+
+	template <typename T> T * head_extra() { static_assert(sizeof(T) <= sizeof(_head_extra)); return (T *) _head_extra; }
+	template <typename T> const T * head_extra() const { static_assert(sizeof(T) <= sizeof(_head_extra)); return (T *) _head_extra; }
+
+	template <typename T> T * tail_extra() { static_assert(sizeof(T) <= sizeof(_tail_extra)); return (T *) _tail_extra; }
+	template <typename T> const T * tail_extra() const { static_assert(sizeof(T) <= sizeof(_tail_extra)); return (T *) _tail_extra; }
 
 	static std::unique_ptr<RingT> allocate(size_t size)
 	{
