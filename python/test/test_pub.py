@@ -253,6 +253,8 @@ async def test_mem(asyncloop, tmp_path):
     c.open()
     assert await c.recv_state() == c.State.Active
 
+    assert c.config['info.seq'] == '-1'
+
     assert c.state == c.State.Active
     assert c.dcaps == c.DCaps.Process
 
@@ -264,6 +266,7 @@ async def test_mem(asyncloop, tmp_path):
 
         m = await c.recv(0.001)
         assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, data(i))
+        assert c.config['info.seq'] == str(i)
 
         assert c.dcaps == c.DCaps.Process | c.DCaps.Pending
 
@@ -271,6 +274,13 @@ async def test_mem(asyncloop, tmp_path):
     assert (m.seq, m.msgid, m.data.tobytes()) == (1000, 10, data(1000))
 
     assert c.dcaps == c.DCaps.Process
+
+    c.close()
+    assert c.config['info.seq'] == '1000'
+
+    c.open()
+    assert c.state == c.State.Active
+    assert c.config['info.seq'] == '1000'
 
 @asyncloop_run
 async def test_mem_close(asyncloop, tmp_path):
@@ -299,6 +309,8 @@ async def test_mem_inverted(asyncloop, tmp_path):
 
     c.open()
     s.open()
+
+    assert c.config['info.seq'] == '-1'
 
     assert c.state == c.State.Active
     assert c.state == s.State.Active

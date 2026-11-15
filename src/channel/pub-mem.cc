@@ -53,6 +53,13 @@ enum class Control : uint32_t
 	Disconnect = 2,
 };
 
+struct TailExtra
+{
+	std::atomic<long long> seq;
+
+	void update(long long v) { seq.store(v, std::memory_order_release); }
+};
+
 template <typename T>
 struct MemCommon : public tll::channel::Base<T>
 {
@@ -121,6 +128,7 @@ class MemSub : public tll::channel::LastSeqRx<MemSub, MemCommon<MemSub>>
 
 	tll::PubRing::Iterator _iter = {};
 	std::vector<char> _buf;
+	long long _seq = -1;
 
  public:
 	static constexpr std::string_view channel_protocol() { return "pub+mem"; }
@@ -193,6 +201,7 @@ tll::PubRing * MemCommon<T>::_file_create()
 
 	auto ring = static_cast<tll::PubRing *>(buf);
 	ring->init(_size);
+	ring->tail_extra<TailExtra>()->update(-1);
 
 	this->_log.info("Rename temporary file {} to {}", tmp.filename(), _filename);
 	if (std::filesystem::rename(tmp.filename(), _filename, ec); ec)
@@ -279,6 +288,8 @@ int MemPub::_open(const tll::ConstConfig &cfg)
 	if (seq >= 0)
 		_log.info("Last seq in the ring: {}", seq);
 
+	_ring->tail_extra<TailExtra>()->update(seq);
+
 	Control * marker;
 	while (_ring->write_begin((void **) &marker, sizeof(*marker))) {
 		_ring->shift();
@@ -327,6 +338,8 @@ int MemPub::_post(const tll_msg_t *msg, int flags)
 	frame->msgid = msg->msgid;
 	memcpy(frame + 1, msg->data, msg->size);
 	_ring->write_end(frame, size);
+	// Seq is written after message so it is never in the future, it is ok when it is in the past
+	_ring->tail_extra<TailExtra>()->update(msg->seq);
 	return 0;
 }
 
@@ -340,6 +353,9 @@ int MemSub::_open(const tll::ConstConfig &cfg)
 
 	if (!ring)
 		return _log.fail(EINVAL, "Failed to open file '{}'", _filename);
+
+	_seq = ring->tail_extra<TailExtra>()->seq.load(std::memory_order_acquire);
+	config_info().set_ptr("seq", &_seq);
 
 	_iter = ring->end();
 	if (!_iter.valid())
@@ -356,6 +372,7 @@ int MemSub::_close()
 {
 	_unmap(_iter.ring);
 	_iter = {};
+	config_info().setT("seq", _seq);
 
 	return Base::_close();
 }
@@ -410,7 +427,7 @@ int MemSub::_process(long timeout, int flags)
 		return _log.fail(EMSGSIZE, "Got invalid payload size {} < {}", size, sizeof(Frame));
 	}
 
-	msg.seq = frame->seq;
+	msg.seq = _seq = frame->seq;
 	msg.msgid = frame->msgid;
 	msg.size = size - sizeof(Frame);
 	msg.data = frame + 1;
