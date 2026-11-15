@@ -53,6 +53,37 @@ TEST(Ring, Base)
 	ASSERT_EQ(ring_shift(&ring), EAGAIN);
 }
 
+TEST(Ring, CrossBase)
+{
+	auto ring = tll::Ring::allocate(128);
+
+	ringbuffer_t cring = { (ring_header_t *) ring.get() };
+
+	void * wptr = nullptr;
+	const void * rptr = nullptr;
+	size_t rsize;
+
+	ASSERT_EQ(ring_read(&cring, &rptr, &rsize), EAGAIN);
+	ASSERT_EQ(ring_shift(&cring), EAGAIN);
+
+	ASSERT_EQ(ring->write_begin(&wptr, 16), 0);
+	memset(wptr, 'a', 16);
+
+	ASSERT_EQ(ring_read(&cring, &rptr, &rsize), EAGAIN);
+	ASSERT_EQ(ring_shift(&cring), EAGAIN);
+
+	ASSERT_EQ(ring->write_end(wptr, 8), 0);
+
+	ASSERT_EQ(ring_read(&cring, &rptr, &rsize), 0);
+	ASSERT_EQ(rsize, 8u);
+	ASSERT_EQ(memcmp(rptr, "aaaaaaaa", 8), 0);
+
+	ASSERT_EQ(ring_shift(&cring), 0);
+
+	ASSERT_EQ(ring_read(&cring, &rptr, &rsize), EAGAIN);
+	ASSERT_EQ(ring_shift(&cring), EAGAIN);
+}
+
 TEST(Ring, CppBase)
 {
 	auto ring = tll::Ring::allocate(128);

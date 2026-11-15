@@ -11,8 +11,6 @@
 #include <cstddef>
 #include <memory>
 
-#include <tll/compat/align.h>
-
 namespace tll {
 
 template <bool HeadGen = false, bool TailGen = false>
@@ -58,12 +56,12 @@ struct RingT
 	};
 
 	/// Head marker, only updated by reader
-	Pointer<HeadGen> TLL_ALIGN(64) head;
+	alignas(64) Pointer<HeadGen> head;
 
 	/// Tail marker, only updated by writer
-	Pointer<TailGen> TLL_ALIGN(64) tail;
+	alignas(64) Pointer<TailGen> tail;
 
-	char TLL_ALIGN(64) data[];
+	alignas(64) char data[];
 
 	using Size = int32_t;
 
