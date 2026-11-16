@@ -63,6 +63,30 @@ struct sockaddr_any
 	socklen_t size = 0;
 	char buf[128] = { 0 }; // Space for unix, ip, ip6, ...
 
+	static result_t<sockaddr_any> from_path(std::string_view path)
+	{
+		if (path.empty())
+			return error("Empty socket path");
+
+		constexpr auto maxsize = sizeof(sockaddr_un::sun_path);
+		if (path.size() + 1 > maxsize)
+			return error("Filename for Unix socket too long");
+
+		sockaddr_any r = {};
+		r.size = offsetof(struct sockaddr_un, sun_path) + path.size() + 1;
+		r->sa_family = AF_UNIX;
+		memcpy(r.un()->sun_path, path.data(), path.size());
+		/*
+		 * Normal paths have trailing zero, abstract paths do not
+		 * See unix(7) for sun_path description
+		 */
+		if (path[0] == '@') {
+			r.size--;
+			r.un()->sun_path[0] = '\0';
+		}
+		return r;
+	}
+
 	struct sockaddr * operator -> () { return (struct sockaddr *) buf; }
 	const struct sockaddr * operator -> () const { return (struct sockaddr *) buf; }
 
@@ -132,22 +156,10 @@ static inline tll::result_t<std::vector<tll::network::sockaddr_any>> resolve(int
 
 	if (af == AF_UNIX)
 	{
-		l.resize(1);
-		l.back().size = offsetof(struct sockaddr_un, sun_path) + host.size() + 1;
-		auto addr = l.back().un();
-		addr->sun_family = AF_UNIX;
-		if (host.size() >= sizeof(addr->sun_path))
-			return error("Filename for Unix socket too long");
-		memcpy(addr->sun_path, host.data(), host.size());
-		/*
-		 * Normal paths have trailing zero, abstract paths do not
-		 * See unix(7) for sun_path description
-		 */
-		if (host[0] == '@') {
-			l.back().size--;
-			addr->sun_path[0] = '\0';
-		} else
-			addr->sun_path[host.size()] = 0;
+		if (auto r = sockaddr_any::from_path(host); r)
+			l.emplace_back(std::move(*r));
+		else
+			return error(r.error());
 		return l;
 	}
 
