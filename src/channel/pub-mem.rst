@@ -21,8 +21,8 @@ deletes it when closed. Communication is performed using ring buffer, old messag
 server) to make space for new ones. Server pushes messages without taking into account position of
 clients. If client has not read message that is already removed then it closes with an error.
 
-Since there is no file descriptor to signal avilability of data it's better to use pub-sub over Unix
-socket for non-spin processors.
+By default server creates Unix socket and passes event and memory file descriptors to client.
+Client can ignore event fd and spin on the ring.
 
 Init parameters
 ~~~~~~~~~~~~~~~
@@ -37,6 +37,9 @@ is opened so old clients can not see new data.
  - ``pub-client`` - publish client, opens existing file and pushes messages into it
  - ``sub-server`` - subscribe server, creates file for publisher and watches it for messages,
    unlinks it on close.
+
+``memory-file=<string>`` default empty, only for server - filename for a ring buffer, if not
+specified - use socket name with ``.mem`` suffix.
 
 ``size=<SIZE>``, default ``64kb`` - size of ring buffer, for server (``server`` or ``sub-server``)
 only. Client reads ring size from file on open.

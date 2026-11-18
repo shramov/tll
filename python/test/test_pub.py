@@ -241,22 +241,31 @@ async def test_client(asyncloop, server):
 
     assert (await c.recv()).seq == 100
 
+@pytest.mark.parametrize("with_fd", ['yes', 'no'])
 @asyncloop_run
-async def test_mem(asyncloop, tmp_path):
-    s = asyncloop.Channel(f'pub+mem:///{tmp_path}/memory', mode='server', name='server', dump='frame', size='16kb')
+async def test_mem(asyncloop, tmp_path, with_fd):
+    s = asyncloop.Channel(f'pub+mem:///{tmp_path}/memory', mode='server', name='server', dump='frame', size='16kb', fd=with_fd)
     c = asyncloop.Channel(f'pub+mem:///{tmp_path}/memory', mode='client', name='client', dump='frame')
+
+    with_fd = with_fd == 'yes'
 
     assert (s.caps & s.Caps.InOut) == s.Caps.Output
     assert (c.caps & c.Caps.InOut) == c.Caps.Input
 
+    assert [c.name for c in s.children] == ['server/fdserver']
+
     s.open()
+
+    assert (tmp_path / 'memory').is_socket()
+
     c.open()
     assert await c.recv_state() == c.State.Active
 
     assert c.config['info.seq'] == '-1'
 
+    dcaps = c.DCaps.Process | (c.DCaps.PollIn | c.DCaps.PollET if with_fd else 0)
     assert c.state == c.State.Active
-    assert c.dcaps == c.DCaps.Process
+    assert c.dcaps == dcaps
 
     data = lambda i: b'z' * 16 + b'x' * (i % 100)
     s.post(data=data(0), seq=0, msgid=10)
@@ -268,19 +277,54 @@ async def test_mem(asyncloop, tmp_path):
         assert (m.seq, m.msgid, m.data.tobytes()) == (i, 10, data(i))
         assert c.config['info.seq'] == str(i)
 
-        assert c.dcaps == c.DCaps.Process | c.DCaps.Pending
+        assert c.dcaps == dcaps | c.DCaps.Pending
 
     m = await c.recv(0.001)
     assert (m.seq, m.msgid, m.data.tobytes()) == (1000, 10, data(1000))
 
-    assert c.dcaps == c.DCaps.Process
+    assert c.dcaps == dcaps
 
     c.close()
     assert c.config['info.seq'] == '1000'
 
     c.open()
-    assert c.state == c.State.Active
+    assert await c.recv_state() == c.State.Active
     assert c.config['info.seq'] == '1000'
+
+@asyncloop_run
+async def test_mem_file(asyncloop, tmp_path):
+    s = asyncloop.Channel(f'pub+mem:///{tmp_path}/socket;memory-file={tmp_path}/memory', mode='server', name='server', dump='frame', size='16kb')
+    c = asyncloop.Channel(f'pub+mem:///{tmp_path}/memory', mode='client', name='client', dump='frame')
+
+    assert (s.caps & s.Caps.InOut) == s.Caps.Output
+    assert (c.caps & c.Caps.InOut) == c.Caps.Input
+
+    s.open()
+
+    assert (tmp_path / 'socket').is_socket()
+    assert (tmp_path / 'memory').is_file()
+
+    s.post(b'xxx', seq=10)
+
+    c.open()
+    assert await c.recv_state() == c.State.Active
+
+    assert c.config['info.seq'] == '10'
+
+    assert c.state == c.State.Active
+    assert c.dcaps == c.DCaps.Process
+
+    s.post(b'xxx', seq=20)
+    s.post(b'xxx', seq=30)
+
+    c.process()
+
+    assert (await c.recv(0.001)).seq == 20
+    assert c.dcaps == c.DCaps.Process | c.DCaps.Pending
+
+    assert (await c.recv(0.001)).seq == 30
+
+    assert c.dcaps == c.DCaps.Process
 
 @asyncloop_run
 async def test_mem_close(asyncloop, tmp_path):
@@ -309,6 +353,9 @@ async def test_mem_inverted(asyncloop, tmp_path):
 
     c.open()
     s.open()
+
+    assert (tmp_path / 'memory').exists()
+    assert not (tmp_path / 'memory').is_socket()
 
     assert c.config['info.seq'] == '-1'
 
@@ -469,6 +516,7 @@ async def test_filter_default(asyncloop, tmp_path):
 
 @asyncloop_run
 async def test_mem_client(asyncloop, tmp_path):
+    # TODO: Check abstract socket case
     server = asyncloop.Channel(f'pub+mem:///{tmp_path}/memory', mode='server', name='server', dump='frame', size='16kb')
 
     server.open()
