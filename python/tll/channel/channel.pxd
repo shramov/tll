@@ -50,6 +50,7 @@ cdef extern from "tll/channel.h" nogil:
     ctypedef enum tll_channel_dcap_t:
         TLL_DCAPS_POLLIN
         TLL_DCAPS_POLLOUT
+        TLL_DCAPS_POLLET
         TLL_DCAPS_POLLMASK
 
         TLL_DCAPS_PROCESS

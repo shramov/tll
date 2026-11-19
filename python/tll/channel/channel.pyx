@@ -64,6 +64,7 @@ class DCaps(enum.IntFlag):
     Zero = 0
     PollIn = TLL_DCAPS_POLLIN
     PollOut = TLL_DCAPS_POLLOUT
+    PollET = TLL_DCAPS_POLLET
     PollMask = TLL_DCAPS_POLLMASK
 
     Process = TLL_DCAPS_PROCESS
