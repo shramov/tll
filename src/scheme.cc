@@ -738,7 +738,8 @@ struct Message
 		m.msgid = reader.getT<int>("id", 0);
 		if (!reader)
 			return _log.fail(std::nullopt, "Failed to parse message {}: {}", m.name, reader.error());
-
+		if (m.msgid < 0)
+			_log.warning("Negative message id {}, will become error", m.msgid);
 
 		auto o = Options::parse(cfg);
 		if (!o) return _log.fail(std::nullopt, "Failed to parse options for message {}", m.name);
