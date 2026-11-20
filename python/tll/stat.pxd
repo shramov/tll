@@ -40,6 +40,7 @@ cdef extern from "tll/stat.h" nogil:
         tll_stat_page_t * active
         tll_stat_page_t * inactive
         const char * name
+        tll_stat_page_t * persistent
 
     ctypedef struct tll_stat_list_t
     ctypedef struct tll_stat_iter_t
@@ -69,6 +70,7 @@ cdef extern from "tll/stat.h" nogil:
 
     cdef tll_stat_iter_t * tll_stat_iter_next(tll_stat_iter_t *)
     cdef tll_stat_page_t * tll_stat_iter_swap(tll_stat_iter_t *)
+    cdef tll_stat_page_t * tll_stat_iter_persistent(tll_stat_iter_t *)
 
 cdef class List:
     cdef tll_stat_list_t * ptr
@@ -85,8 +87,10 @@ cdef class Base:
     cdef tll_stat_block_t block
     cdef tll_stat_page_t page0
     cdef tll_stat_page_t page1
+    cdef tll_stat_page_t pagep
     cdef array fields0
     cdef array fields1
+    cdef array fieldsp
     cdef object offsets
     cdef object groups
     cdef object normalized

@@ -12,6 +12,8 @@ class Stat(S.Base):
              ,S.Float('last', S.Method.Last)
              ]
 
+    PERSISTENT = [S.Integer('pint', S.Method.Sum), S.Float('pfloat', S.Method.Sum)]
+
 def test_swap():
     s = Stat('test')
     l = S.List(new=True)
@@ -29,12 +31,16 @@ def test_swap():
     i = iter(l)
     assert i.empty() == False
 
-    s.update(sum=10, last=40, min=20.5, max=30)
+    assert [(f.name, f.value) for f in i.persistent()] == [('pint', 0), ('pfloat', 0)]
+
+    s.update(sum=10, last=40, min=20.5, max=30, pint=10, pfloat=1.23)
     s.update(sum=11, last=41, min=19.5, max=31)
 
     fields = i.swap()
     assert fields != None
     assert [(f.name, f.value) for f in fields] == [('sum', 21), ('min', 19.5), ('max', 31), ('last', 41.)]
+
+    assert [(f.name, f.value) for f in i.persistent()] == [('pint', 10), ('pfloat', 1.23)]
 
     s.update(min=20.5, max=30, last=40)
     s.update(sum=11, min=21.5, last=41)
@@ -42,6 +48,7 @@ def test_swap():
     fields = i.swap()
     assert fields != None
     assert [(f.name, f.value) for f in fields] == [('sum', 20), ('min', 20.5), ('max', 30), ('last', 41.)]
+    assert [(f.name, f.value) for f in i.persistent()] == [('pint', 10), ('pfloat', 1.23)]
 
 def test_list_iter():
     s0 = Stat('s0')
@@ -78,6 +85,8 @@ def test_group():
     fields = iter(l).swap()
     assert fields != None
     assert [(f.name, f.count, f.sum, f.min, f.max) for f in fields] == [('int', 3, 60, 10, 30), ('float', 2, 0.6, 0.1, 0.5)]
+
+    assert [f.name for f in iter(l).persistent()] == []
 
 class Alias(S.Base):
     FIELDS = [S.Integer('rx', S.Method.Sum)

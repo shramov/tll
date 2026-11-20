@@ -5,7 +5,7 @@ from .stat cimport *
 
 cimport cython
 from cpython.array cimport array
-from libc.string cimport memcmp
+from libc.string cimport memcmp, memset
 from .s2b cimport s2b, b2s
 from .error import TLLError
 
@@ -164,6 +164,7 @@ class Group:
 
 cdef class Base:
     FIELDS = []
+    PERSISTENT = []
 
     def __cinit__(self, name):
         self.name = s2b(name)
@@ -173,7 +174,11 @@ cdef class Base:
                 self.normalized += f.fields()
             else:
                 self.normalized += [f]
+        for f in self.PERSISTENT:
+            if isinstance(f, Group) or f.get('name') == '_tllgrp':
+                raise TypeError(f"Persistent group field '{f.name}' is not allowed")
 
+        memset(&self.block, 0, sizeof(self.block))
         self.block.name = self.name
         self.block.lock = &self.page0
         self.block.active = &self.page0
@@ -184,6 +189,14 @@ cdef class Base:
         self.fields1 = array('b', b'\0' * sizeof(tll_stat_field_t) * size)
         self.page0.fields = <tll_stat_field_t *>self.fields0.data.as_voidptr
         self.page1.fields = <tll_stat_field_t *>self.fields1.data.as_voidptr
+
+        if self.PERSISTENT:
+            self.pagep.size = len(self.PERSISTENT)
+            self.fieldsp = array('b', b'\0' * sizeof(tll_stat_field_t) * self.pagep.size)
+            self.pagep.fields = <tll_stat_field_t *>self.fieldsp.data.as_voidptr
+            self.block.persistent = &self.pagep
+        else:
+            self.block.persistent = NULL
 
         self.offsets = {}
         self.groups = {}
@@ -204,6 +217,16 @@ cdef class Base:
             if f['name'] == '_tllgrp':
                 self.groups[self.normalized[i+1]['name']] = i
 
+        for i,f in enumerate(self.PERSISTENT):
+            name = s2b(f['name'])[:7]
+            name += b'\0' * (7 - len(name))
+            self.pagep.fields[i].name = name
+            self.pagep.fields[i].type = TLL_STAT_FLOAT if f.get('type', int) == float else TLL_STAT_INT
+            self.pagep.fields[i].method = f.get('method', Method.Sum).value
+            self.pagep.fields[i].unit = f.get('unit', Unit.Unknown).value
+            tll_stat_field_reset(&self.pagep.fields[i])
+            self.offsets[f.get('alias', f['name'])] = -1 - i
+
     @property
     def _block(self):
         ''' For testing purposes only '''
@@ -212,7 +235,7 @@ cdef class Base:
     @cython.boundscheck(False)
     def update(self, **kw):
         cdef ssize_t size = len(kw)
-        cdef unsigned int[:] offsets = array('I', [0] * size)
+        cdef int[:] offsets = array('i', [0] * size)
         cdef long long [:] updates_i = array('q', [0] * size)
         cdef double [:] updates_f = array('d', [0] * size)
         cdef unsigned i
@@ -222,7 +245,10 @@ cdef class Base:
                 o = self.offsets.get(name, None)
                 if o is None:
                     raise KeyError("Unknown field {}".format(name))
-                tp = self.page0.fields[o].type
+                if o >= 0:
+                    tp = self.page0.fields[o].type
+                else:
+                    tp = self.pagep.fields[-1 - o].type
             else:
                 tp = self.page0.fields[o + 1].type
             offsets[i] = o
@@ -241,7 +267,10 @@ cdef class Base:
             try:
                 i = 0
                 while i < size:
-                    field = page.fields + offsets[i]
+                    if offsets[i] >= 0:
+                        field = page.fields + offsets[i]
+                    else:
+                        field = self.block.persistent.fields + (-1 - offsets[i])
                     if memcmp(field.name, b'_tllgrp', 7) == 0:
                         tll_stat_field_update_int(field, 1)
                         if field[1].type == TLL_STAT_INT:
@@ -293,6 +322,12 @@ cdef class Iter:
             if tll_stat_iter_empty(self.ptr) or timeout < time.time():
                 return
             page = tll_stat_iter_swap(self.ptr)
+        return Page.wrap(page).values()
+
+    def persistent(self):
+        if self.ptr == NULL: return
+        cdef tll_stat_page_t * page = tll_stat_iter_persistent(self.ptr)
+        if page == NULL: return []
         return Page.wrap(page).values()
 
     def __iter__(self): return self
