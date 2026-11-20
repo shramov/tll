@@ -459,6 +459,53 @@ def test_client_scheme():
 
     assert [m.name for m in s.scheme.messages] == ['Test']
 
+@pytest.mark.parametrize("frame", ['std', 'short', 'tiny'])
+def test_msgid_negative(context, frame):
+    scheme = 'yamls://[{name: m1, id: -1, fields: [{name: f0, type: int32}]}, {name: m2, id: -2, fields: [{name: f0, type: int32}]}, {name: m3, id: -3, fields: [{name: f0, type: int32}]}]'
+    s = Accum(f'tcp://127.0.0.1:{ports.TCP4}', mode='server', name='server', scheme=scheme, frame=frame, dump='frame', context=context)
+    c = Accum(f'tcp://127.0.0.1:{ports.TCP4}', mode='client', name='client', scheme=scheme, frame=frame, dump='frame', context=context)
+
+    s.open()
+    c.open()
+
+    spoll = select.poll()
+    for i in s.children:
+        spoll.register(i.fd, select.POLLIN)
+    if c.state == c.State.Opening:
+        assert select.select([], [c.fd], [], 0.1)[1] != []
+        c.process()
+    assert spoll.poll(100) != []
+    for i in s.children:
+        i.process()
+    assert c.state == c.State.Active
+
+    addr = s.result[0].addr
+    s.result = []
+
+    for i in s.children:
+        spoll.register(i.fd, select.POLLIN)
+
+    c.post({'f0': 0xbeef}, name='m1', seq=1)
+    c.post(c.scheme['m2'].object(f0=0xdead), seq=2)
+    c.post(c.scheme['m3'].object(f0=0xcafe).pack(), msgid=-3, seq=3)
+
+    assert spoll.poll(100) != []
+    for _ in range(3): # Data can be buffered, process may return one message at a time
+        for i in s.children:
+            i.process()
+
+    assert [(m.type, m.msgid, m.seq, m.addr) for m in s.result] == [(s.Type.Data, -i, i, addr) for i in (1, 2, 3)]
+    assert [(s.unpack(m).SCHEME.name, s.unpack(m).f0) for m in s.result] == [('m1', 0xbeef), ('m2', 0xdead), ('m3', 0xcafe)]
+
+    s.result = []
+    for i, name in enumerate(['m3', 'm2', 'm1']):
+        s.post({'f0': 0x1000 + i}, name=name, seq=4 + i, addr=addr)
+    assert select.select([c.fd], [], [], 0.1)[0] != []
+    for _ in range(3):
+        c.process()
+    assert [(m.type, m.msgid, m.seq) for m in c.result] == [(c.Type.Data, -i, 4 + 3 - i) for i in (3, 2, 1)]
+    assert [(c.unpack(m).SCHEME.name, c.unpack(m).f0) for m in c.result] == [('m3', 0x1000), ('m2', 0x1001), ('m1', 0x1002)]
+
 @pytest.mark.skipif(WITHOUT_MPTCP, reason="MPTCP not available")
 @pytest.mark.parametrize("client", ['mptcp', 'tcp'])
 @pytest.mark.parametrize("server", ['mptcp', 'tcp'])

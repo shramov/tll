@@ -303,6 +303,26 @@ def test_direct_msgid(context):
 
     assert [(m.msgid, m.type) for m in s.result] == [(10, s.Type.Data), (10, 16), (10, 17)]
 
+def test_mem_msgid_negative(context):
+    scheme = 'yamls://[{name: m1, id: -1, fields: [{name: f0, type: int32}]}, {name: m2, id: -2, fields: [{name: f0, type: int32}]}, {name: m3, id: -3, fields: [{name: f0, type: int32}]}]'
+    s = Accum('mem://;size=1kb', name='server', scheme=scheme, frame='full', context=context)
+    c = Accum('mem://', name='client', master=s, scheme=scheme, frame='full', context=context)
+
+    s.open()
+    c.open()
+
+    assert [(m.name, m.msgid) for m in c.scheme.messages] == [('m1', -1), ('m2', -2), ('m3', -3)]
+
+    s.post({'f0': 0xbeef}, name='m1', seq=1)
+    s.post(s.scheme['m2'].object(f0=0xdead), seq=2)
+    s.post(s.scheme['m3'].object(f0=0xcafe).pack(), msgid=-3, seq=3)
+
+    for _ in range(3):
+        c.process()
+
+    assert [(m.type, m.msgid, m.seq) for m in c.result] == [(c.Type.Data, -i, i) for i in (1, 2, 3)]
+    assert [(c.unpack(m).SCHEME.name, c.unpack(m).f0) for m in c.result] == [('m1', 0xbeef), ('m2', 0xdead), ('m3', 0xcafe)]
+
 def test_mem(fd=True, **kw):
     s = Accum('mem://;size=1kb', name='server', context=ctx, fd='yes' if fd else 'no', **kw)
 
