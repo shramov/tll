@@ -160,8 +160,9 @@ class Base
 	tll_channel_internal_t internal = {};
 
 	using StatType = tll_channel_stat_t;
+	using StatPersistent = void;
 
-	stat::BlockT<StatType> * stat() { return static_cast<stat::BlockT<StatType> *>(internal.stat); }
+	stat::BlockT<StatType, StatPersistent> * stat() { return static_cast<stat::BlockT<StatType, StatPersistent> *>(internal.stat); }
 	bool _stat_enable = false;
 	bool _with_fd = true;
 
@@ -301,7 +302,7 @@ class Base
 		}
 
 		if (ChannelT::stat_policy() == StatPolicy::Normal && _stat_enable)
-			internal.stat = new stat::Block<typename T::StatType>(name);
+			internal.stat = new stat::Block<typename T::StatType, typename T::StatPersistent>(name);
 
 		return 0;
 	}
@@ -315,7 +316,7 @@ class Base
 		state(state::Destroy);
 		static_cast<ChannelT *>(this)->_free();
 		if (ChannelT::stat_policy() == StatPolicy::Normal && internal.stat)
-			delete static_cast<stat::Block<typename T::StatType> *>(internal.stat);
+			delete static_cast<stat::Block<typename T::StatType, typename T::StatPersistent> *>(internal.stat);
 		_scheme.reset();
 		_scheme_control.reset();
 		tll_channel_internal_clear(&internal);
@@ -600,12 +601,21 @@ class Base
 };
 
 template <typename T>
-typename tll::stat::BlockT<typename T::StatType>::PageGuard stat_acquire(tll::channel::Base<T> * self)
+typename tll::stat::BlockT<typename T::StatType, typename T::StatPersistent>::PageGuard stat_acquire(tll::channel::Base<T> * self)
 {
-	auto stat = static_cast<typename tll::stat::BlockT<typename T::StatType> *>(self->internal.stat);
+	auto stat = static_cast<typename tll::stat::BlockT<typename T::StatType, typename T::StatPersistent> *>(self->internal.stat);
 	if (!stat)
 		return tll::stat::PageGuard {nullptr, nullptr};
 	return stat->acquire_guard();
+}
+
+template <typename T>
+typename T::StatPersistent * stat_persistent(tll::channel::Base<T> * self)
+{
+	auto stat = static_cast<typename tll::stat::BlockT<typename T::StatType, typename T::StatPersistent> *>(self->internal.stat);
+	if (!stat)
+		return nullptr;
+	return stat->persistent();
 }
 
 } // namespace channel

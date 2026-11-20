@@ -680,6 +680,9 @@ int TcpServer<T, C>::_open(const ConstConfig &cfg)
 	_cleanup_flag = false;
 	_addr_seq = 0;
 
+	if (auto page = tll::channel::stat_persistent(this); page)
+		page->connections.store(0);
+
 	auto addr = _host.resolve(SOCK_STREAM);
 	if (!addr)
 		return this->_log.fail(EINVAL, "Failed to resolve '{}': {}", _host.host, addr.error());
@@ -810,6 +813,8 @@ int TcpServer<T, C>::_close()
 	}
 	for (auto & c : _clients)
 		tll_channel_free(*c.second);
+	if (auto page = tll::channel::stat_persistent(this); page)
+		page->connections.reset();
 	_clients.clear();
 	_sockets.clear();
 	this->_config.remove("client");
@@ -851,6 +856,8 @@ void TcpServer<T, C>::_process_cleanup()
 		case state::Closed:
 			_cleanup(i->second);
 			i = _clients.erase(i);
+			if (auto page = tll::channel::stat_persistent(this); page)
+				page->connections.store(_clients.size());
 			break;
 		default:
 			i++;
@@ -974,6 +981,10 @@ int TcpServer<T, C>::_cb_socket(const tll_channel_t *c, const tll_msg_t *msg)
 		it->second = client;
 	} else
 		_clients.emplace(client->fd(), client);
+
+	if (auto page = tll::channel::stat_persistent(this); page)
+		page->connections.store(_clients.size());
+
 	this->_child_add(r.release());
 	client->open(tll::ConstConfig());
 

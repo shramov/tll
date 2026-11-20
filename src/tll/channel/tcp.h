@@ -274,6 +274,11 @@ class TcpServerSocket : public tll::channel::Base<TcpServerSocket<T>>
 	void bind(int fd) { this->_update_fd(fd); }
 };
 
+struct TcpServerStat
+{
+	tll::stat::Integer<tll::stat::Last, tll::stat::Unknown, 'c', 'o', 'n', 'n'> connections;
+};
+
 template <typename T, typename C>
 class TcpServer : public Base<T>
 {
@@ -298,6 +303,8 @@ class TcpServer : public Base<T>
 	static constexpr auto child_policy() { return Base<T>::ChildPolicy::Many; }
 	static constexpr auto open_policy() { return Base<T>::OpenPolicy::Manual; }
 	static constexpr auto process_policy() { return Base<T>::ProcessPolicy::Never; }
+
+	using StatPersistent = TcpServerStat;
 
 	enum class SocketImplPolicy { Fixed, Dynamic };
 	static constexpr auto socket_impl_policy() { return SocketImplPolicy::Dynamic; }
