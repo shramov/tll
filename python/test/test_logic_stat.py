@@ -21,6 +21,8 @@ class Fields(S.Base):
              ,S.Float('last', S.Method.Last)
              ]
 
+    PERSISTENT = [S.Integer('pint', S.Method.Last, unit=S.Unit.Bytes), S.Float('pfloat', S.Method.Last)]
+
 class Groups(S.Base):
     FIELDS = [S.Group('int', unit=S.Unit.NS)
              ,S.Group('float', type=float)
@@ -47,7 +49,7 @@ channel: stat://;tll.channel.timer=timer;node=test-node
     assert stat.scheme != None
     assert [(m.name, m.msgid) for m in stat.scheme.messages if m.msgid] == [('Page', 10)]
 
-    fields.update(sum=1, min=2, max=3, last=4)
+    fields.update(sum=1, min=2, max=3, last=4, pint=10, pfloat=1.23)
     groups.update(int=10, float=0.5)
     groups.update(int=1)
     groups.update(float=0.1)
@@ -64,11 +66,13 @@ channel: stat://;tll.channel.timer=timer;node=test-node
     assert msg.node == 'test-node'
     assert msg.name == 'fields'
     assert msg.time.datetime - now < datetime.timedelta(milliseconds=100)
-    assert [f.name for f in msg.fields] == ['sum', 'min', 'max', 'last']
+    assert [f.name for f in msg.fields] == ['sum', 'min', 'max', 'last', 'pint', 'pfloat']
     assert msg.fields[0].as_dict() == {'name': 'sum', 'unit': Unit.Unknown, 'value': {'ivalue': {'method': Method.Sum, 'value': 1}}}
     assert msg.fields[1].as_dict() == {'name': 'min', 'unit': Unit.Bytes, 'value': {'fvalue': {'method': Method.Min, 'value': 2}}}
     assert msg.fields[2].as_dict() == {'name': 'max', 'unit': Unit.NS, 'value': {'ivalue': {'method': Method.Max, 'value': 3}}}
     assert msg.fields[3].as_dict() == {'name': 'last', 'unit': Unit.Unknown, 'value': {'fvalue': {'method': Method.Last, 'value': 4}}}
+    assert msg.fields[4].as_dict() == {'name': 'pint', 'unit': Unit.Bytes, 'value': {'ivalue': {'method': Method.Last, 'value': 10}}}
+    assert msg.fields[5].as_dict() == {'name': 'pfloat', 'unit': Unit.Unknown, 'value': {'fvalue': {'method': Method.Last, 'value': 1.23}}}
 
     m = await stat.recv()
     assert (m.type, m.msgid) == (stat.Type.Data, 10)
@@ -91,7 +95,9 @@ channel: stat://;tll.channel.timer=timer;node=test-node
     assert msg.node == 'test-node'
     assert msg.name == 'fields'
     assert msg.time.datetime - now < datetime.timedelta(milliseconds=100)
-    assert [f.name for f in msg.fields] == []
+    assert [f.name for f in msg.fields] == ['pint', 'pfloat']
+    assert msg.fields[0].as_dict() == {'name': 'pint', 'unit': Unit.Bytes, 'value': {'ivalue': {'method': Method.Last, 'value': 10}}}
+    assert msg.fields[1].as_dict() == {'name': 'pfloat', 'unit': Unit.Unknown, 'value': {'fvalue': {'method': Method.Last, 'value': 1.23}}}
 
     m = await stat.recv()
     assert (m.type, m.msgid) == (stat.Type.Data, 10)
@@ -115,8 +121,10 @@ channel: stat://;tll.channel.timer=timer;node=test-node
     assert msg.node == 'test-node'
     assert msg.name == 'fields'
     assert msg.time.datetime - now < datetime.timedelta(milliseconds=100)
-    assert [f.name for f in msg.fields] == ['max']
+    assert [f.name for f in msg.fields] == ['max', 'pint', 'pfloat']
     assert msg.fields[0].as_dict() == {'name': 'max', 'unit': Unit.NS, 'value': {'ivalue': {'method': Method.Max, 'value': 10}}}
+    assert msg.fields[1].as_dict() == {'name': 'pint', 'unit': Unit.Bytes, 'value': {'ivalue': {'method': Method.Last, 'value': 10}}}
+    assert msg.fields[2].as_dict() == {'name': 'pfloat', 'unit': Unit.Unknown, 'value': {'fvalue': {'method': Method.Last, 'value': 1.23}}}
 
     m = await stat.recv()
     assert (m.type, m.msgid) == (stat.Type.Data, 10)

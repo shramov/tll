@@ -38,6 +38,8 @@ class Stat : public tll::LogicBase<Stat>
 
 	std::vector<char> _buf;
 
+	using fields_iterator = tll::scheme::binder::binder_iterator<std::vector<char>, stat_scheme::Field::binder_type<std::vector<char>>>;
+
  public:
 	static constexpr std::string_view channel_protocol() { return "stat"; }
 
@@ -47,6 +49,7 @@ class Stat : public tll::LogicBase<Stat>
 
 	int logic(const tll::Channel * c, const tll_msg_t *msg);
 	int _dump(tll_stat_iter_t * i);
+	size_t _dump_page(std::string &result, fields_iterator &it, tll_stat_page_t * p);
 	std::string _dump(const tll::stat::Field & v)
 	{
 		switch (v.type()) {
@@ -152,6 +155,7 @@ int Stat::_dump(tll_stat_iter_t * iter)
 
 	auto now = tll::time::now();
 	auto page = tll_stat_iter_swap(iter);
+	auto pers = tll_stat_iter_persistent(iter);
 	uint8_t swap_count = 0u;
 	while (page == nullptr) {
 		if (tll_stat_iter_empty(iter)) return 0;
@@ -173,16 +177,36 @@ int Stat::_dump(tll_stat_iter_t * iter)
 	data.set_name(name);
 	data.set_time(now);
 	auto fields = data.get_fields();
-	fields.resize(page->size);
-	auto size = 0;
+	fields.resize(page->size + (pers ? pers->size : 0));
 
+	auto size = 0;
 	std::string r = "";
+	auto it = fields.begin();
+	size += _dump_page(r, it, page);
+	size += _dump_page(r, it, pers);
+	fields.resize(size);
+
+	log->info("Page {}: {}", name, r.substr(0, r.size() - 2));
+	tll_msg_t msg = { TLL_MESSAGE_DATA };
+	msg.msgid = data.meta_id();
+	msg.data = data.view().data();
+	msg.size = data.view().size();
+	_callback(&msg);
+	return 0;
+}
+
+size_t Stat::_dump_page(std::string &r, Stat::fields_iterator &it, tll_stat_page_t * page)
+{
+	if (!page)
+		return 0;
+	size_t size = 0;
+
 	auto ptr = static_cast<const tll::stat::Field *>(page->fields);
 	auto end = ptr + page->size;
 	for (; ptr != end; ptr++) {
 		if (ptr->name().empty())
 			continue;
-		auto field = fields[size];
+		auto & field = *it;
 		if (ptr + 3 < end && ptr->name() == "_tllgrp") {
 			auto count = ptr;
 			auto sum = ++ptr;
@@ -211,6 +235,7 @@ int Stat::_dump(tll_stat_iter_t * iter)
 					group.set_avg(double(sum->value) / count->value);
 			}
 			r += ", ";
+			it++;
 			continue;
 		}
 		r += _dump(*ptr) + ", ";
@@ -231,16 +256,10 @@ int Stat::_dump(tll_stat_iter_t * iter)
 		size++;
 		field.set_name(ptr->name());
 		field.set_unit(static_cast<stat_scheme::Unit>(ptr->unit()));
+		it++;
 	}
-	fields.resize(size);
 
-	log->info("Page {}: {}", name, r.substr(0, r.size() - 2));
-	tll_msg_t msg = { TLL_MESSAGE_DATA };
-	msg.msgid = data.meta_id();
-	msg.data = data.view().data();
-	msg.size = data.view().size();
-	_callback(&msg);
-	return 0;
+	return size;
 }
 
 struct SuffixPair
