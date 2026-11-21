@@ -22,6 +22,9 @@ struct RingT
 	int32_t _version = 0;
 	size_t _size = 0;
 
+	/// Extra meta space, can be used for const info
+	alignas(32) char _meta_extra[32] = {};
+
 	template <bool Gen>
 	struct Pointer
 	{
@@ -81,6 +84,9 @@ struct RingT
 
 	auto magic() const { return _magic; }
 	auto size() const { return _size; }
+
+	template <typename T> T * meta_extra() { static_assert(sizeof(T) <= sizeof(_meta_extra)); return (T *) _meta_extra; }
+	template <typename T> const T * meta_extra() const { static_assert(sizeof(T) <= sizeof(_meta_extra)); return (T *) _meta_extra; }
 
 	template <typename T> T * head_extra() { static_assert(sizeof(T) <= sizeof(_head_extra)); return (T *) _head_extra; }
 	template <typename T> const T * head_extra() const { static_assert(sizeof(T) <= sizeof(_head_extra)); return (T *) _head_extra; }

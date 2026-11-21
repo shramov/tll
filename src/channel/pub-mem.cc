@@ -63,6 +63,21 @@ enum class Control : uint32_t
 	Disconnect = 2,
 };
 
+struct RingUnmap
+{
+	void operator () (const tll::PubRing *ptr) const
+	{
+		if (ptr)
+			munmap((void *)ptr, ptr->size() + sizeof(*ptr));
+	}
+};
+using RingPtr = std::unique_ptr<tll::PubRing, RingUnmap>;
+
+struct MetaExtra
+{
+	bool sub_server = false;
+};
+
 struct TailExtra
 {
 	std::atomic<long long> seq;
@@ -146,10 +161,10 @@ struct MemCommon : public tll::channel::Base<T>
 		return Base::_init(url, master);
 	}
 
-	tll::PubRing * _file_create();
-	tll::PubRing * _file_open(const std::filesystem::path &filename, bool readwrite);
+	RingPtr _file_create();
+	RingPtr _file_open(const std::filesystem::path &filename, bool readwrite);
 
-	tll::PubRing * _ring_open(bool readwrite);
+	RingPtr _ring_open(bool readwrite);
 
 	int _open(const tll::ConstConfig &cfg)
 	{
@@ -174,12 +189,6 @@ struct MemCommon : public tll::channel::Base<T>
 
 		_unlink = false;
 		return 0;
-	}
-
-	void _unmap(const tll::PubRing * header)
-	{
-		if (header && munmap((void *) header, header->size() + sizeof(*header)))
-			this->_log.error("Failed to unmap ring of size {}: {}", header->size() + sizeof(*header), strerror(errno));
 	}
 };
 
@@ -216,7 +225,7 @@ class MemPub : public tll::channel::LastSeqTx<MemPub, MemCommon<MemPub>>
 {
 	using Base = tll::channel::LastSeqTx<MemPub, MemCommon<MemPub>>;
 
-	tll::PubRing * _ring = nullptr;
+	RingPtr _ring;
 
 	std::unique_ptr<tll::Channel> _fdserver;
 
@@ -267,13 +276,16 @@ std::optional<const tll_channel_impl_t *> ChPubMem::_init_replace(const tll::Cha
 }
 
 template <typename T>
-tll::PubRing * MemCommon<T>::_file_create()
+RingPtr MemCommon<T>::_file_create()
 {
 	std::error_code ec, uec;
 	tll::util::TempFile tmp(_filename);
 	if (!tmp)
 		return this->_log.fail(nullptr, "Failed to create temporary file {}: {}", tmp.filename(), tmp.strerror());
 	_mfd.reset(tmp.release_fd());
+
+	if (_mode == Server && flock(_mfd, LOCK_EX | LOCK_NB))
+		return this->_log.fail(nullptr, "Failed to flock file descriptor: {}", strerror(errno));
 
 	auto full = sizeof(tll::Ring) + _size;
 	if (auto r = posix_fallocate(_mfd, 0, full); r)
@@ -283,9 +295,16 @@ tll::PubRing * MemCommon<T>::_file_create()
 	if (buf == MAP_FAILED)
 		return this->_log.fail(nullptr, "Failed to mmap memory: {}", strerror(errno));
 
-	auto ring = static_cast<tll::PubRing *>(buf);
+	RingPtr ring { static_cast<tll::PubRing *>(buf) };
 	ring->init(_size);
 	ring->tail_extra<TailExtra>()->update(-1);
+
+	if (_mode == SubServer)
+		(*ring)->template meta_extra<MetaExtra>()->sub_server = true;
+
+	_mfd.reset(open(tmp.filename().c_str(), O_RDONLY));
+	if (_mfd == -1)
+		return this->_log.fail(nullptr, "Failed to open memory file for reading: {}", strerror(errno));
 
 	this->_log.info("Rename temporary file {} to {}", tmp.filename(), _filename);
 	if (std::filesystem::rename(tmp.filename(), _filename, ec); ec)
@@ -297,7 +316,7 @@ tll::PubRing * MemCommon<T>::_file_create()
 }
 
 template <typename T>
-tll::PubRing * MemCommon<T>::_file_open(const std::filesystem::path &filename, bool rw)
+RingPtr MemCommon<T>::_file_open(const std::filesystem::path &filename, bool rw)
 {
 	_mfd.reset(::open(filename.c_str(), rw ? O_RDWR : O_RDONLY));
 	if (_mfd == -1)
@@ -306,7 +325,7 @@ tll::PubRing * MemCommon<T>::_file_open(const std::filesystem::path &filename, b
 }
 
 template <typename T>
-tll::PubRing * MemCommon<T>::_ring_open(bool rw)
+RingPtr MemCommon<T>::_ring_open(bool rw)
 {
 	std::array<char, sizeof(tll::Ring)> hbuf;
 	auto r = pread(_mfd, hbuf.data(), hbuf.size(), 0);
@@ -322,7 +341,7 @@ tll::PubRing * MemCommon<T>::_ring_open(bool rw)
 	if (buf == MAP_FAILED)
 		return this->_log.fail(nullptr, "Failed to mmap memory from {}: {}", _filename, strerror(errno));
 
-	return static_cast<tll::PubRing *>(buf);
+	return RingPtr{static_cast<tll::PubRing *>(buf)};
 }
 
 template <typename T>
@@ -373,8 +392,12 @@ int MemPub::_open(const tll::ConstConfig &cfg)
 	if (!_ring)
 		return _log.fail(EINVAL, "Failed to open ring buffer file '{}'", _filename);
 
-	if (flock(_mfd, LOCK_EX | LOCK_NB))
-		return _log.fail(EINVAL, "Failed to flock file descriptor: {}", strerror(errno));
+	if (_mode == PubClient) {
+		if (!_ring->meta_extra<MetaExtra>()->sub_server)
+			return _log.fail(EINVAL, "Can write only to sub-server ring file");
+		if (flock(_mfd, LOCK_EX | LOCK_NB))
+			return _log.fail(EINVAL, "Failed to flock file descriptor: {}", strerror(errno));
+	}
 
 	auto it = _ring->begin();
 	const Frame * frame;
@@ -400,7 +423,6 @@ int MemPub::_open(const tll::ConstConfig &cfg)
 	_ring->write_end(marker, sizeof(*marker));
 
 	if (auto c = tll::channel_cast<MemServer>(_fdserver.get()); c) {
-		// TODO: Seal mfd descriptor
 		if (_efd != -1)
 			c->fds({_mfd.get(), _efd.get()});
 		else
@@ -429,10 +451,8 @@ int MemPub::_close()
 		if (_efd != -1)
 			eventfd_write(_efd, 1);
 #endif
-
-		_unmap(_ring);
 	}
-	_ring = nullptr;
+	_ring.reset();
 
 	if (_mfd != -1)
 		flock(_mfd, LOCK_UN | LOCK_NB);
@@ -473,7 +493,7 @@ int MemSub::_open(const tll::ConstConfig &cfg)
 	if (auto r = Base::_open(cfg); r)
 		return r;
 
-	const tll::PubRing * ring = nullptr;
+	std::unique_ptr<const tll::PubRing, RingUnmap> ring;
 	std::error_code ec;
 	namespace fs = std::filesystem;
 	if (_mode == SubServer)
@@ -509,13 +529,13 @@ int MemSub::_open(const tll::ConstConfig &cfg)
 	_seq = ring->tail_extra<TailExtra>()->seq.load(std::memory_order_acquire);
 	config_info().set_ptr("seq", &_seq);
 
-	_iter = ring->end();
+	_iter = ring.release()->end();
 	if (!_iter.valid())
 		return _log.fail(EINVAL, "Failed to init iterator: writer is too fast");
 	if (_with_fd)
 		_dcaps_pending(!_iter.last());
 
-	_buf.resize(ring->size() / 4);
+	_buf.resize(_iter.ring->size() / 4);
 
 	state(tll::state::Active);
 	return 0;
@@ -523,7 +543,7 @@ int MemSub::_open(const tll::ConstConfig &cfg)
 
 int MemSub::_close()
 {
-	_unmap(_iter.ring);
+	RingUnmap{}(_iter.ring);
 	_iter = {};
 	config_info().setT("seq", _seq);
 
@@ -605,13 +625,13 @@ int MemSub::_process_open()
 	_seq = ring->tail_extra<TailExtra>()->seq.load(std::memory_order_acquire);
 	config_info().set_ptr("seq", &_seq);
 
-	_iter = ring->end();
+	_iter = ring.release()->end();
 	if (!_iter.valid())
 		return _log.fail(EINVAL, "Failed to init iterator: writer is too fast");
 	if (_with_fd)
 		_dcaps_pending(!_iter.last());
 
-	_buf.resize(ring->size() / 4);
+	_buf.resize(_iter.ring->size() / 4);
 	state(tll::state::Active);
 	return 0;
 }
