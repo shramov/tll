@@ -287,6 +287,10 @@ tll::PubRing * MemCommon<T>::_file_create()
 	ring->init(_size);
 	ring->tail_extra<TailExtra>()->update(-1);
 
+	_mfd.reset(open(tmp.filename().c_str(), O_RDONLY));
+	if (_mfd == -1)
+		return this->_log.fail(nullptr, "Failed to open memory file for reading: {}", strerror(errno));
+
 	this->_log.info("Rename temporary file {} to {}", tmp.filename(), _filename);
 	if (std::filesystem::rename(tmp.filename(), _filename, ec); ec)
 		return this->_log.fail(nullptr, "Failed to rename temporary file '{}' to '{}': {}", tmp.filename(), _filename, ec.message());
@@ -367,14 +371,14 @@ int MemPub::_open(const tll::ConstConfig &cfg)
 
 	if (_mode == Server)
 		_ring = _file_create();
-	else
+	else {
 		_ring = _file_open(_filename, true);
+		if (flock(_mfd, LOCK_EX | LOCK_NB))
+			return _log.fail(EINVAL, "Failed to flock file descriptor: {}", strerror(errno));
+	}
 
 	if (!_ring)
 		return _log.fail(EINVAL, "Failed to open ring buffer file '{}'", _filename);
-
-	if (flock(_mfd, LOCK_EX | LOCK_NB))
-		return _log.fail(EINVAL, "Failed to flock file descriptor: {}", strerror(errno));
 
 	auto it = _ring->begin();
 	const Frame * frame;
@@ -400,7 +404,6 @@ int MemPub::_open(const tll::ConstConfig &cfg)
 	_ring->write_end(marker, sizeof(*marker));
 
 	if (auto c = tll::channel_cast<MemServer>(_fdserver.get()); c) {
-		// TODO: Seal mfd descriptor
 		if (_efd != -1)
 			c->fds({_mfd.get(), _efd.get()});
 		else
