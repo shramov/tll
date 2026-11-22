@@ -39,6 +39,10 @@
 #define MSG_CMSG_CLOEXEC 0
 #endif
 
+#ifndef F_SEAL_FUTURE_WRITE
+#define F_SEAL_FUTURE_WRITE 0
+#endif
+
 using namespace tll;
 
 constexpr std::string_view scheme_string = R"(yamls://
@@ -150,13 +154,6 @@ struct MemCommon : public tll::channel::Base<T>
 			_size = reader.getT("size", util::Size {64 * 1024});
 		if (!reader)
 			return this->_log.fail(EINVAL, "Invalid url: {}", reader.error());
-
-		if (_filename.empty()) {
-			if (_socketname.empty())
-				return this->_log.fail(EINVAL, "Empty memory-file parameter");
-			if (_mode == Server) // TODO: Use memfd
-				_filename.assign(_socketname) += ".mem";
-		}
 
 		return Base::_init(url, master);
 	}
@@ -275,11 +272,50 @@ std::optional<const tll_channel_impl_t *> ChPubMem::_init_replace(const tll::Cha
 	return &MemSub::impl;
 }
 
+namespace {
+tll::result_t<RingPtr> _ring_init(int fd, size_t size)
+{
+	auto full = sizeof(tll::Ring) + size;
+	if (auto r = posix_fallocate(fd, 0, full); r)
+		return tll::error(fmt::format("Failed to allocate {} bytes of space: {}", full, strerror(r)));
+
+	auto buf = mmap(nullptr, full, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if (buf == MAP_FAILED)
+		return tll::error(fmt::format("Failed to mmap memory: {}", strerror(errno)));
+
+	RingPtr ring {static_cast<tll::PubRing *>(buf)};
+	ring->init(size);
+	ring->tail_extra<TailExtra>()->update(-1);
+
+	return ring;
+}
+}
+
 template <typename T>
 RingPtr MemCommon<T>::_file_create()
 {
-	std::error_code ec, uec;
-	tll::util::TempFile tmp(_filename);
+	auto fn = _filename;
+	if (fn.empty()) {
+#ifdef __linux__
+		auto name = (std::string("tll:pub") + this->name).substr(0, 248);
+		_mfd.reset(memfd_create(name.c_str(), MFD_CLOEXEC | MFD_ALLOW_SEALING));
+		if (_mfd == -1)
+			return this->_log.fail(nullptr, "Failed to create memfd: {}", strerror(errno));
+
+		auto ring = _ring_init(_mfd, _size);
+		if (!ring)
+			return this->_log.fail(nullptr, "{}", ring.error());
+
+		if (fcntl(_mfd, F_ADD_SEALS, F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL | F_SEAL_FUTURE_WRITE) == -1)
+			return this->_log.fail(nullptr, "Failed to seal memfd: {}", strerror(errno));
+
+		return std::move(*ring);
+#else
+		fn = _socketname;
+#endif
+	}
+	std::error_code ec;
+	tll::util::TempFile tmp(fn);
 	if (!tmp)
 		return this->_log.fail(nullptr, "Failed to create temporary file {}: {}", tmp.filename(), tmp.strerror());
 	_mfd.reset(tmp.release_fd());
@@ -287,17 +323,9 @@ RingPtr MemCommon<T>::_file_create()
 	if (_mode == Server && flock(_mfd, LOCK_EX | LOCK_NB))
 		return this->_log.fail(nullptr, "Failed to flock file descriptor: {}", strerror(errno));
 
-	auto full = sizeof(tll::Ring) + _size;
-	if (auto r = posix_fallocate(_mfd, 0, full); r)
-		return this->_log.fail(nullptr, "Failed to allocate {} bytes of space: {}", full, strerror(r));
-
-	auto buf = mmap(nullptr, full, PROT_READ | PROT_WRITE, MAP_SHARED, _mfd, 0);
-	if (buf == MAP_FAILED)
-		return this->_log.fail(nullptr, "Failed to mmap memory: {}", strerror(errno));
-
-	RingPtr ring { static_cast<tll::PubRing *>(buf) };
-	ring->init(_size);
-	ring->tail_extra<TailExtra>()->update(-1);
+	auto ring = _ring_init(_mfd, _size);
+	if (!ring)
+		return this->_log.fail(nullptr, "{}", ring.error());
 
 	if (_mode == SubServer)
 		(*ring)->template meta_extra<MetaExtra>()->sub_server = true;
@@ -306,13 +334,16 @@ RingPtr MemCommon<T>::_file_create()
 	if (_mfd == -1)
 		return this->_log.fail(nullptr, "Failed to open memory file for reading: {}", strerror(errno));
 
-	this->_log.info("Rename temporary file {} to {}", tmp.filename(), _filename);
-	if (std::filesystem::rename(tmp.filename(), _filename, ec); ec)
-		return this->_log.fail(nullptr, "Failed to rename temporary file '{}' to '{}': {}", tmp.filename(), _filename, ec.message());
-	tmp.release();
-	_unlink = true;
+	if (!_filename.empty()) {
+		this->_log.info("Rename temporary file {} to {}", tmp.filename(), _filename);
+		if (std::filesystem::rename(tmp.filename(), _filename, ec); ec)
+			return this->_log.fail(nullptr, "Failed to rename temporary file '{}' to '{}': {}", tmp.filename(), _filename, ec.message());
+		tmp.release();
+		_unlink = true;
+	} else
+		tmp.reset();
 
-	return ring;
+	return std::move(*ring);
 }
 
 template <typename T>

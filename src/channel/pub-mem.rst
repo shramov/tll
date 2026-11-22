@@ -39,7 +39,8 @@ is opened so old clients can not see new data.
    unlinks it on close.
 
 ``memory-file=<string>`` default empty, only for server - filename for a ring buffer, if not
-specified - use socket name with ``.mem`` suffix.
+specified - use memfd. If not supportend on current platform - emulate it with temporary file that
+is removed after mapping.
 
 ``size=<SIZE>``, default ``64kb`` - size of ring buffer, for server (``server`` or ``sub-server``)
 only. Client reads ring size from file on open.
