@@ -8,6 +8,9 @@
 #include "tll/stat.h"
 #include "tll/util/refptr.h"
 
+#include "tll/compat/symver.h"
+#include "stat-internal.h"
+
 #include <cerrno>
 #include <mutex>
 #include <vector>
@@ -66,7 +69,7 @@ struct tll_stat_iter_t : public tll::util::refbase_t<tll_stat_iter_t, 0>
 	tll_stat_page_t pers = {}; // Persistent page
 	std::string name;
 
-	tll_stat_iter_t(tll_stat_block_t * b) { reset(b); }
+	tll_stat_iter_t(tll_stat_block_t * b, tll_stat_block_version_t v) { reset(b, v); }
 
 	tll_stat_page_t * swap()
 	{
@@ -86,7 +89,7 @@ struct tll_stat_iter_t : public tll::util::refbase_t<tll_stat_iter_t, 0>
 	tll_stat_page_t * persistent()
 	{
 		std::lock_guard<std::mutex> l(lock);
-		if (!block) return nullptr;
+		if (!block || !pers.size) return nullptr;
 
 		auto p = block->persistent;
 		if (!p) return nullptr;
@@ -99,11 +102,11 @@ struct tll_stat_iter_t : public tll::util::refbase_t<tll_stat_iter_t, 0>
 	/**
 	 * Update local copy of page and name, called with lock
 	 */
-	void reset(tll_stat_block_t * b)
+	void reset(tll_stat_block_t * b, tll_stat_block_version_t v)
 	{
 		block = b;
 		name = block->name;
-		auto psize = block->persistent ? block->persistent->size : 0;
+		auto psize = (v >= TLL_STAT_BLOCK_V1 && block->persistent) ? block->persistent->size : 0;
 		buf.resize(block->inactive->size + psize);
 		page.size = block->inactive->size;
 		page.fields = &buf.front();
@@ -111,6 +114,8 @@ struct tll_stat_iter_t : public tll::util::refbase_t<tll_stat_iter_t, 0>
 			page.fields[i] = block->inactive->fields[i];
 
 		pers = {};
+		if (v < TLL_STAT_BLOCK_V1) return;
+
 		if (!block->persistent || !block->persistent->size)
 			return;
 		pers.size = block->persistent->size;
@@ -207,7 +212,7 @@ void tll_stat_list_free(tll_stat_list_t *l)
 	delete l;
 }
 
-int tll_stat_list_add(tll_stat_list_t * list, tll_stat_block_t * b)
+int tll_stat_list_add_internal(tll_stat_list_t * list, tll_stat_block_t * b, tll_stat_block_version_t version)
 {
 	if (!list) return EINVAL;
 
@@ -218,7 +223,7 @@ int tll_stat_list_add(tll_stat_list_t * list, tll_stat_block_t * b)
 		last = i;
 	}
 
-	tll::util::refptr_t<tll_stat_iter_t> ptr = new tll_stat_iter_t { b };
+	tll::util::refptr_t<tll_stat_iter_t> ptr = new tll_stat_iter_t { b, version };
 	if (last != nullptr) {
 		std::lock_guard<std::mutex> ll(last->lock);
 		last->next = std::move(ptr);
@@ -227,6 +232,24 @@ int tll_stat_list_add(tll_stat_list_t * list, tll_stat_block_t * b)
 
 	return 0;
 }
+
+extern "C" {
+TLL_SYMVER(tll_stat_list_add_v0, "tll_stat_list_add@TLL_0.0.0")
+int tll_stat_list_add_v0(tll_stat_list_t * list, tll_stat_block_t * b)
+{
+	return tll_stat_list_add_internal(list, b, TLL_STAT_BLOCK_V0);
+}
+
+TLL_SYMVER(tll_stat_list_add_v1, "tll_stat_list_add@@TLL_0.7.0")
+int tll_stat_list_add_v1(tll_stat_list_t * list, tll_stat_block_t * b)
+{
+	return tll_stat_list_add_internal(list, b, TLL_STAT_BLOCK_V1);
+}
+} // extern "C"
+
+#ifndef WITH_TLL_SYMVER
+int tll_stat_list_add(tll_stat_list_t * list, tll_stat_block_t * b) { return tll_stat_list_add_v1(list, b); }
+#endif
 
 int tll_stat_list_remove(tll_stat_list_t * list, tll_stat_block_t * b)
 {
