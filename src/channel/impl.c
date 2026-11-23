@@ -54,7 +54,7 @@ void tll_channel_internal_init_v0(tll_channel_internal_t *ptr)
 	ptr->fd = -1;
 }
 
-TLL_SYMVER(tll_channel_internal_init_v1, "tll_channel_internal_init@@TLL_0.2.0")
+TLL_SYMVER(tll_channel_internal_init_v1, "tll_channel_internal_init@TLL_0.2.0")
 void tll_channel_internal_init_v1(tll_channel_internal_t *ptr)
 {
 	memset(ptr, 0, offsetof(tll_channel_internal_t, reserved) + sizeof(ptr->reserved));
@@ -62,8 +62,16 @@ void tll_channel_internal_init_v1(tll_channel_internal_t *ptr)
 	ptr->fd = -1;
 }
 
+TLL_SYMVER(tll_channel_internal_init_v2, "tll_channel_internal_init@@TLL_0.7.0")
+void tll_channel_internal_init_v2(tll_channel_internal_t *ptr)
+{
+	memset(ptr, 0, offsetof(tll_channel_internal_t, reserved) + sizeof(ptr->reserved));
+	ptr->version = TLL_CHANNEL_INTERNAL_V2;
+	ptr->fd = -1;
+}
+
 #ifndef WITH_TLL_SYMVER
-void tll_channel_internal_init(tll_channel_internal_t *ptr) { tll_channel_internal_init_v1(ptr); }
+void tll_channel_internal_init(tll_channel_internal_t *ptr) { tll_channel_internal_init_v2(ptr); }
 #endif
 
 void tll_channel_internal_clear(tll_channel_internal_t *ptr)

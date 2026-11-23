@@ -205,6 +205,7 @@ TLL_0.6.0 {
 
 TLL_0.7.0 {
 	global:
+		tll_channel_internal_init;
 		tll_stat_iter_persistent;
 		tll_stat_list_add;
 } TLL_0.6.0;

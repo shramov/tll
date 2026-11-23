@@ -93,7 +93,8 @@ int tll_channel_log_msg(const tll_channel_t * c, const char * log, tll_logger_le
 typedef enum {
 	TLL_CHANNEL_INTERNAL_V0 = 0,
 	TLL_CHANNEL_INTERNAL_V1 = 1,
-	TLL_CHANNEL_INTERNAL_VERSION_CURRENT = TLL_CHANNEL_INTERNAL_V1,
+	TLL_CHANNEL_INTERNAL_V2 = 2, // tll_stat_block_t with persistent field
+	TLL_CHANNEL_INTERNAL_VERSION_CURRENT = TLL_CHANNEL_INTERNAL_V2,
 } tll_channel_internal_version_t;
 
 typedef struct tll_channel_internal_t

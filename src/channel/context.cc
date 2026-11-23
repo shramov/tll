@@ -28,6 +28,7 @@
 #include "tll/util/refptr.h"
 #include "tll/util/value_tree_check.h"
 
+#include "stat-internal.h"
 #include "channel/channels.h"
 
 #include "channel/async.h"
@@ -732,7 +733,8 @@ tll_channel_t * tll_channel_context_t::init(const tll::Channel::Url &_url, tll_c
 		} else
 			_log.info("Stat name for channel {}: '{}'", c->internal->name, c->internal->stat->name);
 		auto lock = wlock();
-		stat_list.add(c->internal->stat);
+		auto version = c->internal->version < TLL_CHANNEL_INTERNAL_V2 ? TLL_STAT_BLOCK_V0 : TLL_STAT_BLOCK_V1;
+		tll_stat_list_add_internal(stat_list, c->internal->stat, version);
 	}
 
 	tll_channel_context_ref(c->context);
