@@ -6,6 +6,7 @@
  */
 
 #include "tll/channel/impl.h"
+#include "tll/compat/symver.h"
 
 #include <errno.h>
 #include <string.h>
@@ -46,24 +47,14 @@ int tll_channel_list_del(tll_channel_list_t **l, const tll_channel_t *c)
 	return ENOENT;
 }
 
-#if defined(__linux__) || defined(__FreeBSD__)
-# if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 10
-#  define SYMVER(func, alias) __attribute__((symver(alias)))
-# else
-#  define SYMVER(func, alias) __asm__(".symver " #func "," alias);
-# endif
-#else
-# define SYMVER(func, alias)
-#endif
-
-SYMVER(tll_channel_internal_init_v0, "tll_channel_internal_init@TLL_0.0.0")
+TLL_SYMVER(tll_channel_internal_init_v0, "tll_channel_internal_init@TLL_0.0.0")
 void tll_channel_internal_init_v0(tll_channel_internal_t *ptr)
 {
 	memset(ptr, 0, offsetof(tll_channel_internal_t, logger));
 	ptr->fd = -1;
 }
 
-SYMVER(tll_channel_internal_init_v1, "tll_channel_internal_init@@TLL_0.2.0")
+TLL_SYMVER(tll_channel_internal_init_v1, "tll_channel_internal_init@@TLL_0.2.0")
 void tll_channel_internal_init_v1(tll_channel_internal_t *ptr)
 {
 	memset(ptr, 0, offsetof(tll_channel_internal_t, reserved) + sizeof(ptr->reserved));
@@ -71,7 +62,7 @@ void tll_channel_internal_init_v1(tll_channel_internal_t *ptr)
 	ptr->fd = -1;
 }
 
-#if !(defined(__linux__) || defined(__FreeBSD__))
+#ifndef WITH_TLL_SYMVER
 void tll_channel_internal_init(tll_channel_internal_t *ptr) { tll_channel_internal_init_v1(ptr); }
 #endif
 
