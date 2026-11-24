@@ -9,14 +9,15 @@
 #define _TLL_CHANNEL_DIRECT_H
 
 #include "tll/channel/autoseq.h"
+#include "tll/channel/multiplex.h"
 #include "channel/emulate-control.h"
 
 #include <memory>
 #include <mutex>
 
-class ChDirect : public tll::channel::EmulateControl<ChDirect, tll::channel::AutoSeq<ChDirect>>
+class ChDirect : public tll::channel::Multiplex<ChDirect, tll::channel::EmulateControl<ChDirect, tll::channel::AutoSeq<ChDirect>>>
 {
-	using Base = tll::channel::AutoSeq<ChDirect>;
+	using Base = tll::channel::Multiplex<ChDirect, tll::channel::EmulateControl<ChDirect, tll::channel::AutoSeq<ChDirect>>>;
 	enum Mode { Master = 0, Slave = 1 } _mode = Slave;
 	struct Pointers {
 		ChDirect * master = nullptr;

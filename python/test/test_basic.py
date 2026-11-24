@@ -254,6 +254,31 @@ def test_direct_scheme():
     assert c.scheme != None
     assert [m.name for m in c.scheme.messages] == ['Test']
 
+def test_direct_multiplex(context):
+    class AccumAll(Accum):
+        MASK = C.MsgMask.All ^ C.MsgMask.State
+
+    s0 = 'yamls://[{name: M0, id: 10, fields: [{name: f0, type: int32}]}]'
+    s1 = 'yamls://[{name: M1, id: 10, fields: [{name: f1, type: double}]}]'
+    s2 = 'yamls://[{name: M2, id: 10, fields: [{name: f2, type: string}]}]'
+    s = AccumAll('direct://', name='server', dump='yes', context=context, scheme=s0, **{'multiplex.16': s1, 'multiplex.17': s2})
+    c = AccumAll('direct://', name='client', dump='yes', context=context, master=s)
+
+    s.open()
+    c.open()
+
+    for r, w in [(c, s), (s, c)]:
+        assert [m.name for m in w.scheme.messages] == ['M0']
+        assert [m.name for m in w.scheme_load(16).messages] == ['M1']
+        assert [m.name for m in w.scheme_load(17).messages] == ['M2']
+
+        w.post({'f0': 10}, name='M0')
+        w.post({'f1': 12.34}, name='M1', type=16)
+        w.post({'f2': 'string'}, name='M2', type=17)
+
+        assert [(m.type, m.msgid) for m in r.result] == [(r.Type.Data, 10), (16, 10), (17, 10)]
+        assert [r.unpack(m).as_dict() for m in r.result] == [{'f0': 10}, {'f1': 12.34}, {'f2': 'string'}]
+
 def test_direct_autoseq(context):
     s = Accum(f'direct://;autoseq=yes', name='server', dump='frame', context=context)
     c = Accum('direct://', name='client', master=s, dump='frame', context=context)

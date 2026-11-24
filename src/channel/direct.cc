@@ -46,6 +46,10 @@ int ChDirect::_init(const tll::Channel::Url &url, tll::Channel * master)
 		_log.info("Inherit control scheme from master");
 		_scheme_control.reset(ptr->_scheme_control->ref());
 	}
+	if (_multiplex.scheme.empty()) {
+		for (auto &[k, v]: ptr->_multiplex.scheme)
+			_multiplex.scheme.emplace(k, tll::channel::MultiplexData::SchemeAndUrl{v.url});
+	}
 	_ptr = ptr->_ptr;
 	_log.debug("Init child of master {}", ptr->name);
 	if (_ptr.use_count() == 3)
