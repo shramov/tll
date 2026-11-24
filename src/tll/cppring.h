@@ -96,7 +96,7 @@ struct RingT
 
 	static std::unique_ptr<RingT> allocate(size_t size)
 	{
-		std::unique_ptr<RingT> ptr { (RingT *) new char[sizeof(RingT) + size] };
+		std::unique_ptr<RingT> ptr { (RingT *) new char[sizeof(RingT) + size]{} };
 		ptr->init(size);
 		return ptr;
 	}
