@@ -227,7 +227,7 @@ struct spdlog_impl_t : public tll_logger_impl_t
 		impl->log_free = [](tll_logger_impl_t * impl, const char * category, void * obj) { return static_cast<spdlog_impl_t *>(impl)->log_free(category, obj); };
 		impl->configure = [](tll_logger_impl_t * impl, const tll_config_t * cfg) { return static_cast<spdlog_impl_t *>(impl)->configure(cfg); };
 		//impl->init = [](tll_logger_impl_t * impl) { return static_cast<spdlog_impl_t *>(impl)->init(); };
-		impl->release = [](tll_logger_impl_t * impl) { return static_cast<spdlog_impl_t *>(impl)->release(); };
+		impl->release = [](tll_logger_impl_t * impl) { delete static_cast<spdlog_impl_t *>(impl); };
 		init();
 	}
 
@@ -412,16 +412,10 @@ struct spdlog_impl_t : public tll_logger_impl_t
 		node->sinks.push_back(sink_t::make_default());
 		root.reset(node);
 	}
-
-	void release()
-	{
-		root.reset(nullptr);
-	}
 };
 
 
 tll_logger_impl_t * spdlog_impl()
 {
-	static spdlog_impl_t impl;
-	return &impl;
+	return new spdlog_impl_t{};
 }
