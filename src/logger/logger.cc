@@ -266,31 +266,36 @@ struct logger_context_t
 			}
 		}
 
+		tll_logger_impl_t * iptr = nullptr;
 		auto type = cfg.get("type");
 		if (!type) {
 #ifdef WITH_SPDLOG
 		} else if (*type == "spdlog") {
-			set_impl(spdlog_impl());
+			iptr = spdlog_impl();
 #endif
 		}
 
-		if (auto ref = impl(); ref && ref->configure)
+		if (iptr) {
+			if (iptr->configure)
+				(iptr->configure)(iptr, cfg);
+			set_impl(iptr);
+		} else if (auto ref = impl(); ref && ref->configure)
 			(ref->configure)(ref.get(), cfg);
 		// TODO: Reconfigure all loggers
 
-		auto thread = cfg.getT<bool>("async");
-		if (!thread) { // Missing or invalid value, do nothing
-		} else if (*thread) {
-			auto size = cfg.getT<tll::util::Size>("ring-size").value_or(128 * 1024);
-			std::unique_ptr<Thread> tmp { new Thread() };
-			if (tmp->init(size))
-				return 0;
+		if (auto thread = cfg.getT<bool>("async"); thread) {
+			std::unique_ptr<Thread> tmp;
+			if (*thread) {
+				auto size = cfg.getT<tll::util::Size>("ring-size").value_or(128 * 1024);
+				tmp.reset(new Thread());
+				if (tmp->init(size))
+					return 0;
 
+			}
 			std::swap(_thread, tmp);
 			if (tmp)
 				tmp->stop();
-		} else if (!*thread)
-			_thread.reset();
+		}
 
 		return 0;
 	}
