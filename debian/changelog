@@ -1,3 +1,26 @@
+tll (0.7.0) unstable; urgency=medium
+
+  * channel: Bump internal struct version for new stat block
+  * cppring: Expose extra space at head and tail cachelines
+  * direct: Multiplex scheme support
+  * file: Read and write meta attributes
+  * logger: Prefix can be used without exceptions
+  * processor: Support edge triggered polling
+  * pub+mem: Socket based interaction
+  * python:
+    Export EPOLLET dcap
+    Support persistent stat pages
+  * scheme: Add warning about negative message id
+  * stat:
+    Persistent stat data
+    Export new version of list add function
+  * tcp: Export number of active connections in stat
+  * util:
+    Add Unix socket address construtor for sockaddr_any
+    Move symver macros into common header
+
+ -- Pavel Shramov <shramov@mexmat.net>  Thu, 26 Nov 2026 15:44:14 +0300
+
 tll (0.6.4) unstable; urgency=medium
 
   * logger:
